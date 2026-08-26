@@ -1,0 +1,3203 @@
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import { useData } from "@/lib/store/data";
+import { Card, CardBody } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/SearchInput";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { formatDA } from "@/lib/utils";
+import {
+  cycleSizeOf,
+  formatDateFr,
+  groupSeanceTotals,
+  moduleName as moduleNameOf,
+  monthlyPriceOf,
+  schoolMonthShareOf,
+  schoolPerSeanceOf,
+  seancePriceOf,
+  sessionGroupsLabel,
+  sessionTimeLabel,
+  studentDebt,
+  studentName as studentNameOf,
+  teacherMonthShareOf,
+  teacherPerSeanceOf,
+  totalRemainingSeances,
+} from "@/lib/helpers";
+import {
+  Calendar,
+  FileText,
+  ArrowUpRight,
+  ArrowDownLeft,
+  DollarSign,
+  Wallet,
+  FileSpreadsheet,
+  AlertCircle,
+  Users,
+  Search,
+  BookOpen,
+  Receipt,
+  X,
+  Layers,
+  GraduationCap,
+  Ticket,
+  Puzzle,
+  Banknote,
+  PiggyBank,
+  ChevronRight,
+  CircleDollarSign,
+  UserCog,
+  ClipboardList,
+  PieChart as PieIcon,
+  CalendarClock,
+  Filter,
+  HandCoins,
+  RotateCcw,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
+
+/* ------------------------------------------------------------------ */
+/* Types & small helpers                                               */
+/* ------------------------------------------------------------------ */
+
+type Tone = "success" | "danger" | "warning" | "primary" | "neutral" | "sky" | "violet";
+
+const TONE_TEXT: Record<Tone, string> = {
+  success: "text-success",
+  danger: "text-danger",
+  warning: "text-warning",
+  primary: "text-primary",
+  neutral: "text-ink",
+  sky: "text-sky-500",
+  violet: "text-violet-500",
+};
+
+const TONE_SOFT: Record<Tone, string> = {
+  success: "bg-success/10 text-success",
+  danger: "bg-danger/10 text-danger",
+  warning: "bg-warning/10 text-warning",
+  primary: "bg-primary/10 text-primary",
+  neutral: "bg-ink/10 text-ink",
+  sky: "bg-sky-500/10 text-sky-500",
+  violet: "bg-violet-500/10 text-violet-500",
+};
+
+/** Badge only supports a narrower tone set — collapse the extras. */
+type BadgeTone = "success" | "warning" | "danger" | "primary" | "neutral";
+const badgeTone = (t: Tone): BadgeTone => (t === "sky" ? "primary" : t === "violet" ? "primary" : t);
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+interface DetailColumn {
+  label: string;
+  align?: "right";
+  render: (row: any) => ReactNode;
+}
+interface DetailSpec {
+  columns: DetailColumn[];
+  rows: any[];
+  totalLabel?: string;
+  totalValue?: string;
+  totalTone?: Tone;
+  searchable?: (row: any) => string;
+  empty?: string;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+interface MetricSpec {
+  label: string;
+  value: string;
+  tone: Tone;
+  icon: ReactNode;
+  hint?: string;
+  detail?: DetailSpec;
+  featured?: boolean;
+}
+
+interface CalcLine {
+  label: string;
+  value: string;
+  tone?: Tone;
+  strong?: boolean;
+  emphasis?: boolean;
+  formula?: string;
+  /** La ligne aussi s'ouvre : le détail exact du chiffre qu'elle annonce. */
+  detail?: DetailSpec;
+}
+interface CalcPanel {
+  title: string;
+  subtitle?: string;
+  icon: ReactNode;
+  lines: CalcLine[];
+  note?: string;
+}
+
+interface Section {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  /** Ce que la section répond, en une phrase — affiché sous son titre. */
+  subtitle?: string;
+  cards: MetricSpec[];
+  panels: CalcPanel[];
+  /** Free-form block rendered under the cards/panels (charts, custom tables). */
+  custom?: ReactNode;
+  /** Les tableaux détaillés que la section déplie sous ses cartes. */
+  tables?: { title: string; icon?: ReactNode; note?: string; spec: DetailSpec }[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Generic detail table                                                */
+/* ------------------------------------------------------------------ */
+
+function DetailTable({ spec, search }: { spec: DetailSpec; search: string }) {
+  const rows = search.trim()
+    ? spec.rows.filter((r) => (spec.searchable?.(r) ?? "").toLowerCase().includes(search.toLowerCase()))
+    : spec.rows;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-muted">{rows.length} élément(s)</span>
+        {spec.totalValue && (
+          <span className={`text-sm font-extrabold ${TONE_TEXT[spec.totalTone ?? "primary"]}`}>
+            {spec.totalLabel ?? "Total"} : {spec.totalValue}
+          </span>
+        )}
+      </div>
+      <div className="max-h-[26rem] overflow-auto rounded-2xl border border-line">
+        <table className="w-full border-collapse text-left text-xs">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-line bg-canvas text-muted">
+              {spec.columns.map((c, i) => (
+                <th key={i} className={`p-3 font-bold ${c.align === "right" ? "text-right" : ""}`}>
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={spec.columns.length} className="p-6 text-center italic text-muted">
+                  {spec.empty ?? "Aucune donnée pour cette période."}
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, ri) => (
+                <tr key={ri} className="transition-colors hover:bg-primary-50/10">
+                  {spec.columns.map((c, ci) => (
+                    <td key={ci} className={`p-3 align-middle ${c.align === "right" ? "text-right" : ""}`}>
+                      {c.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Metric card                                                         */
+/* ------------------------------------------------------------------ */
+
+function MetricCard({ spec, onOpen }: { spec: MetricSpec; onOpen: (s: MetricSpec) => void }) {
+  const clickable = !!spec.detail;
+
+  if (spec.featured) {
+    return (
+      <div className="flex items-center justify-between rounded-2xl border border-line bg-gradient-to-br from-primary-600 to-primary-750 p-5 text-white card-shadow">
+        <div className="space-y-1">
+          <span className="block text-[10px] font-bold uppercase tracking-wider text-white/80">{spec.label}</span>
+          <strong className="block text-2xl font-black">{spec.value}</strong>
+          {spec.hint && <span className="block text-[9px] italic text-white/70">{spec.hint}</span>}
+        </div>
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white">{spec.icon}</div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={() => clickable && onOpen(spec)}
+      className={`group relative block rounded-2xl border border-line bg-surface p-5 text-start card-shadow transition-all ${
+        clickable ? "hover:-translate-y-0.5 hover:border-primary hover:shadow-lg" : "cursor-default opacity-95"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <span className="block text-[10px] font-bold uppercase tracking-wider text-muted">{spec.label}</span>
+          <strong className={`block text-2xl font-black ${TONE_TEXT[spec.tone]}`}>{spec.value}</strong>
+          {clickable ? (
+            <span className="flex items-center gap-0.5 text-[9px] italic text-muted group-hover:text-primary group-hover:underline">
+              {spec.hint ?? "Cliquer pour voir le détail"} <ChevronRight className="h-3 w-3" />
+            </span>
+          ) : (
+            spec.hint && <span className="block text-[9px] italic text-muted">{spec.hint}</span>
+          )}
+        </div>
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${TONE_SOFT[spec.tone]}`}
+        >
+          {spec.icon}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Small-calculations panel                                            */
+/* ------------------------------------------------------------------ */
+
+function CalcCard({
+  panel,
+  onOpen,
+}: {
+  panel: CalcPanel;
+  onOpen?: (title: string, spec: DetailSpec) => void;
+}) {
+  return (
+    <Card className="border border-line card-shadow">
+      <CardBody className="space-y-4 p-5">
+        <div>
+          <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink">
+            {panel.icon} {panel.title}
+          </h4>
+          {panel.subtitle && <p className="text-[11px] text-muted">{panel.subtitle}</p>}
+        </div>
+        <div className="space-y-1.5 text-xs">
+          {panel.lines.map((l, i) => (
+            <div
+              key={i}
+              role={l.detail && onOpen ? "button" : undefined}
+              tabIndex={l.detail && onOpen ? 0 : undefined}
+              onClick={() => l.detail && onOpen?.(l.label, l.detail)}
+              className={`flex items-center justify-between rounded-xl px-2 py-2 ${
+                l.emphasis
+                  ? `border border-line/60 ${l.tone ? TONE_SOFT[l.tone].split(" ")[0] + "/40" : "bg-canvas/40"}`
+                  : "border-b border-line/40"
+              } ${l.detail && onOpen ? "cursor-pointer transition-colors hover:bg-primary-50/40" : ""}`}
+            >
+              <span className={`flex items-center gap-1.5 ${l.strong || l.emphasis ? "font-bold text-ink" : "text-muted"}`}>
+                {l.tone && !l.emphasis && <span className={`h-2 w-2 rounded-full ${TONE_SOFT[l.tone].split(" ")[0]}`} />}
+                <span>
+                  {l.label}
+                  {l.formula && <span className="ml-1 block text-[9px] font-normal not-italic text-muted">{l.formula}</span>}
+                </span>
+              </span>
+              <strong className={`flex items-center gap-1 ${l.tone ? TONE_TEXT[l.tone] : "text-ink"}`}>
+                {l.value}
+                {l.detail && onOpen && <ChevronRight className="h-3 w-3 opacity-60" />}
+              </strong>
+            </div>
+          ))}
+        </div>
+        {panel.note && <p className="text-[10px] leading-relaxed text-muted">{panel.note}</p>}
+      </CardBody>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Donut chart (pure SVG — no chart library in the dependency list)    */
+/* ------------------------------------------------------------------ */
+
+interface Slice {
+  label: string;
+  value: number;
+  color: string;
+  hint?: string;
+}
+
+/**
+ * Ring chart: one arc per slice, drawn with stroke-dasharray on concentric
+ * circles. Percentages are computed against the sum of the slices, so the
+ * ring always closes. The centre shows the headline figure.
+ */
+function DonutChart({
+  slices,
+  centerLabel,
+  centerValue,
+  centerTone = "text-ink",
+}: {
+  slices: Slice[];
+  centerLabel: string;
+  centerValue: string;
+  centerTone?: string;
+}) {
+  const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+
+  // Each arc starts where the previous ones ended, so the offset is the sum of
+  // every fraction before it (no accumulator mutated inside the map).
+  const fractions = slices.map((s) => (total > 0 ? Math.max(0, s.value) / total : 0));
+  const arcs = slices.map((s, i) => {
+    const fraction = fractions[i];
+    const before = fractions.slice(0, i).reduce((a, b) => a + b, 0);
+    return {
+      ...s,
+      pct: fraction * 100,
+      dash: `${fraction * circumference} ${circumference}`,
+      // Negative offset because the ring is drawn clockwise from 12 o'clock.
+      offsetDash: -before * circumference,
+    };
+  });
+
+  return (
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
+      <div className="relative shrink-0">
+        <svg width="190" height="190" viewBox="0 0 190 190" className="-rotate-90">
+          <circle cx="95" cy="95" r={radius} fill="none" strokeWidth="28" className="stroke-line/60" />
+          {arcs.map((a, i) =>
+            a.pct > 0 ? (
+              <circle
+                key={i}
+                cx="95"
+                cy="95"
+                r={radius}
+                fill="none"
+                strokeWidth="28"
+                stroke={a.color}
+                strokeDasharray={a.dash}
+                strokeDashoffset={a.offsetDash}
+              />
+            ) : null,
+          )}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted">{centerLabel}</span>
+          <strong className={`text-lg font-black ${centerTone}`}>{centerValue}</strong>
+        </div>
+      </div>
+
+      {/* Legend: the same numbers, spelled out beside the ring */}
+      <div className="w-full flex-1 space-y-2">
+        {arcs.map((a, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-line/60 bg-canvas/30 px-3 py-2">
+            <span className="flex min-w-0 items-center gap-2 text-xs">
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: a.color }} />
+              <span className="min-w-0">
+                <strong className="block truncate text-ink">{a.label}</strong>
+                {a.hint && <span className="block text-[9px] text-muted">{a.hint}</span>}
+              </span>
+            </span>
+            <span className="shrink-0 text-right">
+              <strong className="block text-xs text-ink">{formatDA(a.value)}</strong>
+              <span className="block text-[10px] font-bold text-muted">{a.pct.toFixed(1)} %</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Slim horizontal bar used by the per-teacher contribution list. */
+function ShareBar({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-line/60">
+      <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, backgroundColor: color }} />
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* Page                                                                */
+/* ================================================================== */
+
+export function ReportsPage() {
+  const db = useData();
+  const {
+    cash,
+    students,
+    unpaidTeacher,
+    expenses,
+    teachers,
+    modules,
+    sessions,
+    classes,
+    reception,
+    acomptes,
+    absences,
+    payments,
+    enrollments,
+    attendance,
+    independent,
+    groupSeances,
+    coursework,
+    subscriptions,
+    categories,
+    parents,
+    teacherPayments,
+  } = db;
+
+  const [startDate, setStartDate] = useState(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
+  );
+  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]);
+
+  /**
+   * LE BILAN S'OUVRE DÉJÀ CALCULÉ.
+   *
+   * L'écran attendait un clic sur « Générer » avant d'afficger quoi que ce
+   * soit : on arrivait sur une page vide alors que la question — « où en est
+   * l'école ce mois-ci ? » — a toujours la même réponse par défaut. Il s'ouvre
+   * donc sur le mois en cours, et les périodes se changent d'un clic.
+   */
+  const [isGenerated, setIsGenerated] = useState(true);
+  const [reportRange, setReportRange] = useState<{ start: string; end: string } | null>(() => ({
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      .toISOString()
+      .split("T")[0],
+    end: new Date().toISOString().split("T")[0],
+  }));
+
+  /**
+   * LES FILTRES TRANSVERSES — ils s'appliquent à TOUTES les sections.
+   *
+   * Un bilan ne se lit presque jamais « en entier » : on veut le mois de la 4AP,
+   * ou ce qu'un enseignant a produit, ou ce qu'un module a rapporté. Ces quatre
+   * filtres restreignent les ENSEMBLES DE BASE (présences, paiements, dues,
+   * inscriptions), donc chaque carte, chaque panneau et chaque tableau de
+   * l'écran parle du même périmètre — il n'y a pas un endroit qui filtre et un
+   * autre qui totalise tout.
+   */
+  const [classFilter, setClassFilter] = useState("all");
+  const [teacherFilter, setTeacherFilter] = useState("all");
+  const [moduleFilter, setModuleFilter] = useState("all");
+  const [sessionFilter, setSessionFilter] = useState("all");
+  /**
+   * LE MOIS D'EMPLOI DU TEMPS (M1 … M12).
+   *
+   * Les mois de l'école ne sont pas ceux du calendrier : chaque emploi du temps
+   * compte les siens. Ce filtre ne touche donc pas la PÉRIODE — il restreint la
+   * paie des enseignants au mois d'emploi du temps réglé, la seule façon de
+   * répondre à « le M3 de ce groupe, il a été payé combien ? ».
+   */
+  const [monthFilter, setMonthFilter] = useState("all");
+  const [entitySearch, setEntitySearch] = useState("");
+
+  const filtersActive =
+    classFilter !== "all" ||
+    teacherFilter !== "all" ||
+    moduleFilter !== "all" ||
+    sessionFilter !== "all" ||
+    monthFilter !== "all" ||
+    entitySearch.trim().length > 0;
+
+  const resetFilters = () => {
+    setClassFilter("all");
+    setTeacherFilter("all");
+    setModuleFilter("all");
+    setSessionFilter("all");
+    setMonthFilter("all");
+    setEntitySearch("");
+  };
+
+  /** Les raccourcis de période — ce que la réception demande neuf fois sur dix. */
+  const applyPreset = (preset: "today" | "week" | "month" | "quarter" | "year" | "all") => {
+    const now = new Date();
+    const iso = (d: Date) => d.toLocaleDateString("fr-CA");
+    const end = iso(now);
+    let start = end;
+    if (preset === "week") {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 6);
+      start = iso(d);
+    } else if (preset === "month") {
+      start = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+    } else if (preset === "quarter") {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - 2);
+      start = iso(new Date(d.getFullYear(), d.getMonth(), 1));
+    } else if (preset === "year") {
+      start = iso(new Date(now.getFullYear(), 0, 1));
+    } else if (preset === "all") {
+      start = "1970-01-01";
+    }
+    setStartDate(start);
+    setEndDate(end);
+    setReportRange({ start, end });
+    setIsGenerated(true);
+  };
+
+  const [activeSection, setActiveSection] = useState("overview");
+
+  const [detail, setDetail] = useState<{ title: string; spec: DetailSpec } | null>(null);
+  const [modalSearch, setModalSearch] = useState("");
+  /** La recherche propre à chaque tableau déplié, par section. */
+  const [tableSearch, setTableSearch] = useState<Record<string, string>>({});
+
+  /** "Analyse générale" tab: focus the per-teacher breakdown on one teacher. */
+  const [teacherAnalysisId, setTeacherAnalysisId] = useState("all");
+
+  const handleGenerate = () => {
+    if (!startDate || !endDate) {
+      alert("Veuillez sélectionner les dates de début et de fin.");
+      return;
+    }
+    if (startDate > endDate) {
+      alert("La date de début doit précéder la date de fin.");
+      return;
+    }
+    setReportRange({ start: startDate, end: endDate });
+    setActiveSection("overview");
+    setIsGenerated(true);
+  };
+
+  const openDetail = (s: MetricSpec) => {
+    if (!s.detail) return;
+    setModalSearch("");
+    setDetail({ title: s.label, spec: s.detail });
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* All calculations — only meaningful once generated                */
+  /* ---------------------------------------------------------------- */
+
+  const report = useMemo<{ sections: Section[] } | null>(() => {
+    if (!isGenerated || !reportRange) return null;
+
+    const inRange = (dateStr: string) => {
+      const d = (dateStr || "").substring(0, 10);
+      return d >= reportRange.start && d <= reportRange.end;
+    };
+    const sum = <T,>(arr: T[], pick: (x: T) => number) => arr.reduce((s, x) => s + pick(x), 0);
+
+    const teacherIds = new Set(teachers.map((t) => t.id));
+    const receptionIds = new Set(reception.map((r) => r.id));
+
+    // Resolvers
+    const sName = (id?: string) => {
+      const s = students.find((x) => x.id === id);
+      return s ? `${s.firstName} ${s.lastName}` : "—";
+    };
+    const tName = (id?: string) => {
+      const t = teachers.find((x) => x.id === id);
+      if (t) return `${t.firstName} ${t.lastName}`;
+      const r = reception.find((x) => x.id === id);
+      return r ? `${r.firstName} ${r.lastName}` : "—";
+    };
+    const modName = (sessionId?: string) => {
+      const se = sessions.find((s) => s.id === sessionId);
+      return se ? modules.find((m) => m.id === se.moduleId)?.name ?? "Séance" : "Séance";
+    };
+    const clsName = (sessionId?: string) => {
+      const se = sessions.find((s) => s.id === sessionId);
+      return se ? classes.find((c) => c.id === se.classId)?.name ?? "" : "";
+    };
+
+    // Formatting
+    const inflow = (n: number) => `+${formatDA(Math.abs(n))}`;
+    const outflow = (n: number) => `-${formatDA(Math.abs(n))}`;
+    const signed = (n: number) => (n >= 0 ? `+${formatDA(Math.abs(n))}` : `-${formatDA(Math.abs(n))}`);
+
+    /**
+     * LE PÉRIMÈTRE DES FILTRES, résolu une fois.
+     *
+     * Les quatre filtres portent sur des objets différents (une classe, un
+     * enseignant, un module, un emploi du temps) mais désignent tous, au fond,
+     * un ENSEMBLE D'EMPLOIS DU TEMPS — et donc un ensemble d'abonnements et
+     * d'élèves. On les résout ici, une seule fois, et tout l'écran s'y range.
+     */
+    const scopeSessionIds: Set<string> | null = (() => {
+      if (classFilter === "all" && teacherFilter === "all" && moduleFilter === "all" && sessionFilter === "all") {
+        return null;
+      }
+      const ids = sessions
+        .filter((se) => {
+          if (sessionFilter !== "all" && se.id !== sessionFilter) return false;
+          if (teacherFilter !== "all" && se.teacherId !== teacherFilter) return false;
+          if (moduleFilter !== "all" && se.moduleId !== moduleFilter) return false;
+          if (classFilter !== "all") {
+            const list = se.isOpen && se.classIds?.length ? se.classIds : [se.classId];
+            if (!list.includes(classFilter)) return false;
+          }
+          return true;
+        })
+        .map((se) => se.id);
+      return new Set(ids);
+    })();
+
+    const scopeSubIds: Set<string> | null = scopeSessionIds
+      ? new Set(subscriptions.filter((x) => scopeSessionIds.has(x.sessionId)).map((x) => x.id))
+      : null;
+
+    /** Les élèves du périmètre — inscrits sur l'un de ses emplois du temps. */
+    const scopeStudentIds: Set<string> | null = scopeSubIds
+      ? new Set(
+          students
+            .filter((st) => st.subscriptionIds.some((id) => scopeSubIds!.has(id)))
+            .map((st) => st.id),
+        )
+      : null;
+
+    /** La recherche libre : un nom d'élève, un numéro d'inscription. */
+    const q = entitySearch.trim().toLowerCase();
+    const matchesStudent = (id?: string) => {
+      if (!q) return true;
+      const st = students.find((x) => x.id === id);
+      if (!st) return false;
+      return `${st.firstName} ${st.lastName} ${st.registrationNumber ?? ""} ${st.phone ?? ""}`
+        .toLowerCase()
+        .includes(q);
+    };
+
+    const inScopeStudent = (id?: string) =>
+      (!scopeStudentIds || (!!id && scopeStudentIds.has(id))) && matchesStudent(id);
+    const inScopeSession = (id?: string) => !scopeSessionIds || (!!id && scopeSessionIds.has(id));
+
+    // Range-filtered raw sets — le périmètre des filtres compris.
+    const fCash = cash.filter((t) => inRange(t.date));
+    const fPay = payments
+      .filter((p) => inRange(p.date))
+      .filter((p) => inScopeStudent(p.studentId))
+      .filter((p) => !scopeSubIds || (!!p.subscriptionId && scopeSubIds.has(p.subscriptionId)));
+    const fAtt = attendance
+      .filter((a) => inRange(a.timestamp))
+      .filter((a) => inScopeSession(a.sessionId))
+      .filter((a) => inScopeStudent(a.studentId));
+    const fExp = expenses.filter((e) => inRange(e.date));
+    const fAco = acomptes.filter((a) => inRange(a.date));
+    const fAbs = absences.filter((a) => inRange(a.date));
+    const fInd = independent.filter((i) => inRange(i.date));
+    // Les séances libres vendues à un GROUPE : leur recette, la part de
+    // l'école et la paie de l'enseignant, toutes trois déjà en caisse.
+    const fGroup = groupSeances.filter((g) => inRange(g.date));
+    const groupTotals = fGroup.map((g) => ({ g, t: groupSeanceTotals(g) }));
+    const groupRevenue = groupTotals.reduce((n, r) => n + r.t.total, 0);
+    const groupSchool = groupTotals.reduce((n, r) => n + r.t.schoolTotal, 0);
+    const groupTeacher = groupTotals.reduce((n, r) => n + r.t.teacherTotal, 0);
+    const groupStudents = groupTotals.reduce((n, r) => n + r.t.students, 0);
+    const fUnpaidRange = unpaidTeacher
+      .filter((u) => inRange(u.date))
+      .filter((u) => inScopeSession(u.sessionId))
+      .filter((u) => inScopeStudent(u.studentId));
+
+    // Reusable cell renderers
+    const dateCell = (d: string) => <span className="font-mono text-[10px] text-muted">{(d || "").substring(0, 10)}</span>;
+    const dateTimeCell = (d: string) => {
+      const dt = new Date(d);
+      return (
+        <span className="font-mono text-[10px] text-muted">
+          {dt.toLocaleDateString("fr-DZ")} {dt.toLocaleTimeString("fr-DZ", { hour: "2-digit", minute: "2-digit" })}
+        </span>
+      );
+    };
+
+    /* ============================= STUDENTS ============================ */
+    // Everything a student pays now flows through : a purchase of
+    // séances, or a settlement of an earlier reste à payer.
+    const purchases = fPay.filter((p) => p.type === "subscription_payment");
+    const versements = sum(fPay, (p) => p.amountPaid);
+    const registrationSettled = 0;
+    const debtPayments = sum(
+      fPay.filter((p) => p.type === "debt_payment"),
+      (p) => p.amountPaid,
+    );
+    // What the school billed over the range (net of the remises granted).
+    const billedNet = sum(purchases, (p) => p.netTotal);
+    const seancesSold = sum(purchases, (p) => p.seancesPurchased);
+    /** Les élèves du PÉRIMÈTRE — ceux que les filtres du haut désignent. */
+    const scopedStudents = students.filter((st) => inScopeStudent(st.id));
+    const seancesLeft = sum(scopedStudents, (st) => totalRemainingSeances(db, st.id));
+    const totalDebts = sum(scopedStudents, (st) => studentDebt(db, st.id) + (st.registrationDue || 0));
+    const debtors = scopedStudents.filter(
+      (st) => studentDebt(db, st.id) > 0 || (st.registrationDue && st.registrationDue > 0),
+    );
+    const freeCount = scopedStudents.filter((s) => s.isFree).length;
+
+    const amountCell = (tone: Tone, prefix: "" | "+" | "-" = "") => (row: { amount: number }) => (
+      <strong className={`font-extrabold ${TONE_TEXT[tone]}`}>
+        {prefix === "+" ? inflow(row.amount) : prefix === "-" ? outflow(row.amount) : formatDA(row.amount)}
+      </strong>
+    );
+
+    const studentsSection: Section = {
+      id: "students",
+      label: "Élèves",
+      icon: <Users className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Encaissé auprès des élèves (période)",
+          value: inflow(versements),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Désignation", render: (r) => <span className="text-muted">{r.description ?? "—"}</span> },
+              { label: "Séances", align: "right", render: (r) => <span className="text-muted">{r.seancesPurchased || "—"}</span> },
+              { label: "Payé", align: "right", render: (r) => <strong className="text-success">{inflow(r.amountPaid)}</strong> },
+            ],
+            rows: fPay,
+            totalLabel: "Total encaissé",
+            totalValue: inflow(versements),
+            totalTone: "success",
+            searchable: (r) => `${sName(r.studentId)} ${r.description ?? ""} ${r.amountPaid}`,
+          },
+        },
+        {
+          label: "Séances vendues (période)",
+          value: `${seancesSold}`,
+          tone: "primary",
+          icon: <CircleDollarSign className="h-5 w-5" />,
+          hint: `Facturé net : ${formatDA(billedNet)}`,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Module", render: (r) => <span className="text-primary">{r.description ?? "—"}</span> },
+              { label: "Séances", align: "right", render: (r) => <strong className="text-ink">{r.seancesPurchased}</strong> },
+              { label: "Prix séance", align: "right", render: (r) => <span className="text-muted">{formatDA(r.unitPrice)}</span> },
+              { label: "Net", align: "right", render: (r) => <strong className="text-primary">{formatDA(r.netTotal)}</strong> },
+            ],
+            rows: purchases,
+            totalLabel: "Séances vendues",
+            totalValue: `${seancesSold}`,
+            totalTone: "primary",
+            searchable: (r) => `${sName(r.studentId)} ${r.description ?? ""}`,
+          },
+        },
+        {
+          label: "Remises accordées (période)",
+          value: outflow(sum(purchases, (p) => p.grossTotal - p.netTotal)),
+          tone: "sky",
+          icon: <ClipboardList className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Brut", align: "right", render: (r) => <span className="text-muted">{formatDA(r.grossTotal)}</span> },
+              { label: "Net", align: "right", render: (r) => <span className="text-muted">{formatDA(r.netTotal)}</span> },
+              {
+                label: "Remise",
+                align: "right",
+                render: (r) => <strong className="text-sky-500">{formatDA(r.grossTotal - r.netTotal)}</strong>,
+              },
+            ],
+            rows: purchases.filter((p) => p.grossTotal > p.netTotal),
+            totalLabel: "Total des remises",
+            totalValue: formatDA(sum(purchases, (p) => p.grossTotal - p.netTotal)),
+            totalTone: "sky",
+            empty: "Aucune remise accordée sur la période.",
+            searchable: (r) => sName(r.studentId),
+          },
+        },
+        {
+          label: "Règlements de dette",
+          value: inflow(debtPayments),
+          tone: "success",
+          icon: <Banknote className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.amountPaid)}</strong> },
+            ],
+            rows: fPay.filter((p) => p.type === "debt_payment"),
+            totalLabel: "Total réglé",
+            totalValue: inflow(debtPayments),
+            totalTone: "success",
+            empty: "Aucun règlement de dette sur la période.",
+            searchable: (r) => sName(r.studentId),
+          },
+        },
+        {
+          label: "Séances restantes (global)",
+          value: `${seancesLeft}`,
+          tone: "neutral",
+          icon: <Wallet className="h-5 w-5" />,
+          hint: "Prestations dues aux élèves",
+          detail: {
+            columns: [
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
+              { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
+              { label: "Abon.", align: "right", render: (r) => <span className="text-muted">{r.subscriptionIds.length}</span> },
+              {
+                label: "Séances restantes",
+                align: "right",
+                render: (r) => {
+                  const left = totalRemainingSeances(db, r.id);
+                  return (
+                    <strong className={left === 0 ? "text-danger" : left <= 2 ? "text-warning" : "text-success"}>
+                      {left}
+                    </strong>
+                  );
+                },
+              },
+              {
+                label: "Statut",
+                align: "right",
+                render: (r) =>
+                  r.isFree ? (
+                    <Badge tone="primary">Gratuit</Badge>
+                  ) : studentDebt(db, r.id) > 0 ? (
+                    <Badge tone="danger">Dette</Badge>
+                  ) : (
+                    <Badge tone="success">OK</Badge>
+                  ),
+              },
+            ],
+            rows: [...scopedStudents].sort(
+              (a, b) => totalRemainingSeances(db, b.id) - totalRemainingSeances(db, a.id),
+            ),
+            totalLabel: "Séances restantes cumulées",
+            totalValue: `${seancesLeft}`,
+            totalTone: "neutral",
+            searchable: (r) => `${r.firstName} ${r.lastName} ${r.phone}`,
+          },
+        },
+        {
+          label: "Restes à payer (global)",
+          value: formatDA(totalDebts),
+          tone: "warning",
+          icon: <AlertCircle className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
+              { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
+              { label: "Inscr.", align: "right", render: (r) => <span className="text-danger">{formatDA(r.registrationDue || 0)}</span> },
+              { label: "Séances", align: "right", render: (r) => <span className="text-danger">{formatDA(studentDebt(db, r.id))}</span> },
+              {
+                label: "Dette totale",
+                align: "right",
+                render: (r) => (
+                  <strong className="text-danger">{formatDA(studentDebt(db, r.id) + (r.registrationDue || 0))}</strong>
+                ),
+              },
+            ],
+            rows: debtors,
+            totalLabel: "Dette globale",
+            totalValue: formatDA(totalDebts),
+            totalTone: "warning",
+            empty: "Aucune dette active.",
+            searchable: (r) => `${r.firstName} ${r.lastName} ${r.phone}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Synthèse des flux élèves",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <Users className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Achats de séances (net facturé)", value: formatDA(billedNet), tone: "primary" },
+            { label: "Règlements de dettes", value: inflow(debtPayments), tone: "success" },
+            {
+              label: "Total encaissé auprès des élèves",
+              value: inflow(versements),
+              tone: "success",
+              emphasis: true,
+            },
+            { label: "Séances vendues", value: `${seancesSold}`, tone: "primary" },
+            {
+              label: "Remises accordées",
+              value: outflow(sum(purchases, (p) => p.grossTotal - p.netTotal)),
+              tone: "sky",
+            },
+          ],
+        },
+        {
+          title: "État des comptes élèves",
+          icon: <Wallet className="h-4 w-4 text-warning" />,
+          lines: [
+            { label: "Élèves inscrits", value: `${scopedStudents.length}`, strong: true },
+            { label: "Dont cas gratuits", value: `${freeCount}`, tone: "primary" },
+            { label: "Élèves avec un reste à payer", value: `${debtors.length}`, tone: "warning" },
+            { label: "Séances restantes cumulées", value: `${seancesLeft}`, strong: true },
+            { label: "Restes à payer cumulés", value: formatDA(totalDebts), tone: "warning", emphasis: true },
+          ],
+          note: "Les séances restantes sont des prestations déjà payées que l'école doit encore assurer.",
+        },
+      ],
+    };
+
+    /* ========================= ATTENDANCE / SÉANCES ==================== */
+    const seanceRevenue = sum(fAtt, (a) => a.amountDeducted);
+    const presentCount = fAtt.filter((a) => a.status === "present").length;
+    const lateCount = fAtt.filter((a) => a.status === "late").length;
+    const unpaidGlobal = unpaidTeacher.filter((u) => !u.paid);
+    const unpaidGlobalTotal = sum(unpaidGlobal, (u) => u.amount);
+    const unpaidRangeTotal = sum(
+      fUnpaidRange.filter((u) => !u.paid),
+      (u) => u.amount,
+    );
+
+    const attendanceRows = [...fAtt].sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+
+    const attendanceSection: Section = {
+      id: "attendance",
+      label: "Séances & Présences",
+      icon: <ClipboardList className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Recette des séances (présences)",
+          value: inflow(seanceRevenue),
+          tone: "success",
+          icon: <CircleDollarSign className="h-5 w-5" />,
+          hint: "Montants débités via scans RFID",
+          detail: {
+            columns: [
+              { label: "Date & heure", render: (r) => dateTimeCell(r.timestamp) },
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              {
+                label: "Séance",
+                render: (r) => (
+                  <span>
+                    <span className="font-semibold text-primary">{modName(r.sessionId)}</span>
+                    <span className="text-muted"> {clsName(r.sessionId) && `(${clsName(r.sessionId)})`}</span>
+                  </span>
+                ),
+              },
+              { label: "Statut", render: (r) => <Badge tone={r.status === "late" ? "warning" : "success"}>{r.status === "late" ? "Retard" : "Présent"}</Badge> },
+              { label: "Débité", align: "right", render: (r) => <strong className="text-success">{formatDA(r.amountDeducted)}</strong> },
+            ],
+            rows: attendanceRows,
+            totalLabel: "Recette séances",
+            totalValue: inflow(seanceRevenue),
+            totalTone: "success",
+            searchable: (r) => `${sName(r.studentId)} ${modName(r.sessionId)} ${clsName(r.sessionId)}`,
+          },
+        },
+        {
+          label: "Séances profs NON payées (global)",
+          value: formatDA(unpaidGlobalTotal),
+          tone: "warning",
+          icon: <AlertCircle className="h-5 w-5" />,
+          hint: "Dû aux enseignants au %",
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Élève", render: (r) => <span className="text-muted">{sName(r.studentId)}</span> },
+              { label: "Module", render: (r) => <span className="font-semibold text-primary">{modName(r.sessionId)}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-warning">{formatDA(r.amount)}</strong> },
+            ],
+            rows: unpaidGlobal,
+            totalLabel: "Dû aux profs",
+            totalValue: formatDA(unpaidGlobalTotal),
+            totalTone: "warning",
+            empty: "Toutes les séances enseignants sont réglées.",
+            searchable: (r) => `${tName(r.teacherId)} ${sName(r.studentId)} ${modName(r.sessionId)}`,
+          },
+        },
+        {
+          label: "Présences validées (période)",
+          value: `${presentCount + lateCount}`,
+          tone: "primary",
+          icon: <ClipboardList className="h-5 w-5" />,
+          hint: `${presentCount} à l'heure · ${lateCount} en retard`,
+          detail: {
+            columns: [
+              { label: "Date & heure", render: (r) => dateTimeCell(r.timestamp) },
+              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Séance", render: (r) => <span className="font-semibold text-primary">{modName(r.sessionId)}</span> },
+              { label: "Statut", render: (r) => <Badge tone={r.status === "late" ? "warning" : "success"}>{r.status === "late" ? "Retard" : "Présent"}</Badge> },
+            ],
+            rows: attendanceRows,
+            totalLabel: "Total scans",
+            totalValue: `${fAtt.length}`,
+            totalTone: "primary",
+            searchable: (r) => `${sName(r.studentId)} ${modName(r.sessionId)}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Bilan des présences",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <ClipboardList className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Scans à l'heure", value: `${presentCount}`, tone: "success" },
+            { label: "Scans en retard", value: `${lateCount}`, tone: "warning" },
+            { label: "Total présences", value: `${presentCount + lateCount}`, strong: true, emphasis: true },
+            { label: "Recette générée par les séances", value: inflow(seanceRevenue), tone: "success" },
+          ],
+        },
+        {
+          title: "Charges enseignants sur séances",
+          icon: <AlertCircle className="h-4 w-4 text-warning" />,
+          lines: [
+            { label: "Séances non payées (sur la période)", value: formatDA(unpaidRangeTotal), tone: "warning" },
+            { label: "Séances non payées (cumul global)", value: formatDA(unpaidGlobalTotal), tone: "warning", emphasis: true },
+            {
+              label: "Marge brute séances (recette − dû profs)",
+              value: signed(seanceRevenue - unpaidRangeTotal),
+              tone: seanceRevenue - unpaidRangeTotal >= 0 ? "success" : "danger",
+              strong: true,
+            },
+          ],
+          note: "Chaque scan RFID d'un élève enregistre une séance à régler à l'enseignant (paiement au pourcentage).",
+        },
+      ],
+    };
+
+    /* ============================ SUBSCRIPTIONS ======================= */
+    const subRows = subscriptions.map((sub) => {
+      const enrolled = students.filter((s) => s.subscriptionIds.includes(sub.id)).length;
+      return { ...sub, enrolled, moduleName: modName(sub.sessionId), className: clsName(sub.sessionId) };
+    });
+    const potentialPerSession = subRows.reduce((s, r) => s + r.pricePerSession * r.enrolled, 0);
+    const avgPrice = subscriptions.length ? Math.round(sum(subscriptions, (s) => s.pricePerSession) / subscriptions.length) : 0;
+
+    const subscriptionsSection: Section = {
+      id: "subscriptions",
+      label: "Abonnements",
+      icon: <Ticket className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Abonnements actifs",
+          value: `${subscriptions.length}`,
+          tone: "primary",
+          icon: <Ticket className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Module", render: (r) => <span className="font-bold text-ink">{r.moduleName}</span> },
+              { label: "Classe", render: (r) => <span className="text-muted">{r.className || "—"}</span> },
+              { label: "Élèves", align: "right", render: (r) => <span className="font-semibold text-primary">{r.enrolled}</span> },
+              { label: "Prix / séance", align: "right", render: (r) => <strong className="text-ink">{formatDA(r.pricePerSession)}</strong> },
+              { label: "Potentiel", align: "right", render: (r) => <span className="text-success">{formatDA(r.pricePerSession * r.enrolled)}</span> },
+            ],
+            rows: subRows,
+            totalLabel: "Potentiel / séance complète",
+            totalValue: formatDA(potentialPerSession),
+            totalTone: "success",
+            searchable: (r) => `${r.moduleName} ${r.className}`,
+          },
+        },
+        {
+          label: "Recette potentielle / séance",
+          value: formatDA(potentialPerSession),
+          tone: "success",
+          icon: <CircleDollarSign className="h-5 w-5" />,
+          hint: "Si tous les inscrits assistent",
+          detail: {
+            columns: [
+              { label: "Module", render: (r) => <span className="font-bold text-ink">{r.moduleName}</span> },
+              { label: "Classe", render: (r) => <span className="text-muted">{r.className || "—"}</span> },
+              { label: "Élèves inscrits", align: "right", render: (r) => <span className="text-primary">{r.enrolled}</span> },
+              { label: "Recette potentielle", align: "right", render: (r) => <strong className="text-success">{formatDA(r.pricePerSession * r.enrolled)}</strong> },
+            ],
+            rows: [...subRows].sort((a, b) => b.pricePerSession * b.enrolled - a.pricePerSession * a.enrolled),
+            totalLabel: "Total potentiel",
+            totalValue: formatDA(potentialPerSession),
+            totalTone: "success",
+            searchable: (r) => `${r.moduleName} ${r.className}`,
+          },
+        },
+        {
+          label: "Prix moyen d'une séance",
+          value: formatDA(avgPrice),
+          tone: "neutral",
+          icon: <DollarSign className="h-5 w-5" />,
+          hint: "Moyenne du catalogue",
+        },
+      ],
+      panels: [
+        {
+          title: "Catalogue des abonnements",
+          icon: <Ticket className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Nombre d'abonnements", value: `${subscriptions.length}`, strong: true },
+            { label: "Prix moyen par séance", value: formatDA(avgPrice) },
+            { label: "Potentiel par séance complète", value: formatDA(potentialPerSession), tone: "success", emphasis: true },
+          ],
+          note: "Le potentiel suppose la présence de tous les élèves inscrits à chaque abonnement.",
+        },
+      ],
+    };
+
+    /* ============================== TEACHERS ========================== */
+    const teacherAco = fAco.filter((a) => teacherIds.has(a.teacherId));
+    const teacherAbs = fAbs.filter((a) => teacherIds.has(a.teacherId));
+    const teacherAcoTotal = sum(teacherAco, (a) => a.amount);
+    const teacherAbsTotal = sum(teacherAbs, (a) => a.cost);
+    const teacherUnpaid = unpaidGlobal.filter((u) => teacherIds.has(u.teacherId));
+    const teacherUnpaidTotal = sum(teacherUnpaid, (u) => u.amount);
+
+    const teachersSection: Section = {
+      id: "teachers",
+      label: "Enseignants",
+      icon: <GraduationCap className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Acomptes versés (profs)",
+          value: outflow(teacherAcoTotal),
+          tone: "danger",
+          icon: <ArrowDownLeft className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Motif", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: teacherAco,
+            totalLabel: "Total acomptes",
+            totalValue: outflow(teacherAcoTotal),
+            totalTone: "danger",
+            searchable: (r) => `${tName(r.teacherId)} ${r.description}`,
+          },
+        },
+        {
+          label: "Séances dues (non payées)",
+          value: formatDA(teacherUnpaidTotal),
+          tone: "warning",
+          icon: <Wallet className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Élève", render: (r) => <span className="text-muted">{sName(r.studentId)}</span> },
+              { label: "Module", render: (r) => <span className="font-semibold text-primary">{modName(r.sessionId)}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-warning">{formatDA(r.amount)}</strong> },
+            ],
+            rows: teacherUnpaid,
+            totalLabel: "Total dû",
+            totalValue: formatDA(teacherUnpaidTotal),
+            totalTone: "warning",
+            empty: "Aucune séance en attente.",
+            searchable: (r) => `${tName(r.teacherId)} ${sName(r.studentId)} ${modName(r.sessionId)}`,
+          },
+        },
+        {
+          label: "Retenues absences (profs)",
+          value: outflow(teacherAbsTotal),
+          tone: "danger",
+          icon: <AlertCircle className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Motif", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Retenue", align: "right", render: (r) => <strong className="text-danger">{outflow(r.cost)}</strong> },
+            ],
+            rows: teacherAbs,
+            totalLabel: "Total retenues",
+            totalValue: outflow(teacherAbsTotal),
+            totalTone: "danger",
+            empty: "Aucune absence enregistrée.",
+            searchable: (r) => `${tName(r.teacherId)} ${r.description}`,
+          },
+        },
+        {
+          label: "Enseignants actifs",
+          value: `${teachers.length}`,
+          tone: "primary",
+          icon: <GraduationCap className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
+              { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
+              {
+                label: "Rémunération",
+                render: (r) => (
+                  <Badge tone={r.paymentType === "monthly" ? "primary" : "warning"}>
+                    {r.paymentType === "monthly"
+                      ? "Mensuel"
+                      : r.paymentType === "per_group"
+                        ? "Par groupe"
+                        : "Pourcentage"}
+                  </Badge>
+                ),
+              },
+              {
+                label: "Base",
+                align: "right",
+                render: (r) => (
+                  <span className="text-ink">
+                    {r.paymentType === "monthly"
+                      ? formatDA(r.monthlyAmount || 0)
+                      : r.paymentType === "per_group"
+                        ? "Tarif emploi du temps"
+                        : `${r.percentage || 0} %`}
+                  </span>
+                ),
+              },
+            ],
+            rows: teachers,
+            totalLabel: "Effectif",
+            totalValue: `${teachers.length}`,
+            totalTone: "primary",
+            searchable: (r) => `${r.firstName} ${r.lastName} ${r.phone}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Charges enseignants de la période",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <GraduationCap className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Acomptes versés", value: outflow(teacherAcoTotal), tone: "danger" },
+            { label: "Retenues pour absences", value: outflow(teacherAbsTotal), tone: "danger" },
+            { label: "Séances dues non réglées", value: formatDA(teacherUnpaidTotal), tone: "warning", emphasis: true },
+            {
+              label: "Engagement total enseignants",
+              value: formatDA(teacherAcoTotal + teacherUnpaidTotal),
+              strong: true,
+            },
+          ],
+          note: "Les retenues d'absences se déduisent du salaire lors du règlement ; elles ne sont pas un décaissement direct.",
+        },
+      ],
+    };
+
+    /* ============================= RECEPTION ========================== */
+    const recAco = fAco.filter((a) => receptionIds.has(a.teacherId));
+    const recAbs = fAbs.filter((a) => receptionIds.has(a.teacherId));
+    const recAcoTotal = sum(recAco, (a) => a.amount);
+    const recAbsTotal = sum(recAbs, (a) => a.cost);
+    const recSalaryBase = sum(reception, (r) => r.salary);
+
+    const receptionSection: Section = {
+      id: "reception",
+      label: "Réception",
+      icon: <UserCog className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Agents de réception",
+          value: `${reception.length}`,
+          tone: "primary",
+          icon: <UserCog className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Agent", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
+              { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
+              { label: "Type", render: (r) => <Badge tone={r.paymentType === "monthly" ? "primary" : "warning"}>{r.paymentType === "monthly" ? "Mensuel" : "Journalier"}</Badge> },
+              { label: "Salaire base", align: "right", render: (r) => <strong className="text-ink">{formatDA(r.salary)}</strong> },
+            ],
+            rows: reception,
+            totalLabel: "Masse salariale de base",
+            totalValue: formatDA(recSalaryBase),
+            totalTone: "neutral",
+            searchable: (r) => `${r.firstName} ${r.lastName} ${r.phone}`,
+          },
+        },
+        {
+          label: "Acomptes versés (staff)",
+          value: outflow(recAcoTotal),
+          tone: "danger",
+          icon: <ArrowDownLeft className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Agent", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Motif", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: recAco,
+            totalLabel: "Total acomptes",
+            totalValue: outflow(recAcoTotal),
+            totalTone: "danger",
+            empty: "Aucun acompte réception.",
+            searchable: (r) => `${tName(r.teacherId)} ${r.description}`,
+          },
+        },
+        {
+          label: "Retenues absences (staff)",
+          value: outflow(recAbsTotal),
+          tone: "danger",
+          icon: <AlertCircle className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Agent", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Motif", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Retenue", align: "right", render: (r) => <strong className="text-danger">{outflow(r.cost)}</strong> },
+            ],
+            rows: recAbs,
+            totalLabel: "Total retenues",
+            totalValue: outflow(recAbsTotal),
+            totalTone: "danger",
+            empty: "Aucune absence agent.",
+            searchable: (r) => `${tName(r.teacherId)} ${r.description}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Personnel de réception",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <UserCog className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Agents actifs", value: `${reception.length}`, strong: true },
+            { label: "Masse salariale de base", value: formatDA(recSalaryBase) },
+            { label: "Acomptes versés", value: outflow(recAcoTotal), tone: "danger" },
+            { label: "Retenues absences", value: outflow(recAbsTotal), tone: "danger", emphasis: true },
+          ],
+        },
+      ],
+    };
+
+    /* ======================= INDEPENDENT / COURSEWORK ================= */
+    const independentRevenue = sum(fInd, (i) => i.price);
+    const courseworkInRange = coursework.filter((c) => c.dates.some((d) => inRange(d)));
+    const courseworkRevenue = courseworkInRange.reduce(
+      (s, c) => s + c.pricePerSession * c.dates.filter((d) => inRange(d)).length,
+      0,
+    );
+
+    const independentSection: Section = {
+      id: "independent",
+      label: "Indépendant",
+      icon: <Puzzle className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Séances libres encaissées",
+          value: inflow(independentRevenue),
+          tone: "success",
+          icon: <CircleDollarSign className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              {
+                label: "Bénéficiaire",
+                render: (r) => <span className="font-bold text-ink">{r.studentId ? sName(r.studentId) : r.passagerName || "Passager"}</span>,
+              },
+              { label: "Prestation", render: (r) => <span className="text-primary">{r.itemLabel}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.price)}</strong> },
+            ],
+            rows: [...fInd].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            totalLabel: "Recette séances libres",
+            totalValue: inflow(independentRevenue),
+            totalTone: "success",
+            empty: "Aucune séance libre sur la période.",
+            searchable: (r) => `${r.studentId ? sName(r.studentId) : r.passagerName} ${r.itemLabel}`,
+          },
+        },
+        {
+          label: "Stages / Coursework (période)",
+          value: formatDA(courseworkRevenue),
+          tone: "sky",
+          icon: <Layers className="h-5 w-5" />,
+          hint: "Séances programmées dans la période",
+          detail: {
+            columns: [
+              { label: "Intitulé", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
+              { label: "Type", render: (r) => <Badge tone={r.type === "single" ? "primary" : "neutral"}>{r.type === "single" ? "Jour unique" : "Période"}</Badge> },
+              { label: "Enseignant", render: (r) => <span className="text-muted">{tName(r.teacherId)}</span> },
+              { label: "Séances (pér.)", align: "right", render: (r) => <span className="text-primary">{r.dates.filter((d: string) => inRange(d)).length}/{r.dates.length}</span> },
+              { label: "Prix / séance", align: "right", render: (r) => <span className="text-ink">{formatDA(r.pricePerSession)}</span> },
+              { label: "Recette pér.", align: "right", render: (r) => <strong className="text-sky-500">{formatDA(r.pricePerSession * r.dates.filter((d: string) => inRange(d)).length)}</strong> },
+            ],
+            rows: courseworkInRange,
+            totalLabel: "Recette coursework",
+            totalValue: formatDA(courseworkRevenue),
+            totalTone: "sky",
+            empty: "Aucun stage programmé sur la période.",
+            searchable: (r) => `${r.name} ${tName(r.teacherId)}`,
+          },
+        },
+        {
+          label: "Séances libres de groupe",
+          value: inflow(groupRevenue),
+          tone: "primary",
+          icon: <Users className="h-5 w-5" />,
+          hint: `${fGroup.length} séance(s) · ${groupStudents} élève(s)`,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.g.date) },
+              {
+                label: "Séance",
+                render: (r) => (
+                  <span>
+                    <strong className="block text-ink">{r.g.title}</strong>
+                    <span className="block text-[10px] text-muted">
+                      {r.g.startTime} → {r.g.endTime}
+                      {r.g.description ? ` · ${r.g.description}` : ""}
+                    </span>
+                  </span>
+                ),
+              },
+              { label: "Enseignant", render: (r) => <span className="text-muted">{tName(r.g.teacherId)}</span> },
+              { label: "Élèves", align: "right", render: (r) => <span className="font-mono">{r.t.students}</span> },
+              { label: "Prix / élève", align: "right", render: (r) => <span className="font-mono">{formatDA(r.t.pricePerStudent)}</span> },
+              { label: "Total", align: "right", render: (r) => <strong className="text-success">{formatDA(r.t.total)}</strong> },
+              { label: "École", align: "right", render: (r) => <span className="font-mono text-primary">{formatDA(r.t.schoolTotal)}</span> },
+              { label: "Enseignant", align: "right", render: (r) => <span className="font-mono text-warning">{formatDA(r.t.teacherTotal)}</span> },
+            ],
+            rows: [...groupTotals].sort((a, b) => (a.g.date < b.g.date ? 1 : -1)),
+            totalLabel: "Recette séances de groupe",
+            totalValue: inflow(groupRevenue),
+            totalTone: "success",
+            empty: "Aucune séance libre de groupe sur la période.",
+            searchable: (r) => `${r.g.title} ${r.g.description ?? ""} ${tName(r.g.teacherId)}`,
+          },
+        },
+        {
+          label: "Total activités indépendantes",
+          value: inflow(independentRevenue + courseworkRevenue + groupRevenue),
+          tone: "success",
+          icon: <Puzzle className="h-5 w-5" />,
+        },
+      ],
+      panels: [
+        {
+          title: "Activités indépendantes",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <Puzzle className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Séances libres (nombre)", value: `${fInd.length}` },
+            { label: "Recette séances libres", value: inflow(independentRevenue), tone: "success" },
+            { label: "Stages actifs sur la période", value: `${courseworkInRange.length}` },
+            { label: "Recette stages (période)", value: formatDA(courseworkRevenue), tone: "sky" },
+            { label: "Séances libres de groupe (nombre)", value: `${fGroup.length}` },
+            { label: "Élèves cumulés sur ces séances", value: `${groupStudents}` },
+            { label: "Recette séances de groupe", value: inflow(groupRevenue), tone: "success" },
+            { label: "dont part de l'école", value: formatDA(groupSchool), tone: "primary" },
+            { label: "dont part des enseignants", value: outflow(groupTeacher), tone: "danger", formula: "élèves × (prix élève − part école)" },
+            { label: "Total activités indépendantes", value: inflow(independentRevenue + courseworkRevenue + groupRevenue), tone: "success", emphasis: true },
+          ],
+        },
+      ],
+    };
+
+    /* ============================== EXPENSES ========================== */
+    const expensesTotal = sum(fExp, (e) => e.amount);
+    const catRows = categories
+      .map((cat) => {
+        const items = fExp.filter((e) => e.categoryId === cat.id);
+        return { id: cat.id, name: cat.name, count: items.length, total: sum(items, (e) => e.amount) };
+      })
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.total - a.total);
+    const uncategorized = fExp.filter((e) => !categories.some((c) => c.id === e.categoryId));
+    if (uncategorized.length) {
+      catRows.push({ id: "none", name: "Sans catégorie", count: uncategorized.length, total: sum(uncategorized, (e) => e.amount) });
+    }
+    const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "Sans catégorie";
+
+    const expensesSection: Section = {
+      id: "expenses",
+      label: "Dépenses",
+      icon: <Receipt className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Dépenses de fonctionnement",
+          value: outflow(expensesTotal),
+          tone: "danger",
+          icon: <Receipt className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Désignation", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
+              { label: "Catégorie", render: (r) => <Badge tone="neutral">{catName(r.categoryId)}</Badge> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: [...fExp].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            totalLabel: "Total dépenses",
+            totalValue: outflow(expensesTotal),
+            totalTone: "danger",
+            empty: "Aucune dépense sur la période.",
+            searchable: (r) => `${r.name} ${catName(r.categoryId)}`,
+          },
+        },
+        {
+          label: "Catégories mouvementées",
+          value: `${catRows.length}`,
+          tone: "primary",
+          icon: <Layers className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Catégorie", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
+              { label: "Dépenses", align: "right", render: (r) => <span className="text-muted">{r.count}</span> },
+              { label: "Total", align: "right", render: (r) => <strong className="text-danger">{outflow(r.total)}</strong> },
+            ],
+            rows: catRows,
+            totalLabel: "Total dépenses",
+            totalValue: outflow(expensesTotal),
+            totalTone: "danger",
+            empty: "Aucune catégorie mouvementée.",
+            searchable: (r) => r.name,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Répartition des dépenses",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <Receipt className="h-4 w-4 text-danger" />,
+          lines: [
+            ...catRows.map((c) => ({ label: c.name, value: outflow(c.total), tone: "danger" as Tone })),
+            { label: "Total des dépenses", value: outflow(expensesTotal), tone: "danger" as Tone, emphasis: true },
+          ],
+        },
+      ],
+    };
+
+    /* =============================== CASH ============================= */
+    const cashStudent = sum(
+      fCash.filter((t) => t.type === "student_payment"),
+      (t) => t.amount,
+    );
+    const cashDeposit = sum(
+      fCash.filter((t) => t.type === "deposit"),
+      (t) => t.amount,
+    );
+    const cashStaff = Math.abs(
+      sum(
+        fCash.filter((t) => t.type === "teacher_payment" || t.type === "acompte"),
+        (t) => t.amount,
+      ),
+    );
+    const cashExpenseWithdraw = Math.abs(
+      sum(
+        fCash.filter((t) => t.type === "expense" || t.type === "withdraw"),
+        (t) => t.amount,
+      ),
+    );
+    const cashIn = cashStudent + cashDeposit;
+    const cashOut = cashStaff + cashExpenseWithdraw;
+    const cashNet = cashIn - cashOut;
+
+    const cashTypeLabel: Record<string, { label: string; tone: Tone }> = {
+      student_payment: { label: "Encaissement élève", tone: "success" },
+      deposit: { label: "Dépôt", tone: "success" },
+      teacher_payment: { label: "Salaire / Staff", tone: "danger" },
+      acompte: { label: "Acompte", tone: "warning" },
+      expense: { label: "Dépense", tone: "danger" },
+      withdraw: { label: "Retrait", tone: "danger" },
+    };
+
+    const cashSection: Section = {
+      id: "cash",
+      label: "Caisse",
+      icon: <PiggyBank className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Encaissements élèves (caisse)",
+          value: inflow(cashStudent),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Désignation", render: (r) => <span className="font-semibold text-ink">{r.description}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.amount)}</strong> },
+            ],
+            rows: fCash.filter((t) => t.type === "student_payment"),
+            totalLabel: "Total",
+            totalValue: inflow(cashStudent),
+            totalTone: "success",
+            searchable: (r) => r.description,
+          },
+        },
+        {
+          label: "Dépôts manuels",
+          value: inflow(cashDeposit),
+          tone: "success",
+          icon: <PiggyBank className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Désignation", render: (r) => <span className="font-semibold text-ink">{r.description}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.amount)}</strong> },
+            ],
+            rows: fCash.filter((t) => t.type === "deposit"),
+            totalLabel: "Total dépôts",
+            totalValue: inflow(cashDeposit),
+            totalTone: "success",
+            empty: "Aucun dépôt manuel.",
+            searchable: (r) => r.description,
+          },
+        },
+        {
+          label: "Sorties salaires & acomptes",
+          value: outflow(cashStaff),
+          tone: "danger",
+          icon: <ArrowDownLeft className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Type", render: (r) => <Badge tone={badgeTone(cashTypeLabel[r.type]?.tone ?? "neutral")}>{cashTypeLabel[r.type]?.label ?? r.type}</Badge> },
+              { label: "Désignation", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: fCash.filter((t) => t.type === "teacher_payment" || t.type === "acompte"),
+            totalLabel: "Total sorties staff",
+            totalValue: outflow(cashStaff),
+            totalTone: "danger",
+            empty: "Aucun règlement de personnel.",
+            searchable: (r) => r.description,
+          },
+        },
+        {
+          label: "Dépenses & retraits",
+          value: outflow(cashExpenseWithdraw),
+          tone: "danger",
+          icon: <Receipt className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Type", render: (r) => <Badge tone={badgeTone(cashTypeLabel[r.type]?.tone ?? "neutral")}>{cashTypeLabel[r.type]?.label ?? r.type}</Badge> },
+              { label: "Désignation", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: fCash.filter((t) => t.type === "expense" || t.type === "withdraw"),
+            totalLabel: "Total",
+            totalValue: outflow(cashExpenseWithdraw),
+            totalTone: "danger",
+            searchable: (r) => r.description,
+          },
+        },
+        {
+          label: "Solde net de caisse (période)",
+          value: signed(cashNet),
+          tone: cashNet >= 0 ? "success" : "danger",
+          icon: <Banknote className="h-5 w-5" />,
+          hint: "Entrées − Sorties de caisse",
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Type", render: (r) => <Badge tone={badgeTone(cashTypeLabel[r.type]?.tone ?? "neutral")}>{cashTypeLabel[r.type]?.label ?? r.type}</Badge> },
+              { label: "Désignation", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className={r.amount >= 0 ? "text-success" : "text-danger"}>{signed(r.amount)}</strong> },
+            ],
+            rows: [...fCash].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            totalLabel: "Solde net",
+            totalValue: signed(cashNet),
+            totalTone: cashNet >= 0 ? "success" : "danger",
+            searchable: (r) => `${r.description} ${cashTypeLabel[r.type]?.label ?? r.type}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Journal de caisse",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <PiggyBank className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Encaissements élèves", value: inflow(cashStudent), tone: "success" },
+            { label: "Dépôts manuels", value: inflow(cashDeposit), tone: "success" },
+            { label: "Total entrées", value: inflow(cashIn), tone: "success", emphasis: true },
+            { label: "Salaires & acomptes", value: outflow(cashStaff), tone: "danger" },
+            { label: "Dépenses & retraits", value: outflow(cashExpenseWithdraw), tone: "danger" },
+            { label: "Total sorties", value: outflow(cashOut), tone: "danger", emphasis: true },
+            { label: "Solde net de caisse", value: signed(cashNet), tone: cashNet >= 0 ? "success" : "danger", strong: true },
+          ],
+        },
+      ],
+    };
+
+    /* ============================== OVERVIEW ========================== */
+    const totalInflows = cashStudent + cashDeposit;
+    const totalOutflows = cashStaff + cashExpenseWithdraw;
+    const netGains = totalInflows - totalOutflows;
+
+    const overviewSection: Section = {
+      id: "overview",
+      label: "Vue d'ensemble",
+      icon: <FileSpreadsheet className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Total encaissements (période)",
+          value: inflow(totalInflows),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          detail: cashSection.cards[0].detail,
+        },
+        {
+          label: "Total sorties (période)",
+          value: outflow(totalOutflows),
+          tone: "danger",
+          icon: <ArrowDownLeft className="h-5 w-5" />,
+          detail: cashSection.cards[2].detail,
+        },
+        {
+          label: "Recette des séances",
+          value: inflow(seanceRevenue),
+          tone: "primary",
+          icon: <CircleDollarSign className="h-5 w-5" />,
+          detail: attendanceSection.cards[0].detail,
+        },
+        {
+          label: "Dépenses de fonctionnement",
+          value: outflow(expensesTotal),
+          tone: "danger",
+          icon: <Receipt className="h-5 w-5" />,
+          detail: expensesSection.cards[0].detail,
+        },
+        {
+          label: "Dettes élèves (créances)",
+          value: formatDA(totalDebts),
+          tone: "warning",
+          icon: <AlertCircle className="h-5 w-5" />,
+          detail: studentsSection.cards[5].detail,
+        },
+        {
+          label: "Séances profs non payées",
+          value: formatDA(unpaidGlobalTotal),
+          tone: "warning",
+          icon: <Wallet className="h-5 w-5" />,
+          detail: attendanceSection.cards[1].detail,
+        },
+        {
+          label: "Bilan net consolidé",
+          value: signed(netGains),
+          tone: netGains >= 0 ? "success" : "danger",
+          icon: <FileSpreadsheet className="h-5 w-5" />,
+          hint: "Recettes − Sorties",
+          featured: true,
+        },
+      ],
+      panels: [
+        {
+          title: "Bilan des flux de trésorerie",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <FileSpreadsheet className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Encaissements élèves", value: inflow(cashStudent), tone: "success" },
+            { label: "Dépôts manuels", value: inflow(cashDeposit), tone: "success" },
+            { label: "Total des recettes", value: inflow(totalInflows), tone: "success", emphasis: true },
+            { label: "Règlements personnel", value: outflow(cashStaff), tone: "danger" },
+            { label: "Dépenses & retraits", value: outflow(cashExpenseWithdraw), tone: "danger" },
+            { label: "Total des sorties", value: outflow(totalOutflows), tone: "danger", emphasis: true },
+            { label: "Bilan net consolidé", value: signed(netGains), tone: netGains >= 0 ? "success" : "danger", strong: true, formula: "Recettes − Sorties" },
+          ],
+        },
+        {
+          title: "Créances & engagements en cours",
+          icon: <AlertCircle className="h-4 w-4 text-warning" />,
+          lines: [
+            { label: "Créances clients (dettes élèves)", value: formatDA(totalDebts), tone: "warning" },
+            { label: "Séances enseignants à régler", value: formatDA(unpaidGlobalTotal), tone: "warning" },
+            { label: "Engagements totaux à venir", value: formatDA(totalDebts + unpaidGlobalTotal), strong: true, emphasis: true },
+          ],
+          note: `Portée du bilan — ${students.length} élèves · ${teachers.length} enseignants · ${reception.length} agents · ${classes.length} classes · ${subscriptions.length} abonnements · ${parents.length} parents.`,
+        },
+      ],
+    };
+
+    /* =========================== ANALYSE GÉNÉRALE ===================== */
+    // Split the staff payouts between teachers and the other workers. The cash
+    // ledger only carries free-text descriptions, so we match on the person's
+    // last name; a teacher match wins when a name is shared.
+    const teacherLastNames = teachers.map((t) => t.lastName.toLowerCase()).filter(Boolean);
+    const workerLastNames = reception.map((r) => r.lastName.toLowerCase()).filter(Boolean);
+    const staffMovements = fCash.filter((t) => t.type === "teacher_payment" || t.type === "acompte");
+
+    let teacherPayout = 0;
+    let workerPayout = 0;
+    let unclassifiedPayout = 0;
+    staffMovements.forEach((t) => {
+      const desc = (t.description || "").toLowerCase();
+      const amount = Math.abs(t.amount);
+      if (teacherLastNames.some((n) => desc.includes(n))) teacherPayout += amount;
+      else if (workerLastNames.some((n) => desc.includes(n))) workerPayout += amount;
+      else unclassifiedPayout += amount;
+    });
+
+    const analysisRevenue = cashStudent + cashDeposit;
+    const analysisExpenses = cashExpenseWithdraw;
+    const analysisCosts = teacherPayout + workerPayout + unclassifiedPayout + analysisExpenses;
+    const analysisProfit = analysisRevenue - analysisCosts;
+    const pctOf = (n: number) => (analysisRevenue > 0 ? (n / analysisRevenue) * 100 : 0);
+
+    const donutSlices: Slice[] = [
+      {
+        label: "Bénéfice net",
+        value: Math.max(0, analysisProfit),
+        color: "#22c55e",
+        hint: "Recettes − charges de la période",
+      },
+      {
+        label: "Paiements enseignants",
+        value: teacherPayout,
+        color: "#7c3aed",
+        hint: "Salaires, parts de séances et acomptes",
+      },
+      {
+        label: "Dépenses",
+        value: analysisExpenses,
+        color: "#ef4444",
+        hint: "Dépenses de fonctionnement et retraits",
+      },
+      {
+        label: "Paiements autres travailleurs",
+        value: workerPayout + unclassifiedPayout,
+        color: "#f59e0b",
+        hint: "Réception, sécurité, ménage",
+      },
+    ];
+
+    // ---- Per-teacher contribution -------------------------------------------
+    // What each teacher brought in (presences on his séances, plus the
+    // passagers of his séances libres) and what he cost over the same period.
+    const teacherStats = teachers
+      .map((t) => {
+        const mySessionIds = new Set(sessions.filter((s) => s.teacherId === t.id).map((s) => s.id));
+        const generated =
+          sum(
+            fAtt.filter((a) => mySessionIds.has(a.sessionId)),
+            (a) => a.amountDeducted,
+          ) +
+          sum(
+            fInd.filter((i) => i.sessionId && mySessionIds.has(i.sessionId) && !i.studentId),
+            (i) => i.price,
+          );
+        // Earned share over the period (paid or not), from the dues ledger.
+        const earned = sum(
+          fUnpaidRange.filter((u) => u.teacherId === t.id),
+          (u) => u.amount,
+        );
+        const paid = sum(
+          staffMovements.filter((c) => (c.description || "").toLowerCase().includes(t.lastName.toLowerCase())),
+          (c) => Math.abs(c.amount),
+        );
+        const presences = fAtt.filter((a) => mySessionIds.has(a.sessionId)).length;
+        return {
+          id: t.id,
+          name: `${t.firstName} ${t.lastName}`,
+          isPassager: !!t.isPassager,
+          contract: t.isPassager
+            ? "À la séance"
+            : t.paymentType === "monthly"
+              ? "Mensuel"
+              : t.paymentType === "per_group"
+                ? "Par groupe"
+                : `${t.percentage ?? 0} %`,
+          presences,
+          generated,
+          earned,
+          paid,
+          margin: generated - earned,
+        };
+      })
+      .filter((t) => t.generated > 0 || t.earned > 0 || t.paid > 0)
+      .sort((a, b) => b.generated - a.generated);
+
+    const teacherGeneratedTotal = teacherStats.reduce((s, t) => s + t.generated, 0);
+    const teacherEarnedTotal = teacherStats.reduce((s, t) => s + t.earned, 0);
+    const TEACHER_COLORS = ["#7c3aed", "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7", "#84cc16"];
+
+    const analysisSection: Section = {
+      id: "analysis",
+      label: "Analyse générale",
+      icon: <PieIcon className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Recettes totales (période)",
+          value: inflow(analysisRevenue),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          hint: "Base de calcul des pourcentages",
+        },
+        {
+          label: "Part enseignants",
+          value: `${pctOf(teacherPayout).toFixed(1)} %`,
+          tone: "primary",
+          icon: <UserCog className="h-5 w-5" />,
+          hint: `${formatDA(teacherPayout)} versés`,
+        },
+        {
+          label: "Part dépenses",
+          value: `${pctOf(analysisExpenses).toFixed(1)} %`,
+          tone: "danger",
+          icon: <Receipt className="h-5 w-5" />,
+          hint: `${formatDA(analysisExpenses)} de charges`,
+        },
+        {
+          label: "Part autres travailleurs",
+          value: `${pctOf(workerPayout + unclassifiedPayout).toFixed(1)} %`,
+          tone: "warning",
+          icon: <Users className="h-5 w-5" />,
+          hint: `${formatDA(workerPayout + unclassifiedPayout)} versés`,
+        },
+        {
+          label: "Marge bénéficiaire",
+          value: `${pctOf(Math.max(0, analysisProfit)).toFixed(1)} %`,
+          tone: analysisProfit >= 0 ? "success" : "danger",
+          icon: <Banknote className="h-5 w-5" />,
+          hint: analysisProfit >= 0 ? "Part des recettes conservée" : "Période déficitaire",
+        },
+        {
+          label: "Bénéfice net consolidé",
+          value: signed(analysisProfit),
+          tone: analysisProfit >= 0 ? "success" : "danger",
+          icon: <FileSpreadsheet className="h-5 w-5" />,
+          hint: "Recettes − enseignants − travailleurs − dépenses",
+          featured: true,
+        },
+      ],
+      panels: [
+        {
+          title: "Décomposition détaillée des recettes",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <Banknote className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Encaissements élèves", value: inflow(cashStudent), tone: "success" },
+            { label: "Dépôts manuels en caisse", value: inflow(cashDeposit), tone: "success" },
+            { label: "TOTAL DES RECETTES", value: inflow(analysisRevenue), tone: "success", emphasis: true },
+            {
+              label: "Paiements enseignants",
+              value: outflow(teacherPayout),
+              tone: "primary",
+              formula: `${pctOf(teacherPayout).toFixed(1)} % des recettes`,
+            },
+            {
+              label: "Paiements autres travailleurs",
+              value: outflow(workerPayout + unclassifiedPayout),
+              tone: "warning",
+              formula: `${pctOf(workerPayout + unclassifiedPayout).toFixed(1)} % des recettes`,
+            },
+            {
+              label: "Dépenses & retraits",
+              value: outflow(analysisExpenses),
+              tone: "danger",
+              formula: `${pctOf(analysisExpenses).toFixed(1)} % des recettes`,
+            },
+            { label: "TOTAL DES CHARGES", value: outflow(analysisCosts), tone: "danger", emphasis: true },
+            {
+              label: "BÉNÉFICE NET",
+              value: signed(analysisProfit),
+              tone: analysisProfit >= 0 ? "success" : "danger",
+              strong: true,
+              formula: `${pctOf(analysisProfit).toFixed(1)} % des recettes`,
+            },
+          ],
+          note:
+            unclassifiedPayout > 0
+              ? `${formatDA(unclassifiedPayout)} de règlements n'ont pas pu être rattachés à un enseignant ni à un travailleur (libellé de caisse non reconnu) et sont comptés avec les autres travailleurs.`
+              : undefined,
+        },
+      ],
+      custom: (
+        <div className="space-y-6">
+          {/* The circle itself */}
+          <Card className="border border-line card-shadow">
+            <CardBody className="space-y-4 p-5">
+              <div>
+                <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink">
+                  <PieIcon className="h-4 w-4 text-primary" /> Répartition des recettes de la période
+                </h4>
+                <p className="text-[11px] text-muted">
+                  Chaque part du cercle représente sa fraction des {formatDA(analysisRevenue)} encaissés.
+                </p>
+              </div>
+              {analysisRevenue === 0 ? (
+                <p className="py-10 text-center text-xs italic text-muted">
+                  Aucune recette sur cette période — le graphique s&apos;affichera dès le premier encaissement.
+                </p>
+              ) : (
+                <DonutChart
+                  slices={donutSlices}
+                  centerLabel="Bénéfice net"
+                  centerValue={signed(analysisProfit)}
+                  centerTone={analysisProfit >= 0 ? "text-success" : "text-danger"}
+                />
+              )}
+              {analysisProfit < 0 && (
+                <div className="rounded-xl border border-danger/25 bg-danger/5 p-3 text-[11px] text-danger">
+                  Les charges dépassent les recettes de <strong>{formatDA(Math.abs(analysisProfit))}</strong> sur
+                  cette période : la part &laquo;&nbsp;bénéfice&nbsp;&raquo; du cercle est donc nulle.
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Per-teacher contribution */}
+          <Card className="border border-line card-shadow">
+            <CardBody className="space-y-4 p-5">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink">
+                    <UserCog className="h-4 w-4 text-primary" /> Analyse par enseignant
+                  </h4>
+                  <p className="text-[11px] text-muted">
+                    Part de chaque enseignant dans les {formatDA(teacherGeneratedTotal)} générés par les séances.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-muted">Filtrer</label>
+                  <select
+                    value={teacherAnalysisId}
+                    onChange={(e) => setTeacherAnalysisId(e.target.value)}
+                    className="rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
+                  >
+                    <option value="all">Tous les enseignants</option>
+                    {teacherStats.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {teacherStats.length === 0 ? (
+                <p className="py-10 text-center text-xs italic text-muted">
+                  Aucune activité enseignante sur cette période.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {teacherStats
+                    .filter((t) => teacherAnalysisId === "all" || t.id === teacherAnalysisId)
+                    .map((t, i) => {
+                      const sharePct = teacherGeneratedTotal > 0 ? (t.generated / teacherGeneratedTotal) * 100 : 0;
+                      const payPct = teacherEarnedTotal > 0 ? (t.earned / teacherEarnedTotal) * 100 : 0;
+                      const color = TEACHER_COLORS[i % TEACHER_COLORS.length];
+                      return (
+                        <div key={t.id} className="rounded-2xl border border-line bg-canvas/30 p-4 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                              <strong className="truncate text-sm text-ink">{t.name}</strong>
+                              <Badge tone={t.isPassager ? "warning" : "primary"} className="text-[9px]">
+                                {t.isPassager ? "Passager" : t.contract}
+                              </Badge>
+                            </div>
+                            <strong className="text-sm" style={{ color }}>{sharePct.toFixed(1)} % des gains</strong>
+                          </div>
+
+                          <ShareBar pct={sharePct} color={color} />
+
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div className="rounded-xl border border-line/60 bg-surface p-2.5 text-center">
+                              <span className="block text-[9px] font-bold uppercase text-muted">Présences</span>
+                              <strong className="text-sm text-ink">{t.presences}</strong>
+                            </div>
+                            <div className="rounded-xl border border-line/60 bg-surface p-2.5 text-center">
+                              <span className="block text-[9px] font-bold uppercase text-muted">Généré</span>
+                              <strong className="text-sm text-success">{formatDA(t.generated)}</strong>
+                            </div>
+                            <div className="rounded-xl border border-line/60 bg-surface p-2.5 text-center">
+                              <span className="block text-[9px] font-bold uppercase text-muted">Sa part</span>
+                              <strong className="text-sm text-primary">{formatDA(t.earned)}</strong>
+                              <span className="block text-[9px] text-muted">{payPct.toFixed(1)} % des parts</span>
+                            </div>
+                            <div className="rounded-xl border border-line/60 bg-surface p-2.5 text-center">
+                              <span className="block text-[9px] font-bold uppercase text-muted">Marge école</span>
+                              <strong className={`text-sm ${t.margin >= 0 ? "text-success" : "text-danger"}`}>
+                                {signed(t.margin)}
+                              </strong>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between rounded-xl bg-surface px-3 py-2 text-[11px]">
+                            <span className="text-muted">Déjà versé sur la période</span>
+                            <strong className="text-ink">{formatDA(t.paid)}</strong>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {teacherAnalysisId === "all" && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-primary/30 bg-primary-50/40 p-4 text-xs">
+                      <span className="font-bold uppercase tracking-wider text-muted">Total enseignants</span>
+                      <span className="flex flex-wrap gap-4">
+                        <span>
+                          Généré : <strong className="text-success">{formatDA(teacherGeneratedTotal)}</strong>
+                        </span>
+                        <span>
+                          Parts enseignants : <strong className="text-primary">{formatDA(teacherEarnedTotal)}</strong>
+                        </span>
+                        <span>
+                          Marge école :{" "}
+                          <strong className={teacherGeneratedTotal - teacherEarnedTotal >= 0 ? "text-success" : "text-danger"}>
+                            {signed(teacherGeneratedTotal - teacherEarnedTotal)}
+                          </strong>
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+      ),
+    };
+
+
+    /* ========================= EMPLOIS DU TEMPS ======================== */
+    /**
+     * CE QUE CHAQUE EMPLOI DU TEMPS COÛTE ET RAPPORTE.
+     *
+     * Un emploi du temps est un produit : il a un prix (le mois), un nombre de
+     * séances, donc un prix à la séance — et ce prix se partage entre l'école
+     * et l'enseignant. Ces trois divisions ne tombent presque jamais juste
+     * (4 000 DA sur 3 séances = 1 333,33 DA), alors elles sont affichées AVEC
+     * LEURS DÉCIMALES, exactement comme elles sont facturées et payées.
+     */
+    const plannerRows = sessions
+      .filter((se) => inScopeSession(se.id))
+      .map((se) => {
+        const sub = subscriptions.find((x) => x.sessionId === se.id);
+        const size = cycleSizeOf(sub);
+        const roster = sub ? students.filter((st) => st.subscriptionIds.includes(sub.id)).length : 0;
+        const marks = fAtt.filter((a) => a.sessionId === se.id);
+        const presents = marks.filter((a) => a.status !== "absent" && a.status !== "cancelled").length;
+        const absents = marks.filter((a) => a.status === "absent").length;
+        const collected = sum(marks, (a) => a.amountDeducted || 0);
+        const teacherDue = sum(
+          fUnpaidRange.filter((u) => u.sessionId === se.id),
+          (u) => u.amount,
+        );
+        return {
+          id: se.id,
+          title: se.title || moduleNameOf(db, se.moduleId) || "Emploi du temps",
+          className: classes.find((c) => c.id === se.classId)?.name ?? "—",
+          groups: sessionGroupsLabel(db, se),
+          teacher: tName(se.teacherId),
+          days: se.days.length,
+          timeLabel: sessionTimeLabel(se),
+          archived: !!se.archivedAt,
+          size,
+          monthPrice: monthlyPriceOf(sub),
+          seancePrice: sub ? seancePriceOf(sub) : se.openPrice ?? 0,
+          schoolPerSeance: sub ? schoolPerSeanceOf(sub) : 0,
+          teacherPerSeance: sub ? teacherPerSeanceOf(sub) : 0,
+          schoolMonth: sub ? schoolMonthShareOf(sub) : 0,
+          teacherMonth: sub ? teacherMonthShareOf(sub) : 0,
+          roster,
+          seances: new Set(marks.map((a) => (a.timestamp || "").substring(0, 10))).size,
+          presents,
+          absents,
+          collected,
+          teacherDue,
+          margin: collected - teacherDue,
+          potentialMonth: sub ? monthlyPriceOf(sub) * roster : 0,
+        };
+      })
+      .sort((a, b) => b.collected - a.collected || a.title.localeCompare(b.title));
+
+    const plannerCollected = sum(plannerRows, (r) => r.collected);
+    const plannerTeacher = sum(plannerRows, (r) => r.teacherDue);
+    const plannerPotential = sum(plannerRows, (r) => r.potentialMonth);
+    const plannerPriced = plannerRows.filter((r) => r.monthPrice > 0).length;
+
+    const tariffColumns: DetailColumn[] = [
+      {
+        label: "Emploi du temps",
+        render: (r) => (
+          <span>
+            <strong className="block text-ink">{r.title}</strong>
+            <span className="text-[10px] text-muted">
+              {r.className} · {r.groups} · {r.teacher}
+            </span>
+          </span>
+        ),
+      },
+      { label: "Séances / mois", align: "right", render: (r) => <span className="font-mono">{r.size}</span> },
+      { label: "Prix du mois", align: "right", render: (r) => <span className="font-mono">{formatDA(r.monthPrice)}</span> },
+      {
+        label: "Séance élève",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-primary">{formatDA(r.seancePrice)}</strong>
+            <span className="text-[9px] text-muted">
+              {formatDA(r.monthPrice)} ÷ {r.size}
+            </span>
+          </span>
+        ),
+      },
+      {
+        label: "Part école / séance",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-ink">{formatDA(r.schoolPerSeance)}</strong>
+            <span className="text-[9px] text-muted">
+              {formatDA(r.schoolMonth)} ÷ {r.size}
+            </span>
+          </span>
+        ),
+      },
+      {
+        label: "Part prof / séance",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-warning">{formatDA(r.teacherPerSeance)}</strong>
+            <span className="text-[9px] text-muted">
+              {formatDA(r.teacherMonth)} ÷ {r.size}
+            </span>
+          </span>
+        ),
+      },
+    ];
+
+    const plannerSection: Section = {
+      id: "planner",
+      label: "Emplois du temps",
+      subtitle:
+        "Le tarif de chaque créneau au centime près, ce qu'il a encaissé sur la période et ce qu'il doit à son enseignant.",
+      icon: <CalendarClock className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Emplois du temps",
+          value: `${plannerRows.length}`,
+          tone: "primary",
+          icon: <CalendarClock className="h-5 w-5" />,
+          hint: `${plannerPriced} avec un tarif mensuel`,
+          detail: {
+            columns: tariffColumns,
+            rows: plannerRows,
+            totalLabel: "Créneaux",
+            totalValue: `${plannerRows.length}`,
+            totalTone: "primary",
+            searchable: (r) => `${r.title} ${r.className} ${r.groups} ${r.teacher}`,
+          },
+        },
+        {
+          label: "Encaissé par les séances (période)",
+          value: inflow(plannerCollected),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Emploi du temps", render: (r) => <strong className="text-ink">{r.title}</strong> },
+              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacher}</span> },
+              { label: "Séances tenues", align: "right", render: (r) => <span className="font-mono">{r.seances}</span> },
+              { label: "Présences", align: "right", render: (r) => <span className="font-mono text-primary">{r.presents}</span> },
+              { label: "Encaissé", align: "right", render: (r) => <strong className="text-success">{inflow(r.collected)}</strong> },
+            ],
+            rows: plannerRows,
+            totalLabel: "Total encaissé",
+            totalValue: inflow(plannerCollected),
+            totalTone: "success",
+            searchable: (r) => `${r.title} ${r.teacher}`,
+          },
+        },
+        {
+          label: "Part enseignants générée",
+          value: outflow(plannerTeacher),
+          tone: "warning",
+          icon: <GraduationCap className="h-5 w-5" />,
+          hint: "Ce que les séances de la période doivent aux enseignants",
+          detail: {
+            columns: [
+              { label: "Emploi du temps", render: (r) => <strong className="text-ink">{r.title}</strong> },
+              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacher}</span> },
+              { label: "Part / séance", align: "right", render: (r) => <span className="font-mono text-warning">{formatDA(r.teacherPerSeance)}</span> },
+              { label: "Généré", align: "right", render: (r) => <span className="text-success">{inflow(r.collected)}</span> },
+              { label: "Dû au prof", align: "right", render: (r) => <strong className="text-warning">{outflow(r.teacherDue)}</strong> },
+              { label: "Marge école", align: "right", render: (r) => <strong className={r.margin >= 0 ? "text-success" : "text-danger"}>{signed(r.margin)}</strong> },
+            ],
+            rows: plannerRows,
+            totalLabel: "Total dû aux enseignants",
+            totalValue: outflow(plannerTeacher),
+            totalTone: "warning",
+            searchable: (r) => `${r.title} ${r.teacher}`,
+          },
+        },
+        {
+          label: "Potentiel mensuel du catalogue",
+          value: formatDA(plannerPotential),
+          tone: "sky",
+          icon: <TrendingUp className="h-5 w-5" />,
+          hint: "Prix du mois × élèves inscrits, emploi par emploi",
+          detail: {
+            columns: [
+              { label: "Emploi du temps", render: (r) => <strong className="text-ink">{r.title}</strong> },
+              { label: "Élèves", align: "right", render: (r) => <span className="font-mono text-primary">{r.roster}</span> },
+              { label: "Prix du mois", align: "right", render: (r) => <span className="font-mono">{formatDA(r.monthPrice)}</span> },
+              { label: "Potentiel", align: "right", render: (r) => <strong className="text-sky-500">{formatDA(r.potentialMonth)}</strong> },
+            ],
+            rows: [...plannerRows].sort((a, b) => b.potentialMonth - a.potentialMonth),
+            totalLabel: "Potentiel total",
+            totalValue: formatDA(plannerPotential),
+            totalTone: "sky",
+            searchable: (r) => `${r.title} ${r.teacher}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Comment le prix d'une séance est calculé",
+          subtitle: "Une seule division, trois lectures — et jamais d'arrondi à l'entier.",
+          icon: <CircleDollarSign className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Emplois du temps tarifés", value: `${plannerPriced} / ${plannerRows.length}`, strong: true },
+            {
+              label: "Encaissé par les séances",
+              value: inflow(plannerCollected),
+              tone: "success",
+              formula: "somme des montants débités sur les présences de la période",
+            },
+            {
+              label: "Part des enseignants",
+              value: outflow(plannerTeacher),
+              tone: "warning",
+              formula: "part enseignant du mois ÷ séances du mois, × présences",
+            },
+            {
+              label: "Marge de l'école",
+              value: signed(plannerCollected - plannerTeacher),
+              tone: plannerCollected - plannerTeacher >= 0 ? "success" : "danger",
+              emphasis: true,
+              formula: "encaissé − part des enseignants",
+            },
+          ],
+          note:
+            "Prix d'une séance = prix du mois ÷ séances du mois. La part de l'école et celle de l'enseignant se divisent de la même façon, DÉCIMALES COMPRISES : arrondir chaque division au dinar faisait dériver la paie de plusieurs dinars par mois.",
+        },
+      ],
+      tables: [
+        {
+          title: "Tarif détaillé de chaque emploi du temps",
+          icon: <Ticket className="h-3.5 w-3.5 text-primary" />,
+          note: "Chaque colonne montre sa division : ce que l'élève paie, ce que l'école garde, ce que l'enseignant touche.",
+          spec: {
+            columns: tariffColumns,
+            rows: plannerRows,
+            totalLabel: "Créneaux",
+            totalValue: `${plannerRows.length}`,
+            totalTone: "primary",
+            searchable: (r) => `${r.title} ${r.className} ${r.groups} ${r.teacher}`,
+          },
+        },
+      ],
+    };
+
+    /* =========================== PAIE ENSEIGNANTS ====================== */
+    /**
+     * LES RÈGLEMENTS D'ENSEIGNANTS, PIÈCE PAR PIÈCE.
+     *
+     * Chaque règlement fige ce qu'il a payé : les MOIS d'emploi du temps
+     * soldés, ce qui a été retenu (dépenses, acomptes, scolarités d'enfants) et
+     * — depuis les arriérés — les parts d'un mois DÉJÀ payé qu'un élève a
+     * débloquées en réglant en retard. Les trois se lisent séparément, sinon un
+     * rattrapage se confond avec le mois courant.
+     */
+    /** Les emplois du temps et les mois qu'un règlement a soldés. */
+    const paySessionsOf = (tp: (typeof teacherPayments)[number]) => [
+      ...(tp.months ?? []).map((m) => m.sessionId),
+      ...(tp.board ? [tp.board.sessionId] : []),
+    ];
+    const payMonthsOf = (tp: (typeof teacherPayments)[number]) => [
+      ...(tp.months ?? []).map((m) => m.monthCode),
+      ...(tp.board ? [tp.board.monthCode] : []),
+    ];
+
+    const payrollRows = teacherPayments
+      .filter((tp) => inRange(tp.paidAt))
+      .filter((tp) => teacherFilter === "all" || tp.teacherId === teacherFilter)
+      // Un règlement de mois nomme son emploi du temps : les deux filtres
+      // transverses s'appliquent donc à la paie comme au reste de l'écran.
+      .filter((tp) => sessionFilter === "all" || paySessionsOf(tp).includes(sessionFilter))
+      .filter((tp) => monthFilter === "all" || payMonthsOf(tp).includes(monthFilter))
+      .map((tp) => ({
+        ...tp,
+        teacherName: tName(tp.teacherId),
+        monthsLabel: (tp.months ?? []).map((m) => `${m.title} ${m.monthCode}`).join(" · "),
+        deductions:
+          sum(tp.expenses ?? [], (x) => x.amount) +
+          sum(tp.acomptes ?? [], (x) => x.amount) +
+          sum(tp.childDebts ?? [], (x) => x.amount) +
+          sum(tp.childCharges ?? [], (x) => x.amount),
+        arrearsTotal: sum(tp.arrears ?? [], (a) => a.amount),
+      }))
+      .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+
+    /**
+     * CE QUE CHAQUE RÈGLEMENT A PAYÉ, ÉLÈVE PAR ÉLÈVE.
+     *
+     * Les règlements de mois portent la photographie de leurs trois tables :
+     * on peut donc descendre jusqu'à la ligne — « cet élève, sur ce mois, a
+     * rapporté tant à cet enseignant » — sans rien recalculer, et sans que la
+     * relecture puisse diverger de ce qui a été versé.
+     */
+    const payStudentLines = payrollRows.flatMap((r) =>
+      (r.board?.students ?? []).map((st) => ({
+        ...st,
+        teacherName: r.teacherName,
+        emploi: r.board!.emploi,
+        groupName: r.board!.groupName,
+        monthCode: r.board!.monthCode,
+        paidAt: r.paidAt,
+      })),
+    );
+    const payDeductionLines = payrollRows.flatMap((r) =>
+      (r.board?.deductions ?? []).map((d) => ({
+        ...d,
+        teacherName: r.teacherName,
+        emploi: r.board!.emploi,
+        monthCode: r.board!.monthCode,
+        paidAt: r.paidAt,
+      })),
+    );
+    const payStudentsTotal = sum(payStudentLines, (r) => r.amount);
+    const payDeductionsTotal = sum(payDeductionLines, (r) => r.amount);
+
+    const payrollNet = sum(payrollRows, (r) => r.amount);
+    const payrollGross = sum(payrollRows, (r) => r.gross ?? r.amount);
+    const payrollDeducted = sum(payrollRows, (r) => r.deductions);
+    const payrollArrears = sum(payrollRows, (r) => r.arrearsTotal);
+    const arrearLines = payrollRows.flatMap((r) =>
+      (r.arrears ?? []).map((a) => ({ ...a, teacherName: r.teacherName, paidAt: r.paidAt })),
+    );
+
+    const payrollSection: Section = {
+      id: "payroll",
+      label: "Paie enseignants",
+      subtitle:
+        "Chaque règlement, ce qu'il a soldé mois par mois, ce qui en a été retenu et les arriérés qu'il a rattrapés.",
+      icon: <HandCoins className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Net versé aux enseignants",
+          value: outflow(payrollNet),
+          tone: "danger",
+          icon: <Banknote className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateTimeCell(r.paidAt) },
+              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Mois soldés", render: (r) => <span className="text-muted">{r.monthsLabel || "—"}</span> },
+              { label: "Brut", align: "right", render: (r) => <span className="font-mono">{formatDA(r.gross ?? r.amount)}</span> },
+              { label: "Retenues", align: "right", render: (r) => <span className="text-danger">{r.deductions > 0 ? outflow(r.deductions) : "—"}</span> },
+              { label: "Net", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: payrollRows,
+            totalLabel: "Total net versé",
+            totalValue: outflow(payrollNet),
+            totalTone: "danger",
+            searchable: (r) => `${r.teacherName} ${r.monthsLabel} ${r.description}`,
+          },
+        },
+        {
+          label: "Brut des séances réglées",
+          value: formatDA(payrollGross),
+          tone: "primary",
+          icon: <Receipt className="h-5 w-5" />,
+          hint: "Avant dépenses, acomptes et scolarités d'enfants",
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.paidAt) },
+              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Présences", align: "right", render: (r) => <span className="font-mono">{r.studentsCount}</span> },
+              { label: "Créneaux", align: "right", render: (r) => <span className="font-mono">{r.sessionsCount}</span> },
+              { label: "Brut", align: "right", render: (r) => <strong className="text-primary">{formatDA(r.gross ?? r.amount)}</strong> },
+            ],
+            rows: payrollRows,
+            totalLabel: "Total brut",
+            totalValue: formatDA(payrollGross),
+            totalTone: "primary",
+            searchable: (r) => `${r.teacherName} ${r.description}`,
+          },
+        },
+        {
+          label: "Retenues sur les paies",
+          value: outflow(payrollDeducted),
+          tone: "warning",
+          icon: <ArrowDownLeft className="h-5 w-5" />,
+          hint: "Dépenses, acomptes et scolarités d'enfants",
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.paidAt) },
+              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Dépenses", align: "right", render: (r) => <span className="text-muted">{(r.expenses ?? []).length}</span> },
+              { label: "Acomptes", align: "right", render: (r) => <span className="text-muted">{(r.acomptes ?? []).length}</span> },
+              { label: "Scolarités", align: "right", render: (r) => <span className="text-muted">{(r.childDebts ?? []).length + (r.childCharges ?? []).length}</span> },
+              { label: "Total retenu", align: "right", render: (r) => <strong className="text-warning">{outflow(r.deductions)}</strong> },
+            ],
+            rows: payrollRows.filter((r) => r.deductions > 0),
+            totalLabel: "Total des retenues",
+            totalValue: outflow(payrollDeducted),
+            totalTone: "warning",
+            searchable: (r) => `${r.teacherName}`,
+          },
+        },
+        {
+          label: "Arriérés débloqués rattrapés",
+          value: formatDA(payrollArrears),
+          tone: "success",
+          icon: <HandCoins className="h-5 w-5" />,
+          hint: `${arrearLines.length} élève-mois payés en retard`,
+          detail: {
+            columns: [
+              { label: "Réglé le", render: (r) => dateCell(r.paidAt) },
+              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacherName}</span> },
+              { label: "Élève", render: (r) => <strong className="text-ink">{r.studentName}</strong> },
+              { label: "Emploi du temps", render: (r) => <span className="text-muted">{r.emploi}</span> },
+              { label: "Mois d'origine", render: (r) => <Badge tone="primary" className="text-[9px]">{r.monthCode}</Badge> },
+              { label: "Séances", align: "right", render: (r) => <span className="font-mono">{r.seances}</span> },
+              { label: "Part rattrapée", align: "right", render: (r) => <strong className="text-success">{formatDA(r.amount)}</strong> },
+            ],
+            rows: arrearLines,
+            totalLabel: "Total rattrapé",
+            totalValue: formatDA(payrollArrears),
+            totalTone: "success",
+            empty: "Aucun arriéré débloqué sur cette période — tous les élèves avaient payé à temps.",
+            searchable: (r) => `${r.studentName} ${r.emploi} ${r.monthCode} ${r.teacherName}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "De quoi une paie est faite",
+          subtitle: "Brut des séances − retenues + arriérés rattrapés = net versé.",
+          icon: <Banknote className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Règlements sur la période", value: `${payrollRows.length}`, strong: true },
+            { label: "Brut des séances", value: formatDA(payrollGross), tone: "primary" },
+            { label: "Retenues (dépenses, acomptes, scolarités)", value: outflow(payrollDeducted), tone: "warning" },
+            { label: "Arriérés débloqués", value: formatDA(payrollArrears), tone: "success", formula: "parts d'un mois déjà réglé, libérées par un paiement tardif" },
+            { label: "Net versé", value: outflow(payrollNet), tone: "danger", emphasis: true },
+          ],
+          note:
+            "Un mois déjà réglé peut encore devoir quelque chose : la part d'un élève qui n'avait pas payé est RETENUE, puis rattrapée dès qu'il s'acquitte. Elle est comptée avec son mois d'origine, jamais avec le mois courant.",
+        },
+      ],
+      tables: [
+        {
+          title: "Tous les règlements de la période",
+          icon: <Receipt className="h-3.5 w-3.5 text-primary" />,
+          spec: {
+            columns: [
+              { label: "Date", render: (r) => dateTimeCell(r.paidAt) },
+              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Mode", render: (r) => (
+                <Badge tone="neutral" className="text-[9px]">
+                  {r.method === "percent" ? `${r.percentage ?? 0} %` : r.method === "group" ? "par groupe" : "fixe"}
+                </Badge>
+              ) },
+              { label: "Mois soldés", render: (r) => <span className="text-muted">{r.monthsLabel || "—"}</span> },
+              { label: "Arriérés", align: "right", render: (r) => <span className="text-success">{r.arrearsTotal > 0 ? formatDA(r.arrearsTotal) : "—"}</span> },
+              { label: "Retenues", align: "right", render: (r) => <span className="text-warning">{r.deductions > 0 ? outflow(r.deductions) : "—"}</span> },
+              { label: "Net", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: payrollRows,
+            totalLabel: "Total net versé",
+            totalValue: outflow(payrollNet),
+            totalTone: "danger",
+            searchable: (r) => `${r.teacherName} ${r.monthsLabel} ${r.description}`,
+          },
+        },
+        {
+          title: "Table 1 — les élèves réglés, ligne par ligne",
+          icon: <Users className="h-3.5 w-3.5 text-success" />,
+          spec: {
+            columns: [
+              { label: "Réglé le", render: (r) => dateCell(r.paidAt) },
+              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacherName}</span> },
+              { label: "Emploi · mois", render: (r) => (
+                <span className="text-muted">
+                  <strong className="block text-ink">{r.emploi} · {r.groupName}</strong>
+                  {r.monthCode}
+                </span>
+              ) },
+              { label: "Élève", render: (r) => (
+                <span>
+                  <strong className="block text-ink">{r.name}</strong>
+                  <span className="font-mono text-[9px] text-muted">{r.registrationNumber || "—"}</span>
+                </span>
+              ) },
+              { label: "Séances", align: "right", render: (r) => <span className="font-mono">{r.seances}</span> },
+              { label: "Part / séance", align: "right", render: (r) => <span className="font-mono text-muted">{formatDA(r.perSeance)}</span> },
+              { label: "Statut", render: (r) => (
+                r.schoolCovered ? (
+                  <Badge tone="danger" className="text-[9px]">avancé par l&apos;école</Badge>
+                ) : r.withheld ? (
+                  <Badge tone="warning" className="text-[9px]">retenu</Badge>
+                ) : (
+                  <Badge tone="success" className="text-[9px]">payé</Badge>
+                )
+              ) },
+              { label: "Part enseignant", align: "right", render: (r) => <strong className="text-success">{formatDA(r.amount)}</strong> },
+            ],
+            rows: payStudentLines,
+            totalLabel: "Total des parts élèves",
+            totalValue: formatDA(payStudentsTotal),
+            totalTone: "success",
+            empty: "Aucun règlement de mois sur cette période — les règlements plus anciens n'ont pas ce détail.",
+            searchable: (r) => `${r.name} ${r.registrationNumber ?? ""} ${r.emploi} ${r.monthCode} ${r.teacherName}`,
+          },
+        },
+        {
+          title: "Table 3 — les retenues, ligne par ligne",
+          icon: <ArrowDownLeft className="h-3.5 w-3.5 text-warning" />,
+          spec: {
+            columns: [
+              { label: "Réglé le", render: (r) => dateCell(r.paidAt) },
+              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacherName}</span> },
+              { label: "Emploi · mois", render: (r) => <span className="text-muted">{r.emploi} · {r.monthCode}</span> },
+              { label: "Nature", render: (r) => (
+                <Badge tone={r.kind === "acompte" ? "primary" : r.kind === "expense" ? "warning" : "danger"} className="text-[9px]">
+                  {r.kind === "expense" ? "Dépense" : r.kind === "acompte" ? "Acompte" : r.kind === "child" ? "Scolarité enfant" : "Scolarité avancée"}
+                </Badge>
+              ) },
+              { label: "Libellé", render: (r) => (
+                <span>
+                  <strong className="block text-ink">{r.label}</strong>
+                  {r.description && <span className="text-[9px] text-muted">{r.description}</span>}
+                </span>
+              ) },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: payDeductionLines,
+            totalLabel: "Total des retenues détaillées",
+            totalValue: outflow(payDeductionsTotal),
+            totalTone: "warning",
+            empty: "Aucune retenue détaillée sur cette période.",
+            searchable: (r) => `${r.label} ${r.description ?? ""} ${r.teacherName} ${r.emploi} ${r.monthCode}`,
+          },
+        },
+      ],
+    };
+
+    /* ============================== PARENTS ============================ */
+    const parentRows = parents.map((par) => {
+      const children = students.filter(
+        (st) => par.childIds?.includes(st.id) || st.parentId === par.id,
+      );
+      const debt = sum(children, (c) => studentDebt(db, c.id) + (c.registrationDue || 0));
+      const paid = sum(
+        fPay.filter((pm) => children.some((c) => c.id === pm.studentId)),
+        (pm) => pm.amountPaid,
+      );
+      return {
+        id: par.id,
+        name: `${par.firstName} ${par.lastName}`,
+        phone: par.phone,
+        childrenCount: children.length,
+        childrenNames: children.map(studentNameOf).join(", "),
+        debt,
+        paid,
+      };
+    });
+    const parentsDebt = sum(parentRows, (r) => r.debt);
+    const parentsPaid = sum(parentRows, (r) => r.paid);
+
+    const parentsSection: Section = {
+      id: "parents",
+      label: "Parents",
+      subtitle: "Qui a payé pour ses enfants sur la période, et qui doit encore quelque chose.",
+      icon: <UserCog className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Parents enregistrés",
+          value: `${parents.length}`,
+          tone: "primary",
+          icon: <UserCog className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Parent", render: (r) => <strong className="text-ink">{r.name}</strong> },
+              { label: "Téléphone", render: (r) => <span className="font-mono text-[10px] text-muted">{r.phone || "—"}</span> },
+              { label: "Enfants", render: (r) => <span className="text-muted">{r.childrenNames || "—"}</span> },
+              { label: "Versé (période)", align: "right", render: (r) => <span className="text-success">{inflow(r.paid)}</span> },
+              { label: "Dette", align: "right", render: (r) => <strong className={r.debt > 0 ? "text-danger" : "text-muted"}>{r.debt > 0 ? formatDA(r.debt) : "—"}</strong> },
+            ],
+            rows: parentRows,
+            totalLabel: "Dette totale des familles",
+            totalValue: formatDA(parentsDebt),
+            totalTone: "danger",
+            searchable: (r) => `${r.name} ${r.phone} ${r.childrenNames}`,
+          },
+        },
+        {
+          label: "Versé par les familles (période)",
+          value: inflow(parentsPaid),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Parent", render: (r) => <strong className="text-ink">{r.name}</strong> },
+              { label: "Enfants", align: "right", render: (r) => <span className="font-mono">{r.childrenCount}</span> },
+              { label: "Versé", align: "right", render: (r) => <strong className="text-success">{inflow(r.paid)}</strong> },
+            ],
+            rows: [...parentRows].sort((a, b) => b.paid - a.paid),
+            totalLabel: "Total versé",
+            totalValue: inflow(parentsPaid),
+            totalTone: "success",
+            searchable: (r) => r.name,
+          },
+        },
+        {
+          label: "Dette des familles",
+          value: formatDA(parentsDebt),
+          tone: "danger",
+          icon: <AlertCircle className="h-5 w-5" />,
+          hint: "Soldes dans le rouge + frais d'inscription dus",
+          detail: {
+            columns: [
+              { label: "Parent", render: (r) => <strong className="text-ink">{r.name}</strong> },
+              { label: "Téléphone", render: (r) => <span className="font-mono text-[10px] text-muted">{r.phone || "—"}</span> },
+              { label: "Enfants", render: (r) => <span className="text-muted">{r.childrenNames || "—"}</span> },
+              { label: "Dette", align: "right", render: (r) => <strong className="text-danger">{formatDA(r.debt)}</strong> },
+            ],
+            rows: parentRows.filter((r) => r.debt > 0).sort((a, b) => b.debt - a.debt),
+            totalLabel: "Dette totale",
+            totalValue: formatDA(parentsDebt),
+            totalTone: "danger",
+            empty: "Aucune famille en dette.",
+            searchable: (r) => `${r.name} ${r.childrenNames}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Les familles en un coup d'œil",
+          icon: <Users className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Parents", value: `${parents.length}`, strong: true },
+            { label: "Familles ayant versé sur la période", value: `${parentRows.filter((r) => r.paid > 0).length}`, tone: "success" },
+            { label: "Familles en dette", value: `${parentRows.filter((r) => r.debt > 0).length}`, tone: "danger" },
+            { label: "Dette moyenne par famille endettée", value: formatDA(parentRows.filter((r) => r.debt > 0).length ? parentsDebt / parentRows.filter((r) => r.debt > 0).length : 0), emphasis: true },
+          ],
+        },
+      ],
+    };
+
+    return {
+      sections: [
+        overviewSection,
+        analysisSection,
+        studentsSection,
+        attendanceSection,
+        plannerSection,
+        subscriptionsSection,
+        teachersSection,
+        payrollSection,
+        parentsSection,
+        receptionSection,
+        independentSection,
+        expensesSection,
+        cashSection,
+      ],
+    };
+  }, [
+    isGenerated,
+    reportRange,
+    // Les filtres transverses restreignent tous les ensembles de base : ils
+    // doivent donc invalider le calcul entier, pas seulement l'affichage.
+    classFilter,
+    teacherFilter,
+    moduleFilter,
+    sessionFilter,
+    entitySearch,
+    // the "Analyse générale" block is built inside this memo, so the teacher
+    // filter has to invalidate it
+    teacherAnalysisId,
+    cash,
+    students,
+    unpaidTeacher,
+    expenses,
+    teachers,
+    modules,
+    sessions,
+    classes,
+    reception,
+    acomptes,
+    absences,
+    payments,
+    enrollments,
+    attendance,
+    independent,
+    groupSeances,
+    coursework,
+    subscriptions,
+    categories,
+    parents,
+    teacherPayments,
+  ]);
+
+  const current = report?.sections.find((s) => s.id === activeSection) ?? report?.sections[0];
+
+  /** Les KPI que l'on garde SOUS LES YEUX, quelle que soit la section lue. */
+  const headline = (() => {
+    if (!reportRange) return null;
+    const inRange = (d: string) => {
+      const day = (d || "").substring(0, 10);
+      return day >= reportRange.start && day <= reportRange.end;
+    };
+    const rows = cash.filter((t) => inRange(t.date));
+    const income = rows.filter((t) => t.amount > 0).reduce((n, t) => n + t.amount, 0);
+    const outgo = rows.filter((t) => t.amount < 0).reduce((n, t) => n + Math.abs(t.amount), 0);
+    const debt = students.reduce(
+      (n, st) => n + studentDebt(db, st.id) + (st.registrationDue || 0),
+      0,
+    );
+    // Ce que les enseignants ont réellement touché sur la période : la ligne
+    // que la direction cherche en premier quand elle ouvre les rapports.
+    const payroll = teacherPayments
+      .filter((tp) => inRange(tp.paidAt))
+      .reduce((n, tp) => n + tp.amount, 0);
+    return { income, outgo, net: income - outgo, debt, payroll, movements: rows.length };
+  })();
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        emoji="💰"
+        title="Rapports Financiers"
+        subtitle="Chaque interface de l'application, dans le détail : les chiffres, leur calcul, et la liste derrière chaque chiffre"
+      />
+
+      {/* -----------------------------------------------------------------
+          LA BARRE DE PÉRIODE ET DE FILTRES.
+
+          Un bilan ne se lit presque jamais « en entier » : on veut le mois de
+          la 4AP, ce qu'un enseignant a produit, ce qu'un module a rapporté. Ces
+          filtres restreignent les ENSEMBLES DE BASE, si bien que chaque carte,
+          chaque calcul et chaque tableau de l'écran parlent du même périmètre.
+          ----------------------------------------------------------------- */}
+      <div className="space-y-3 rounded-2xl border border-line bg-surface p-4 card-shadow">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
+            <Calendar className="h-3.5 w-3.5" /> Période
+          </span>
+          {(
+            [
+              { id: "today", label: "Aujourd'hui" },
+              { id: "week", label: "7 jours" },
+              { id: "month", label: "Ce mois" },
+              { id: "quarter", label: "3 mois" },
+              { id: "year", label: "Cette année" },
+              { id: "all", label: "Tout" },
+            ] as const
+          ).map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => applyPreset(preset.id)}
+              className="rounded-xl border border-line bg-canvas/40 px-3 py-1.5 text-[11px] font-bold text-muted transition-colors hover:border-primary hover:bg-primary-50 hover:text-primary"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          <div className="grid flex-1 grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+                Du
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-xl text-xs"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+                Au
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-xl text-xs"
+              />
+            </div>
+          </div>
+          <Button
+            onClick={handleGenerate}
+            className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-6 font-bold"
+          >
+            <FileText className="h-4 w-4" /> Appliquer la période
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 border-t border-line pt-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div>
+            <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted">
+              <Filter className="h-3 w-3" /> Classe
+            </label>
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
+            >
+              <option value="all">Toutes les classes</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.type === "cours" && c.year ? ` · ${c.year}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+              Enseignant
+            </label>
+            <select
+              value={teacherFilter}
+              onChange={(e) => setTeacherFilter(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
+            >
+              <option value="all">Tous les enseignants</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.firstName} {t.lastName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+              Module
+            </label>
+            <select
+              value={moduleFilter}
+              onChange={(e) => setModuleFilter(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
+            >
+              <option value="all">Tous les modules</option>
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+              Emploi du temps
+            </label>
+            <select
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
+            >
+              <option value="all">Tous les emplois du temps</option>
+              {sessions.map((se) => (
+                <option key={se.id} value={se.id}>
+                  {se.title || modules.find((m) => m.id === se.moduleId)?.name || "Emploi du temps"}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* LE MOIS D'EMPLOI DU TEMPS — pas un mois du calendrier.
+
+              Chaque emploi du temps compte les siens : M1 s'ouvre à la première
+              présence et se ferme sur la séance qui complète le pack. Ce filtre
+              restreint la paie des enseignants à ce mois-là. */}
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+              Mois (paie)
+            </label>
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
+            >
+              <option value="all">Tous les mois</option>
+              {Array.from({ length: 12 }, (_, i) => `M${i + 1}`).map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+              Élève (nom, N°)
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+                <Search className="h-3.5 w-3.5" />
+              </span>
+              <Input
+                value={entitySearch}
+                onChange={(e) => setEntitySearch(e.target.value)}
+                placeholder="Rechercher…"
+                className="w-full rounded-xl py-2 pl-9 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        {filtersActive && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary-50/40 px-3 py-2">
+            <span className="text-[11px] font-semibold text-primary">
+              🎯 Bilan restreint — toutes les cartes, tous les calculs et tous les tableaux
+              ci-dessous parlent du même périmètre.
+            </span>
+            <Button size="sm" variant="outline" onClick={resetFilters} className="gap-1.5 rounded-xl">
+              <RotateCcw className="h-3.5 w-3.5" /> Tout réafficher
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Les quatre chiffres que l'on garde sous les yeux */}
+      {headline && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {[
+            { label: "Entrées de la période", value: `+${formatDA(headline.income)}`, tone: "success" as Tone, icon: <ArrowUpRight className="h-4 w-4" /> },
+            { label: "Sorties de la période", value: `-${formatDA(headline.outgo)}`, tone: "danger" as Tone, icon: <ArrowDownLeft className="h-4 w-4" /> },
+            { label: "Flux net", value: `${headline.net >= 0 ? "+" : "-"}${formatDA(Math.abs(headline.net))}`, tone: (headline.net >= 0 ? "success" : "danger") as Tone, icon: <Wallet className="h-4 w-4" /> },
+            { label: "Payé aux enseignants", value: `-${formatDA(headline.payroll)}`, tone: "primary" as Tone, icon: <HandCoins className="h-4 w-4" /> },
+            { label: "Dettes des élèves", value: formatDA(headline.debt), tone: "warning" as Tone, icon: <AlertCircle className="h-4 w-4" /> },
+          ].map((k) => (
+            <div key={k.label} className="flex items-center justify-between gap-2 rounded-2xl border border-line bg-surface p-4 card-shadow">
+              <div className="min-w-0">
+                <span className="block text-[9px] font-bold uppercase tracking-wider text-muted">
+                  {k.label}
+                </span>
+                <strong className={`block text-lg font-black ${TONE_TEXT[k.tone]}`}>{k.value}</strong>
+              </div>
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${TONE_SOFT[k.tone]}`}>
+                {k.icon}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isGenerated || !reportRange || !report || !current ? (
+        <Card className="border border-dashed border-line bg-canvas/30 p-12 text-center">
+          <div className="mx-auto max-w-md space-y-3">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FileSpreadsheet className="h-6 w-6" />
+            </div>
+            <h3 className="text-sm font-bold text-ink">Bilan financier en attente</h3>
+            <p className="text-xs leading-relaxed text-muted">
+              Sélectionnez une période puis cliquez sur <strong>&laquo;&nbsp;Générer le Bilan&nbsp;&raquo;</strong>. Aucune donnée n&apos;est
+              calculée tant que vous n&apos;avez pas lancé la génération. Vous pourrez ensuite filtrer par interface et cliquer sur chaque carte
+              pour afficher toutes les listes détaillées.
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <div className="animate-in fade-in space-y-6 duration-300">
+          {/* Section filter chips */}
+          <div className="flex gap-1.5 overflow-x-auto rounded-2xl border border-line bg-canvas/30 p-2 scrollbar-none">
+            {report.sections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setActiveSection(s.id)}
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                  activeSection === s.id ? "bg-gradient-primary text-white shadow-sm" : "text-muted hover:bg-surface hover:text-ink"
+                }`}
+              >
+                {s.icon}
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Ce que la section répond, avant les chiffres */}
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-line bg-gradient-to-br from-primary-50/60 to-transparent p-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                {current.icon}
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-sm font-black text-ink">{current.label}</h3>
+                <p className="text-[11px] leading-relaxed text-muted">
+                  {current.subtitle ??
+                    "Cliquez sur n'importe quel montant pour ouvrir la liste exacte qui le compose."}
+                </p>
+              </div>
+            </div>
+            <Badge tone="primary" className="gap-1 text-[10px]">
+              <Sparkles className="h-3 w-3" />
+              {formatDateFr(reportRange.start)} → {formatDateFr(reportRange.end)}
+            </Badge>
+          </div>
+
+          {/* Metric cards */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {current.cards.map((c, i) => (
+              <MetricCard key={i} spec={c} onOpen={openDetail} />
+            ))}
+          </div>
+
+          {/* Charts / custom blocks (Analyse générale) */}
+          {current.custom}
+
+          {/* Small calculations */}
+          {current.panels.length > 0 && (
+            <div className={`grid grid-cols-1 gap-6 ${current.panels.length > 1 ? "lg:grid-cols-2" : ""}`}>
+              {current.panels.map((p, i) => (
+                <CalcCard
+                  key={i}
+                  panel={p}
+                  onOpen={(title, spec) => {
+                    setModalSearch("");
+                    setDetail({ title, spec });
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Les tableaux détaillés que la section déplie d'elle-même — pas
+              besoin d'ouvrir une carte pour les lire. */}
+          {(current.tables ?? []).map((t, i) => (
+            <Card key={i} className="border border-line card-shadow">
+              <CardBody className="space-y-3 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink">
+                    {t.icon} {t.title}
+                  </h4>
+                  <div className="relative w-full max-w-xs">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+                      <Search className="h-3.5 w-3.5" />
+                    </span>
+                    <Input
+                      value={tableSearch[`${current.id}-${i}`] ?? ""}
+                      onChange={(e) =>
+                        setTableSearch((prev) => ({
+                          ...prev,
+                          [`${current.id}-${i}`]: e.target.value,
+                        }))
+                      }
+                      placeholder="Filtrer ce tableau…"
+                      className="w-full rounded-xl py-1.5 pl-9 text-xs"
+                    />
+                  </div>
+                </div>
+                <DetailTable spec={t.spec} search={tableSearch[`${current.id}-${i}`] ?? ""} />
+                {t.note && <p className="text-[10px] leading-relaxed text-muted">{t.note}</p>}
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Detail modal */}
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.title} wide>
+        {detail && (
+          <div className="space-y-4">
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+                <Search className="h-4 w-4" />
+              </span>
+              <Input
+                type="text"
+                placeholder="Rechercher dans cette liste..."
+                value={modalSearch}
+                onChange={(e) => setModalSearch(e.target.value)}
+                className="w-full rounded-xl px-4 py-2 pl-9 text-xs"
+              />
+              {modalSearch && (
+                <button
+                  onClick={() => setModalSearch("")}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-ink"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <DetailTable spec={detail.spec} search={modalSearch} />
+
+            <div className="flex justify-end border-t border-line pt-4">
+              <Button variant="outline" onClick={() => setDetail(null)} className="rounded-xl">
+                Fermer
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
