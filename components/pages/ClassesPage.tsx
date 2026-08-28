@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Trash2, Edit, Eye, Plus, MoreVertical } from "lucide-react";
+import { Edit, Eye, MoreVertical, Plus, Shield, Trash2 } from "lucide-react";
 import type { SchoolClass, CoursLevel, FormationLevel } from "@/lib/types";
 import {
   COURS_LEVELS,
@@ -170,7 +170,7 @@ export function ClassesPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette classe ?")) {
+    if (confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ?")) {
       deleteFrom("classes", id);
       setActiveMenuId(null);
     }
@@ -194,7 +194,7 @@ export function ClassesPage() {
   const getClassSessions = (classId: string) =>
     sessions.filter((s) => s.classId === classId && !s.archivedAt);
 
-  // Classes shown in the grid, filtered by the selected level
+  // Catégories shown in the grid, filtered by the selected level
   const visibleClasses = classes.filter((c) => {
     if (filterLevel === "all") return true;
     if (filterLevel === "formation") return c.type === "formation";
@@ -205,7 +205,7 @@ export function ClassesPage() {
   const CoursFields = (
     <>
       <div>
-        <label className="block text-xs font-semibold text-muted mb-1 font-sans">Niveau scolaire</label>
+        <label className="block text-xs font-semibold text-muted mb-1 font-sans">Niveau du club</label>
         <Select
           value={coursLevel}
           onChange={(e) => {
@@ -280,7 +280,7 @@ export function ClassesPage() {
   const FormationFields = (
     <>
       <div>
-        <label className="block text-xs font-semibold text-muted mb-1">Nom de la classe</label>
+        <label className="block text-xs font-semibold text-muted mb-1">Nom de la catégorie</label>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Anglais débutants A1" />
       </div>
 
@@ -322,7 +322,7 @@ export function ClassesPage() {
 
   const TypePicker = (
     <div>
-      <label className="block text-xs font-semibold text-muted mb-1">Type de classe</label>
+      <label className="block text-xs font-semibold text-muted mb-1">Type de catégorie</label>
       <div className="grid grid-cols-2 gap-2">
         <Button variant={type === "cours" ? "primary" : "outline"} onClick={() => setType("cours")} className="w-full text-center">
           Cours (Soutien scolaire)
@@ -350,10 +350,10 @@ export function ClassesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageHeader emoji="🏫" title="Classes" subtitle="Gérer les classes et formations" />
+        <PageHeader icon={Shield} title="Classes" subtitle="Gérer les catégories et formations" />
         {can("create") && (
           <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" /> Nouvelle Classe
+            <Plus className="h-4 w-4" /> Nouvelle Catégorie
           </Button>
         )}
       </div>
@@ -380,7 +380,7 @@ export function ClassesPage() {
         </span>
       </div>
 
-      {/* Grid of classes */}
+      {/* Grid of catégories */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {visibleClasses.map((cls) => {
           const studentCount = getStudentCount(cls.id);
@@ -435,7 +435,7 @@ export function ClassesPage() {
                     Niveau: <strong className="text-ink font-semibold">{levelText}</strong>
                   </span>
                   <span className="text-primary font-bold text-sm bg-primary-50 px-2 py-1 rounded-lg">
-                    {studentCount} {studentCount > 1 ? "Étudiants" : "Étudiant"}
+                    {studentCount} {studentCount > 1 ? "Chevaliers" : "Chevalier"}
                   </span>
                 </div>
               </CardBody>
@@ -451,7 +451,7 @@ export function ClassesPage() {
       )}
 
       {/* Creation Modal */}
-      <Modal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Créer une nouvelle classe">
+      <Modal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Créer une nouvelle catégorie">
         <div className="space-y-4">
           {TypePicker}
           {type === "cours" ? CoursFields : FormationFields}
@@ -466,7 +466,7 @@ export function ClassesPage() {
       </Modal>
 
       {/* Edit Modal */}
-      <Modal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier la classe">
+      <Modal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier la catégorie">
         <div className="space-y-4">
           {TypePicker}
           {type === "cours" ? CoursFields : FormationFields}
@@ -481,7 +481,7 @@ export function ClassesPage() {
       </Modal>
 
       {/* Details Modal */}
-      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Détails de la classe" wide>
+      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Détails de la catégorie" wide>
         {selectedClass && (
           <div className="space-y-6">
             {/* Header info */}
@@ -554,10 +554,10 @@ export function ClassesPage() {
               {/* Students List */}
               <div className="border border-line rounded-xl p-4 bg-surface/50">
                 <h4 className="font-bold text-ink mb-3 flex items-center gap-2">
-                  🎓 Étudiants Inscrits ({getClassStudents(selectedClass.id).length})
+                  🎓 Chevaliers Inscrits ({getClassStudents(selectedClass.id).length})
                 </h4>
                 {getClassStudents(selectedClass.id).length === 0 ? (
-                  <p className="text-xs text-muted italic">Aucun étudiant inscrit dans cette classe.</p>
+                  <p className="text-xs text-muted italic">Aucun chevalier inscrit dans cette classe.</p>
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {getClassStudents(selectedClass.id).map((stu) => (

@@ -99,7 +99,7 @@ export function toggleTimingSelection(
   return selected.includes(option.subId) ? withoutCourse : [...withoutCourse, option.subId];
 }
 
-/** Timings and classes, ready to be listed. Shared by every screen that
+/** Timings and catégories, ready to be listed. Shared by every screen that
  *  enrolls a student, so they all read the same catalogue. */
 export function useClassTimings() {
   const { sessions, subscriptions, classes, modules, teachers, groups, salles, students } = useData();
@@ -164,7 +164,7 @@ export function useClassTimings() {
     });
     const all = matchingClasses.flatMap((cls) => timingsOf(cls.id));
     // Re-derive siblings across the WHOLE aggregated set (two groups of the same
-    // cours may sit in different classes of the same level).
+    // cours may sit in different catégories of the same level).
     return all
       .map((row) => ({
         ...row,
@@ -230,13 +230,13 @@ export function useClassTimings() {
 }
 
 /**
- * « OÙ EN EST-IL, LÀ, MAINTENANT ? » — les inscriptions en cours de l'élève,
+ * « OÙ EN EST-IL, LÀ, MAINTENANT ? » — les inscriptions en cours du chevalier,
  * écrites en toutes lettres au-dessus du catalogue.
  *
  * Avant de déplacer un enfant, la réception a besoin de voir ce qu'il suit
- * DÉJÀ : dans quelle classe, sur quelle année, sur quels emplois du temps, avec
- * quel enseignant et à quelles heures. Sans ce rappel, cocher un créneau dans la
- * liste du dessous relève du pari — c'est justement ainsi qu'on inscrit un élève
+ * DÉJÀ : dans quelle catégorie, sur quelle année, sur quels emplois du temps, avec
+ * quel entraîneur et à quelles heures. Sans ce rappel, cocher un créneau dans la
+ * liste du dessous relève du pari — c'est justement ainsi qu'on inscrit un chevalier
  * de 4AP sur un créneau de 3AP sans s'en apercevoir.
  *
  * Le tableau lit la SÉLECTION EN COURS, pas seulement ce qui est enregistré :
@@ -248,7 +248,7 @@ export function CurrentInscriptions({
   student,
   savedSubIds,
   onRemove,
-  title = "Inscriptions actuelles de l'élève",
+  title = "Inscriptions actuelles du chevalier",
 }: {
   /** les emplois du temps cochés — ce que la fiche portera une fois enregistrée */
   subIds: string[];
@@ -306,8 +306,8 @@ export function CurrentInscriptions({
 
       {rows.length === 0 ? (
         <div className="py-3 text-center text-[11px] text-muted">
-          {/* Une fiche créée SANS emploi du temps garde tout de même sa classe
-              et son année : les rappeler ici évite de chercher où l'élève a
+          {/* Une fiche créée SANS emploi du temps garde tout de même sa catégorie
+              et son année : les rappeler ici évite de chercher où le chevalier a
               été inscrit avant de pouvoir lui choisir un créneau. */}
           {student?.enrollmentLevel || student?.enrollmentYear ? (
             <>
@@ -335,12 +335,12 @@ export function CurrentInscriptions({
           <table className="w-full min-w-[760px] text-[11px]">
             <thead className="bg-canvas/60">
               <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
-                <th className="px-2 py-1.5">Classe</th>
+                <th className="px-2 py-1.5">Catégorie</th>
                 <th className="px-2 py-1.5">Niveau / Année</th>
                 <th className="px-2 py-1.5">Emploi du temps</th>
                 <th className="px-2 py-1.5">Groupe</th>
                 <th className="px-2 py-1.5">Jours &amp; heures</th>
-                <th className="px-2 py-1.5">Enseignant</th>
+                <th className="px-2 py-1.5">Entraîneur</th>
                 <th className="px-2 py-1.5 text-right">Séance</th>
                 {student && <th className="px-2 py-1.5 text-right">Solde</th>}
                 {onRemove && <th className="px-2 py-1.5 text-right">Action</th>}
@@ -439,15 +439,15 @@ export function ClassTimingPicker({
   student?: Student | null;
   /** ce que la fiche porte DÉJÀ en base, pour marquer les ajouts en attente */
   savedSubIds?: string[];
-  /** rappeler EN HAUT la classe, l'année et les emplois du temps actuels */
+  /** rappeler EN HAUT la catégorie, l'année et les emplois du temps actuels */
   showCurrent?: boolean;
   /**
-   * OÙ ROUVRIR LE CATALOGUE quand l'élève n'a AUCUN emploi du temps.
+   * OÙ ROUVRIR LE CATALOGUE quand le chevalier n'a AUCUN emploi du temps.
    *
    * Une fiche peut très bien avoir été créée « 4AP, on verra le créneau plus
    * tard » : sans ces deux valeurs, l'écran de modification rouvrait sur un
    * primaire/1AP qui ne le concernait pas, et la réception devait retrouver sa
-   * classe à la main avant de pouvoir lui choisir un emploi du temps.
+   * catégorie à la main avant de pouvoir lui choisir un emploi du temps.
    */
   initialLevel?: string;
   initialYear?: string;
@@ -456,14 +456,14 @@ export function ClassTimingPicker({
 }) {
   const { timingsForLevelYear, timingOf, levelYearOf, subCost, subLabel } = useClassTimings();
   /**
-   * L'écran s'ouvre LÀ OÙ L'ÉLÈVE EST DÉJÀ : le niveau et l'année de sa première
+   * L'écran s'ouvre LÀ OÙ LE CHEVALIER EST DÉJÀ : le niveau et l'année de sa première
    * inscription. En modification, ses emplois du temps sont donc visibles et
    * décochables tout de suite, au lieu d'être cachés derrière un primaire/1AP
    * qui ne le concerne pas.
    */
   const start = useMemo(
     () => {
-      // La première inscription décide d'abord ; à défaut, la classe et
+      // La première inscription décide d'abord ; à défaut, la catégorie et
       // l'année RETENUES sur la fiche ; à défaut seulement, le repli habituel.
       const fromSubs = selectedSubIds.length ? levelYearOf(selectedSubIds[0]) : null;
       if (fromSubs) return fromSubs;
@@ -482,7 +482,7 @@ export function ClassTimingPicker({
   const [search, setSearch] = useState("");
 
   // Le niveau et l'année affichés remontent à la fiche, qui les enregistre —
-  // c'est ce qui permet de rouvrir ici même un élève sans emploi du temps.
+  // c'est ce qui permet de rouvrir ici même un chevalier sans emploi du temps.
   useEffect(() => {
     onScopeChange?.({ level, year });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -508,7 +508,7 @@ export function ClassTimingPicker({
 
   return (
     <div className="space-y-3">
-      {/* Ce qu'il suit DÉJÀ — classe, année, créneaux — avant de toucher à quoi
+      {/* Ce qu'il suit DÉJÀ — catégorie, année, créneaux — avant de toucher à quoi
           que ce soit. Sans ce rappel, on coche à l'aveugle. */}
       {showCurrent && (
         <CurrentInscriptions
@@ -574,7 +574,7 @@ export function ClassTimingPicker({
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher un créneau par nom (module, enseignant, groupe...)"
+          placeholder="Rechercher un créneau par nom (module, entraîneur, groupe...)"
           className="pl-9"
         />
       </div>
@@ -644,7 +644,7 @@ export function ClassTimingPicker({
                   <span className="text-end">
                     <strong className="block">
                       {formatDA(t.price)}
-                      {t.isFormation ? ` / ${t.periodMonths} mois` : " / séance"}
+                      {t.isFormation ? ` / ${t.periodMonths} carte` : " / séance"}
                     </strong>
                     {t.hasMonthly && (
                       <span className={picked ? "text-white/80" : "text-warning"}>

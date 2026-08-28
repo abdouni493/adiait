@@ -4,15 +4,15 @@
  * LA CLOCHE DE LA DIRECTION — les encaissements saisis par les travailleurs.
  *
  * Un travailleur ouvre la feuille de présence d'un groupe depuis le tableau de
- * bord, pointe les élèves, et encaisse au passage. L'argent entre bien en
+ * bord, pointe les chevaliers, et encaisse au passage. L'argent entre bien en
  * caisse, mais l'administration ne le voyait qu'en dépouillant la caisse à la
  * fin de la journée.
  *
  * Chaque versement signé d'un travailleur remonte donc ici, et y reste tant que
  * la direction ne l'a pas marqué lu. Elle peut l'imprimer — sur le reçu de
- * l'école, celui-là même qu'on remet à la famille — et l'impression propose
+ * le club, celui-là même qu'on remet à la famille — et l'impression propose
  * alors de le retirer de la liste : le geste normal, c'est d'imprimer puis de
- * classer.
+ * catégorier.
  *
  * Le bouton n'existe que pour l'administration : un travailleur n'a pas à se
  * surveiller lui-même.
@@ -28,7 +28,12 @@ import { useToast } from "@/lib/store/toast";
 import { useSettings } from "@/lib/store/settings";
 import { printHtmlDocument } from "@/lib/print";
 import { paymentReceiptHtml } from "@/lib/reports/documents";
-import { enrollmentLabel, formatDateFr, studentName } from "@/lib/helpers";
+import {
+  carteShort,
+  enrollmentLabel,
+  formatDateFr,
+  studentName,
+} from "@/lib/helpers";
 import { formatDA } from "@/lib/utils";
 import type { Payment } from "@/lib/types";
 
@@ -39,7 +44,7 @@ export function WorkerPaymentsAlert() {
   const language = useSettings((s) => s.language);
 
   const [open, setOpen] = useState(false);
-  /** le versement dont on vient de lancer l'impression, et qu'on propose de classer */
+  /** le versement dont on vient de lancer l'impression, et qu'on propose de catégorier */
   const [justPrinted, setJustPrinted] = useState<Payment | null>(null);
 
   /**
@@ -78,7 +83,7 @@ export function WorkerPaymentsAlert() {
       addToast({
         type: "danger",
         title: "Impression impossible",
-        message: "L'élève de ce versement n'existe plus.",
+        message: "Le chevalier de ce versement n'existe plus.",
       });
     }
   };
@@ -140,7 +145,7 @@ export function WorkerPaymentsAlert() {
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-canvas/40 p-3">
             <p className="max-w-lg text-[11px] leading-relaxed text-muted">
               Les versements encaissés par un travailleur — depuis une feuille de présence, une
-              fiche d&apos;élève ou le comptoir — apparaissent ici jusqu&apos;à ce que vous les
+              fiche d&apos;chevalier ou le comptoir — apparaissent ici jusqu&apos;à ce que vous les
               marquiez comme lus.
             </p>
             <div className="flex gap-1.5">
@@ -168,7 +173,7 @@ export function WorkerPaymentsAlert() {
                   >
                     <div className="min-w-0 flex-1">
                       <strong className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink">
-                        {student ? studentName(student) : "Élève supprimé"}
+                        {student ? studentName(student) : "Chevalier supprimé"}
                         <Badge
                           tone={p.type === "debt_payment" ? "success" : "primary"}
                           className="px-1.5 py-0 text-[9px]"
@@ -178,7 +183,7 @@ export function WorkerPaymentsAlert() {
                       </strong>
                       <span className="mt-0.5 block truncate text-[10px] text-muted">
                         {labelOf(p)}
-                        {p.monthCode ? ` · ${p.monthCode}` : ""}
+                        {p.monthCode ? ` · ${carteShort(p.monthCode)}` : ""}
                       </span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[9px] text-muted">
                         <span className="flex items-center gap-1">
@@ -219,7 +224,7 @@ export function WorkerPaymentsAlert() {
         </div>
       </Modal>
 
-      {/* Imprimer puis classer : c'est le geste normal, on le propose plutôt que
+      {/* Imprimer puis catégorier : c'est le geste normal, on le propose plutôt que
           de l'imposer — un reçu réimprimé pour une autre raison ne doit pas
           faire disparaître l'alerte. */}
       {justPrinted && (
@@ -230,7 +235,7 @@ export function WorkerPaymentsAlert() {
               <strong>
                 {db.students.find((s) => s.id === justPrinted.studentId)
                   ? studentName(db.students.find((s) => s.id === justPrinted.studentId)!)
-                  : "cet élève"}
+                  : "ce chevalier"}
               </strong>{" "}
               a été envoyé à l&apos;impression. Voulez-vous le retirer des alertes ?
             </p>

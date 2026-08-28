@@ -4,15 +4,15 @@ import { buildSeed } from "@/tests/fixtures/seed";
 import { defaultPayableMonthKeys, teacherEmplois, unlockedArrears } from "@/lib/teacherMonths";
 
 /**
- * CHAQUE MOIS EST INDÉPENDANT — ET LES RETARDATAIRES ONT LEUR PROPRE TABLE.
+ * CHAQUE CARTE EST INDÉPENDANT — ET LES RETARDATAIRES ONT LEUR PROPRE TABLE.
  *
- * Le cas que la réception vit tous les mois : au moment de régler le M1, un
- * élève n'avait rien versé. Sa part a donc été RETENUE, et l'enseignant a
- * touché le M1 sans elle. L'élève s'acquitte ensuite ; au moment de régler le
+ * Le cas que la réception vit tous les cartes : au moment de régler le M1, un
+ * chevalier n'avait rien versé. Sa part a donc été RETENUE, et l'entraîneur a
+ * touché le M1 sans elle. Le chevalier s'acquitte ensuite ; au moment de régler le
  * M2, cette part de M1 est de nouveau due.
  *
  * Elle n'a rien à faire dans le tableau du M2 : elle appartient au M1. Elle
- * apparaît donc comme ARRIÉRÉ DÉBLOQUÉ, avec son mois d'origine — sur l'écran
+ * apparaît donc comme ARRIÉRÉ DÉBLOQUÉ, avec son carte d'origine — sur l'écran
  * de paie comme sur la fiche imprimée — et le M1 n'est plus jamais recoché
  * comme s'il était à régler une seconde fois.
  */
@@ -87,20 +87,20 @@ async function present(studentId: string, date: string) {
   await useData.getState().setPresence({ studentId, sessionId: SES, date, status: "present" });
 }
 
-describe("les arriérés d'un mois déjà réglé", () => {
+describe("les arriérés d'une carte déjà réglé", () => {
   beforeEach(board);
 
-  it("réapparaissent dans leur propre table, avec leur mois d'origine", async () => {
+  it("réapparaissent dans leur propre table, avec leur carte d'origine", async () => {
     const [d1, d2, d3] = days(3);
 
-    // M1 : les deux élèves viennent. Seul l'un des deux a payé son mois.
+    // M1 : les deux chevaliers viennent. Seul l'un des deux a payé son carte.
     await useData.getState().addSold({ studentId: PAYER, subscriptionId: SUB, amount: 1000 });
     await present(PAYER, d1);
     await present(LATE, d1);
     await present(PAYER, d2);
     await present(LATE, d2);
 
-    // L'enseignant est réglé du M1 : la part du retardataire est RETENUE.
+    // L'entraîneur est réglé du M1 : la part du retardataire est RETENUE.
     let emplois = teacherEmplois(useData.getState(), TEACHER);
     let m1 = emplois[0].months[0];
     expect(m1.withheld).toBe(600); // 2 séances × 300 DA
@@ -115,12 +115,12 @@ describe("les arriérés d'un mois déjà réglé", () => {
       months: [],
     });
 
-    // Le retardataire s'acquitte APRÈS coup, sur son mois M1.
+    // Le retardataire s'acquitte APRÈS coup, sur son carte M1.
     await useData
       .getState()
       .addSold({ studentId: LATE, subscriptionId: SUB, amount: 1000, monthCode: "M1" });
 
-    // Une séance du M2 est tenue : le mois courant s'ouvre.
+    // Une séance du M2 est tenue : la carte courante s'ouvre.
     await present(PAYER, d3);
 
     emplois = teacherEmplois(useData.getState(), TEACHER);
@@ -133,7 +133,7 @@ describe("les arriérés d'un mois déjà réglé", () => {
     expect(arrears[0].amount).toBe(600);
   });
 
-  it("ne recoche jamais le mois déjà réglé comme s'il restait à payer", async () => {
+  it("ne recoche jamais la carte déjà réglé comme s'il restait à payer", async () => {
     const [d1, d2] = days(2);
     await useData.getState().addSold({ studentId: PAYER, subscriptionId: SUB, amount: 1000 });
     await present(PAYER, d1);
@@ -158,7 +158,7 @@ describe("les arriérés d'un mois déjà réglé", () => {
     const settled = emplois[0].months[0];
     expect(settled.alreadySettled).toBe(true);
     expect(settled.arrearPayable).toBe(600);
-    // Le mois n'est plus proposé : ce qu'il doit encore est un arriéré.
+    // La carte n'est plus proposé : ce qu'il doit encore est un arriéré.
     expect(defaultPayableMonthKeys(emplois)).not.toContain(settled.key);
   });
 
@@ -214,7 +214,7 @@ describe("les arriérés d'un mois déjà réglé", () => {
   });
 });
 
-describe("l'historique des règlements d'un enseignant", () => {
+describe("l'historique des règlements d'un entraîneur", () => {
   beforeEach(board);
 
   it("enregistre une ligne pour chaque règlement, avec sa date", async () => {

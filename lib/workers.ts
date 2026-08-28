@@ -8,7 +8,7 @@
  * lignes à part entière (`workerPayments`), et ce fichier est le seul endroit
  * qui sait lire :
  *
- *   - quelles périodes restent dues, selon le contrat (mois, journée,
+ *   - quelles périodes restent dues, selon le contrat (carte, journée,
  *     demi-journée, heures pointées) ;
  *   - quels acomptes et quelles absences n'ont pas encore été retenus ;
  *   - ce qu'il faut donc verser.
@@ -29,7 +29,7 @@ import type {
 import { money } from "@/lib/utils";
 
 export const WORKER_PAYMENT_LABELS: Record<ReceptionPaymentType, string> = {
-  monthly: "Mensuel",
+  monthly: "Par carte",
   daily: "Journalier",
   half_day: "Demi-journée",
   hourly: "Horaire",
@@ -160,7 +160,7 @@ export function hourlyDue(worker: ReceptionStaff, shifts: WorkerShift[]): number
 // ---------------------------------------------------------------------------
 
 export interface WorkerPeriod {
-  /** « 08/2026 » pour un mois, « 2026-08-14 » pour une journée */
+  /** « 08/2026 » pour une carte, « 2026-08-14 » pour une journée */
   key: string;
   label: string;
   amount: number;
@@ -182,7 +182,7 @@ function dayKey(d: Date): string {
  * Les règlements écrits depuis la mise à jour le disent eux-mêmes. Ceux d'AVANT
  * n'existaient que sous la forme d'un mouvement de caisse dont le LIBELLÉ
  * contenait le nom de famille et la période : ils sont relus ici aussi, sans
- * quoi tous les mois déjà payés repasseraient pour dus le jour de la mise à
+ * quoi tous les cartes déjà payés repasseraient pour dus le jour de la mise à
  * jour. C'est une lecture de secours, et elle ne concerne que le passé.
  */
 function settledKeys(db: Database, worker: ReceptionStaff): Set<string> {
@@ -208,7 +208,7 @@ function legacySettled(db: Database, worker: ReceptionStaff, key: string): boole
 /**
  * Ce qu'on doit encore à ce travailleur, période par période.
  *
- * Le contrat décide de l'unité : un mois pour un mensuel, une journée pour un
+ * Le contrat décide de l'unité : une carte pour un par carte, une journée pour un
  * journalier ou un demi-journalier, une journée POINTÉE pour un horaire (dont
  * le montant se calcule sur les minutes réellement travaillées).
  */

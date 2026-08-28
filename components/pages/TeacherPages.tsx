@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LE COMPTE D'UN ENSEIGNANT — ce qu'il voit, et ce qu'il ne peut pas faire.
+ * LE COMPTE D'UN ENTRAÎNEUR — ce qu'il voit, et ce qu'il ne peut pas faire.
  *
  * Son compte est un écran de LECTURE sur sa propre activité. Il y retrouve
  * exactement les mêmes chiffres que ceux dont l'administration se sert pour le
@@ -9,16 +9,16 @@
  * les produisent : pas d'encaissement, pas de règlement, pas de correction.
  *
  *   · TABLEAU DE BORD  — sa journée (navigable jour par jour), sa paie en un
- *     coup d'œil, et les élèves qui lui retiennent son argent ;
+ *     coup d'œil, et les chevaliers qui lui retiennent son argent ;
  *   · EMPLOI DU TEMPS  — sa semaine, une couleur par groupe ;
  *   · PRÉSENCES        — le pointage de ses séances ;
- *   · MATIÈRES         — les supports qu'il publie à ses élèves ;
+ *   · MATIÈRES         — les supports qu'il publie à ses chevaliers ;
  *   · MA PAIE          — l'écran de règlement du guichet, en lecture seule :
- *     ses emplois du temps → ses mois M1…M12 → le détail d'un mois ;
- *   · MES CLASSES      — la liste des élèves, groupe par groupe.
+ *     ses emplois du temps → ses carte M1…M12 → le détail d'une carte ;
+ *   · MES CATÉGORIES      — la liste des chevaliers, groupe par groupe.
  *
- * Partout où un groupe apparaît, un clic ouvre SA liste d'élèves — et rien
- * d'autre : c'est la seule action qu'un enseignant a sur un groupe.
+ * Partout où un groupe apparaît, un clic ouvre SA liste de chevaliers — et rien
+ * d'autre : c'est la seule action qu'un entraîneur a sur un groupe.
  */
 
 import { useMemo, useState } from "react";
@@ -38,17 +38,7 @@ import { TeacherPayCenterView } from "@/components/teachers/TeacherPayCenterView
 import { TeacherGroupRoster } from "@/components/teachers/TeacherGroupRoster";
 import { payEmplois } from "@/lib/teacherPayBoard";
 import type { TeacherEmploi } from "@/lib/teacherMonths";
-import {
-  FileText,
-  Megaphone,
-  User,
-  AlertTriangle,
-  ChevronRight,
-  Plus,
-  Trash2,
-  Users,
-  Upload,
-} from "lucide-react";
+import { AlertTriangle, ChevronRight, FileText, Megaphone, Plus, Trash2, Upload, User, UserCheck, Users } from "lucide-react";
 import type { Teacher, ScheduleSession, Student, AttendanceStatus } from "@/lib/types";
 import { formatDA } from "@/lib/utils";
 
@@ -125,7 +115,7 @@ export function TeacherPages({ slug }: PageProps) {
       );
     case "salary":
       return <TeacherPayCenterView teacher={teacher} />;
-    case "my-classes":
+    case "my-catégories":
       return <TeacherClassesView teacher={teacher} />;
     case "announcements":
       return <TeacherAnnouncementsView announcements={announcements} />;
@@ -193,7 +183,7 @@ function TeacherAttendanceView({
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="✅" title="Appel & Présences" subtitle="Validez la présence des élèves de vos groupes aujourd'hui" />
+      <PageHeader icon={UserCheck} title="Appel & Présences" subtitle="Validez la présence des chevaliers de vos groupes aujourd'hui" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Sessions list */}
@@ -229,7 +219,7 @@ function TeacherAttendanceView({
 
                 <div className="space-y-2">
                   {getEnrolledStudents(activeSession).length === 0 ? (
-                    <p className="text-xs text-muted italic p-4 text-center">Aucun étudiant inscrit dans ce groupe.</p>
+                    <p className="text-xs text-muted italic p-4 text-center">Aucun chevalier inscrit dans ce groupe.</p>
                   ) : (
                     getEnrolledStudents(activeSession).map((st) => {
                       const status = getStudentStatusForSessionToday(st.id, activeSession.id);
@@ -330,7 +320,7 @@ function TeacherSubjectsView({
   return (
     <div className="space-y-6 text-xs">
       <div className="flex items-center justify-between">
-        <PageHeader emoji="📄" title="Mes Devoirs & Fiches" subtitle="Publier des ressources de révision et exercices" />
+        <PageHeader icon={FileText} title="Mes Devoirs & Fiches" subtitle="Publier des ressources de révision et exercices" />
         <Button onClick={() => setIsAddOpen(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" /> Nouveau document
         </Button>
@@ -481,14 +471,14 @@ function TeacherSubjectsView({
 }
 
 // ----------------------------------------------------
-// 6. MY CLASSES VIEW
+// 6. MY CATÉGORIES VIEW
 // ----------------------------------------------------
 /**
  * MES GROUPES — la même carte que partout ailleurs, et la même liste.
  *
- * L'enseignant retrouve ici, en grand, ce que son tableau de bord lui montre en
- * bas de page : chacun de ses emplois du temps, avec son effectif, son mois en
- * cours et ses retardataires. Un clic ouvre la liste des élèves — en lecture
+ * L'entraîneur retrouve ici, en grand, ce que son tableau de bord lui montre en
+ * bas de page : chacun de ses emplois du temps, avec son effectif, son carte en
+ * cours et ses retardataires. Un clic ouvre la liste des chevaliers — en lecture
  * seule, comme partout dans son compte.
  */
 function TeacherClassesView({ teacher }: { teacher: Teacher }) {
@@ -518,14 +508,14 @@ function TeacherClassesView({ teacher }: { teacher: Teacher }) {
   return (
     <div className="space-y-5 text-xs">
       <PageHeader
-        emoji="👥"
-        title="Mes classes & groupes"
-        subtitle="Consultez la liste des élèves inscrits à chacun de vos cours"
+        icon={Users}
+        title="Mes catégories & groupes"
+        subtitle="Consultez la liste des chevaliers inscrits à chacun de vos cours"
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <ClassStat label="Groupes" value={String(emplois.length)} tone="text-primary" />
-        <ClassStat label="Élèves suivis" value={String(roster)} tone="text-ink" />
+        <ClassStat label="Chevaliers suivis" value={String(roster)} tone="text-ink" />
         <ClassStat
           label="En retard de paiement"
           value={String(inDebt)}
@@ -562,7 +552,7 @@ function TeacherClassesView({ teacher }: { teacher: Teacher }) {
 
               <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3">
                 <Badge tone="neutral" className="text-[9px] font-bold">
-                  <Users className="h-3 w-3" /> {e.rosterCount} élève(s)
+                  <Users className="h-3 w-3" /> {e.rosterCount} chevalier(s)
                 </Badge>
                 <Badge tone="primary" className="font-mono text-[9px]">
                   {e.currentCode} · séance {Math.min(Math.max(e.currentHeld, 0), e.size)}/{e.size}
@@ -575,7 +565,7 @@ function TeacherClassesView({ teacher }: { teacher: Teacher }) {
               </div>
 
               <div className="mt-3 flex items-center justify-between border-t border-line bg-canvas/40 px-4 py-2 text-[10px] font-bold text-primary">
-                <span>Voir la liste des élèves</span>
+                <span>Voir la liste des chevaliers</span>
                 <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </div>
             </button>
@@ -611,7 +601,7 @@ function TeacherAnnouncementsView({ announcements }: { announcements: any[] }) {
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="📣" title="Annonces pour le corps Enseignant" subtitle="Informations scolaires importantes" />
+      <PageHeader icon={Megaphone} title="Annonces pour le corps Entraîneur" subtitle="Informations du club importantes" />
 
       {activeAnn.length === 0 ? (
         <Card className="p-8 text-center bg-canvas/30 border border-line">
@@ -687,7 +677,7 @@ function TeacherProfileView({
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="👤" title="Mon Profil Enseignant" subtitle="Gérer vos identifiants d'accès et contacts" />
+      <PageHeader icon={User} title="Mon Profil Entraîneur" subtitle="Gérer vos identifiants d'accès et contacts" />
 
       <div className="max-w-2xl">
         <Card>

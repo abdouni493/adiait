@@ -13,7 +13,7 @@ import {
 import type { Student, SubscriptionDates } from "@/lib/types";
 
 /**
- * The "Ajouter un étudiant" screen now takes the inscriptions AND the first
+ * The "Ajouter un chevalier" screen now takes the inscriptions AND the first
  * recharge in one go. These tests drive the very store calls that form makes,
  * in the same order, so the flow keeps writing the inscriptions on the student
  * and the purchase in his payment history.
@@ -60,7 +60,7 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("création d'un étudiant avec ses inscriptions", () => {
+describe("création d'un chevalier avec ses inscriptions", () => {
   it("les créneaux cochés sont enregistrés sur sa fiche, avec leurs dates", () => {
     const start = todayIso();
     enrollOnCreation(baseStudent, [
@@ -78,7 +78,7 @@ describe("création d'un étudiant avec ses inscriptions", () => {
     expect(saved.subscriptionDates?.["sub-3"]?.startDate).toBe(start);
   });
 
-  it("plusieurs créneaux de classes différentes tiennent sur la même fiche", () => {
+  it("plusieurs créneaux de catégories différentes tiennent sur la même fiche", () => {
     const start = todayIso();
     enrollOnCreation(baseStudent, [
       { subId: "sub-1", plan: "seance", startDate: start }, // 3ème AS
@@ -90,7 +90,7 @@ describe("création d'un étudiant avec ses inscriptions", () => {
     expect(saved.subscriptionIds).toHaveLength(3);
   });
 
-  it("un mois coché fixe la date de fin de l'inscription", () => {
+  it("une carte coché fixe la date de fin de l'inscription", () => {
     const start = "2026-08-16";
     enrollOnCreation(baseStudent, [{ subId: "sub-1", plan: "month", startDate: start }]);
 
@@ -111,7 +111,7 @@ describe("création d'un étudiant avec ses inscriptions", () => {
 });
 
 describe("premier rechargement pris sur l'écran de création", () => {
-  it("le paiement atterrit dans l'historique de l'élève et crédite ses séances", async () => {
+  it("le paiement atterrit dans l'historique du chevalier et crédite ses séances", async () => {
     const start = todayIso();
     enrollOnCreation(baseStudent, [{ subId: "sub-1", plan: "seance", startDate: start }]);
 
@@ -167,7 +167,7 @@ describe("premier rechargement pris sur l'écran de création", () => {
     expect(studentDebt(useData.getState(), "stu-new")).toBe(1160);
   });
 
-  it("un premier mois ouvre la période et remplit le compteur du pack", async () => {
+  it("un première carte ouvre la période et remplit le compteur du pack", async () => {
     const start = todayIso();
     enrollOnCreation(baseStudent, [{ subId: "sub-1", plan: "month", startDate: start }]);
     const tariff = useData.getState().subscriptions.find((s) => s.id === "sub-1")!;
@@ -182,7 +182,7 @@ describe("premier rechargement pris sur l'écran de création", () => {
       amountPaid: monthlyPriceOf(tariff),
       startDate: start,
       expiryDate: monthlyExpiry(start),
-      description: "Premier abonnement mensuel",
+      description: "Premier abonnement par carte",
     });
     expect(res.ok).toBe(true);
 
@@ -192,7 +192,7 @@ describe("premier rechargement pris sur l'écran de création", () => {
     )!;
     expect(enrollment.plan).toBe("month");
     expect(enrollment.paidSeances).toBe(8);
-    // Un mois, jamais un jour de plus — et les 8 séances du pack sont dessus.
+    // Une carte, jamais un jour de plus — et les 8 séances du pack sont dessus.
     expect(enrollment.expiryDate).toBe(monthlyExpiry(start));
     expect(remainingSeances(enrollment)).toBe(8);
     // Le pack est vendu 4200 DA, moins cher que ses 8 séances à l'unité.

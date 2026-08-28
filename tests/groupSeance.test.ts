@@ -6,12 +6,12 @@ import type { GroupSeance } from "@/lib/types";
 
 /**
  * La séance libre de GROUPE : une séance ponctuelle vendue à un groupe entier,
- * sans nommer un seul élève. Trois nombres suffisent — élèves, prix par élève,
- * part de l'école — et tout le reste se déduit.
+ * sans nommer un seul chevalier. Trois nombres suffisent — chevaliers, prix par chevalier,
+ * part du club — et tout le reste se déduit.
  *
  * Elle écrit DEUX mouvements de caisse : la recette qui entre et la paie de
- * l'enseignant qui sort. La modifier réécrit ces deux-là, la supprimer les
- * emporte : la caisse, la fiche de l'enseignant et les rapports ne peuvent donc
+ * l'entraîneur qui sort. La modifier réécrit ces deux-là, la supprimer les
+ * emporte : la caisse, la fiche de l'entraîneur et les rapports ne peuvent donc
  * pas diverger de ce que l'écran affiche.
  */
 
@@ -32,8 +32,8 @@ const draft = (over: Partial<GroupSeance> = {}): GroupSeance => ({
   ...over,
 });
 
-describe("le calcul d'une séance libre de groupe", () => {
-  it("déduit la part de l'enseignant et les trois totaux", () => {
+describe("le calcul d'une sortie libre de groupe", () => {
+  it("déduit la part de l'entraîneur et les trois totaux", () => {
     const t = groupSeanceTotals({ studentsCount: 25, pricePerStudent: 500, schoolPerStudent: 200 });
     expect(t.teacherPerStudent).toBe(300);
     expect(t.total).toBe(12500);
@@ -42,7 +42,7 @@ describe("le calcul d'une séance libre de groupe", () => {
     expect(t.schoolTotal + t.teacherTotal).toBe(t.total);
   });
 
-  it("ne laisse jamais l'école prendre plus que le prix payé", () => {
+  it("ne laisse jamais le club prendre plus que le prix payé", () => {
     const t = groupSeanceTotals({ studentsCount: 10, pricePerStudent: 400, schoolPerStudent: 900 });
     expect(t.schoolPerStudent).toBe(400);
     expect(t.teacherPerStudent).toBe(0);
@@ -56,12 +56,12 @@ describe("le calcul d'une séance libre de groupe", () => {
   });
 });
 
-describe("la séance libre de groupe et la caisse", () => {
+describe("la sortie libre de groupe et la caisse", () => {
   beforeEach(() => {
     useData.setState(buildSeed());
   });
 
-  it("écrit la recette ET la paie de l'enseignant", async () => {
+  it("écrit la recette ET la paie de l'entraîneur", async () => {
     const before = useData.getState().cash.length;
     const res = await useData.getState().saveGroupSeance(draft());
     expect(res.ok).toBe(true);
@@ -80,7 +80,7 @@ describe("la séance libre de groupe et la caisse", () => {
     expect(cashOut.type).toBe("teacher_payment");
   });
 
-  it("apparaît dans ce que la séance a rapporté à l'enseignant", async () => {
+  it("apparaît dans ce que la séance a rapporté à l'entraîneur", async () => {
     await useData.getState().saveGroupSeance(draft());
     await useData
       .getState()
@@ -118,13 +118,13 @@ describe("la séance libre de groupe et la caisse", () => {
     expect(teacherGroupSeanceTotal(db, TEACHER)).toBe(0);
   });
 
-  it("refuse un enseignant qui n'existe pas", async () => {
+  it("refuse un entraîneur qui n'existe pas", async () => {
     const res = await useData.getState().saveGroupSeance(draft({ teacherId: "tea-inconnu" }));
     expect(res.ok).toBe(false);
     expect(useData.getState().groupSeances).toHaveLength(0);
   });
 
-  it("ne sort rien de la caisse quand l'école garde tout", async () => {
+  it("ne sort rien de la caisse quand le club garde tout", async () => {
     await useData.getState().saveGroupSeance(draft({ schoolPerStudent: 500 }));
     const db = useData.getState();
     const row = db.groupSeances[0];

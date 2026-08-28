@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Trash2, Edit, Plus, Filter, Tag, Calendar } from "lucide-react";
+import { Calendar, Edit, Filter, Plus, Receipt, Tag, Trash2 } from "lucide-react";
 import type { Expense, ExpenseCategory } from "@/lib/types";
 import { formatDA } from "@/lib/utils";
 
@@ -128,7 +128,7 @@ export function ExpensesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageHeader emoji="💸" title="Dépenses" subtitle="Suivi des frais de fonctionnement de l'établissement" />
+        <PageHeader icon={Receipt} title="Dépenses" subtitle="Suivi des frais de fonctionnement de l'établissement" />
         {can("create") && (
           <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Nouvelle Dépense

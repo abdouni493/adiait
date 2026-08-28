@@ -4,9 +4,9 @@
  * LES PAPIERS D'UN TRAVAILLEUR — fiche de paie, reçu d'acompte, avis de
  * retenue pour absence.
  *
- * Ils sortent du MÊME générateur que le reçu de l'élève (`brandedTicketHtml`) :
+ * Ils sortent du MÊME générateur que le reçu du chevalier (`brandedTicketHtml`) :
  * même logo, même en-tête, même mise en page. Un travailleur et un parent
- * repartent avec le papier de la même école, et changer l'en-tête les change
+ * repartent avec le papier de la même club, et changer l'en-tête les change
  * tous d'un coup.
  */
 
@@ -65,7 +65,7 @@ const LABELS = {
 /**
  * « 08/2026 » se lit mal sur un papier qu'on remet à quelqu'un.
  *
- * Une clé de mois redevient « août 2026 », une clé de jour une date complète.
+ * Une clé de carte redevient « août 2026 », une clé de jour une date complète.
  * Tout le reste — l'identifiant d'une journée pointée — est nommé par la
  * journée elle-même, plus haut.
  */
@@ -109,7 +109,7 @@ function levelOf(db: Database, worker: ReceptionStaff, lang: Language): string {
  *
  * Les périodes s'affichent telles que l'écran de règlement les nommait : « août
  * 2026 », « samedi 15 août 2026 », ou la journée pointée avec ses heures. Elles
- * sont recopiées ici plutôt que recalculées — un mois renommé, une journée
+ * sont recopiées ici plutôt que recalculées — une carte renommé, une journée
  * effacée, et le papier déjà remis dirait autre chose que ce qui a été payé.
  */
 export function workerPayslipHtml(

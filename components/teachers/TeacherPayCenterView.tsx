@@ -3,9 +3,9 @@
 /**
  * MA PAIE, VUE DE MON CÔTÉ — le même écran que celui du guichet, en lecture.
  *
- * L'administration règle un enseignant depuis « Enseignants → Paiement » : elle
- * ouvre SES emplois du temps, choisit LE MOIS, et lit trois tables avant de
- * verser. L'enseignant, lui, doit pouvoir vérifier exactement la même chose sur
+ * L'administration règle un entraîneur depuis « Entraîneurs → Paiement » : elle
+ * ouvre SES emplois du temps, choisit LE CARTE, et lit trois tables avant de
+ * verser. L'entraîneur, lui, doit pouvoir vérifier exactement la même chose sur
  * son propre compte — sinon la seule façon de comprendre sa paie est de
  * demander à quelqu'un.
  *
@@ -13,14 +13,14 @@
  * trois temps :
  *
  *   1. SES EMPLOIS DU TEMPS — un par carte, avec ce que chacun lui doit.
- *   2. SES MOIS, de M1 à M12 — la même pastille, le même « 3/4 », les mêmes
+ *   2. SES CARTE, de M1 à M12 — la même pastille, le même « 3/4 », les mêmes
  *      couleurs : réglé, à régler, en cours, retenu, vide.
- *   3. LE MOIS OUVERT — les élèves du mois, les retards de paiement et les
+ *   3. LE CARTE OUVERT — les chevaliers de la carte, les retards de paiement et les
  *      séances libres, les retenues, et le net.
  *
  * Une seule chose change, et c'est la plus importante : RIEN NE SE COCHE, RIEN
  * NE S'ENREGISTRE. Pas une case, pas un bouton d'encaissement, pas une
- * suppression. L'enseignant lit sa paie ; il ne la fait pas.
+ * suppression. L'entraîneur lit sa paie ; il ne la fait pas.
  */
 
 import { useMemo, useState } from "react";
@@ -31,7 +31,11 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { PayBoardView } from "@/components/teachers/PayBoardView";
 import { formatDA, money } from "@/lib/utils";
-import { formatDateFr, monthCodeLabel } from "@/lib/helpers";
+import {
+  carteShort,
+  formatDateFr,
+  monthCodeLabel,
+} from "@/lib/helpers";
 import {
   buildPayBoard,
   monthTiles,
@@ -74,7 +78,7 @@ import {
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-//  La palette des pastilles de mois — la même grammaire que l'écran du guichet,
+//  La palette des pastilles de carte — la même grammaire que l'écran du guichet,
 //  en un peu plus contrasté : cet écran-ci se lit de loin, sans rien à cocher.
 // ---------------------------------------------------------------------------
 
@@ -125,9 +129,9 @@ const PAY_STATE_LABEL: Record<string, { label: string; tone: Tone }> = {
 const DED_KIND: Record<BoardDeduction["kind"], { label: string; tone: Tone; icon: React.ReactNode }> = {
   expense: { label: "Dépense", tone: "warning", icon: <Receipt className="h-3 w-3" /> },
   acompte: { label: "Acompte", tone: "primary", icon: <Wallet className="h-3 w-3" /> },
-  child: { label: "Scolarité enfant", tone: "danger", icon: <GraduationCap className="h-3 w-3" /> },
+  child: { label: "Cotisation enfant", tone: "danger", icon: <GraduationCap className="h-3 w-3" /> },
   child_debt: {
-    label: "Scolarité avancée",
+    label: "Cotisation avancée",
     tone: "danger",
     icon: <GraduationCap className="h-3 w-3" />,
   },
@@ -136,7 +140,7 @@ const DED_KIND: Record<BoardDeduction["kind"], { label: string; tone: Tone; icon
 /**
  * LES MÊMES PASTILLES QUE LA FEUILLE DE PRÉSENCE — même écran, même langage.
  *
- * `"before"` marque une séance tenue avant l'inscription de l'élève : elle
+ * `"before"` marque une séance tenue avant l'inscription du chevalier : elle
  * reste vide plutôt que de se lire comme un pointage oublié.
  */
 const SLOT_STYLE: Record<string, { short: string; cls: string; label: string }> = {
@@ -192,14 +196,14 @@ export function TeacherPayCenterView({ teacher }: { teacher: Teacher }) {
   /**
    * LE GRAND LIVRE DE CE QUI SE RETIENT SUR MA PAIE.
    *
-   * Les tables d'un mois ne montrent une retenue qu'au moment où elle tombe sur
-   * ce mois-là. Or un enseignant veut aussi pouvoir lire la liste brute : tous
+   * Les tables d'une carte ne montrent une retenue qu'au moment où elle tombe sur
+   * cette carte-là. Or un entraîneur veut aussi pouvoir lire la liste brute : tous
    * ses acomptes, toutes les dépenses avancées pour lui, toutes les pénalités
-   * d'absence, toutes les scolarités d'enfants portées sur son salaire — avec,
+   * d'absence, toutes les cotisations d'enfants portées sur son salaire — avec,
    * pour chacune, si elle a déjà été reprise ou si elle attend encore.
    *
    * Les pénalités d'absence, en particulier, ne passent par aucun tableau de
-   * mois : sans cette page, l'enseignant ne les verrait nulle part.
+   * carte : sans cette page, l'entraîneur ne les verrait nulle part.
    */
   const ledger = useMemo(
     () => ({
@@ -238,10 +242,10 @@ export function TeacherPayCenterView({ teacher }: { teacher: Teacher }) {
             </strong>
             <span className="block text-[11px] text-muted">
               {teacher.paymentType === "monthly"
-                ? `Salaire mensuel — ${formatDA(teacher.monthlyAmount ?? 0)} le mois`
+                ? `Salaire par carte — ${formatDA(teacher.monthlyAmount ?? 0)} la carte`
                 : teacher.paymentType === "per_group"
                   ? "Réglé par groupe — chaque emploi du temps porte sa propre part"
-                  : `Réglé au pourcentage — ${teacher.percentage ?? 0} % par élève`}
+                  : `Réglé au pourcentage — ${teacher.percentage ?? 0} % par chevalier`}
               {teacher.phone ? ` · ${teacher.phone}` : ""}
             </span>
           </div>
@@ -291,7 +295,7 @@ export function TeacherPayCenterView({ teacher }: { teacher: Teacher }) {
             icon={<TrendingUp className="h-3.5 w-3.5" />}
           />
           <HeadStat
-            label="Retenu (élèves en dette)"
+            label="Retenu (chevaliers en dette)"
             value={formatDA(totalWithheld)}
             tone={totalWithheld > 0 ? "text-danger" : "text-muted"}
             icon={<Lock className="h-3.5 w-3.5" />}
@@ -377,7 +381,7 @@ export function TeacherPayCenterView({ teacher }: { teacher: Teacher }) {
           </motion.div>
         ) : (
           <motion.div
-            key={`board-${emploi.sessionId}-${monthCode}`}
+            key={`board-${emploi.sessionId}-${carteShort(monthCode)}`}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -14 }}
@@ -386,7 +390,7 @@ export function TeacherPayCenterView({ teacher }: { teacher: Teacher }) {
             <MonthBoardView
               teacher={teacher}
               emploi={emploi}
-              monthCode={monthCode}
+              monthCode={carteShort(monthCode)}
               onBack={() => setMonthCode(null)}
             />
           </motion.div>
@@ -463,7 +467,7 @@ function EmploiList({
     <div className="space-y-3">
       <p className="rounded-2xl border border-primary/30 bg-primary-50/50 p-3 text-[11px] leading-relaxed text-primary">
         Choisissez l&apos;emploi du temps à consulter. Chacun compte{" "}
-        <strong>ses propres mois</strong> — M1 s&apos;ouvre à la première présence et se ferme sur
+        <strong>ses propres carte</strong> — M1 s&apos;ouvre à la première présence et se ferme sur
         la séance qui complète le pack — et se règle mois par mois, indépendamment des autres.
       </p>
 
@@ -501,7 +505,7 @@ function EmploiList({
                 </span>
                 <span className="block text-[10px] text-muted">
                   {e.daysLabel} · <span className="font-mono">{e.timeLabel}</span> · {e.rosterCount}{" "}
-                  élève(s)
+                  chevalier(s)
                 </span>
               </div>
               <ChevronRight className="h-5 w-5 shrink-0 text-muted transition-transform group-hover:translate-x-1 group-hover:text-primary" />
@@ -529,13 +533,13 @@ function EmploiList({
                 </Badge>
               ) : (
                 <Badge tone="warning" className="text-[10px]">
-                  aucune part enseignant définie
+                  aucune part entraîneur définie
                 </Badge>
               )}
               {e.studentsInDebt > 0 && (
                 <Badge tone="danger" className="gap-1 text-[10px] font-bold">
                   <AlertTriangle className="h-3 w-3" />
-                  {e.studentsInDebt} élève(s) en retard de paiement
+                  {e.studentsInDebt} chevalier(s) en retard de paiement
                 </Badge>
               )}
             </div>
@@ -568,7 +572,7 @@ function EmploiList({
 }
 
 // ---------------------------------------------------------------------------
-// 2. Mes mois, M1 → M12
+// 2. Mes carte, M1 → M12
 // ---------------------------------------------------------------------------
 
 function MonthList({
@@ -614,7 +618,7 @@ function MonthList({
             </>
           ) : (
             <span className="font-semibold text-warning">
-              aucune part enseignant définie sur cet abonnement
+              aucune part entraîneur définie sur cet abonnement
             </span>
           )}
         </span>
@@ -690,7 +694,7 @@ function MonthCard({
 
       <div className="mt-2 space-y-0.5 text-[10px]">
         <span className="flex items-center justify-between text-muted">
-          <span>Élèves</span>
+          <span>Chevaliers</span>
           <strong className="text-ink">{tile.students}</strong>
         </span>
         {tile.settled ? (
@@ -728,7 +732,7 @@ function MonthCard({
         )}
         {tile.isCurrent && (
           <span className="flex items-center gap-1 text-warning">
-            <Clock className="h-3 w-3" /> Mois en cours
+            <Clock className="h-3 w-3" /> Carte en cours
           </span>
         )}
       </div>
@@ -737,7 +741,7 @@ function MonthCard({
 }
 
 // ---------------------------------------------------------------------------
-// 3. Le mois ouvert — les trois tables et le net, en lecture
+// 3. La carte ouvert — les trois tables et le net, en lecture
 // ---------------------------------------------------------------------------
 
 function MonthBoardView({
@@ -777,10 +781,10 @@ function MonthBoardView({
 
   return (
     <div className="space-y-4">
-      {/* ---- en-tête du mois --------------------------------------------- */}
+      {/* ---- en-tête de la carte --------------------------------------------- */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button size="sm" variant="outline" onClick={onBack} className="gap-1.5">
-          <ArrowLeft className="h-3.5 w-3.5" /> Mois de cet emploi
+          <ArrowLeft className="h-3.5 w-3.5" /> Carte de cet emploi
         </Button>
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone="primary" className="gap-1 font-bold">
@@ -796,7 +800,7 @@ function MonthBoardView({
         </div>
       </div>
 
-      {/* ---- ce mois m'a-t-il déjà été réglé ? ---------------------------- */}
+      {/* ---- cette carte m'a-t-il déjà été réglé ? ---------------------------- */}
       {settlement ? (
         <div className="rounded-2xl border-2 border-success/40 bg-gradient-to-r from-success/15 to-success/5 p-4">
           <strong className="flex items-center gap-1.5 text-sm text-success">
@@ -810,7 +814,7 @@ function MonthBoardView({
           </span>
           <span className="mt-1 block text-[11px] leading-relaxed text-muted">
             Les tables ci-dessous montrent ce que ce mois représente{" "}
-            <strong className="text-ink">aujourd&apos;hui</strong>. Si des élèves ont payé depuis, ou
+            <strong className="text-ink">aujourd&apos;hui</strong>. Si des chevaliers ont payé depuis, ou
             si des séances libres sont tombées ici, ces parts vous reviennent sur le{" "}
             <strong className="text-ink">règlement suivant</strong>, dans sa table « Retards de
             paiement &amp; séances libres » — le mois lui-même ne se repaie jamais deux fois.
@@ -827,11 +831,11 @@ function MonthBoardView({
       {/* ---- le résumé, toujours visible ---------------------------------- */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat
-          label="Élèves du mois"
+          label="Chevaliers de la carte"
           value={String(board.students.length)}
           hint={`${board.students.length - unpaidRows.length} à jour · ${unpaidRows.length} en dette`}
         />
-        <Stat label="Table 1 — élèves" value={formatDA(board.studentsTotal)} tone="text-success" />
+        <Stat label="Table 1 — chevaliers" value={formatDA(board.studentsTotal)} tone="text-success" />
         <Stat
           label="Table 2 — retards"
           value={formatDA(board.arrearsTotal)}
@@ -852,29 +856,29 @@ function MonthBoardView({
         <Stat label="Net estimé" value={formatDA(net)} tone="text-ink" />
       </div>
 
-      {/* ---- LES ÉLÈVES QUI N'ONT PAS PAYÉ, EN TÊTE D'ÉCRAN --------------- */}
+      {/* ---- LES CHEVALIERS QUI N'ONT PAS PAYÉ, EN TÊTE D'ÉCRAN --------------- */}
       {unpaidRows.length > 0 && (
         <div className="space-y-2 rounded-2xl border-2 border-danger/40 bg-danger/5 p-3">
           <strong className="flex items-center gap-1.5 text-sm text-danger">
             <AlertTriangle className="h-4 w-4" />
-            {unpaidRows.length} élève(s) n&apos;ont pas soldé {monthCode} —{" "}
+            {unpaidRows.length} chevalier(s) n&apos;ont pas soldé {carteShort(monthCode)} —{" "}
             {formatDA(money(unpaidRows.reduce((sum, r) => sum + r.debt, 0)))} manquants
           </strong>
           <p className="text-[11px] leading-relaxed text-muted">
             Tant que la séance qui l&apos;a produite n&apos;est pas payée, la part qu&apos;elle vous
             rapporte reste <strong className="text-ink">retenue</strong>. Elle ne se perd pas : elle
             vous revient automatiquement, dans les <em>retards de paiement</em> du règlement
-            suivant, le jour où l&apos;élève s&apos;acquitte. L&apos;encaissement se fait au guichet
+            suivant, le jour où l&apos;chevalier s&apos;acquitte. L&apos;encaissement se fait au guichet
             — vous n&apos;avez rien à faire depuis cet écran.
           </p>
           <div className="overflow-x-auto rounded-xl border border-danger/25 bg-surface">
             <table className="w-full min-w-[560px] text-[11px]">
               <thead className="bg-canvas/60">
                 <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
-                  <th className="px-2 py-1.5">Élève</th>
+                  <th className="px-2 py-1.5">Chevalier</th>
                   <th className="px-2 py-1.5 text-center">Séances</th>
                   <th className="px-2 py-1.5 text-center">Statut</th>
-                  <th className="px-2 py-1.5 text-right">Doit sur {monthCode}</th>
+                  <th className="px-2 py-1.5 text-right">Doit sur {carteShort(monthCode)}</th>
                   <th className="px-2 py-1.5 text-right">Part retenue</th>
                 </tr>
               </thead>
@@ -913,18 +917,18 @@ function MonthBoardView({
         </div>
       )}
 
-      {/* =================== TABLE 1 — LES ÉLÈVES DU MOIS ================== */}
+      {/* =================== TABLE 1 — LES CHEVALIERS DU CARTE ================== */}
       <section className="overflow-hidden rounded-2xl border-2 border-primary/30">
         <div className="bg-gradient-to-r from-primary-50 to-transparent p-3">
           <strong className="flex items-center gap-1.5 text-sm text-ink">
-            <Users className="h-4 w-4 text-primary" /> 1. Élèves de {monthCode} (
+            <Users className="h-4 w-4 text-primary" /> 1. Chevaliers de {carteShort(monthCode)} (
             {board.students.length})
           </strong>
           <span className="block text-[11px] leading-relaxed text-muted">
             Votre part : {formatDA(board.teacherMonthShare)} le mois ÷ {board.size} séances ={" "}
             <strong className="text-primary">{formatDA(board.perSeance)}</strong> la séance. La
-            colonne « Ma part » multiplie ce tarif par les séances payables de chaque élève, au
-            centime — une séance ne devient payable que lorsque l&apos;élève l&apos;a payée sur ce
+            colonne « Ma part » multiplie ce tarif par les séances payables de chaque chevalier, au
+            centime — une séance ne devient payable que lorsque l&apos;chevalier l&apos;a payée sur ce
             mois.
           </span>
         </div>
@@ -934,9 +938,9 @@ function MonthBoardView({
             <thead className="bg-canvas/70">
               <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                 <th className="px-2 py-2">N°</th>
-                <th className="px-2 py-2">Élève</th>
+                <th className="px-2 py-2">Chevalier</th>
                 {Array.from({ length: board.size }, (_, i) => (
-                  <th key={i} className="px-1 py-2 text-center" title={`Séance ${i + 1} du mois`}>
+                  <th key={i} className="px-1 py-2 text-center" title={`Séance ${i + 1} de la carte`}>
                     S{i + 1}
                   </th>
                 ))}
@@ -956,7 +960,7 @@ function MonthBoardView({
                     colSpan={9 + board.size}
                     className="px-3 py-8 text-center text-xs italic text-muted"
                   >
-                    Aucun élève sur {monthCode} — ce mois n&apos;a encore rien produit.
+                    Aucun chevalier sur {carteShort(monthCode)} — ce mois n&apos;a encore rien produit.
                   </td>
                 </tr>
               ) : (
@@ -969,7 +973,7 @@ function MonthBoardView({
                   colSpan={8 + board.size}
                   className="px-2 py-2.5 text-right text-[11px] font-bold text-ink"
                 >
-                  TOTAL — ce que ce mois vous rapporte
+                  TOTAL — ce que cette carte vous rapporte
                 </td>
                 <td className="px-2 py-2.5 text-right font-mono text-sm font-black text-success">
                   {formatDA(board.studentsTotal)}
@@ -981,7 +985,7 @@ function MonthBoardView({
                     colSpan={8 + board.size}
                     className="px-2 py-2 text-right text-[10px] font-bold text-warning"
                   >
-                    Retenu (élèves encore en dette) — vous revient dès qu&apos;ils auront payé
+                    Retenu (chevaliers encore en dette) — vous revient dès qu&apos;ils auront payé
                   </td>
                   <td className="px-2 py-2 text-right font-mono text-xs font-bold text-warning">
                     {formatDA(board.withheldTotal)}
@@ -1002,10 +1006,10 @@ function MonthBoardView({
           </strong>
           <span className="block text-[11px] leading-relaxed text-muted">
             Deux natures, un même principe : ce que ce règlement vous doit{" "}
-            <strong className="text-ink">en dehors des élèves du mois</strong>. Les{" "}
+            <strong className="text-ink">en dehors des chevaliers de la carte</strong>. Les{" "}
             <strong className="text-ink">retards</strong> appartiennent à des mois déjà réglés — la
-            part avait été retenue, l&apos;élève s&apos;est acquitté depuis. Les{" "}
-            <strong className="text-ink">séances libres</strong> sont celles des élèves de passage :
+            part avait été retenue, l&apos;chevalier s&apos;est acquitté depuis. Les{" "}
+            <strong className="text-ink">séances libres</strong> sont celles des chevaliers de passage :
             payées d&apos;avance, elles reviennent au mois où elles sont tombées.
           </span>
         </div>
@@ -1028,11 +1032,11 @@ function MonthBoardView({
               <thead className="bg-canvas/70">
                 <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">N°</th>
-                  <th className="px-2 py-2">Élève</th>
-                  <th className="px-2 py-2 text-center">Mois d&apos;origine</th>
+                  <th className="px-2 py-2">Chevalier</th>
+                  <th className="px-2 py-2 text-center">Carte d&apos;origine</th>
                   <th className="px-2 py-2 text-center">Séances</th>
                   <th className="px-2 py-2">Dates concernées</th>
-                  <th className="px-2 py-2 text-right">Versé par l&apos;élève</th>
+                  <th className="px-2 py-2 text-right">Versé par l&apos;chevalier</th>
                   <th className="px-2 py-2 text-right">Part / séance</th>
                   <th className="px-2 py-2 text-right">Part rattrapée</th>
                 </tr>
@@ -1053,7 +1057,7 @@ function MonthBoardView({
                     </td>
                     <td className="px-2 py-2 text-center">
                       <Badge tone="success" className="font-mono text-[10px]">
-                        {r.monthCode}
+                        {carteShort(r.monthCode)}
                       </Badge>
                     </td>
                     <td className="px-2 py-2 text-center font-mono">{r.seances}</td>
@@ -1084,16 +1088,16 @@ function MonthBoardView({
           </div>
         )}
 
-        {/* ---- 2b. les séances libres du mois ---------------------------- */}
+        {/* ---- 2b. les séances libres de la carte ---------------------------- */}
         <div className="border-t border-line bg-canvas/50 px-3 py-2">
           <strong className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-ink">
-            <Ticket className="h-3.5 w-3.5 text-primary" /> 2b. Séances libres de {monthCode} —{" "}
+            <Ticket className="h-3.5 w-3.5 text-primary" /> 2b. Séances libres de {carteShort(monthCode)} —{" "}
             {board.passagers.length} passager(s)
           </strong>
           <span className="block text-[10px] text-muted">
-            Prix payé par le passager − part de l&apos;école ={" "}
+            Prix payé par le passager − part de l&apos;club ={" "}
             <strong className="text-primary">votre part</strong>. Encaissé :{" "}
-            {formatDA(board.passagersRevenue)} · pour l&apos;école{" "}
+            {formatDA(board.passagersRevenue)} · pour l&apos;club{" "}
             {formatDA(money(board.passagersRevenue - board.passagersTotal))} · pour vous{" "}
             {formatDA(board.passagersTotal)}.
           </span>
@@ -1101,7 +1105,7 @@ function MonthBoardView({
 
         {board.passagers.length === 0 ? (
           <p className="bg-surface px-3 py-5 text-center text-xs italic text-muted">
-            Aucune séance libre sur {monthCode} — aucun élève de passage n&apos;est venu sur ce mois.
+            Aucune séance libre sur {carteShort(monthCode)} — aucun chevalier de passage n&apos;est venu sur ce mois.
           </p>
         ) : (
           <div className="overflow-x-auto bg-surface">
@@ -1109,10 +1113,10 @@ function MonthBoardView({
               <thead className="bg-canvas/70">
                 <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">Date &amp; horaire</th>
-                  <th className="px-2 py-2">Élève de passage</th>
+                  <th className="px-2 py-2">Chevalier de passage</th>
                   <th className="px-2 py-2">Séance</th>
                   <th className="px-2 py-2 text-right">Prix payé</th>
-                  <th className="px-2 py-2 text-right">Part école</th>
+                  <th className="px-2 py-2 text-right">Part club</th>
                   <th className="px-2 py-2 text-right">Ma part</th>
                 </tr>
               </thead>
@@ -1140,7 +1144,7 @@ function MonthBoardView({
                       {r.unsplit && (
                         <span
                           className="block text-[8px] text-warning"
-                          title="Séance enregistrée avant le partage école / enseignant : l'école gardait tout."
+                          title="Séance enregistrée avant le partage club / entraîneur : le club gardait tout."
                         >
                           part non répartie
                         </span>
@@ -1174,7 +1178,7 @@ function MonthBoardView({
             <Receipt className="h-4 w-4" /> 3. Retenues sur cette paie ({board.deductions.length})
           </strong>
           <span className="block text-[11px] leading-relaxed text-muted">
-            Les dépenses que l&apos;école a avancées pour vous, vos acomptes, la scolarité{" "}
+            Les dépenses que l&apos;club a avancées pour vous, vos acomptes, la cotisation{" "}
             <strong className="text-ink">encore due</strong> de vos enfants sur leurs emplois du
             temps, et celle que le guichet a{" "}
             <strong className="text-ink">déjà créditée en la portant sur ce salaire</strong>. Les
@@ -1185,7 +1189,7 @@ function MonthBoardView({
 
         {board.deductions.length === 0 ? (
           <p className="bg-surface px-3 py-6 text-center text-xs italic text-muted">
-            Aucune dépense, aucun acompte, aucune scolarité d&apos;enfant à retenir.
+            Aucune dépense, aucun acompte, aucune cotisation d&apos;enfant à retenir.
           </p>
         ) : (
           <div className="overflow-x-auto bg-surface">
@@ -1256,13 +1260,13 @@ function MonthBoardView({
 
         <div className="space-y-1.5">
           <SummaryLine
-            label={`Table 1 — élèves de ${monthCode} (${board.students.length})`}
+            label={`Table 1 — chevaliers de ${carteShort(monthCode)} (${board.students.length})`}
             value={formatDA(board.studentsTotal)}
             tone="text-ink"
           />
           {board.withheldTotal > 0 && (
             <SummaryLine
-              label={`· dont retenu (${unpaidRows.length} élève(s) en dette) — vous reviendra en retard de paiement`}
+              label={`· dont retenu (${unpaidRows.length} chevalier(s) en dette) — vous reviendra en retard de paiement`}
               value={`(${formatDA(board.withheldTotal)})`}
               tone="text-warning"
             />
@@ -1303,7 +1307,7 @@ function MonthBoardView({
           />
           <div className="flex items-center justify-between border-t-2 border-primary/40 pt-2">
             <strong className="text-sm text-ink">
-              {settlement ? "NET QUI VOUS A ÉTÉ VERSÉ" : "NET ESTIMÉ POUR CE MOIS"}
+              {settlement ? "NET QUI VOUS A ÉTÉ VERSÉ" : "NET ESTIMÉ POUR CE CARTE"}
             </strong>
             <strong className="font-mono text-xl font-black text-primary">
               {formatDA(settlement ? settlement.amount : net)}
@@ -1312,7 +1316,7 @@ function MonthBoardView({
           {settlement && settlement.amount !== net && (
             <p className="text-[10px] leading-relaxed text-muted">
               Le net figé du règlement fait foi. Ce que les tables affichent aujourd&apos;hui (
-              {formatDA(net)}) peut différer : des élèves ont payé depuis, ou des séances libres
+              {formatDA(net)}) peut différer : des chevaliers ont payé depuis, ou des séances libres
               sont tombées sur ce mois — cela vous revient sur le règlement suivant.
             </p>
           )}
@@ -1347,9 +1351,9 @@ function StudentLine({ row, size }: { row: BoardStudent; size: number }) {
           {row.schoolCovered && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-danger px-2 py-0.5 text-[8px] font-bold text-white"
-              title="L'école a avancé la dette de cet élève sur sa propre caisse — votre part a été débloquée par elle"
+              title="Le club a avancé la dette de ce chevalier sur sa propre caisse — votre part a été débloquée par elle"
             >
-              <AlertTriangle className="h-2.5 w-2.5" /> avancé par l&apos;école
+              <AlertTriangle className="h-2.5 w-2.5" /> avancé par l&apos;club
             </span>
           )}
           {row.phone && <span className="text-[9px] text-muted">{row.phone}</span>}
@@ -1385,7 +1389,7 @@ function StudentLine({ row, size }: { row: BoardStudent; size: number }) {
         {row.withheld ? (
           <span
             className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-warning"
-            title="Part retenue : cet élève n'a pas payé les séances qui l'ont produite"
+            title="Part retenue : ce chevalier n'a pas payé les séances qui l'ont produite"
           >
             <Lock className="h-3 w-3" /> {formatDA(row.amount)}
           </span>
@@ -1454,7 +1458,7 @@ const LEDGER_KIND: Record<
     label: "Dépense avancée",
     tone: "warning",
     icon: <Receipt className="h-3 w-3" />,
-    hint: "L'école a payé quelque chose pour vous et le reprend sur la paie.",
+    hint: "Le club a payé quelque chose pour vous et le reprend sur la paie.",
   },
   absence: {
     label: "Absence / pénalité",
@@ -1463,10 +1467,10 @@ const LEDGER_KIND: Record<
     hint: "Une retenue enregistrée sur votre fiche par l'administration.",
   },
   child_debt: {
-    label: "Scolarité d'enfant",
+    label: "Cotisation d'enfant",
     tone: "danger",
     icon: <GraduationCap className="h-3 w-3" />,
-    hint: "La scolarité d'un de vos enfants, réglée d'avance au guichet et portée sur ce salaire.",
+    hint: "La cotisation d'un de vos enfants, réglée d'avance au guichet et portée sur ce salaire.",
   },
 };
 
@@ -1504,8 +1508,8 @@ function LedgerView({
         paid: !!e.paid,
       }),
     ),
-    // Une pénalité d'absence ne passe par aucun tableau de mois : c'est ici, et
-    // seulement ici, que l'enseignant peut la lire.
+    // Une pénalité d'absence ne passe par aucun tableau de carte : c'est ici, et
+    // seulement ici, que l'entraîneur peut la lire.
     ...absences.map(
       (a): LedgerLine => ({
         id: `ab-${a.id}`,
@@ -1562,7 +1566,7 @@ function LedgerView({
       </div>
 
       <p className="rounded-2xl border border-warning/40 bg-warning/10 p-3 text-[11px] leading-relaxed text-warning">
-        Voici, en clair, tout ce que l&apos;école reprend sur votre paie. Une ligne{" "}
+        Voici, en clair, tout ce que l&apos;club reprend sur votre paie. Une ligne{" "}
         <strong>« déjà reprise »</strong> a été déduite d&apos;un règlement précédent et ne
         reviendra jamais sur le suivant — c&apos;est ce qui garantit qu&apos;on ne vous retient rien
         deux fois. Une ligne <strong>« à reprendre »</strong> tombera sur votre prochain règlement.
@@ -1641,7 +1645,7 @@ function SettlementList({ settlements }: { settlements: TeacherPayment[] }) {
     <div className="space-y-3">
       <p className="rounded-2xl border border-success/30 bg-success/10 p-3 text-[11px] leading-relaxed text-success">
         Chaque règlement garde la <strong>photographie exacte</strong> des tables qui l&apos;ont
-        produit, le jour où il a été versé. Un élève qui change de groupe ou un tarif corrigé depuis
+        produit, le jour où il a été versé. Un chevalier qui change de groupe ou un tarif corrigé depuis
         n&apos;y changent rien : ce que vous lisez ici est ce qui vous a été payé ce jour-là.
       </p>
 

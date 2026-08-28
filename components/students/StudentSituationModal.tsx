@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * « Situation d'un élève » — la question que la réception pose vingt fois par
+ * « Situation d'un chevalier » — la question que la réception pose vingt fois par
  * jour, en trois clics et sans quitter son écran.
  *
- *   on cherche l'élève (nom, n° d'inscription ou téléphone)
+ *   on cherche le chevalier (nom, n° d'inscription ou téléphone)
  *      -> UN SEUL GRAND TABLEAU, lu comme la feuille de présence d'un groupe :
  *         une ligne par emploi du temps — ceux qu'il suit ET ceux qu'il a
- *         quittés — avec ses séances du mois, ce qu'il a versé, ce qui reste dû,
- *         ce qu'il traîne des mois précédents et le solde de cet emploi ;
+ *         quittés — avec ses séances de la carte, ce qu'il a versé, ce qui reste dû,
+ *         ce qu'il traîne des cartes précédents et le solde de cet emploi ;
  *      -> on encaisse sur place, sur la ligne concernée, avec son reçu ;
- *      -> on remonte les mois d'un bouton pour lire — et régler — un mois passé.
+ *      -> on remonte les cartes d'un bouton pour lire — et régler — une carte passé.
  *
- * Le navigateur de mois travaille en DÉCALAGE, pas en numéro : « mois en cours »
- * puis « 1 mois avant ». Deux emplois du temps ne vivent pas le même mois au
+ * Le navigateur de carte travaille en DÉCALAGE, pas en numéro : « carte en cours »
+ * puis « 1 carte avant ». Deux emplois du temps ne vivent pas le même carte au
  * même moment (l'un en est à son M5, l'autre à son M2), et afficher « M2 » pour
  * les deux mentirait sur l'un des deux.
  */
@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import type { AttendanceRecord, AttendanceStatus, Student } from "@/lib/types";
 import {
+  carteShort,
   currentCycleIndex,
   cycleLead,
   cycleOf,
@@ -47,6 +48,7 @@ import {
   formatDateFr,
   formatDays,
   groupName,
+  isFreeSub,
   moduleName as moduleNameOf,
   monthCodeLabel,
   registrationNumberOf,
@@ -56,7 +58,6 @@ import {
   soldFor,
   studentCaseLabel,
   studentCaseTone,
-  isFreeSub,
   studentListPrice,
   studentMatches,
   studentName,
@@ -72,7 +73,7 @@ const STATUS_LABEL: Record<AttendanceStatus, { short: string; label: string; cls
   cancelled: { short: "×", label: "Annulée", cls: "bg-primary/15 text-primary border-primary/40" },
 };
 
-/** Une ligne du tableau : UN emploi du temps de l'élève, sur le mois affiché. */
+/** Une ligne du tableau : UN emploi du temps du chevalier, sur la carte affiché. */
 interface SituationRow {
   subId: string;
   sessionId: string;
@@ -84,7 +85,7 @@ interface SituationRow {
   timeLabel: string;
   active: boolean;
   leftOn?: string;
-  /** le mois de CET emploi qui correspond au décalage choisi */
+  /** la carte de CET emploi qui correspond au décalage choisi */
   code: string;
   index: number;
   currentIndex: number;
@@ -101,14 +102,14 @@ interface SituationRow {
   cancelled: number;
   consumed: number;
   credited: number;
-  /** ce qu'il doit encore sur CE mois */
+  /** ce qu'il doit encore sur CE carte */
   due: number;
-  /** ce qu'il a d'avance sur ce mois */
+  /** ce qu'il a d'avance sur cette carte */
   advance: number;
   complete: boolean;
-  /** ce que les mois PRÉCÉDENTS de cet emploi doivent encore */
+  /** ce que les cartes PRÉCÉDENTS de cet emploi doivent encore */
   previousDue: number;
-  /** le solde de l'emploi, tous mois confondus */
+  /** le solde de l'emploi, tous carte confondus */
   balance: number;
 }
 
@@ -130,7 +131,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
 
   const [query, setQuery] = useState("");
   const [student, setStudent] = useState<Student | null>(null);
-  /** 0 = le mois en cours de chaque emploi, 1 = celui d'avant, etc. */
+  /** 0 = la carte en cours de chaque emploi, 1 = celui d'avant, etc. */
   const [back, setBack] = useState(0);
   const [pay, setPay] = useState<PayTarget | null>(null);
   const [busy, setBusy] = useState(false);
@@ -146,14 +147,14 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db.students, query]);
 
-  /** Tous ses emplois du temps — actuels ET quittés — sur le mois affiché. */
+  /** Tous ses emplois du temps — actuels ET quittés — sur la carte affiché. */
   const rows = useMemo<SituationRow[]>(() => {
     if (!student) return [];
     return studentSubscriptionHistory(db, student).map((subId) => {
       const sub = db.subscriptions.find((x) => x.id === subId)!;
       const session = db.sessions.find((x) => x.id === sub.sessionId);
       const currentIndex = currentCycleIndex(db, student.id, subId);
-      // Le décalage ne descend jamais sous le premier mois de l'emploi.
+      // Le décalage ne descend jamais sous le première carte de l'emploi.
       const index = Math.max(0, currentIndex - back);
       const code = `M${index + 1}`;
       const cycle = cycleOf(db, student.id, subId, code);
@@ -201,7 +202,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
   const totalDue = rows.reduce((s, r) => s + r.due, 0);
   const totalPrevious = rows.reduce((s, r) => s + r.previousDue, 0);
   const totalCredited = rows.reduce((s, r) => s + r.credited, 0);
-  /** Le décalage ne peut pas remonter plus haut que le plus vieux mois lisible. */
+  /** Le décalage ne peut pas remonter plus haut que le plus vieux carte lisible. */
   const maxBack = rows.reduce((mx, r) => Math.max(mx, r.currentIndex), 0);
 
   const pick = (st: Student) => {
@@ -234,7 +235,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
       type: "success",
       title: "Paiement encaissé",
       message:
-        `${formatDA(amount)} sur ${pay.label} (${pay.monthCode}) — ` +
+        `${formatDA(amount)} sur ${pay.label} (${carteShort(pay.monthCode)}) — ` +
         (left < 0
           ? `il doit encore ${formatDA(-left)}`
           : `${formatDA(left)} d'avance conservés sur cet emploi du temps`),
@@ -260,9 +261,9 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <Modal open onClose={onClose} title="Situation d'un élève" full>
+      <Modal open onClose={onClose} title="Situation d'un chevalier" full>
         <div className="space-y-4">
-          {/* ---- 1. chercher l'élève -------------------------------------- */}
+          {/* ---- 1. chercher le chevalier -------------------------------------- */}
           <div className="space-y-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -282,7 +283,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
               <div className="max-h-52 space-y-1 overflow-y-auto rounded-xl border border-line p-1">
                 {matches.length === 0 ? (
                   <p className="py-6 text-center text-xs italic text-muted">
-                    Aucun élève ne correspond.
+                    Aucun chevalier ne correspond.
                   </p>
                 ) : (
                   matches.map((st) => (
@@ -308,12 +309,12 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
 
           {!student ? (
             <p className="rounded-2xl border border-dashed border-line py-12 text-center text-xs italic text-muted">
-              Cherchez un élève par son nom, son n° d&apos;inscription ou son téléphone pour lire
+              Cherchez un chevalier par son nom, son n° d&apos;inscription ou son téléphone pour lire
               toute sa situation, emploi du temps par emploi du temps.
             </p>
           ) : (
             <>
-              {/* ---- 2. l'élève et son mois ------------------------------ */}
+              {/* ---- 2. le chevalier et son carte ------------------------------ */}
               <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-primary-50/60 p-4">
                 <div className="min-w-0">
                   <h3 className="text-base font-black text-ink sm:text-lg">
@@ -337,33 +338,33 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                       onClick={() => setBack((b) => Math.min(maxBack, b + 1))}
                       disabled={back >= maxBack}
                       className="rounded-lg p-1 text-muted hover:bg-primary-50 hover:text-ink disabled:opacity-30"
-                      title="Mois précédent"
+                      title="Carte précédent"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     <span className="min-w-[132px] text-center text-[11px] font-bold text-ink">
                       {back === 0
-                        ? "Mois en cours"
+                        ? "Carte en cours"
                         : back === 1
-                          ? "1 mois avant"
-                          : `${back} mois avant`}
+                          ? "1 carte avant"
+                          : `${back} carte avant`}
                     </span>
                     <button
                       onClick={() => setBack((b) => Math.max(0, b - 1))}
                       disabled={back === 0}
                       className="rounded-lg p-1 text-muted hover:bg-primary-50 hover:text-ink disabled:opacity-30"
-                      title="Mois suivant"
+                      title="Carte suivant"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
                   {back > 0 && (
                     <Button size="sm" variant="outline" onClick={() => setBack(0)}>
-                      Revenir au mois en cours
+                      Revenir à la carte en cours
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={() => setStudent(null)}>
-                    Changer d&apos;élève
+                    Changer d&apos;chevalier
                   </Button>
                 </div>
               </div>
@@ -372,28 +373,28 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Tile label="Emplois du temps" value={String(rows.length)} tone="text-ink" />
                 <Tile
-                  label="Versé sur le mois affiché"
+                  label="Versé sur la carte affiché"
                   value={formatDA(totalCredited)}
                   tone="text-success"
                 />
                 <Tile
-                  label="Reste à payer (mois affiché)"
+                  label="Reste à payer (carte affiché)"
                   value={formatDA(totalDue)}
                   tone={totalDue > 0 ? "text-danger" : "text-success"}
                   hint={totalDue > 0 ? "à encaisser" : "à jour ✅"}
                 />
                 <Tile
-                  label="Arriérés (mois précédents)"
+                  label="Arriérés (carte précédentes)"
                   value={formatDA(totalPrevious)}
                   tone={totalPrevious > 0 ? "text-danger" : "text-success"}
-                  hint={totalPrevious > 0 ? "remontez les mois pour régler" : "rien en retard"}
+                  hint={totalPrevious > 0 ? "remontez les cartes pour régler" : "rien en retard"}
                 />
               </div>
 
               {/* ---- 4. LE TABLEAU -------------------------------------- */}
               {rows.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-line py-10 text-center text-xs italic text-muted">
-                  Cet élève n&apos;est inscrit sur aucun emploi du temps.
+                  Ce chevalier n&apos;est inscrit sur aucun emploi du temps.
                 </p>
               ) : (
                 <div className="overflow-x-auto rounded-2xl border border-line">
@@ -401,12 +402,12 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                     <thead className="bg-canvas/60">
                       <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
                         <th className="px-2 py-2.5">Emploi du temps</th>
-                        <th className="px-2 py-2.5">Mois</th>
+                        <th className="px-2 py-2.5">Carte</th>
                         {Array.from({ length: slotCount }, (_, i) => (
                           <th
                             key={i}
                             className="px-1 py-2.5 text-center"
-                            title={`Séance ${i + 1} du mois`}
+                            title={`Séance ${i + 1} de la carte`}
                           >
                             S{i + 1}
                           </th>
@@ -455,7 +456,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                             </Badge>
                             <span className="mt-0.5 block text-[9px] text-muted">
                               {r.done}/{Math.max(0, r.size - r.lead)} séance(s)
-                              {r.complete ? " · mois clos" : ""}
+                              {r.complete ? " · carte close" : ""}
                               {r.lead > 0 ? ` · entré à la séance ${r.lead + 1}` : ""}
                             </span>
                             <span className="block text-[9px] text-muted">
@@ -505,7 +506,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                                 {formatDA(r.credited)}
                               </Badge>
                               {r.due > 0 ? (
-                                <Badge tone="danger" className="font-mono" title="Reste dû sur ce mois">
+                                <Badge tone="danger" className="font-mono" title="Reste dû sur cette carte">
                                   reste {formatDA(r.due)}
                                 </Badge>
                               ) : (
@@ -526,13 +527,13 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                             ) : r.previousDue > 0 ? (
                               <button
                                 onClick={() => setBack((b) => Math.min(maxBack, b + 1))}
-                                title="Remonter d'un mois pour le régler"
+                                title="Remonter d'une carte pour le régler"
                                 className="rounded-lg border border-danger/40 bg-danger/10 px-2 py-1 text-[10px] font-bold text-danger hover:bg-danger/20"
                               >
                                 {formatDA(r.previousDue)}
                               </button>
                             ) : (
-                              <span className="text-sm" title="Mois précédents réglés">
+                              <span className="text-sm" title="Carte précédents réglés">
                                 ✅
                               </span>
                             )}
@@ -627,10 +628,10 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                  Mois concerné
+                  Carte concerné
                 </label>
                 <Select
-                  value={pay.monthCode}
+                  value={carteShort(pay.monthCode)}
                   onChange={(e) => setPay({ ...pay, monthCode: e.target.value })}
                   className="w-full"
                 >
@@ -667,8 +668,8 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
               </button>
             )}
 
-            {/* Ce que ce versement laisse derrière lui : un élève qui donne 2000
-                sur un mois à 1800 garde 200 sur le solde de CET emploi. */}
+            {/* Ce que ce versement laisse derrière lui : un chevalier qui donne 2000
+                sur une carte à 1800 garde 200 sur le solde de CET emploi. */}
             {(() => {
               const amount = Math.max(0, Math.round(pay.amount || 0));
               if (amount <= 0) return null;
@@ -685,16 +686,16 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                 >
                   {rest > 0 ? (
                     <>
-                      Il restera <strong>{formatDA(rest)}</strong> à payer sur {pay.monthCode}.
+                      Il restera <strong>{formatDA(rest)}</strong> à payer sur {carteShort(pay.monthCode)}.
                     </>
                   ) : advance > 0 ? (
                     <>
-                      {pay.monthCode} est soldé et <strong>{formatDA(advance)}</strong> restent
+                      {carteShort(pay.monthCode)} est soldé et <strong>{formatDA(advance)}</strong> restent
                       d&apos;avance : cet argent est gardé sur le solde de cet emploi du temps et
                       paiera ses prochaines séances.
                     </>
                   ) : (
-                    <>{pay.monthCode} sera exactement soldé.</>
+                    <>{carteShort(pay.monthCode)} sera exactement soldé.</>
                   )}
                   <span className="mt-0.5 block text-[10px] opacity-80">
                     Solde de l&apos;emploi après encaissement :{" "}

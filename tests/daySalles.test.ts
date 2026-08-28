@@ -8,12 +8,12 @@ import {
 import type { ScheduleSession } from "@/lib/types";
 
 /**
- * Salle jour par jour.
+ * Arène jour par jour.
  *
- * Un emploi du temps peut occuper une salle différente selon le jour — Samedi
- * en Salle A, Mardi en Salle B, et c'est toujours UN SEUL emploi du temps.
- * `salleId` reste la salle PAR DÉFAUT (celle du premier jour) et `daySalles`
- * porte les exceptions, si bien qu'un emploi dans la même salle toute la
+ * Un emploi du temps peut occuper une arène différente selon le jour — Samedi
+ * en Arène A, Mardi en Arène B, et c'est toujours UN SEUL emploi du temps.
+ * `salleId` reste l'arène PAR DÉFAUT (celle du premier jour) et `daySalles`
+ * porte les exceptions, si bien qu'un emploi dans la même arène toute la
  * semaine ne stocke rien de plus.
  */
 
@@ -30,8 +30,8 @@ const base = (over: Partial<ScheduleSession> = {}): ScheduleSession => ({
   ...over,
 });
 
-describe("la salle d'un jour donné", () => {
-  it("retombe sur la salle par défaut quand le jour n'a pas d'exception", () => {
+describe("l'arène d'un jour donné", () => {
+  it("retombe sur l'arène par défaut quand le jour n'a pas d'exception", () => {
     const s = base();
     expect(sessionSalleOn(s, "saturday")).toBe("sal-A");
     expect(sessionSalleOn(s, "tuesday")).toBe("sal-A");
@@ -39,7 +39,7 @@ describe("la salle d'un jour donné", () => {
     expect(sessionSalleIds(s)).toEqual(["sal-A"]);
   });
 
-  it("rend la salle propre au jour quand il en a une", () => {
+  it("rend l'arène propre au jour quand il en a une", () => {
     const s = base({ daySalles: { tuesday: "sal-B" } });
     expect(sessionSalleOn(s, "saturday")).toBe("sal-A");
     expect(sessionSalleOn(s, "tuesday")).toBe("sal-B");
@@ -47,18 +47,18 @@ describe("la salle d'un jour donné", () => {
     expect(sessionSalleIds(s).sort()).toEqual(["sal-A", "sal-B"]);
   });
 
-  it("sans jour, rend la salle par défaut de l'emploi", () => {
+  it("sans jour, rend l'arène par défaut de l'emploi", () => {
     expect(sessionSalleOn(base({ daySalles: { tuesday: "sal-B" } }))).toBe("sal-A");
   });
 
-  it("une séance libre garde ses salles multiples", () => {
+  it("une séance libre garde ses arènes multiples", () => {
     const s = base({ isOpen: true, salleIds: ["sal-A", "sal-C"] });
     expect(sessionSalleIds(s).sort()).toEqual(["sal-A", "sal-C"]);
   });
 });
 
-describe("les conflits de salle se lisent JOUR PAR JOUR", () => {
-  /** L'emploi déjà en place : Samedi en Salle A, Mardi en Salle B. */
+describe("les conflits de arène se lisent JOUR PAR JOUR", () => {
+  /** L'emploi déjà en place : Samedi en Arène A, Mardi en Arène B. */
   const existing = base({
     id: "ses-1",
     salleId: "sal-A",
@@ -71,19 +71,19 @@ describe("les conflits de salle se lisent JOUR PAR JOUR", () => {
     endTime: "11:00",
   };
 
-  it("la Salle A n'est prise que le samedi", () => {
+  it("la Arène A n'est prise que le samedi", () => {
     expect(clashingDays(draft, existing, "sal-A")).toEqual(["saturday"]);
   });
 
-  it("la Salle B n'est prise que le mardi", () => {
+  it("la Arène B n'est prise que le mardi", () => {
     expect(clashingDays(draft, existing, "sal-B")).toEqual(["tuesday"]);
   });
 
-  it("une salle qu'il n'occupe aucun jour reste entièrement libre", () => {
+  it("une arène qu'il n'occupe aucun jour reste entièrement libre", () => {
     expect(clashingDays(draft, existing, "sal-C")).toEqual([]);
   });
 
-  it("sans salle précisée, tous les jours qui se chevauchent remontent", () => {
+  it("sans arène précisée, tous les jours qui se chevauchent remontent", () => {
     expect(clashingDays(draft, existing)).toEqual(["saturday", "tuesday"]);
   });
 
@@ -92,7 +92,7 @@ describe("les conflits de salle se lisent JOUR PAR JOUR", () => {
     expect(clashingDays(after, existing, "sal-A")).toEqual([]);
   });
 
-  it("une séance libre occupe toutes ses salles tous ses jours", () => {
+  it("une séance libre occupe toutes ses arènes tous ses jours", () => {
     const open = base({
       id: "ses-open",
       isOpen: true,

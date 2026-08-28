@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * LES FRAIS D'UN ÉLÈVE — la dette qui n'est pas de la scolarité.
+ * LES FRAIS D'UN CHEVALIER — la dette qui n'est pas de la cotisation.
  *
  * Un livre, une tenue de sport, une sortie, un transport, un dégât, ou la
- * somme que l'école a avancée de sa caisse pour ne pas faire attendre un
- * enseignant : autant de dettes qui n'ont rien à voir avec le prix d'une
+ * somme que le club a avancée de sa caisse pour ne pas faire attendre un
+ * entraîneur : autant de dettes qui n'ont rien à voir avec le prix d'une
  * séance, et qui pourtant se réclament au même guichet, à la même famille.
  *
  * Ce fichier porte les trois pièces que TOUS les écrans réutilisent :
@@ -16,10 +16,10 @@
  *                            corrige chaque montant, et ce qui n'est pas versé
  *                            RESTE DÛ, affiché avant même de valider ;
  *   StudentChargesModal    — les deux ensemble, plus l'historique, pour l'écran
- *                            des élèves et la feuille de présence d'un groupe.
+ *                            des chevaliers et la feuille de présence d'un groupe.
  *
- * Un frais NE RETIENT JAMAIS la paie d'un enseignant. C'est la différence de
- * fond avec la scolarité : le professeur de mathématiques n'a pas à attendre
+ * Un frais NE RETIENT JAMAIS la paie d'un entraîneur. C'est la différence de
+ * fond avec la cotisation : le professeur de mathématiques n'a pas à attendre
  * qu'un livre soit payé.
  */
 
@@ -181,10 +181,10 @@ export function ChargeFormModal({
         )}
 
         <p className="rounded-xl border border-line bg-canvas/50 p-2.5 text-[10px] leading-relaxed text-muted">
-          Un frais s&apos;affiche en alerte sur la fiche de l&apos;élève et sur la feuille de
+          Un frais s&apos;affiche en alerte sur la fiche de l&apos;chevalier et sur la feuille de
           présence de ses groupes, et se règle en une ou plusieurs fois. Il ne retient{" "}
           <strong className="text-ink">pas</strong> la paie de l&apos;enseignant : seule la
-          scolarité le fait.
+          cotisation le fait.
         </p>
 
         <div className="flex justify-end gap-2 border-t border-line pt-3">
@@ -320,7 +320,7 @@ export function ChargeSettlementPanel({
       <>
         <div className="rounded-2xl border border-success/40 bg-success/10 p-4 text-center text-xs text-success">
           <CheckCircle2 className="mx-auto mb-1 h-5 w-5" />
-          Aucun frais en attente : cet élève ne doit rien en dehors de sa scolarité.
+          Aucun frais en attente : ce chevalier ne doit rien en dehors de sa cotisation.
         </div>
         {receipt && <PrintAsk html={receipt} onClose={() => setReceipt(null)} />}
       </>
@@ -394,9 +394,9 @@ export function ChargeSettlementPanel({
                       <Badge
                         tone="warning"
                         className="gap-1 text-[9px]"
-                        title="L'école a réglé cette dette de sa propre caisse pour débloquer la part de l'enseignant — la famille la lui doit."
+                        title="Le club a réglé cette dette de sa propre caisse pour débloquer la part de l'entraîneur — la famille la lui doit."
                       >
-                        <Landmark className="h-3 w-3" /> Avancé par l&apos;école
+                        <Landmark className="h-3 w-3" /> Avancé par l&apos;club
                       </Badge>
                     )}
                     <Badge tone="danger" className="font-mono text-[10px]">
@@ -533,7 +533,7 @@ export function StudentChargesModal({
       type: res.ok ? "success" : "danger",
       title: res.ok ? "Frais supprimé" : "Suppression impossible",
       message: res.ok
-        ? `« ${charge.name} » a été retiré du compte de l'élève.`
+        ? `« ${charge.name} » a été retiré du compte du chevalier.`
         : "Ce frais n'a pas pu être supprimé.",
       studentName: studentName(student),
     });
@@ -541,7 +541,7 @@ export function StudentChargesModal({
 
   return (
     <>
-      <Modal open onClose={onClose} title="Dettes & frais de l'élève" wide>
+      <Modal open onClose={onClose} title="Dettes & frais du chevalier" wide>
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-primary-50/60 p-4">
             <div className="min-w-0">
@@ -587,7 +587,7 @@ export function StudentChargesModal({
             <ChargeSettlementPanel student={student} bare />
           ) : rows.length === 0 ? (
             <p className="rounded-xl border border-line bg-canvas/40 p-6 text-center text-xs italic text-muted">
-              Aucun frais n&apos;a été porté au compte de cet élève.
+              Aucun frais n&apos;a été porté au compte de ce chevalier.
             </p>
           ) : (
             <div className="space-y-2">
@@ -649,7 +649,7 @@ export function ChargeCard({
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {advance && (
             <Badge tone="warning" className="gap-1 text-[9px]">
-              <Landmark className="h-3 w-3" /> Avancé par l&apos;école
+              <Landmark className="h-3 w-3" /> Avancé par l&apos;club
             </Badge>
           )}
           <Badge tone={left > 0 ? "danger" : "success"} className="font-mono text-[10px]">

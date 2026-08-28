@@ -10,13 +10,13 @@ import {
 } from "@/lib/helpers";
 
 /**
- * Un élève « école seule » ne paie QUE la part de l'école.
+ * Un chevalier « club seule » ne paie QUE la part du club.
  *
- * L'enseignant n'est délibérément pas payé pour lui : lui facturer le prix
- * complet encaisserait une part enseignant que personne ne versera jamais. Sa
- * séance coûte donc `part école du mois ÷ séances du mois` — 800 DA gardés sur
- * un mois de 2000 réparti sur 4 séances, cela fait 200 DA la séance, là où un
- * élève ordinaire en paie 500.
+ * L'entraîneur n'est délibérément pas payé pour lui : lui facturer le prix
+ * complet encaisserait une part entraîneur que personne ne versera jamais. Sa
+ * séance coûte donc `part club du mois ÷ séances du mois` — 800 DA gardés sur
+ * une carte de 2000 réparti sur 4 séances, cela fait 200 DA la séance, là où un
+ * chevalier ordinaire en paie 500.
  */
 
 const SUB = "sub-1";
@@ -26,7 +26,7 @@ const TEACHER = "tea-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** L'emploi du temps de l'énoncé : 4 séances, mois à 2000, école 800. */
+/** L'emploi du temps de l'énoncé : 4 séances, carte à 2000, club 800. */
 function board() {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -42,7 +42,7 @@ function board() {
   db.freePeriods = [];
   const session = db.sessions.find((s) => s.id === SES)!;
   session.teacherId = TEACHER;
-  // Les deux élèves suivent l'emploi depuis longtemps : l'un « école seule »,
+  // Les deux chevaliers suivent l'emploi depuis longtemps : l'un « club seule »,
   // l'autre ordinaire. La date de début est ancienne pour que les présences
   // des tests soient bien facturées.
   const opened = new Date();
@@ -90,17 +90,17 @@ function scheduledDay(offsetBack = 30): string {
 const present = (date: string) =>
   useData.getState().setPresence({ studentId: STU, sessionId: SES, date, status: "present" });
 
-describe("le tarif d'un élève « école seule »", () => {
+describe("le tarif d'un chevalier « club seule »", () => {
   beforeEach(() => {
     board();
   });
 
-  it("vaut la part de l'école divisée par les séances du mois", () => {
+  it("vaut la part du club divisée par les séances de la carte", () => {
     const sub = useData.getState().subscriptions.find((s) => s.id === SUB)!;
     expect(schoolPerSeanceOf(sub)).toBe(200); // 800 / 4
   });
 
-  it("s'applique à lui seul : les autres élèves paient le prix plein", () => {
+  it("s'applique à lui seul : les autres chevaliers paient le prix plein", () => {
     makeSchoolOnly();
     const db = useData.getState();
     const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -124,7 +124,7 @@ describe("le tarif d'un élève « école seule »", () => {
     expect(row.amountDeducted).toBe(200);
   });
 
-  it("solde le mois entier avec la seule part de l'école", async () => {
+  it("solde la carte entière avec la seule part du club", async () => {
     makeSchoolOnly();
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 800 });
     const session = useData.getState().sessions.find((s) => s.id === SES)!;
@@ -147,14 +147,14 @@ describe("le tarif d'un élève « école seule »", () => {
     expect(cycle.balance).toBe(0);
   });
 
-  it("ne fait gagner NI à l'enseignant exclu, ni au reste", async () => {
+  it("ne fait gagner NI à l'entraîneur exclu, ni au reste", async () => {
     makeSchoolOnly();
     await present(scheduledDay());
     const dues = useData.getState().unpaidTeacher.filter((u) => u.teacherId === TEACHER);
     expect(dues).toHaveLength(0);
   });
 
-  it("laisse l'élève ordinaire payer 500 et rapporter sa part", async () => {
+  it("laisse le chevalier ordinaire payer 500 et rapporter sa part", async () => {
     await useData.getState().addSold({ studentId: "stu-2", subscriptionId: SUB, amount: 2000 });
     await useData.getState().setPresence({
       studentId: "stu-2",

@@ -8,8 +8,8 @@
  *
  *  EN BAS : ce qui s'est passé. Ses règlements, ses acomptes et ses absences,
  *  dans un seul journal daté, chacun avec ses trois boutons — modifier,
- *  supprimer, imprimer. Le papier imprimé est celui de l'école, le même que le
- *  reçu d'un élève.
+ *  supprimer, imprimer. Le papier imprimé est celui du club, le même que le
+ *  reçu d'un chevalier.
  *
  * Les journées pointées d'un contrat horaire ont leur propre onglet : c'est là
  * qu'on débloque une journée où le travailleur a oublié de badger sa sortie.

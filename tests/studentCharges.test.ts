@@ -17,19 +17,19 @@ import {
 import { teacherEmplois } from "@/lib/teacherMonths";
 
 /**
- * LES FRAIS D'UN ÉLÈVE — la dette qui n'est pas de la scolarité.
+ * LES FRAIS D'UN CHEVALIER — la dette qui n'est pas de la cotisation.
  *
  * Quatre promesses que la réception doit pouvoir tenir au comptoir :
  *
- *  1. ON PORTE UN FRAIS AU COMPTE D'UN ÉLÈVE en tapant un nom, un montant et
+ *  1. ON PORTE UN FRAIS AU COMPTE D'UN CHEVALIER en tapant un nom, un montant et
  *     une date — la description reste facultative.
  *  2. IL SE RÈGLE EN PLUSIEURS FOIS : ce qui n'est pas versé RESTE DÛ, et
  *     l'alerte le dit encore. Chaque versement laisse sa trace dans
- *     l'historique de l'élève et une entrée en caisse.
- *  3. IL NE RETIENT JAMAIS LA PAIE D'UN ENSEIGNANT. Un livre impayé ne regarde
- *     pas le professeur de mathématiques : seule la scolarité bloque sa part.
- *  4. CE QUE L'ÉCOLE AVANCE DE SA CAISSE devient un frais que la famille lui
- *     doit — sans quoi la dette s'évaporait à la seconde où l'école la
+ *     l'historique du chevalier et une entrée en caisse.
+ *  3. IL NE RETIENT JAMAIS LA PAIE D'UN ENTRAÎNEUR. Un livre impayé ne regarde
+ *     pas le professeur de mathématiques : seule la cotisation bloque sa part.
+ *  4. CE QUE LE CLUB AVANCE DE SA CAISSE devient un frais que la famille lui
+ *     doit — sans quoi la dette s'évaporait à la seconde où le club la
  *     couvrait, et plus personne au guichet ne savait qu'il fallait la
  *     réclamer.
  */
@@ -41,7 +41,7 @@ const TEACHER = "tea-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un mois de 4 séances à 2000 DA dont l'école garde 800 : séance = 500. */
+/** Une carte de 4 séances à 2000 DA dont le club garde 800 : séance = 500. */
 function board() {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -94,7 +94,7 @@ function scheduledDays(count: number): string[] {
   return out;
 }
 
-/** Quatre séances suivies sans rien payer : 2000 DA de scolarité dus. */
+/** Quatre séances suivies sans rien payer : 2000 DA de cotisation dus. */
 async function indebted() {
   board();
   for (const day of scheduledDays(4)) {
@@ -116,7 +116,7 @@ beforeEach(() => {
 
 // ---------------------------------------------------------------------------
 
-describe("porter un frais au compte d'un élève", () => {
+describe("porter un frais au compte d'un chevalier", () => {
   it("un nom, un montant, une date — et la description reste facultative", async () => {
     board();
     const id = await charge("Livre de mathématiques", 1200, "2026-08-20");
@@ -208,7 +208,7 @@ describe("régler un frais, en une ou plusieurs fois", () => {
     expect(db().studentCharges[0]).toMatchObject({ paidAmount: 1200, paid: true });
     expect(studentChargeDebt(db(), STU)).toBe(0);
     expect(studentOpenCharges(db(), STU)).toHaveLength(0);
-    // Les deux versements restent dans l'historique de l'élève.
+    // Les deux versements restent dans l'historique du chevalier.
     expect(chargePayments(db(), id)).toHaveLength(2);
   });
 
@@ -244,8 +244,8 @@ describe("régler un frais, en une ou plusieurs fois", () => {
       expect(p.type).toBe("debt_payment");
       expect(p.paidFrom).toBe("cash");
       // Le reste vit sur le frais, JAMAIS sur le versement : sans quoi il se
-      // lirait comme une scolarité impayée et retiendrait la part d'un
-      // enseignant qui n'a rien à voir avec un livre.
+      // lirait comme une cotisation impayée et retiendrait la part d'un
+      // entraîneur qui n'a rien à voir avec un livre.
       expect(p.rest).toBe(0);
       expect(p.date.startsWith("2026-08-24")).toBe(true);
       expect(p.subscriptionId).toBeUndefined();
@@ -281,10 +281,10 @@ describe("régler un frais, en une ou plusieurs fois", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("un frais ne retient pas la paie d'un enseignant", () => {
-  it("un livre impayé laisse la part de l'enseignant payable", async () => {
+describe("un frais ne retient pas la paie d'un entraîneur", () => {
+  it("un livre impayé laisse la part de l'entraîneur payable", async () => {
     board();
-    // Quatre séances, entièrement payées : la scolarité est à jour.
+    // Quatre séances, entièrement payées : la cotisation est à jour.
     await db().addSold({ studentId: STU, subscriptionId: SUB, amount: 2000, monthCode: "M1" });
     for (const day of scheduledDays(4)) {
       await db().setPresence({ studentId: STU, sessionId: SES, date: day, status: "present" });
@@ -296,7 +296,7 @@ describe("un frais ne retient pas la paie d'un enseignant", () => {
     // Le frais est bien dû…
     expect(studentChargeDebt(db(), STU)).toBe(1200);
     expect(studentTotalDue(db(), STU)).toBe(1200);
-    // …mais la scolarité, elle, reste à jour et la part se paie.
+    // …mais la cotisation, elle, reste à jour et la part se paie.
     expect(studentDebt(db(), STU)).toBe(0);
     expect(studentHasDebt(db(), STU)).toBe(false);
     const emploi = teacherEmplois(db(), TEACHER).find((e) => e.sessionId === SES)!;
@@ -307,8 +307,8 @@ describe("un frais ne retient pas la paie d'un enseignant", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("ce que l'école avance devient une dette de la famille", () => {
-  it("couvrir une dette porte un frais « avancé par l'école » au compte de l'élève", async () => {
+describe("ce que le club avance devient une dette de la famille", () => {
+  it("couvrir une dette porte un frais « avancé par le club » au compte du chevalier", async () => {
     await indebted();
     expect(studentHasDebt(db(), STU)).toBe(true);
 
@@ -316,7 +316,7 @@ describe("ce que l'école avance devient une dette de la famille", () => {
     expect(res.ok).toBe(true);
     expect(res.amount).toBe(2000);
 
-    // La scolarité est soldée et la part de l'enseignant se débloque…
+    // La cotisation est soldée et la part de l'entraîneur se débloque…
     expect(studentHasDebt(db(), STU)).toBe(false);
     expect(teacherEmplois(db(), TEACHER).find((e) => e.sessionId === SES)!.payable).toBe(4 * 300);
 
@@ -348,12 +348,12 @@ describe("ce que l'école avance devient une dette de la famille", () => {
     expect(studentAdvanceDebt(db(), STU)).toBe(0);
   });
 
-  it("rembourser l'avance ne rebloque PAS la part de l'enseignant", async () => {
+  it("rembourser l'avance ne rebloque PAS la part de l'entraîneur", async () => {
     await indebted();
     await db().coverStudentDebt({ studentId: STU });
     expect(studentHasDebt(db(), STU)).toBe(false);
 
-    // Tant que l'avance n'est pas remboursée, la scolarité reste à jour : la
+    // Tant que l'avance n'est pas remboursée, la cotisation reste à jour : la
     // paie ne peut pas se rebloquer sur une dette qu'elle a elle-même servi à
     // débloquer.
     expect(studentAdvanceDebt(db(), STU)).toBe(2000);
@@ -370,7 +370,7 @@ describe("ce que l'école avance devient une dette de la famille", () => {
     await db().coverStudentDebt({ studentId: STU });
 
     const charges = studentChargesOf(db(), STU);
-    // Un frais pour le mois avancé, un autre pour les frais d'inscription.
+    // Un frais pour la carte avancé, un autre pour les frais d'inscription.
     expect(charges).toHaveLength(2);
     expect(studentAdvanceDebt(db(), STU)).toBe(2700);
   });
@@ -378,7 +378,7 @@ describe("ce que l'école avance devient une dette de la famille", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("un élève effacé emporte ses frais", () => {
+describe("un chevalier effacé emporte ses frais", () => {
   it("la suppression nettoie le magasin comme la cascade le fait en base", async () => {
     board();
     await charge("Livre", 1000);

@@ -11,7 +11,7 @@ import type { Parent, School, Student } from "@/lib/types";
 
 /** Alertes automatiques déjà traitées dans cette session applicative, pour ne
  *  pas rejouer la même si le scan accepté est traité deux fois (double
- *  déclenchement de l'événement clavier, remontage React). Clé stable = élève +
+ *  déclenchement de l'événement clavier, remontage React). Clé stable = chevalier +
  *  séance + jour. */
 const sentAlertKeys = new Set<string>();
 
@@ -42,7 +42,7 @@ async function sendAutoBalanceAlert(opts: {
     lang: opts.lang,
     low: opts.low,
   });
-  // Aucun numéro exploitable (ni parent ni élève), ou rien à signaler.
+  // Aucun numéro exploitable (ni parent ni chevalier), ou rien à signaler.
   if (!payload) return;
 
   sentAlertKeys.add(opts.dedupKey);
@@ -172,7 +172,7 @@ export function useScanProcessor() {
           // et non bloquant : le verdict du scan et son toast s'affichent sans
           // attendre la passerelle, et un échec d'envoi reste sans effet sur la
           // présence et le débit déjà écrits. Le parent rattaché est visé en
-          // priorité ; à défaut, l'élève lui-même (résolu dans buildBalanceAlert).
+          // priorité ; à défaut, le chevalier lui-même (résolu dans buildBalanceAlert).
           if (autoSendWhatsapp) {
             const parent = student.parentId
               ? parents.find((p) => p.id === student.parentId)
@@ -244,7 +244,7 @@ export function useScanProcessor() {
                       ? "Présence Enregistrée — Rattrapage"
                       : "Présence Enregistrée",
           message: isAlready
-            ? `L'élève a déjà pointé pour ${sessionInfo ?? "cette séance"} aujourd'hui.${substitution}`
+            ? `Le chevalier a déjà pointé pour ${sessionInfo ?? "cette séance"} aujourd'hui.${substitution}`
             : `${isLate ? "Présence validée avec RETARD" : "Présence enregistrée avec succès"}${
                 sessionInfo ? ` — ${sessionInfo}` : ""
               }.${substitution}${freeNote}${preStartNote}${emptyNote}`,
@@ -263,12 +263,12 @@ export function useScanProcessor() {
         const failureMessages: Record<string, string> = {
           "scan.notFound": "Carte RFID introuvable ou non associée.",
           "scan.noSessionToday": "Aucune séance de son niveau/module aujourd'hui — carte refusée.",
-          "scan.noSessionNow": "Ce n'est pas l'heure de la séance de cet élève.",
+          "scan.noSessionNow": "Ce n'est pas l'heure de la séance de ce chevalier.",
           "scan.tooEarly": `Trop tôt — la séance n'a pas encore commencé.${result.nextStart ? ` Prochaine séance à ${result.nextStart}.` : ""}`,
-          "scan.sessionEnded": "Séance déjà terminée — scan refusé, l'élève est compté ABSENT.",
+          "scan.sessionEnded": "Séance déjà terminée — scan refusé, le chevalier est compté ABSENT.",
           "scan.subscriptionExpired": "Abonnement EXPIRÉ pour ce module — carte refusée. Renouvelez l'inscription à la réception.",
-          "scan.notEligible": "La séance en cours est d'un autre niveau ou d'un module non affecté à cet élève — carte refusée.",
-          "scan.noSession": "Aucune séance active trouvée pour cet élève en ce moment.",
+          "scan.notEligible": "La séance en cours est d'un autre niveau ou d'un module non affecté à ce chevalier — carte refusée.",
+          "scan.noSession": "Aucune séance active trouvée pour ce chevalier en ce moment.",
           "scan.error": "Erreur lors du scan — veuillez réessayer.",
         };
         addToast({
@@ -279,7 +279,7 @@ export function useScanProcessor() {
               : "Échec du Scan",
           message:
             failureMessages[result.messageKey] ??
-            "Aucune séance active trouvée pour cet élève en ce moment.",
+            "Aucune séance active trouvée pour ce chevalier en ce moment.",
           studentName: student ? studentName(student) : undefined,
         });
       }

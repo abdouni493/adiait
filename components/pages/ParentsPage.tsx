@@ -14,7 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Trash2, Edit, Eye, Plus, Send, Phone, Search, Users, Check, MoreVertical, MessageCircle } from "lucide-react";
+import { Check, Edit, Eye, MessageCircle, MoreVertical, Phone, Plus, Search, Send, Trash2, Users } from "lucide-react";
 import type { Parent, Student } from "@/lib/types";
 import {
   WhatsAppMessageModal,
@@ -250,7 +250,7 @@ export function ParentsPage() {
   };
 
   /** Envoi WhatsApp au parent. Les enfants rattachés alimentent les modèles
-   *  d'alerte (dette, séances épuisées) ; l'élève concerné se choisit dans la
+   *  d'alerte (dette, séances épuisées) ; le chevalier concerné se choisit dans la
    *  fenêtre quand le parent en a plusieurs. */
   const openWhatsApp = (p: Parent) => {
     setWaTarget({
@@ -293,7 +293,7 @@ export function ParentsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageHeader emoji="👨‍👩-👧" title="Parents" subtitle="Gérer les comptes des tuteurs d'élèves" />
+        <PageHeader icon={Users} title="Parents" subtitle="Gérer les comptes des tuteurs de chevaliers" />
         {can("create") && (
           <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Nouveau Parent
@@ -401,7 +401,7 @@ export function ParentsPage() {
                   <div className="mt-3 text-xs">
                     <span className="text-muted block font-semibold mb-1">Enfants rattachés ({children.length}) :</span>
                     {children.length === 0 ? (
-                      <span className="text-[10px] text-muted italic">Aucun élève lié</span>
+                      <span className="text-[10px] text-muted italic">Aucun chevalier lié</span>
                     ) : (
                       <div className="flex flex-wrap gap-1">
                         {children.map((c) => (
@@ -460,7 +460,7 @@ export function ParentsPage() {
               <Input
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
-                placeholder="Rechercher élève par nom, téléphone..."
+                placeholder="Rechercher chevalier par nom, téléphone..."
                 className="pl-8 text-xs py-1"
               />
             </div>
@@ -530,7 +530,7 @@ export function ParentsPage() {
               <Input
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
-                placeholder="Rechercher élève par nom, téléphone..."
+                placeholder="Rechercher chevalier par nom, téléphone..."
                 className="pl-8 text-xs py-1"
               />
             </div>
@@ -590,7 +590,7 @@ export function ParentsPage() {
               <h4 className="font-bold text-ink mb-3 uppercase tracking-wider">🎓 Enfants associés ({getParentChildren(selectedParent).length})</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getParentChildren(selectedParent).length === 0 ? (
-                  <p className="text-xs text-muted italic">Aucun élève lié à ce parent.</p>
+                  <p className="text-xs text-muted italic">Aucun chevalier lié à ce parent.</p>
                 ) : (
                   getParentChildren(selectedParent).map((c) => (
                     <div key={c.id} className="border border-line rounded-xl p-3.5 bg-surface flex justify-between items-center">

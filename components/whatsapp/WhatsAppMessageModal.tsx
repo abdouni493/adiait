@@ -32,7 +32,7 @@ export interface WhatsAppRecipient {
   role: "student" | "parent";
 }
 
-/** Élève dont la situation alimente les modèles (solde, frais d'inscription). */
+/** Chevalier dont la situation alimente les modèles (solde, frais d'inscription). */
 export interface WhatsAppStudentContext {
   id: string;
   name: string;
@@ -43,8 +43,8 @@ export interface WhatsAppStudentContext {
   registrationDue?: number;
 }
 
-/** Formule d'adresse à retenir pour un ensemble de destinataires. Sans élève de
- *  référence, ou quand élève et parent sont visés ensemble, aucune des deux
+/** Formule d'adresse à retenir pour un ensemble de destinataires. Sans chevalier de
+ *  référence, ou quand chevalier et parent sont visés ensemble, aucune des deux
  *  formules dédiées ne convient : on reste neutre. */
 function audienceFor(
   recipients: WhatsAppRecipient[],
@@ -58,7 +58,7 @@ function audienceFor(
 }
 
 /**
- * Fenêtre d'envoi WhatsApp, partagée par les fiches élèves et parents.
+ * Fenêtre d'envoi WhatsApp, partagée par les fiches chevaliers et parents.
  *
  * Le composant est prévu pour être monté au moment de l'ouverture
  * (`{target && <WhatsAppMessageModal … />}`) : son état interne repart ainsi de
@@ -73,7 +73,7 @@ export function WhatsAppMessageModal({
 }: {
   onClose: () => void;
   recipients: WhatsAppRecipient[];
-  /** Élèves décrits par les modèles. Vide = seul le message libre est proposé. */
+  /** Chevaliers décrits par les modèles. Vide = seul le message libre est proposé. */
   students: WhatsAppStudentContext[];
   /** Destinataires cochés d'emblée (défaut : tous ceux qui ont un numéro valide). */
   defaultRecipientIds?: string[];
@@ -109,7 +109,7 @@ export function WhatsAppMessageModal({
   const [error, setError] = useState<string | null>(null);
 
   /** Compose le corps du message. Appelé à l'initialisation puis à chaque
-   *  changement de modèle, de langue ou d'élève — jamais dans un effet, pour
+   *  changement de modèle, de langue ou de chevalier — jamais dans un effet, pour
    *  qu'une saisie manuelle ne soit écrasée qu'en réponse à une action explicite. */
   const compose = (
     nextTemplateId: WhatsAppTemplateId,
@@ -135,7 +135,7 @@ export function WhatsAppMessageModal({
     compose(initialTemplate, initialLang, initialStudent?.id ?? ""),
   );
 
-  /** Sans élève de référence, les modèles d'alerte n'ont rien à décrire. */
+  /** Sans chevalier de référence, les modèles d'alerte n'ont rien à décrire. */
   const availableTemplates = useMemo(
     () =>
       students.length > 0
@@ -160,13 +160,13 @@ export function WhatsAppMessageModal({
   };
 
   // Cocher/décocher un destinataire ne réécrit pas le message : la saisie en
-  // cours prime, et le corps des modèles nomme l'élève de toute façon.
+  // cours prime, et le corps des modèles nomme le chevalier de toute façon.
   const toggleRecipient = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  /** Contexte de l'élève sélectionné, pour construire les variables du modèle
-   *  Meta (nom, montant, école). L'audience ne change que l'aperçu, pas les
+  /** Contexte du chevalier sélectionné, pour construire les variables du modèle
+   *  Meta (nom, montant, club). L'audience ne change que l'aperçu, pas les
    *  variables — un modèle approuvé porte sa propre formule d'adresse. */
   const templateContext = (): TemplateContext => {
     const student = students.find((s) => s.id === studentId) ?? null;
@@ -268,7 +268,7 @@ export function WhatsAppMessageModal({
                     </Badge>
                   ) : (
                     <Badge tone="neutral" className="shrink-0 text-[9px]">
-                      {r.role === "parent" ? "Parent" : "Élève"}
+                      {r.role === "parent" ? "Parent" : "Chevalier"}
                     </Badge>
                   )}
                 </label>
@@ -277,10 +277,10 @@ export function WhatsAppMessageModal({
           </div>
         </div>
 
-        {/* Élève concerné — utile depuis une fiche parent à plusieurs enfants */}
+        {/* Chevalier concerné — utile depuis une fiche parent à plusieurs enfants */}
         {students.length > 1 && (
           <div>
-            <label className="mb-1.5 block text-xs font-semibold text-muted">Élève concerné</label>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">Chevalier concerné</label>
             <Select
               value={studentId}
               onChange={(e) => selectStudent(e.target.value)}
@@ -356,7 +356,7 @@ export function WhatsAppMessageModal({
             <span className="text-muted">
               {isTemplate
                 ? "Alerte envoyée via un modèle WhatsApp approuvé par Meta. Ce texte est un aperçu ; le contenu exact est défini par le modèle approuvé."
-                : "Message libre : possible uniquement si la famille a écrit à l'école dans les dernières 24 h (fenêtre de service client)."}
+                : "Message libre : possible uniquement si la famille a écrit au club dans les dernières 24 h (fenêtre de service client)."}
             </span>
             {!isTemplate && (
               <span className={tooLong ? "shrink-0 font-bold text-danger" : "shrink-0 text-muted"}>

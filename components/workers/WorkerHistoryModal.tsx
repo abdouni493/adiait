@@ -4,8 +4,8 @@
  * L'HISTORIQUE DE TRAVAIL D'UN TRAVAILLEUR — ce qu'il a fait DEPUIS SON COMPTE.
  *
  * Pas ce qu'on lui a versé — cela vit sur sa fiche. Ici on lit son travail :
- * les présences qu'il a pointées, les paiements d'élèves qu'il a encaissés, les
- * frais qu'il a portés, les élèves qu'il a inscrits, les mouvements de caisse
+ * les présences qu'il a pointées, les paiements de chevaliers qu'il a encaissés, les
+ * frais qu'il a portés, les chevaliers qu'il a inscrits, les mouvements de caisse
  * qu'il a saisis. Chaque ligne porte son jour, son heure à la minute près, et
  * de qui il s'agissait.
  *
@@ -30,6 +30,7 @@ import { Input, Select } from "@/components/ui/SearchInput";
 import { useData } from "@/lib/store/data";
 import { formatDA } from "@/lib/utils";
 import {
+  carteShort,
   formatDateFr,
   groupName,
   moduleName,
@@ -52,7 +53,7 @@ const KIND_META: Record<
     accent: "text-primary",
   },
   payment: {
-    label: "Paiement d'élève",
+    label: "Paiement de chevalier",
     icon: <Wallet className="h-3.5 w-3.5" />,
     tone: "border-success/30 bg-success/5",
     accent: "text-success",
@@ -64,7 +65,7 @@ const KIND_META: Record<
     accent: "text-warning",
   },
   student: {
-    label: "Élève inscrit",
+    label: "Chevalier inscrit",
     icon: <UserPlus className="h-3.5 w-3.5" />,
     tone: "border-line bg-canvas/40",
     accent: "text-ink",
@@ -124,7 +125,7 @@ export function WorkerHistoryModal({
               : a.status === "late"
                 ? "Retard"
                 : "Séance annulée",
-        subject: student ? studentName(student) : "Élève supprimé",
+        subject: student ? studentName(student) : "Chevalier supprimé",
         detail: session
           ? `${moduleName(db, session.moduleId)} — ${groupName(db, session.groupId)}` +
             (slot ? ` · créneau ${slot}` : "")
@@ -141,11 +142,11 @@ export function WorkerHistoryModal({
         kind: "payment",
         at: p.date,
         title: p.type === "debt_payment" ? "Règlement de dette" : "Encaissement de séances",
-        subject: student ? studentName(student) : "Élève supprimé",
+        subject: student ? studentName(student) : "Chevalier supprimé",
         detail:
           p.description ||
           (p.seancesPurchased ? `${p.seancesPurchased} séance(s)` : "Versement") +
-            (p.monthCode ? ` · ${p.monthCode}` : ""),
+            (p.monthCode ? ` · ${carteShort(p.monthCode)}` : ""),
         amount: p.amountPaid,
         incoming: true,
       });
@@ -159,13 +160,13 @@ export function WorkerHistoryModal({
         kind: "charge",
         at: c.createdAt || `${c.date}T12:00:00`,
         title: c.name || "Frais",
-        subject: student ? studentName(student) : "Élève supprimé",
-        detail: c.description || "Frais porté au compte de l'élève",
+        subject: student ? studentName(student) : "Chevalier supprimé",
+        detail: c.description || "Frais porté au compte du chevalier",
         amount: c.amount,
       });
     }
 
-    // Une fiche d'élève ne porte pas de date de création à elle. On la lit sur
+    // Une fiche de chevalier ne porte pas de date de création à elle. On la lit sur
     // sa PREMIÈRE inscription, faute de quoi sur son premier versement : c'est
     // le moment où le travailleur l'a réellement enregistré au comptoir.
     for (const s of db.students) {
@@ -184,7 +185,7 @@ export function WorkerHistoryModal({
         id: s.id,
         kind: "student",
         at,
-        title: "Nouvel élève inscrit",
+        title: "Nouvel chevalier inscrit",
         subject: studentName(s),
         detail: `${s.subscriptionIds.length} emploi(s) du temps souscrit(s)`,
       });
@@ -192,7 +193,7 @@ export function WorkerHistoryModal({
 
     for (const c of db.cash) {
       if (c.createdBy !== mine) continue;
-      // Les entrées de caisse d'un encaissement d'élève sont déjà racontées par
+      // Les entrées de caisse d'un encaissement de chevalier sont déjà racontées par
       // la ligne du paiement : les redire ferait double emploi.
       if (c.type === "student_payment") continue;
       out.push({
@@ -316,7 +317,7 @@ export function WorkerHistoryModal({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Chercher un élève, un montant, un motif…"
+              placeholder="Chercher un chevalier, un montant, un motif…"
               className="pl-9"
             />
           </div>

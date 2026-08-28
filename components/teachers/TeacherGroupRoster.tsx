@@ -1,16 +1,16 @@
 "use client";
 
 /**
- * LA LISTE DES ÉLÈVES D'UN GROUPE, VUE PAR SON ENSEIGNANT.
+ * LA LISTE DES CHEVALIERS D'UN GROUPE, VUE PAR SON ENTRAÎNEUR.
  *
- * C'est la seule chose qu'un enseignant a le droit de faire sur un groupe :
+ * C'est la seule chose qu'un entraîneur a le droit de faire sur un groupe :
  * LE LIRE. Il ouvre un créneau de sa journée, il voit qui le compose, où en est
- * chacun dans son mois, et qui traîne une dette — et rien d'autre. Aucun
+ * chacun dans son carte, et qui traîne une dette — et rien d'autre. Aucun
  * bouton, aucune case à cocher, aucun encaissement : ces gestes-là appartiennent
  * au guichet, et l'écran ne les propose donc jamais ici.
  *
  * Les chiffres ne sont pas recalculés à part : ils sortent du MÊME modèle que
- * la paie de l'administration (`teacherMonths`), si bien que ce que l'enseignant
+ * la paie de l'administration (`teacherMonths`), si bien que ce que l'entraîneur
  * lit sur sa liste et ce que la réception lit sur l'écran de règlement sont, au
  * centime, la même chose.
  */
@@ -43,7 +43,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-/** Le statut de paiement d'un élève sur son mois, dit d'un mot. */
+/** Le statut de paiement d'un chevalier sur son carte, dit d'un mot. */
 const PAY_STATE: Record<string, { label: string; tone: Tone }> = {
   paid: { label: "À jour", tone: "success" },
   partial: { label: "Partiel", tone: "warning" },
@@ -78,9 +78,9 @@ export function TeacherGroupRoster({
   const [query, setQuery] = useState("");
 
   /**
-   * LE MOIS QUE LE GROUPE VIT AUJOURD'HUI — c'est lui qui porte la liste.
+   * LE CARTE QUE LE GROUPE VIT AUJOURD'HUI — c'est lui qui porte la liste.
    *
-   * Un groupe qui n'a pas encore de mois (créneau tout neuf, séance libre sans
+   * Un groupe qui n'a pas encore de carte (créneau tout neuf, séance libre sans
    * abonnement) retombe sur son effectif brut : mieux vaut une liste sans
    * chiffres qu'un écran vide.
    */
@@ -156,7 +156,7 @@ export function TeacherGroupRoster({
       open
       onClose={onClose}
       full
-      title={`Liste des élèves — ${emploi.title} · ${emploi.groupName}`}
+      title={`Liste des chevaliers — ${emploi.title} · ${emploi.groupName}`}
     >
       <div className="space-y-4">
         {/* ---- la carte d'identité du créneau ------------------------------ */}
@@ -197,7 +197,7 @@ export function TeacherGroupRoster({
             </div>
             <div className="shrink-0 rounded-2xl border border-primary/30 bg-surface px-4 py-2 text-center">
               <span className="block text-[9px] font-bold uppercase tracking-wider text-muted">
-                Mois en cours
+                Carte en cours
               </span>
               <strong className="block font-mono text-lg font-black text-primary">
                 {monthCodeLabel(monthCode)}
@@ -210,7 +210,7 @@ export function TeacherGroupRoster({
 
           <div className="grid grid-cols-2 gap-px border-t border-primary/20 bg-primary/10 sm:grid-cols-4">
             <RosterStat
-              label="Élèves inscrits"
+              label="Chevaliers inscrits"
               value={String(rows.length)}
               icon={<Users className="h-3.5 w-3.5" />}
             />
@@ -239,7 +239,7 @@ export function TeacherGroupRoster({
         <p className="rounded-2xl border border-line bg-canvas/50 p-3 text-[11px] leading-relaxed text-muted">
           Cette liste se <strong className="text-ink">consulte</strong>. Le pointage des présences,
           les encaissements et les corrections se font au guichet : rien de ce que vous lisez ici ne
-          se modifie depuis votre compte. Un élève « en retard de paiement » n&apos;a pas soldé son
+          se modifie depuis votre compte. Un chevalier « en retard de paiement » n&apos;a pas soldé son
           mois sur <strong className="text-ink">ce groupe-ci</strong> — c&apos;est ce qui retient la
           part que ses séances vous rapportent, jusqu&apos;à ce qu&apos;il s&apos;acquitte.
         </p>
@@ -250,7 +250,7 @@ export function TeacherGroupRoster({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un élève, un numéro, un téléphone…"
+              placeholder="Rechercher un chevalier, un numéro, un téléphone…"
               className="text-xs ltr:pl-9 rtl:pr-9"
             />
           </div>
@@ -262,12 +262,12 @@ export function TeacherGroupRoster({
             <thead className="bg-canvas/70">
               <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                 <th className="px-3 py-2.5">N°</th>
-                <th className="px-3 py-2.5">Élève</th>
+                <th className="px-3 py-2.5">Chevalier</th>
                 <th className="px-3 py-2.5">Téléphone</th>
-                <th className="px-3 py-2.5 text-center">Séances du mois</th>
+                <th className="px-3 py-2.5 text-center">Séances de la carte</th>
                 <th className="px-3 py-2.5 text-center">P / A / An.</th>
                 {date && <th className="px-3 py-2.5 text-center">Ce jour</th>}
-                <th className="px-3 py-2.5 text-center">Paiement du mois</th>
+                <th className="px-3 py-2.5 text-center">Paiement de la carte</th>
                 <th className="px-3 py-2.5 text-right">Versé</th>
                 <th className="px-3 py-2.5 text-right">Reste dû</th>
               </tr>
@@ -280,8 +280,8 @@ export function TeacherGroupRoster({
                     className="px-3 py-10 text-center text-xs italic text-muted"
                   >
                     {rows.length === 0
-                      ? "Aucun élève inscrit sur ce groupe pour l'instant."
-                      : "Aucun élève ne correspond à cette recherche."}
+                      ? "Aucun chevalier inscrit sur ce groupe pour l'instant."
+                      : "Aucun chevalier ne correspond à cette recherche."}
                   </td>
                 </tr>
               ) : (

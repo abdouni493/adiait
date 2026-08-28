@@ -29,7 +29,7 @@ export type WhatsAppTemplateId =
 export type AlertTemplateId = Exclude<WhatsAppTemplateId, "custom">;
 
 /** À qui l'on parle : cela change la formule d'adresse de l'aperçu. `mixed`
- *  couvre l'envoi simultané à l'élève et à son parent. */
+ *  couvre l'envoi simultané au chevalier et à son parent. */
 export type WhatsAppAudience = "student" | "parent" | "mixed";
 
 export type MessageLanguage = "fr" | "ar";
@@ -80,7 +80,7 @@ export function formatAmountVar(amount: number): string {
 }
 
 /** Formule d'adresse selon le destinataire. Le corps des modèles nomme toujours
- *  l'élève, donc la variante `mixed` peut rester neutre sans perdre en clarté. */
+ *  le chevalier, donc la variante `mixed` peut rester neutre sans perdre en clarté. */
 function opening(ctx: TemplateContext, lang: MessageLanguage): string {
   if (lang === "ar") {
     if (ctx.audience === "parent") return `السلام عليكم، ولي أمر التلميذ(ة) ${ctx.studentName}،`;
@@ -92,7 +92,7 @@ function opening(ctx: TemplateContext, lang: MessageLanguage): string {
   return "Bonjour,";
 }
 
-/** Pied de message : nom de l'école + numéro de contact éventuel. */
+/** Pied de message : nom du club + numéro de contact éventuel. */
 function signature(ctx: TemplateContext, lang: MessageLanguage): string {
   const contact = ctx.schoolPhone
     ? lang === "ar"
@@ -246,7 +246,7 @@ export function getTemplate(id: WhatsAppTemplateId): TemplateDefinition {
   return WHATSAPP_TEMPLATES.find((t) => t.id === id) ?? WHATSAPP_TEMPLATES[0];
 }
 
-/** Modèle le plus pertinent à pré-sélectionner d'après la situation de l'élève. */
+/** Modèle le plus pertinent à pré-sélectionner d'après la situation du chevalier. */
 export function suggestTemplate(ctx: {
   debt: number;
   remainingSeances: number;

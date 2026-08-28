@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Trash2, Eye, Plus, CheckSquare, Square, FileText, Upload, Image as ImageIcon } from "lucide-react";
+import { BookOpen, CheckSquare, Eye, FileText, Image as ImageIcon, Plus, Square, Trash2, Upload } from "lucide-react";
 import type { Subject } from "@/lib/types";
 
 import { useCan } from "@/lib/usePermissions";
@@ -37,7 +37,7 @@ export function SubjectsPage() {
     const s = sessions.find((se) => se.id === sesId);
     if (!s) return "-";
     const mod = modules.find((m) => m.id === s.moduleId)?.name ?? "Module";
-    const cl = classes.find((c) => c.id === s.classId)?.name ?? "Classe";
+    const cl = classes.find((c) => c.id === s.classId)?.name ?? "Catégorie";
     const gr = groups.find((g) => g.id === s.groupId)?.name ?? "Groupe";
     return `${cl} - ${mod} (${gr})`;
   };
@@ -106,7 +106,7 @@ export function SubjectsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageHeader emoji="📚" title="Sujets & Exercices" subtitle="Partager des fiches d'exercices et devoirs" />
+        <PageHeader icon={BookOpen} title="Sujets & Exercices" subtitle="Partager des fiches d'exercices et devoirs" />
 
         <div className="flex items-center gap-2">
           {can("bulk_delete") && selectedIds.length > 0 && (
@@ -228,7 +228,7 @@ export function SubjectsPage() {
           <div>
             <label className="block text-xs font-semibold text-muted mb-1">Groupe / Séance concerné</label>
             <Select value={sessionId} onChange={(e) => setSessionId(e.target.value)} className="w-full">
-              <option value="">Sélectionner le groupe d'élèves</option>
+              <option value="">Sélectionner le groupe d'chevaliers</option>
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {getSessionLabel(s.id)}

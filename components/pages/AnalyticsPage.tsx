@@ -17,20 +17,8 @@ import type {
   Subscription,
   Teacher,
 } from "@/lib/types";
-import {
-  Calendar,
-  Sparkles,
-  Users,
-  GraduationCap,
-  Printer,
-  TrendingUp,
-  AlertCircle,
-  ChevronDown,
-  UserCheck,
-  Clock,
-  CalendarDays,
-  Activity,
-} from "lucide-react";
+import { Activity, AlertCircle, Award, BarChart3, Calendar, CalendarDays, ChevronDown, Clock, GraduationCap, Printer, Shield, Sparkles, Swords, TrendingUp, UserCheck, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { useCan } from "@/lib/usePermissions";
 /* ------------------------------------------------------------------ */
@@ -272,12 +260,12 @@ function blockHtml(stat: Stat, accent: string, kind: "class" | "teacher") {
             <span class="tag">${esc(stat.subtitle)}</span>
           </div>
         </div>
-        <label class="trend-label">Nombre d'élèves suivis sur la période</label>
+        <label class="trend-label">Nombre de chevaliers suivis sur la période</label>
         ${areaChartSvg(stat.studentTrend, stat.labels, accent)}
         <div class="block-body">
           ${donutHtml(stat.present, stat.late, stat.absent)}
           <div class="stats-grid">
-            <div class="stat"><label>${kind === "class" ? "Effectif" : "Élèves vus"}</label><strong>${kind === "class" ? stat.enrolled : stat.studentsSeen}</strong></div>
+            <div class="stat"><label>${kind === "class" ? "Effectif" : "Chevaliers vus"}</label><strong>${kind === "class" ? stat.enrolled : stat.studentsSeen}</strong></div>
             <div class="stat"><label>Présents</label><strong style="color:${PRINT_COLORS.present}">${stat.present}</strong></div>
             <div class="stat"><label>Retards</label><strong style="color:${PRINT_COLORS.late}">${stat.late}</strong></div>
             <div class="stat"><label>Taux présence</label><strong>${rate}%</strong></div>
@@ -372,7 +360,7 @@ function buildPrintDocument(opts: {
         <div class="grid">${bodyHtml}</div>
         
         <div class="meta-text">
-          Document d'analyse d'activité édité électroniquement par l'école ${school.name} le ${new Date().toLocaleString("fr-DZ")}
+          Document d'analyse d'activité édité électroniquement par le club ${school.name} le ${new Date().toLocaleString("fr-DZ")}
         </div>
       </body>
     </html>`;
@@ -409,7 +397,7 @@ function AreaChart({ data, labels, color }: { data: number[]; labels: string[]; 
 
   return (
     <div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" role="img" aria-label="Évolution du nombre d'élèves">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" role="img" aria-label="Évolution du nombre de chevaliers">
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.42} />
@@ -462,7 +450,7 @@ function AreaChart({ data, labels, color }: { data: number[]; labels: string[]; 
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35 + i * 0.05 }}
           >
-            <title>{`${labels[i]} — ${p.v} élève(s)`}</title>
+            <title>{`${labels[i]} — ${p.v} chevalier(s)`}</title>
           </motion.circle>
         ))}
       </svg>
@@ -586,7 +574,7 @@ function AnalyticCard({
         <div className="rounded-2xl border border-line/60 bg-canvas/30 p-3">
           <div className="mb-1 flex items-center justify-between">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted">
-              <Activity className="h-3.5 w-3.5" style={{ color: accent }} /> Élèves suivis / période
+              <Activity className="h-3.5 w-3.5" style={{ color: accent }} /> Chevaliers suivis / période
             </p>
             <span className="text-[11px] font-bold" style={{ color: accent }}>
               pic {peak}
@@ -602,7 +590,7 @@ function AnalyticCard({
             <span className="text-[10px] font-semibold text-muted">{rate}% présence</span>
           </div>
           <div className="grid flex-1 grid-cols-2 gap-2">
-            <Pill label={kind === "class" ? "Effectif" : "Élèves vus"} value={kind === "class" ? stat.enrolled : stat.studentsSeen} />
+            <Pill label={kind === "class" ? "Effectif" : "Chevaliers vus"} value={kind === "class" ? stat.enrolled : stat.studentsSeen} />
             <Pill label="Présents" value={stat.present} tone="var(--success)" />
             <Pill label="Retards" value={stat.late} tone="var(--warning)" />
             <Pill label="Séances" value={stat.sessionsCount} />
@@ -630,7 +618,7 @@ function AnalyticCard({
             <div className="grid grid-cols-2 gap-2 pt-1">
               <DetailRow icon={<UserCheck className="h-3.5 w-3.5 text-success" />} label="Présences validées" value={stat.present + stat.late} />
               <DetailRow icon={<Clock className="h-3.5 w-3.5 text-warning" />} label="Retards" value={stat.late} />
-              <DetailRow icon={<Users className="h-3.5 w-3.5 text-primary" />} label="Élèves distincts vus" value={stat.studentsSeen} />
+              <DetailRow icon={<Users className="h-3.5 w-3.5 text-primary" />} label="Chevaliers distincts vus" value={stat.studentsSeen} />
               <DetailRow icon={<CalendarDays className="h-3.5 w-3.5 text-muted" />} label="Pic d'affluence" value={`${peak} (${peakLabel})`} />
               <DetailRow icon={<TrendingUp className="h-3.5 w-3.5 text-primary" />} label="Moyenne / intervalle" value={avg} />
               <DetailRow icon={<Activity className="h-3.5 w-3.5" style={{ color: accent }} />} label="Taux de présence" value={`${rate}%`} />
@@ -723,7 +711,7 @@ export function AnalyticsPage() {
   const printOne = (stat: Stat, accent: string, kind: "class" | "teacher") => {
     printHtmlDocument(
       buildPrintDocument({
-        title: `Analyse — ${kind === "class" ? "Classe" : "Enseignant"} ${stat.name}`,
+        title: `Analyse — ${kind === "class" ? "Catégorie" : "Entraîneur"} ${stat.name}`,
         school,
         startLabel,
         endLabel,
@@ -738,7 +726,7 @@ export function AnalyticsPage() {
     const body = list.map((s, i) => blockHtml(s, PALETTE[i % PALETTE.length], kind as "class" | "teacher")).join("");
     printHtmlDocument(
       buildPrintDocument({
-        title: tab === "classes" ? "Analyse — Classes" : "Analyse — Enseignants",
+        title: tab === "classes" ? "Analyse — Catégories" : "Analyse — Entraîneurs",
         school,
         startLabel,
         endLabel,
@@ -752,9 +740,9 @@ export function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        emoji="📈"
+        icon={BarChart3}
         title="Analytique"
-        subtitle="Suivi de l'affluence des élèves par classe et par enseignant"
+        subtitle="Suivi de l'affluence des chevaliers par catégorie et par entraîneur"
         actions={
           hasGenerated && can("print") ? (
             <Button variant="secondary" onClick={handlePrintAll} className="flex items-center gap-2">
@@ -821,7 +809,7 @@ export function AnalyticsPage() {
             <h3 className="font-bold text-ink">Aucune analyse générée</h3>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
               Choisissez une période puis cliquez sur « Générer l&apos;analyse » pour afficher, classe par classe et
-              enseignant par enseignant, le graphique d&apos;affluence des élèves.
+              enseignant par enseignant, le graphique d&apos;affluence des chevaliers.
             </p>
           </div>
         </motion.div>
@@ -829,26 +817,26 @@ export function AnalyticsPage() {
         <div className="space-y-6">
           {/* KPI row */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <MiniKpi accent="#6366f1" emoji="👥" label="Élèves suivis" value={kpiStudentsSeen} index={0} />
-            <MiniKpi accent="#22c55e" emoji="✅" label="Présences validées" value={kpiPresences} index={1} />
-            <MiniKpi accent="#f59e0b" emoji="🏫" label="Classes actives" value={classes.length} index={2} />
-            <MiniKpi accent="#ec4899" emoji="🎓" label="Enseignants actifs" value={teachers.length} index={3} />
+            <MiniKpi accent="var(--primary)" icon={Swords} label="Chevaliers suivis" value={kpiStudentsSeen} index={0} />
+            <MiniKpi accent="var(--success)" icon={UserCheck} label="Présences validées" value={kpiPresences} index={1} />
+            <MiniKpi accent="var(--accent)" icon={Shield} label="Catégories actives" value={classes.length} index={2} />
+            <MiniKpi accent="var(--warning)" icon={Award} label="Entraîneurs actifs" value={teachers.length} index={3} />
           </div>
 
-          {/* Segmented tabs: Classes / Enseignants */}
+          {/* Segmented tabs: Catégories / Entraîneurs */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex rounded-2xl border border-line bg-surface p-1">
               <TabButton active={tab === "classes"} onClick={() => setTab("classes")} icon={<Users className="h-4 w-4" />}>
-                Par Classe
+                Par Catégorie
               </TabButton>
               <TabButton active={tab === "teachers"} onClick={() => setTab("teachers")} icon={<GraduationCap className="h-4 w-4" />}>
-                Par Enseignant
+                Par Entraîneur
               </TabButton>
             </div>
 
             {tab === "classes" ? (
               <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="w-60">
-                <option value="all">Toutes les classes</option>
+                <option value="all">Toutes les catégories</option>
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -857,7 +845,7 @@ export function AnalyticsPage() {
               </Select>
             ) : (
               <Select value={teacherFilter} onChange={(e) => setTeacherFilter(e.target.value)} className="w-60">
-                <option value="all">Tous les enseignants</option>
+                <option value="all">Tous les entraîneurs</option>
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.firstName} {t.lastName}
@@ -870,8 +858,8 @@ export function AnalyticsPage() {
           {/* Cards grid */}
           {activeList.length === 0 ? (
             <EmptyState
-              emoji={tab === "classes" ? "🏫" : "🎓"}
-              message={tab === "classes" ? "Aucune classe à afficher." : "Aucun enseignant à afficher."}
+              icon={tab === "classes" ? Shield : Award}
+              message={tab === "classes" ? "Aucune catégorie à afficher." : "Aucun entraîneur à afficher."}
             />
           ) : (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
@@ -899,13 +887,13 @@ export function AnalyticsPage() {
 
 function MiniKpi({
   accent,
-  emoji,
+  icon: Icon,
   label,
   value,
   index,
 }: {
   accent: string;
-  emoji: string;
+  icon: LucideIcon;
   label: string;
   value: number;
   index: number;
@@ -923,10 +911,10 @@ function MiniKpi({
       />
       <div className="flex items-center gap-3">
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-lg"
+          className="flex h-10 w-10 items-center justify-center rounded-xl"
           style={{ backgroundColor: `${accent}22` }}
         >
-          {emoji}
+          <Icon className="h-[18px] w-[18px]" style={{ color: accent }} strokeWidth={1.9} />
         </div>
         <div>
           <p className="text-[11px] font-semibold text-muted">{label}</p>

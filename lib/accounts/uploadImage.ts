@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LES IMAGES — le logo de l'école et les illustrations des supports de cours.
+ * LES IMAGES — le logo du club et les illustrations des supports de cours.
  *
  * Le fichier part dans un dépôt Supabase Storage (`logos` ou `subjects`), et
  * c'est son URL PUBLIQUE qui est rangée sur la ligne (`school.logo`,

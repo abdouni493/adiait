@@ -1,24 +1,24 @@
 /**
- * La paie de l'enseignant, MOIS PAR MOIS et EMPLOI DU TEMPS PAR EMPLOI DU TEMPS.
+ * La paie de l'entraîneur, CARTE PAR CARTE et EMPLOI DU TEMPS PAR EMPLOI DU TEMPS.
  *
- * Les mois de l'école ne sont pas des mois du calendrier : chaque emploi du
+ * Les cartes du club ne sont pas des cartes du calendrier : chaque emploi du
  * temps compte les siens (voir `enrollmentCycles`). M1 s'ouvre à la PREMIÈRE
  * présence et se ferme sur la séance qui complète le pack (`monthlySeances`) ;
  * la présence suivante ouvre M2.
  *
- * L'enseignant est réglé sur exactement la même horloge : la part qu'une
- * présence lui rapporte appartient au mois où cette présence tombe. Un mois
- * n'est donc « à régler » qu'une fois SES séances tenues — le mois en cours,
+ * L'entraîneur est réglé sur exactement la même horloge : la part qu'une
+ * présence lui rapporte appartient à la carte où cette présence tombe. Une carte
+ * n'est donc « à régler » qu'une fois SES séances tenues — la carte en cours,
  * lui, reste ouvert (3 séances sur 4) et n'est jamais proposé par défaut.
  *
  * ET LA PART D'UNE SÉANCE SE DÉBLOQUE AVEC CETTE SÉANCE-LÀ. L'argent qu'un
- * élève verse sur un mois paie ses séances dans l'ordre où elles ont été
- * tenues, le trop-versé passant au mois suivant comme le promet la feuille de
+ * chevalier verse sur une carte paie ses séances dans l'ordre où elles ont été
+ * tenues, le trop-versé passant à la carte suivante comme le promet la feuille de
  * présence. Tant qu'une séance n'est pas couverte, la part qu'elle rapporte est
- * retenue ; dès qu'elle l'est, elle se règle — peu importe que l'élève doive
+ * retenue ; dès qu'elle l'est, elle se règle — peu importe que le chevalier doive
  * encore sur un AUTRE groupe ou des frais d'inscription : ces dettes-là ne
- * doivent rien à cet enseignant-ci, et les lui faire porter revenait à ne
- * jamais le payer pour un élève pourtant à jour chez lui.
+ * doivent rien à cet entraîneur-ci, et les lui faire porter revenait à ne
+ * jamais le payer pour un chevalier pourtant à jour chez lui.
  *
  * Ce module ne lit que le store : il ne décide rien, il rend lisible ce que les
  * présences, les soldes et les règlements ont déjà écrit.
@@ -34,19 +34,19 @@ import type {
   Subscription,
 } from "@/lib/types";
 import {
+  carteShort,
   consumesSeance,
   currentCycleCode,
   cycleCredits,
-
   cycleSizeOf,
   dayKeyOf,
   enrollmentCycles,
   enrollmentStart,
   formatDays,
+  independentTotals,
   isFreeSub,
   isSchoolOnlySub,
   moduleName,
-  independentTotals,
   monthlyPriceOf,
   netPriceFor,
   registrationNumberOf,
@@ -58,10 +58,10 @@ import {
   studentHasDebt,
   studentListPrice,
   studentName,
-  studentSubscriptionHistory,
-  subscriptionLabel,
   studentSchoolPerSeance,
+  studentSubscriptionHistory,
   studentTeacherPerSeance,
+  subscriptionLabel,
   teacherPerSeanceOf,
 } from "@/lib/helpers";
 import { formatDA, money } from "@/lib/utils";
@@ -75,25 +75,25 @@ export interface TeacherAlert {
   text: string;
 }
 
-/** Une part due à l'enseignant sur UNE présence. */
+/** Une part due à l'entraîneur sur UNE présence. */
 export interface TeacherDue {
   id: string;
   studentId: string;
   studentName: string;
   registrationNumber: string;
   dateKey: string;
-  /** ce que l'élève a payé pour cette séance (0 quand elle lui est offerte) */
+  /** ce que le chevalier a payé pour cette séance (0 quand elle lui est offerte) */
   fee: number;
-  /** ce que la séance rapporte à l'enseignant */
+  /** ce que la séance rapporte à l'entraîneur */
   amount: number;
   paid: boolean;
   monthCode: string;
   /**
    * LA SÉANCE QUI A PRODUIT CETTE PART N'EST PAS PAYÉE : elle reste en attente.
    *
-   * Ce n'est pas « l'élève doit quelque chose quelque part » : c'est ce mois-ci,
-   * sur cet emploi du temps, cette séance-là. Un élève à jour sur son mois
-   * débloque la part de son enseignant même s'il doit encore sur un autre
+   * Ce n'est pas « le chevalier doit quelque chose quelque part » : c'est cette carte-ci,
+   * sur cet emploi du temps, cette séance-là. Un chevalier à jour sur son carte
+   * débloque la part de son entraîneur même s'il doit encore sur un autre
    * groupe ou des frais d'inscription.
    */
   withheld: boolean;
@@ -102,9 +102,9 @@ export interface TeacherDue {
 /**
  * UN PASSAGER — une séance libre vendue à quelqu'un qui n'est pas inscrit.
  *
- * Il n'a ni fiche, ni solde, ni mois : il paie la séance sur place. Ce que
- * l'école garde est écrit noir sur blanc, et le reste appartient à
- * l'enseignant — c'est cette part-là que le mois où la séance tombe lui règle.
+ * Il n'a ni fiche, ni solde, ni carte : il paie la séance sur place. Ce que
+ * le club garde est écrit noir sur blanc, et le reste appartient à
+ * l'entraîneur — c'est cette part-là que la carte où la séance tombe lui règle.
  */
 export interface TeacherPassager {
   id: string;
@@ -112,11 +112,11 @@ export interface TeacherPassager {
   dateKey: string;
   /** ce que le passager a versé */
   price: number;
-  /** ce que l'école garde dessus */
+  /** ce que le club garde dessus */
   schoolShare: number;
-  /** price − schoolShare : ce que l'enseignant touche */
+  /** price − schoolShare : ce que l'entraîneur touche */
   teacherShare: number;
-  /** la part de l'école n'a jamais été saisie (séance d'avant le découpage) */
+  /** la part du club n'a jamais été saisie (séance d'avant le découpage) */
   unsplit: boolean;
   startTime?: string;
   endTime?: string;
@@ -126,7 +126,7 @@ export interface TeacherPassager {
 
 export type MonthPayState = "paid" | "partial" | "unpaid" | "pending" | "free";
 
-/** Un élève, sur UN mois d'UN emploi du temps. */
+/** Un chevalier, sur UN carte d'UN emploi du temps. */
 export interface TeacherMonthStudent {
   studentId: string;
   name: string;
@@ -136,7 +136,7 @@ export interface TeacherMonthStudent {
   /** CET emploi du temps lui est offert (la gratuité se coche module par
    *  module : il peut très bien payer les autres) */
   isFree: boolean;
-  /** séances du mois déjà consommées */
+  /** séances de la carte déjà consommées */
   done: number;
   size: number;
   complete: boolean;
@@ -145,37 +145,37 @@ export interface TeacherMonthStudent {
   cancelled: number;
   /** son cas de facturation, tel qu'il est stocké sur sa fiche */
   caseKind: StudentCase;
-  /** l'enseignant est son père et sa scolarité sort de ce salaire */
+  /** l'entraîneur est son père et sa cotisation sort de ce salaire */
   isTeacherChild: boolean;
   /** prix d'une séance pour lui, remise comprise */
   unitPrice: number;
   /** prix plein d'une séance de cet emploi, AVANT son cas et sa remise */
   listPrice: number;
-  /** ce que l'école garde sur une de ses séances (cas appliqué) */
+  /** ce que le club garde sur une de ses séances (cas appliqué) */
   schoolPerSeance: number;
-  /** ce que l'enseignant gagne sur une de ses séances (cas appliqué) */
+  /** ce que l'entraîneur gagne sur une de ses séances (cas appliqué) */
   teacherPerSeance: number;
-  /** ce que le mois complet lui coûte */
+  /** ce que la carte complète lui coûte */
   expected: number;
   /** ce que ses séances ont déjà mangé sur son solde */
   consumed: number;
-  /** ce qu'il a versé sur ce mois */
+  /** ce qu'il a versé sur cette carte */
   credited: number;
   balance: number;
-  /** ce qu'il doit sur CE mois */
+  /** ce qu'il doit sur CE carte */
   debt: number;
-  /** arriérés des mois PRÉCÉDENTS de cet emploi du temps */
+  /** arriérés des cartes PRÉCÉDENTS de cet emploi du temps */
   previousDebt: number;
-  /** ce qu'il doit sur CET emploi du temps, tous ses mois confondus : le
-   *  montant exact que l'école a à avancer pour débloquer la part retenue */
+  /** ce qu'il doit sur CET emploi du temps, tous ses carte confondus : le
+   *  montant exact que le club a à avancer pour débloquer la part retenue */
   emploiDebt: number;
   /** ce qu'il doit sur ses AUTRES emplois du temps */
   otherDebt: number;
   /** TOUT ce qu'il doit, restes et frais d'inscription compris : le montant
-   *  exact que l'école doit avancer pour débloquer la part de l'enseignant */
+   *  exact que le club doit avancer pour débloquer la part de l'entraîneur */
   totalDebt: number;
   status: MonthPayState;
-  /** part enseignant générée par cet élève sur ce mois */
+  /** part entraîneur générée par ce chevalier sur cette carte */
   gross: number;
   settled: number;
   open: number;
@@ -188,14 +188,14 @@ export interface TeacherMonthStudent {
 
 export type MonthState = "done" | "running" | "upcoming";
 
-/** Un mois (M1, M2 …) d'UN emploi du temps, vu depuis la paie. */
+/** Une carte (M1, M2 …) d'UN emploi du temps, vu depuis la paie. */
 export interface TeacherMonth {
   key: string; // "sessionId|M2"
   sessionId: string;
   code: string;
   index: number;
   size: number;
-  /** séances effectivement tenues sur ce mois (dates distinctes) */
+  /** séances effectivement tenues sur cette carte (dates distinctes) */
   held: number;
   dates: string[];
   startDate?: string;
@@ -206,45 +206,45 @@ export interface TeacherMonth {
   studentsPaid: number;
   studentsUnpaid: number;
   studentsPending: number;
-  /** ce que les élèves doivent encore sur ce mois */
+  /** ce que les chevaliers doivent encore sur cette carte */
   studentsDebt: number;
-  /** ce que le mois complet doit rapporter à l'école */
+  /** ce que la carte complète doit rapporter au club */
   expected: number;
   /** ce qu'il a rapporté */
   collected: number;
   dues: TeacherDue[];
   passagers: TeacherPassager[];
-  /** part enseignant générée par le mois (réglée ou non) */
+  /** part entraîneur générée par la carte (réglée ou non) */
   gross: number;
   settled: number;
-  /** encore dû à l'enseignant */
+  /** encore dû à l'entraîneur */
   open: number;
-  /** retenu tant que l'élève n'a pas payé */
+  /** retenu tant que le chevalier n'a pas payé */
   withheld: number;
   /** ce qui peut être réglé maintenant (open − withheld) */
   payable: number;
   /**
-   * CE MOIS A DÉJÀ ÉTÉ RÉGLÉ à l'enseignant (`settled > 0`).
+   * CE CARTE A DÉJÀ ÉTÉ RÉGLÉ à l'entraîneur (`settled > 0`).
    *
-   * Ce qu'il doit encore n'est alors pas « le mois » : ce sont des ARRIÉRÉS,
-   * des parts retenues à l'époque parce que l'élève n'avait pas payé et
-   * libérées depuis. L'écran de paie les sort du tableau du mois et leur donne
-   * leur propre table, pour que chaque mois reste indépendant.
+   * Ce qu'il doit encore n'est alors pas « la carte » : ce sont des ARRIÉRÉS,
+   * des parts retenues à l'époque parce que le chevalier n'avait pas payé et
+   * libérées depuis. L'écran de paie les sort du tableau de la carte et leur donne
+   * leur propre table, pour que chaque carte reste indépendant.
    */
   alreadySettled: boolean;
-  /** ce que les arriérés de ce mois représentent (0 si le mois n'est pas réglé) */
+  /** ce que les arriérés de cette carte représentent (0 si la carte n'est pas réglé) */
   arrearPayable: number;
   payableDueIds: string[];
   withheldDueIds: string[];
   openPassagerIds: string[];
-  /** ce que les séances libres du mois ont encaissé */
+  /** ce que les séances libres de la carte ont encaissé */
   passagerRevenue: number;
-  /** ce que ces mêmes séances doivent ENCORE à l'enseignant */
+  /** ce que ces mêmes séances doivent ENCORE à l'entraîneur */
   passagerPayable: number;
   alerts: TeacherAlert[];
 }
 
-/** Un emploi du temps de l'enseignant, avec toute son histoire de mois. */
+/** Un emploi du temps de l'entraîneur, avec toute son histoire de carte. */
 export interface TeacherEmploi {
   sessionId: string;
   subscriptionId?: string;
@@ -256,19 +256,19 @@ export interface TeacherEmploi {
   timeLabel: string;
   isOpen: boolean;
   /** l'emploi du temps a été SUPPRIMÉ : il ne tient plus séance, mais ce qu'il
-   *  doit encore à l'enseignant reste dû et se règle ici comme avant */
+   *  doit encore à l'entraîneur reste dû et se règle ici comme avant */
   archived: boolean;
   size: number;
   unitPrice: number;
-  /** tarif enseignant d'une séance, quand l'abonnement le porte */
+  /** tarif entraîneur d'une séance, quand l'abonnement le porte */
   perSeance: number;
   monthPrice: number;
-  /** l'abonnement porte bien une part enseignant */
+  /** l'abonnement porte bien une part entraîneur */
   priced: boolean;
   rosterCount: number;
   currentIndex: number;
   currentCode: string;
-  /** séances déjà tenues sur le mois en cours */
+  /** séances déjà tenues sur la carte en cours */
   currentHeld: number;
   months: TeacherMonth[];
   gross: number;
@@ -287,13 +287,13 @@ export interface TeacherEmploi {
 const byDate = (a: AttendanceRecord, b: AttendanceRecord) => a.timestamp.localeCompare(b.timestamp);
 
 /**
- * Le mois de CHAQUE ligne de présence d'un emploi du temps.
+ * La carte de CHAQUE ligne de présence d'un emploi du temps.
  *
  * Les lignes qui ne coûtent rien (séance annulée, première absence de
  * courtoisie) n'avancent pas le compteur : elles sont simplement rattachées au
- * mois en cours, exactement comme la feuille de présence les affiche.
+ * carte en cours, exactement comme la feuille de présence les affiche.
  *
- * `offset` est le point d'entrée de l'élève : inscrit en M2 sur la 3e séance,
+ * `offset` est le point d'entrée du chevalier : inscrit en M2 sur la 3e séance,
  * ses présences sont comptées à partir de là — sa première séance appartient à
  * M2, pas à M1.
  */
@@ -312,15 +312,15 @@ function recordMonths(
 }
 
 /**
- * Les élèves inscrits sur l'emploi, plus ceux qui y ont été pointés.
+ * Les chevaliers inscrits sur l'emploi, plus ceux qui y ont été pointés.
  *
- * Un élève « école seule » SUR CET EMPLOI DU TEMPS n'y figure pas : l'école est
- * payée pour lui, l'enseignant ne l'est délibérément pas, donc l'afficher sur
+ * Un chevalier « club seule » SUR CET EMPLOI DU TEMPS n'y figure pas : le club est
+ * payée pour lui, l'entraîneur ne l'est délibérément pas, donc l'afficher sur
  * une feuille de paie qui ne lui rapportera jamais rien ne ferait qu'inviter
  * une erreur de calcul.
  *
- * L'option se coche emploi par emploi : le MÊME élève reste donc listé, et
- * compté, sur les emplois où elle n'est pas activée — l'enseignant y touche sa
+ * L'option se coche emploi par emploi : le MÊME chevalier reste donc listé, et
+ * compté, sur les emplois où elle n'est pas activée — l'entraîneur y touche sa
  * part comme pour n'importe qui d'autre.
  */
 function rosterOf(
@@ -387,13 +387,13 @@ function emptyMonthStudent(
 }
 
 /**
- * Tout ce qu'un enseignant a enseigné, emploi du temps par emploi du temps et
- * mois par mois — avec, pour chaque mois, l'état de paiement de chaque élève et
- * la part qui reste due à l'enseignant.
+ * Tout ce qu'un entraîneur a enseigné, emploi du temps par emploi du temps et
+ * carte par carte — avec, pour chaque carte, l'état de paiement de chaque chevalier et
+ * la part qui reste due à l'entraîneur.
  *
  * Les emplois SUPPRIMÉS y figurent toujours, marqués comme tels : un cours qui
  * s'arrête n'efface pas ce qu'il devait encore à celui qui l'a donné. C'est
- * précisément parce qu'une suppression archive au lieu d'effacer que ces mois-là
+ * précisément parce qu'une suppression archive au lieu d'effacer que ces cartes-là
  * restent réglables, avec le nom du module et du groupe sous les yeux.
  */
 export function teacherEmplois(db: Database, teacherId: string): TeacherEmploi[] {
@@ -410,7 +410,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   const listPrice = sub?.pricePerSession ?? session.openPrice ?? 0;
   const roster = rosterOf(db, session, teacherId, sub);
 
-  // ---- le mois de chaque présence, élève par élève -------------------------
+  // ---- la carte de chaque présence, chevalier par chevalier -------------------------
   const recordsByStudent = new Map<string, AttendanceRecord[]>();
   for (const a of db.attendance) {
     if (a.sessionId !== session.id) continue;
@@ -420,8 +420,8 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   }
   const monthOfRecord = new Map<string, number>();
   const currentIndexOf = new Map<string, number>();
-  // Où chaque élève est ENTRÉ sur l'emploi : celui qui a été inscrit en cours
-  // de mois ne commence pas à la séance 1 du M1.
+  // Où chaque chevalier est ENTRÉ sur l'emploi : celui qui a été inscrit en cours
+  // de carte ne commence pas à la séance 1 du M1.
   const startOf = new Map<string, number>();
   for (const st of roster) {
     startOf.set(st.id, sub ? enrollmentStart(db, st.id, sub.id).offset : 0);
@@ -435,14 +435,14 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
       Math.floor((offset + rows.filter(consumesSeance).length) / size),
     );
   }
-  // Un élève inscrit et pas encore pointé vit déjà le mois de son entrée.
+  // Un chevalier inscrit et pas encore pointé vit déjà la carte de son entrée.
   for (const st of roster) {
     if (!currentIndexOf.has(st.id)) {
       currentIndexOf.set(st.id, Math.floor((startOf.get(st.id) ?? 0) / size));
     }
   }
 
-  // ---- les mois de chaque élève, avec l'argent porté sur chacun ------------
+  // ---- les cartes de chaque chevalier, avec l'argent porté sur chacun ------------
   const cyclesOf = new Map<string, ReturnType<typeof enrollmentCycles>>();
   const startIndexOf = new Map<string, number>();
   for (const st of roster) {
@@ -451,21 +451,21 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   }
 
   /**
-   * LES SÉANCES QUE L'ÉLÈVE A DÉJÀ PAYÉES — c'est ce qui débloque la paie.
+   * LES SÉANCES QUE LE CHEVALIER A DÉJÀ PAYÉES — c'est ce qui débloque la paie.
    *
-   * Une part n'est plus retenue parce que l'élève « doit quelque chose, quelque
+   * Une part n'est plus retenue parce que le chevalier « doit quelque chose, quelque
    * part » : elle l'est séance par séance, et seulement quand LA SÉANCE QUI L'A
-   * PRODUITE n'est pas couverte sur CE mois de CET emploi du temps. Un élève à
-   * jour sur son mois débloque donc la part de son enseignant, même s'il traîne
+   * PRODUITE n'est pas couverte sur CE carte de CET emploi du temps. Un chevalier à
+   * jour sur son carte débloque donc la part de son entraîneur, même s'il traîne
    * une dette sur un autre groupe ou des frais d'inscription : cette dette-là ne
-   * doit rien à cet enseignant-ci.
+   * doit rien à cet entraîneur-ci.
    *
-   * L'argent versé sur un mois couvre ses séances DANS L'ORDRE où elles ont été
+   * L'argent versé sur une carte couvre ses séances DANS L'ORDRE où elles ont été
    * tenues — payer deux séances sur quatre libère les deux premières, et laisse
    * les deux suivantes en attente.
    */
   const paidRecords = new Set<string>();
-  /** `studentId|index` des mois entièrement couverts — pour les parts dont la
+  /** `studentId|index` des cartes entièrement couverts — pour les parts dont la
    *  ligne de présence a disparu (une part reste due, la ligne non). */
   const paidMonths = new Set<string>();
   for (const st of roster) {
@@ -480,9 +480,9 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
       else byMonth.set(idx, [rec]);
     }
 
-    // La bourse de l'élève sur CET emploi du temps : elle se remplit du mois
+    // La bourse du chevalier sur CET emploi du temps : elle se remplit de la carte
     // qu'on crédite et se vide des séances qu'il tient. Ce qui reste passe au
-    // mois suivant — c'est exactement ce que la feuille de présence promet
+    // carte suivante — c'est exactement ce que la feuille de présence promet
     // quand elle dit que le trop-versé « paiera ses prochaines séances ».
     let purse = 0;
     // Dès qu'une séance n'est plus couverte, celles d'après ne le sont pas non
@@ -492,7 +492,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
       purse = money(purse + (cycles[idx]?.credited ?? 0));
       for (const rec of byMonth.get(idx) ?? []) {
         const cost = money(rec.amountDeducted || 0);
-        // Une tolérance d'un centime : la part d'un mois divisé en trois ne
+        // Une tolérance d'un centime : la part d'une carte divisé en trois ne
         // tombe pas juste, et un solde à 0,004 près est un solde réglé.
         if (!short && cost <= purse + 0.01) {
           purse = money(purse - cost);
@@ -505,12 +505,12 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
 
   /** La part de cette séance est-elle retenue ? */
   const isWithheld = (studentId: string, rec: AttendanceRecord | undefined, idx: number) => {
-    // Un élève supprimé ne retient plus rien : il n'y a plus de dette à réclamer.
+    // Un chevalier supprimé ne retient plus rien : il n'y a plus de dette à réclamer.
     if (!db.students.some((s) => s.id === studentId)) return false;
     return rec ? !paidRecords.has(rec.id) : !paidMonths.has(`${studentId}|${idx}`);
   };
 
-  // ---- ce que l'enseignant a gagné, présence par présence ------------------
+  // ---- ce que l'entraîneur a gagné, présence par présence ------------------
   const recordOn = (studentId: string, day: string) =>
     recordsByStudent.get(studentId)?.find((a) => dayKeyOf(a.timestamp) === day);
 
@@ -518,8 +518,8 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   const rosterIds = new Set(roster.map((st) => st.id));
   for (const u of db.unpaidTeacher) {
     if (u.teacherId !== teacherId || u.sessionId !== session.id) continue;
-    // Un élève « école seule » SUR CET EMPLOI n'a rien à faire ici : il est
-    // délibérément hors de la paie de cet enseignant, et une ligne à 0 DA le
+    // Un chevalier « club seule » SUR CET EMPLOI n'a rien à faire ici : il est
+    // délibérément hors de la paie de cet entraîneur, et une ligne à 0 DA le
     // remettrait sur sa fiche de paie sans rien lui rapporter. Les lignes déjà
     // écrites en base sont donc écartées comme les futures.
     if (!rosterIds.has(u.studentId) && db.students.some((st) => st.id === u.studentId)) continue;
@@ -531,7 +531,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
     const due: TeacherDue = {
       id: u.id,
       studentId: u.studentId,
-      studentName: student ? studentName(student) : "Élève supprimé",
+      studentName: student ? studentName(student) : "Chevalier supprimé",
       registrationNumber: student ? registrationNumberOf(db, student) : "—",
       dateKey: day,
       fee: rec ? rec.amountDeducted || rec.waivedAmount || 0 : 0,
@@ -545,7 +545,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
     else duesByMonth.set(idx, [due]);
   }
 
-  // ---- combien de mois faut-il rendre ? ------------------------------------
+  // ---- combien de carte faut-il rendre ? ------------------------------------
   let maxIndex = 0;
   for (const st of roster) {
     const cycles = cyclesOf.get(st.id) ?? [];
@@ -554,7 +554,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   for (const idx of duesByMonth.keys()) maxIndex = Math.max(maxIndex, idx);
   for (const idx of monthOfRecord.values()) maxIndex = Math.max(maxIndex, idx);
 
-  // Le mois du GROUPE : celui que la majorité des élèves est en train de vivre.
+  // La carte du GROUPE : celui que la majorité des chevaliers est en train de vivre.
   const tally = new Map<number, number>();
   for (const st of roster) {
     const i = currentIndexOf.get(st.id) ?? 0;
@@ -569,7 +569,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
     }
   }
 
-  // ---- les dates tenues, mois par mois -------------------------------------
+  // ---- les dates tenues, carte par carte -------------------------------------
   const datesByMonth = new Map<number, Set<string>>();
   for (const rows of recordsByStudent.values()) {
     for (const rec of rows) {
@@ -602,7 +602,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
     );
   }
 
-  // ---- les passagers, rattachés au mois dont ils occupent la fenêtre -------
+  // ---- les passagers, rattachés à la carte dont ils occupent la fenêtre -------
   attachPassagers(db, session, months, currentIndex);
 
   const gross = months.reduce((s, m) => s + m.gross, 0);
@@ -619,20 +619,22 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   if (perSeance <= 0 && teacher?.paymentType === "per_group") {
     alerts.push({
       tone: "warning",
-      text: "Aucune part enseignant sur cet abonnement — les séances de ce groupe ne rapportent rien.",
+      text: "Aucune part entraîneur sur cet abonnement — les séances de ce groupe ne rapportent rien.",
     });
   }
   const closedUnpaid = months.filter((m) => m.state === "done" && m.payable > 0);
   if (closedUnpaid.length > 0) {
     alerts.push({
       tone: "danger",
-      text: `${closedUnpaid.length} mois clos non réglé(s) : ${closedUnpaid.map((m) => m.code).join(", ")}.`,
+      text: `${closedUnpaid.length} carte(s) close(s) non réglée(s) : ${closedUnpaid
+        .map((m) => carteShort(m.code))
+        .join(", ")}.`,
     });
   }
   if (withheld > 0) {
     alerts.push({
       tone: "warning",
-      text: `${formatDA(withheld)} en attente — des élèves n'ont pas payé, la part revient au règlement suivant.`,
+      text: `${formatDA(withheld)} en attente — des chevaliers n'ont pas payé, la part revient au règlement suivant.`,
     });
   }
 
@@ -678,7 +680,7 @@ interface MonthInput {
   roster: Student[];
   cyclesOf: Map<string, ReturnType<typeof enrollmentCycles>>;
   currentIndexOf: Map<string, number>;
-  /** le mois d'ENTRÉE de chaque élève sur l'emploi (0 = M1) */
+  /** la carte d'ENTRÉE de chaque chevalier sur l'emploi (0 = M1) */
   startIndexOf: Map<string, number>;
   monthOfRecord: Map<string, number>;
   recordsByStudent: Map<string, AttendanceRecord[]>;
@@ -703,19 +705,19 @@ function buildMonth(db: Database, input: MonthInput): TeacherMonth {
   for (const st of roster) {
     const cycles = input.cyclesOf.get(st.id) ?? [];
     const cursor = input.currentIndexOf.get(st.id) ?? 0;
-    // L'élève n'est listé que s'il a atteint ce mois : celui qui n'y est pas
+    // Le chevalier n'est listé que s'il a atteint cette carte : celui qui n'y est pas
     // encore n'a rien à y payer, et l'afficher « impayé » serait faux.
     if (index > cursor && !cycles[index]) continue;
-    // Ni s'il est arrivé APRÈS : les séances de ce mois-là ne sont pas les
-    // siennes, l'enseignant n'a rien gagné sur lui.
+    // Ni s'il est arrivé APRÈS : les séances de cette carte-là ne sont pas les
+    // siennes, l'entraîneur n'a rien gagné sur lui.
     if (index < (input.startIndexOf.get(st.id) ?? 0)) continue;
 
     const enrollment = sub
       ? db.enrollments.find((e) => e.studentId === st.id && e.subscriptionId === sub.id)
       : undefined;
     const discount = enrollment?.discount ?? (sub ? st.subscriptionDiscounts?.[sub.id] : undefined);
-    // Son tarif à LUI : un « école seule » ne paie que la part de l'école, donc
-    // son mois ne coûte pas le prix affiché de l'emploi du temps.
+    // Son tarif à LUI : un « club seule » ne paie que la part du club, donc
+    // son carte ne coûte pas le prix affiché de l'emploi du temps.
     const own = studentListPrice(st, sub, listPrice);
     const row = emptyMonthStudent(
       db,
@@ -752,9 +754,9 @@ function buildMonth(db: Database, input: MonthInput): TeacherMonth {
     row.otherDebt = summary.soldRows
       .filter((r) => r.subscriptionId !== sub?.id)
       .reduce((s, r) => s + r.debt, 0);
-    // Ce que l'école a à avancer pour débloquer la part retenue : ce qu'il doit
-    // SUR CET EMPLOI DU TEMPS, tous ses mois confondus. Ni ses autres groupes
-    // ni ses frais d'inscription ne retiennent cet enseignant-ci, donc les
+    // Ce que le club a à avancer pour débloquer la part retenue : ce qu'il doit
+    // SUR CET EMPLOI DU TEMPS, tous ses carte confondus. Ni ses autres groupes
+    // ni ses frais d'inscription ne retiennent cet entraîneur-ci, donc les
     // couvrir ne débloquerait rien qu'il n'ait déjà.
     row.emploiDebt = money(
       summary.soldRows
@@ -762,7 +764,7 @@ function buildMonth(db: Database, input: MonthInput): TeacherMonth {
         .reduce((s, r) => s + r.debt, 0),
     );
     // Ce qu'il doit en tout, restes et frais d'inscription compris : la fiche
-    // du guichet le lit, la paie de l'enseignant non.
+    // du guichet le lit, la paie de l'entraîneur non.
     row.totalDebt = summary.total;
     row.hasDebt = studentHasDebt(db, st.id);
 
@@ -789,10 +791,10 @@ function buildMonth(db: Database, input: MonthInput): TeacherMonth {
   }
 
   const started = students.filter((s) => s.done > 0);
-  // Le mois est CLOS quand son pack de séances a été tenu. Tout le groupe l'a
+  // La carte est CLOS quand son pack de séances a été tenu. Tout le groupe l'a
   // terminé, ou bien l'emploi a bien donné ses `size` séances et au moins un
-  // élève est allé au bout : un élève inscrit en retard ne fige pas la paie —
-  // les séances qu'il lui reste rouvriront simplement le mois.
+  // chevalier est allé au bout : un chevalier inscrit en retard ne fige pas la paie —
+  // les séances qu'il lui reste rouvriront simplement la carte.
   const allDone = started.length > 0 && started.every((s) => s.complete);
   const packHeld = dates.length >= size && started.some((s) => s.complete);
   const state: MonthState =
@@ -848,39 +850,39 @@ function buildMonth(db: Database, input: MonthInput): TeacherMonth {
   return month;
 }
 
-/** Ce qu'il faut dire du mois, dans l'ordre de gravité. */
+/** Ce qu'il faut dire de la carte, dans l'ordre de gravité. */
 function monthAlerts(m: TeacherMonth): TeacherAlert[] {
   const out: TeacherAlert[] = [];
   const unpaid = m.students.filter((s) => s.status === "unpaid" || s.status === "partial");
   if (unpaid.length > 0) {
     out.push({
       tone: "danger",
-      text: `${unpaid.length} élève(s) n'ont pas réglé ce mois — ${formatDA(m.studentsDebt)} reportés sur le mois suivant.`,
+      text: `${unpaid.length} chevalier(s) n'ont pas réglé cette carte — ${formatDA(m.studentsDebt)} reportés sur la carte suivante.`,
     });
   }
   if (m.withheld > 0) {
     out.push({
       tone: "warning",
-      text: `${formatDA(m.withheld)} de part enseignant retenus : réglés dès que ces élèves auront payé.`,
+      text: `${formatDA(m.withheld)} de part entraîneur retenus : réglés dès que ces chevaliers auront payé.`,
     });
   }
   if (m.state === "done" && m.payable > 0) {
-    out.push({ tone: "primary", text: `Mois clos : ${formatDA(m.payable)} à régler à l'enseignant.` });
+    out.push({ tone: "primary", text: `Carte close : ${formatDA(m.payable)} à régler à l'entraîneur.` });
   }
   if (m.state === "running" && m.held > 0) {
     out.push({
       tone: "warning",
-      text: `Mois en cours — séance ${Math.min(m.held, m.size)} sur ${m.size}. Réglez d'abord le mois clos.`,
+      text: `Carte en cours — séance ${Math.min(m.held, m.size)} sur ${m.size}. Réglez d'abord la carte close.`,
     });
   }
   if (m.state === "done" && m.open === 0 && m.gross > 0) {
-    out.push({ tone: "success", text: "Mois entièrement réglé à l'enseignant." });
+    out.push({ tone: "success", text: "Carte entièrement réglé à l'entraîneur." });
   }
   return out;
 }
 
-/** Les passagers d'une séance libre tombent dans le mois dont ils occupent la
- *  fenêtre de dates ; à défaut, dans le mois en cours. */
+/** Les passagers d'une séance libre tombent dans la carte dont ils occupent la
+ *  fenêtre de dates ; à défaut, dans la carte en cours. */
 function attachPassagers(
   db: Database,
   session: ScheduleSession,
@@ -913,8 +915,8 @@ function attachPassagers(
     target.openPassagerIds.push(ind.id);
     target.passagerRevenue = money(target.passagerRevenue + split.price);
     target.passagerPayable = money(target.passagerPayable + split.teacher);
-    // Une séance libre se règle avec le mois où elle tombe : ce qu'elle doit
-    // encore à l'enseignant grossit donc ce que ce mois-là peut lui verser.
+    // Une séance libre se règle avec la carte où elle tombe : ce qu'elle doit
+    // encore à l'entraîneur grossit donc ce que cette carte-là peut lui verser.
     target.payable = money(target.payable + split.teacher);
   }
 }
@@ -924,21 +926,21 @@ function attachPassagers(
 // ---------------------------------------------------------------------------
 
 /**
- * Les mois que l'écran de paie coche tout seul : les mois CLOS qui doivent
- * encore quelque chose. Le mois en cours (3 séances sur 4) n'en fait jamais
- * partie — on règle le mois qui vient de se terminer, pas celui qui court.
+ * Les cartes que l'écran de paie coche tout seul : les cartes CLOS qui doivent
+ * encore quelque chose. La carte en cours (3 séances sur 4) n'en fait jamais
+ * partie — on règle la carte qui vient de se terminer, pas celui qui court.
  */
 export function defaultPayableMonthKeys(emplois: TeacherEmploi[]): string[] {
   return emplois.flatMap((e) =>
     e.months
-      // Un mois DÉJÀ réglé n'est jamais recoché : ce qu'il doit encore n'est
-      // plus « le mois », ce sont des arriérés, et ils ont leur propre table.
+      // Une carte DÉJÀ réglé n'est jamais recoché : ce qu'il doit encore n'est
+      // plus « la carte », ce sont des arriérés, et ils ont leur propre table.
       .filter((m) => m.state === "done" && m.payable > 0 && !m.alreadySettled)
       .map((m) => m.key),
   );
 }
 
-/** Les mois qui doivent encore quelque chose — ce que l'écran de paie liste. */
+/** Les cartes qui doivent encore quelque chose — ce que l'écran de paie liste. */
 export function payableMonths(emplois: TeacherEmploi[]): TeacherMonth[] {
   return emplois.flatMap((e) => e.months.filter((m) => m.open > 0 || m.passagers.length > 0));
 }
@@ -948,7 +950,7 @@ export function teacherPayableTotalOf(emplois: TeacherEmploi[]): number {
   return emplois.reduce((s, e) => s + e.payable, 0);
 }
 
-/** Un élève en retard de paiement, sur un mois d'un emploi du temps. */
+/** Un chevalier en retard de paiement, sur une carte d'un emploi du temps. */
 export interface UnpaidStudentRow {
   studentId: string;
   name: string;
@@ -963,12 +965,12 @@ export interface UnpaidStudentRow {
   debt: number;
   credited: number;
   expected: number;
-  /** part enseignant bloquée par cette dette */
+  /** part entraîneur bloquée par cette dette */
   withheld: number;
 }
 
-/** Tous les impayés de l'enseignant, mois par mois — le détail que l'écran
- *  « Mois & emplois du temps » affiche et que la paie met en alerte. */
+/** Tous les impayés de l'entraîneur, carte par carte — le détail que l'écran
+ *  « Carte & emplois du temps » affiche et que la paie met en alerte. */
 export function unpaidStudents(emplois: TeacherEmploi[]): UnpaidStudentRow[] {
   const out: UnpaidStudentRow[] = [];
   for (const e of emplois) {
@@ -998,19 +1000,19 @@ export function unpaidStudents(emplois: TeacherEmploi[]): UnpaidStudentRow[] {
 }
 
 // ---------------------------------------------------------------------------
-// LES ARRIÉRÉS DÉBLOQUÉS — les élèves qui ont payé EN RETARD
+// LES ARRIÉRÉS DÉBLOQUÉS — les chevaliers qui ont payé EN RETARD
 // ---------------------------------------------------------------------------
 
 /**
- * Un élève qui a payé APRÈS que l'enseignant a été réglé pour son mois.
+ * Un chevalier qui a payé APRÈS que l'entraîneur a été réglé pour son carte.
  *
- * C'est le cas que la réception vit tous les mois : au moment de régler le M1,
- * trois élèves n'avaient rien versé, leur part a donc été RETENUE et
- * l'enseignant a touché le M1 sans elle. Ces élèves s'acquittent ensuite, et
+ * C'est le cas que la réception vit tous les cartes : au moment de régler le M1,
+ * trois chevaliers n'avaient rien versé, leur part a donc été RETENUE et
+ * l'entraîneur a touché le M1 sans elle. Ces chevaliers s'acquittent ensuite, et
  * quand vient le tour du M2, cette part de M1 est de nouveau due.
  *
  * Elle n'a rien à faire dans le tableau du M2 : elle appartient au M1 et se
- * lit avec son mois d'origine. L'écran de paie lui donne donc SA PROPRE TABLE,
+ * lit avec son carte d'origine. L'écran de paie lui donne donc SA PROPRE TABLE,
  * et la fiche de paie une section à part.
  */
 export interface UnlockedArrearRow {
@@ -1025,20 +1027,20 @@ export interface UnlockedArrearRow {
   groupName: string;
   monthCode: string;
   monthIndex: number;
-  /** les séances de ce mois qui n'ont jamais été payées à l'enseignant */
+  /** les séances de cette carte qui n'ont jamais été payées à l'entraîneur */
   seances: number;
   /** les jours concernés, du plus ancien au plus récent */
   dates: string[];
-  /** ce que l'élève a versé sur ce mois (ce qui a débloqué la part) */
+  /** ce que le chevalier a versé sur cette carte (ce qui a débloqué la part) */
   credited: number;
-  /** ce que ces séances rapportent à l'enseignant */
+  /** ce que ces séances rapportent à l'entraîneur */
   amount: number;
   dueIds: string[];
 }
 
 /**
- * Tous les arriérés débloqués d'un enseignant : les parts encore dues sur des
- * mois DÉJÀ réglés, une ligne par élève et par mois.
+ * Tous les arriérés débloqués d'un entraîneur : les parts encore dues sur des
+ * carte DÉJÀ réglés, une ligne par chevalier et par carte.
  */
 export function unlockedArrears(emplois: TeacherEmploi[]): UnlockedArrearRow[] {
   const out: UnlockedArrearRow[] = [];
@@ -1095,16 +1097,16 @@ export function unlockedArrearsTotal(rows: UnlockedArrearRow[]): number {
 }
 
 // ---------------------------------------------------------------------------
-// Les arriérés d'un élève SUR UN EMPLOI — ce que le règlement précédent a laissé
+// Les arriérés d'un chevalier SUR UN EMPLOI — ce que le règlement précédent a laissé
 // ---------------------------------------------------------------------------
 
-/** Ce que les mois PRÉCÉDENTS doivent encore à l'enseignant pour un élève. */
+/** Ce que les cartes PRÉCÉDENTS doivent encore à l'entraîneur pour un chevalier. */
 export interface StudentArrears {
-  /** débloqué : l'élève a payé depuis, la part est due maintenant */
+  /** débloqué : le chevalier a payé depuis, la part est due maintenant */
   payable: number;
   /** encore retenu : il doit toujours de l'argent */
   withheld: number;
-  /** les mois concernés, dans l'ordre ("M1", "M2" …) */
+  /** les cartes concernés, dans l'ordre ("M1", "M2" …) */
   months: string[];
   /** les identifiants des parts débloquées, à joindre au règlement */
   dueIds: string[];
@@ -1113,13 +1115,13 @@ export interface StudentArrears {
 const NO_ARREARS: StudentArrears = { payable: 0, withheld: 0, months: [], dueIds: [] };
 
 /**
- * Les parts que les mois d'AVANT `index` doivent encore à l'enseignant pour cet
- * élève.
+ * Les parts que les cartes d'AVANT `index` doivent encore à l'entraîneur pour cet
+ * chevalier.
  *
- * C'est le cas que la réception vit tous les mois : l'élève n'avait pas payé
- * son M2, l'enseignant a donc été réglé du M2 sans sa part à lui ; l'élève
+ * C'est le cas que la réception vit tous les cartes : le chevalier n'avait pas payé
+ * son M2, l'entraîneur a donc été réglé du M2 sans sa part à lui ; le chevalier
  * s'acquitte ensuite, et au moment de régler le M3 cette part de M2 doit
- * réapparaître. Elle est ici, `payable`, avec le mois qui l'a générée.
+ * réapparaître. Elle est ici, `payable`, avec la carte qui l'a générée.
  */
 export function studentArrearsBefore(
   emploi: TeacherEmploi,
@@ -1146,66 +1148,66 @@ export function studentArrearsBefore(
 }
 
 // ---------------------------------------------------------------------------
-// Les enfants de l'enseignant, scolarisés sur son salaire
+// Les enfants de l'entraîneur, scolarisés sur son salaire
 // ---------------------------------------------------------------------------
 
 /**
- * L'ÉTAT d'un mois d'un enfant d'enseignant :
+ * L'ÉTAT d'une carte d'un enfant d'entraîneur :
  *  - `due`      : rien n'a été versé, le montant sort du salaire du père ;
  *  - `family`   : LA FAMILLE A PAYÉ ELLE-MÊME, avant que le père ne soit réglé —
  *                 il n'y a plus rien à retenir sur son salaire ;
- *  - `charged`  : le mois a été SOLDÉ D'AVANCE au guichet et porté sur le
+ *  - `charged`  : la carte a été SOLDÉ D'AVANCE au guichet et porté sur le
  *                 salaire du père : l'enfant est en règle, la part que ses
  *                 séances rapportent est débloquée, et la retenue attend en bas
  *                 de cette paie (elle n'est donc pas retenue deux fois) ;
  *  - `salary`   : déjà retenu sur un règlement précédent ;
- *  - `school`   : l'école a avancé la dette de sa caisse ;
- *  - `pending`  : le mois n'a rien consommé encore.
+ *  - `school`   : le club a avancé la dette de sa caisse ;
+ *  - `pending`  : la carte n'a rien consommé encore.
  */
 export type ChildLineState = "due" | "family" | "charged" | "salary" | "school" | "pending";
 
-/** Un mois d'un emploi du temps d'un enfant d'enseignant. */
+/** Une carte d'un emploi du temps d'un enfant d'entraîneur. */
 export interface TeacherChildLine {
   subscriptionId: string;
   label: string;
   monthCode: string;
-  /** séances qu'il a suivies sur ce mois */
+  /** séances qu'il a suivies sur cette carte */
   seances: number;
   /** prix d'une de ses séances */
   unitPrice: number;
-  /** ce que le mois lui coûte (ce que ses séances ont mangé) */
+  /** ce que la carte lui coûte (ce que ses séances ont mangé) */
   expected: number;
-  /** ce que la FAMILLE a versé d'elle-même sur ce mois */
+  /** ce que la FAMILLE a versé d'elle-même sur cette carte */
   paidByFamily: number;
   /** ce qui a été crédité d'avance et PORTÉ sur le salaire du père : la retenue
    *  est en attente, elle sera prise sur son prochain règlement */
   chargedToFather: number;
   /** ce qu'un règlement du père a déjà retenu */
   paidFromSalary: number;
-  /** ce que la caisse de l'école a avancé */
+  /** ce que la caisse du club a avancé */
   paidBySchool: number;
-  /** ce qui reste à retenir sur le salaire (0 dès que le mois est soldé) */
+  /** ce qui reste à retenir sur le salaire (0 dès que la carte est soldé) */
   amount: number;
   state: ChildLineState;
-  /** ce mois-ci, par opposition à un arriéré */
+  /** cette carte-ci, par opposition à un arriéré */
   current: boolean;
 }
 
-/** Un enfant de l'enseignant : ce qu'il a étudié, et ce qui sort du salaire. */
+/** Un enfant de l'entraîneur : ce qu'il a étudié, et ce qui sort du salaire. */
 export interface TeacherChildRow {
   studentId: string;
   studentName: string;
   registrationNumber: string;
   caseLabel: string;
-  /** tous ses mois, réglés ou non — l'écran les montre avec leur statut */
+  /** tous ses carte, réglés ou non — l'écran les montre avec leur statut */
   lines: TeacherChildLine[];
   /** ceux qui doivent encore quelque chose : la seule retenue possible */
   dueLines: TeacherChildLine[];
-  /** ce que le mois EN COURS de chaque emploi lui coûte encore */
+  /** ce que la carte EN COURS de chaque emploi lui coûte encore */
   currentAmount: number;
-  /** ce que les mois d'avant ont laissé impayé */
+  /** ce que les cartes d'avant ont laissé impayé */
   previousAmount: number;
-  /** séances suivies sur les mois en cours */
+  /** séances suivies sur les cartes en cours */
   currentSeances: number;
   /** total retenu sur le salaire du père */
   amount: number;
@@ -1221,14 +1223,14 @@ export interface TeacherChildRow {
 }
 
 /**
- * Les enfants d'un enseignant et ce que leur scolarité prend sur son salaire.
+ * Les enfants d'un entraîneur et ce que leur cotisation prend sur son salaire.
  *
- * Un enfant d'enseignant N'EST PAS obligé d'attendre la paie de son père : sa
+ * Un enfant d'entraîneur N'EST PAS obligé d'attendre la paie de son père : sa
  * famille peut très bien régler au guichet avant. Ce module lit donc TOUS ses
- * mois — pas seulement ceux qui sont dans le rouge — et dit, pour chacun, d'où
- * l'argent est venu. Un mois payé par la famille reste affiché, avec son propre
+ * carte — pas seulement ceux qui sont dans le rouge — et dit, pour chacun, d'où
+ * l'argent est venu. Une carte payée par la famille reste affiché, avec son propre
  * statut, et n'est plus retenu sur le salaire : le retenir une seconde fois
- * ferait payer la scolarité deux fois.
+ * ferait payer la cotisation deux fois.
  */
 export function teacherChildRows(db: Database, teacherId: string): TeacherChildRow[] {
   return db.students
@@ -1248,7 +1250,7 @@ export function teacherChildRows(db: Database, teacherId: string): TeacherChildR
         );
 
         for (const cycle of enrollmentCycles(db, st.id, subId)) {
-          // Un mois qui n'a ni séance ni versement n'a rien à raconter.
+          // Une carte qui n'a ni séance ni versement n'a rien à raconter.
           if (cycle.consumed <= 0 && cycle.credited <= 0) continue;
           const credits = cycleCredits(db, st.id, subId, cycle.code);
           const debt = Math.max(0, -cycle.balance);

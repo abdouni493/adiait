@@ -6,7 +6,9 @@ import {
   cycleOf,
   cycleSizeOf,
   enrollmentCycles,
+  carteShort,
   monthCodeLabel,
+  monthCycleAt,
   monthOrder,
   registrationNumberOf,
   soldFor,
@@ -22,7 +24,7 @@ import {
  * store action the présence sheet calls, one click at a time.
  */
 
-const SUB = "sub-1"; // Maths · Groupe A — 8 séances / mois, 600 DA la séance
+const SUB = "sub-1"; // Maths · Groupe A — 8 séances / carte, 600 DA la séance
 const STU = "stu-1";
 
 /** A clean store with ONE student on ONE emploi, nothing attended yet. */
@@ -70,7 +72,7 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("les mois appartiennent à l'emploi du temps, pas au calendrier", () => {
+describe("les cartes appartiennent à l'emploi du temps, pas au calendrier", () => {
   it("M1 ne s'ouvre qu'à la PREMIÈRE présence, quelle que soit la date de création", async () => {
     freshBoard(4);
     expect(currentCycleCode(useData.getState(), STU, SUB)).toBe("M1");
@@ -121,7 +123,7 @@ describe("les mois appartiennent à l'emploi du temps, pas au calendrier", () =>
 });
 
 describe("le solde : de l'argent, débité séance par séance", () => {
-  it("un versement crédite le solde du mois en cours, une présence le débite", async () => {
+  it("un versement crédite le solde de la carte en cours, une présence le débite", async () => {
     const sub = freshBoard(4);
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 2400 });
     expect(soldFor(useData.getState(), STU, SUB)).toBe(2400);
@@ -134,7 +136,7 @@ describe("le solde : de l'argent, débité séance par séance", () => {
     expect(cycleOf(useData.getState(), STU, SUB, "M1").consumed).toBe(sub.pricePerSession);
   });
 
-  it("le solde passe en négatif : c'est exactement la dette de l'élève", async () => {
+  it("le solde passe en négatif : c'est exactement la dette du chevalier", async () => {
     const sub = freshBoard(4);
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: sub.pricePerSession });
 
@@ -164,7 +166,7 @@ describe("le solde : de l'argent, débité séance par séance", () => {
     expect(cycleOf(useData.getState(), STU, SUB, "M1").done).toBe(2);
   });
 
-  it("une séance annulée ne coûte rien et ne fait pas avancer le mois", async () => {
+  it("une séance annulée ne coûte rien et ne fait pas avancer la carte", async () => {
     freshBoard(4);
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 2400 });
     const days = scheduledDays(2);
@@ -204,7 +206,7 @@ describe("le solde : de l'argent, débité séance par séance", () => {
     expect(cycleOf(useData.getState(), STU, SUB, "M1").done).toBe(1);
   });
 
-  it("un versement peut viser un mois passé : il éponge la dette de CE mois", async () => {
+  it("un versement peut viser une carte passé : il éponge la dette de CE carte", async () => {
     const sub = freshBoard(2);
     const days = scheduledDays(3);
     for (const day of days) {
@@ -223,7 +225,7 @@ describe("le solde : de l'argent, débité séance par séance", () => {
 });
 
 describe("numéros d'inscription", () => {
-  it("chaque élève porte un numéro sur 5 chiffres, à partir de 00001", () => {
+  it("chaque chevalier porte un numéro sur 5 chiffres, à partir de 00001", () => {
     const db = useData.getState();
     expect(registrationNumberOf(db, db.students[0])).toBe("00001");
     expect(registrationNumberOf(db, db.students[1])).toBe("00002");
@@ -239,20 +241,37 @@ describe("numéros d'inscription", () => {
   });
 });
 
-describe("codes de mois", () => {
-  it("M1 est le premier mois, l'ordre suit le numéro", () => {
+describe("codes de carte", () => {
+  it("M1 est le première carte, l'ordre suit le numéro", () => {
     expect(monthOrder("M1")).toBe(0);
     expect(monthOrder("M12")).toBe(11);
     expect(monthOrder("septembre")).toBe(-1);
   });
 
   it("le libellé ne parle plus de septembre", () => {
-    expect(monthCodeLabel("M1")).toBe("M1 · Mois 1");
     expect(monthCodeLabel("M3")).not.toMatch(/Novembre/);
+  });
+
+  /**
+   * LE CODE STOCKÉ NE BOUGE PAS, L'AFFICHAGE OUI.
+   *
+   * Le cycle d'abonnement s'appelle désormais UNE CARTE. La bascule est
+   * volontairement limitée à ce qui se lit : « M2 » reste la valeur écrite en
+   * base — des fiches de paie figées, des points d'entrée d'inscription et des
+   * crédits de solde la portent déjà — tandis que l'écran affiche « Carte 2 »
+   * et la pastille « C2 ». Ce test tient les deux bouts : si quelqu'un renomme
+   * le code stocké, l'historique déjà écrit cesse d'être relisible.
+   */
+  it("affiche une carte, mais stocke toujours le code d'origine", () => {
+    expect(monthCycleAt(1).code).toBe("M2");
+    expect(monthCodeLabel("M2")).toBe("Carte 2");
+    expect(carteShort("M2")).toBe("C2");
+    // un code inconnu se rend tel quel plutôt que de disparaître
+    expect(carteShort("septembre")).toBe("septembre");
   });
 });
 
-describe("un élève sans le moindre versement", () => {
+describe("un chevalier sans le moindre versement", () => {
   it("est pointé quand même, et son solde plonge dans le rouge", async () => {
     const sub = freshBoard(4);
     // No addSold at all: he was created without paying anything.

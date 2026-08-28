@@ -2,7 +2,7 @@
  *
  *  Fichier volontairement pur : aucune dépendance serveur (`server-only`), React
  *  ou navigateur. Il est partagé par le scan RFID (useScanProcessor) et l'envoi
- *  groupé de la fiche élève, pour qu'une SEULE logique décide à qui l'on écrit et
+ *  groupé de la fiche chevalier, pour qu'une SEULE logique décide à qui l'on écrit et
  *  avec quel modèle — l'envoi lui-même reste, lui, derrière /api/whatsapp/send,
  *  seul endroit où le jeton d'accès Meta est lu.
  *
@@ -22,7 +22,7 @@ import {
 } from "./templates";
 import type { OutgoingMessage } from "./types";
 
-/** Élève dont la situation alimente le modèle : ses séances restantes et ce
+/** Chevalier dont la situation alimente le modèle : ses séances restantes et ce
  *  qu'il doit encore. */
 export interface AlertStudent {
   id?: string;
@@ -77,7 +77,7 @@ export function balanceAlertTemplate(
 }
 
 /** Construit la charge utile WhatsApp (numéro + nom + message) d'une alerte de
- *  solde. Le parent rattaché est l'interlocuteur privilégié ; l'élève prend le
+ *  solde. Le parent rattaché est l'interlocuteur privilégié ; le chevalier prend le
  *  relais s'il n'a pas de parent joignable. Renvoie `null` si aucun numéro n'est
  *  exploitable, ou si la situation ne justifie aucune alerte. */
 export function buildBalanceAlert(params: {

@@ -6,8 +6,8 @@ import { cycleOf, monthProposal } from "@/lib/helpers";
 /**
  * LA PROPOSITION D'ENCAISSEMENT DE LA FEUILLE DE PRÉSENCE.
  *
- * Elle part de la PREMIÈRE séance de l'élève sur le mois, jamais de son dernier
- * pointage : venir à une séance ne la paie pas. Un élève entré à la séance 1 et
+ * Elle part de la PREMIÈRE séance du chevalier sur la carte, jamais de son dernier
+ * pointage : venir à une séance ne la paie pas. Un chevalier entré à la séance 1 et
  * pointé une fois en est à sa deuxième — et doit toujours les quatre.
  */
 
@@ -17,7 +17,7 @@ const STU = "stu-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un emploi du temps à 4 séances de 500 DA — 2 000 DA le mois. */
+/** Un emploi du temps à 4 séances de 500 DA — 2 000 DA la carte. */
 function board() {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -75,13 +75,13 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("la proposition part de la première séance du mois", () => {
-  it("avant tout pointage, elle vaut le mois entier", () => {
+describe("la proposition part de la première séance de la carte", () => {
+  it("avant tout pointage, elle vaut la carte entière", () => {
     board();
     expect(proposal()).toMatchObject({ unit: 500, mine: 4, billable: 4, total: 2000, current: 1 });
   });
 
-  it("pointé une fois sans payer, elle vaut TOUJOURS le mois entier", async () => {
+  it("pointé une fois sans payer, elle vaut TOUJOURS la carte entière", async () => {
     board();
     const [d1] = scheduledDays(1);
     await attend(d1);
@@ -94,7 +94,7 @@ describe("la proposition part de la première séance du mois", () => {
     expect(p.total).toBe(2000);
   });
 
-  it("les trois quarts du mois tenus sans payer se proposent toujours en entier", async () => {
+  it("les trois quarts de la carte tenus sans payer se proposent toujours en entier", async () => {
     board();
     for (const day of scheduledDays(3)) await attend(day);
 
@@ -121,7 +121,7 @@ describe("ce qui est déjà versé sort de la proposition", () => {
     expect(p.total).toBe(1000);
   });
 
-  it("le mois entièrement versé ne propose plus rien", async () => {
+  it("la carte entièrement versé ne propose plus rien", async () => {
     board();
     await useData
       .getState()
@@ -132,8 +132,8 @@ describe("ce qui est déjà versé sort de la proposition", () => {
   });
 });
 
-describe("un élève entré en cours de mois ne paie que ses séances à lui", () => {
-  it("entré à la 3e séance du groupe, son mois n'en compte que deux", () => {
+describe("un chevalier entré en cours de carte ne paie que ses séances à lui", () => {
+  it("entré à la 3e séance du groupe, son carte n'en compte que deux", () => {
     board();
     useData.setState({
       students: useData.getState().students.map((st) =>

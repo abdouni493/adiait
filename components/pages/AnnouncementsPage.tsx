@@ -8,15 +8,15 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Trash2, Edit, Plus, Megaphone, Calendar, Search, Filter, X, Users, Check } from "lucide-react";
+import { Calendar, Check, Edit, Filter, Megaphone, Plus, Search, Trash2, Users, X } from "lucide-react";
 import type { Announcement, Audience } from "@/lib/types";
 import { formatDateFr } from "@/lib/helpers";
 
 import { useCan } from "@/lib/usePermissions";
 const AUDIENCE_LABELS: Record<Audience, string> = {
   all: "Tous",
-  students: "Élèves",
-  teachers: "Enseignants",
+  students: "Chevaliers",
+  teachers: "Entraîneurs",
   parents: "Parents",
 };
 
@@ -177,7 +177,7 @@ export function AnnouncementsPage() {
                 audience === a ? "border-primary bg-primary/10 text-primary" : "border-line bg-surface text-muted"
               }`}
             >
-              {a === "all" ? "Tout le monde" : a === "teachers" ? "Enseignants uniquement" : AUDIENCE_LABELS[a]}
+              {a === "all" ? "Tout le monde" : a === "teachers" ? "Entraîneurs uniquement" : AUDIENCE_LABELS[a]}
             </button>
           ))}
         </div>
@@ -187,7 +187,7 @@ export function AnnouncementsPage() {
         <div className="flex items-center justify-between mb-1">
           <label className="block text-xs font-semibold text-muted font-sans">
             Groupes concernés{" "}
-            <span className="font-normal">({targetGroupIds.length === 0 ? "toute l'école" : `${targetGroupIds.length} sélectionné(s)`})</span>
+            <span className="font-normal">({targetGroupIds.length === 0 ? "toute le club" : `${targetGroupIds.length} sélectionné(s)`})</span>
           </label>
           <div className="flex gap-2">
             <button
@@ -230,7 +230,7 @@ export function AnnouncementsPage() {
                   <span className="truncate">{g.name}</span>
                   <span className="flex items-center gap-2 shrink-0">
                     <span className={active ? "text-white/80" : "text-muted"}>
-                      {groupStudentCount.get(g.id) ?? 0} élève(s)
+                      {groupStudentCount.get(g.id) ?? 0} chevalier(s)
                     </span>
                     {active && <Check className="h-3.5 w-3.5" />}
                   </span>
@@ -240,7 +240,7 @@ export function AnnouncementsPage() {
           )}
         </div>
         <p className="text-[10px] text-muted mt-1 leading-relaxed">
-          Aucun groupe coché = l&apos;annonce est visible par toute l&apos;école. Sinon, seuls les élèves de
+          Aucun groupe coché = l&apos;annonce est visible par toute l&apos;club. Sinon, seuls les chevaliers de
           ces groupes (et leurs parents si l&apos;option ci-dessous est active) la verront.
         </p>
       </div>
@@ -249,7 +249,7 @@ export function AnnouncementsPage() {
         <span className="text-xs">
           <strong className="text-ink block">Rendre l&apos;annonce visible aux parents</strong>
           <span className="text-[10px] text-muted">
-            Les parents des élèves des groupes ciblés reçoivent aussi l&apos;annonce.
+            Les parents des chevaliers des groupes ciblés reçoivent aussi l&apos;annonce.
           </span>
         </span>
         <input
@@ -266,7 +266,7 @@ export function AnnouncementsPage() {
             <Users className="h-3.5 w-3.5 text-primary" /> Portée estimée
           </span>
           <strong className="text-primary">
-            {reachOf(targetGroupIds)} élève(s){includeParents ? " + leurs parents" : ""}
+            {reachOf(targetGroupIds)} chevalier(s){includeParents ? " + leurs parents" : ""}
           </strong>
         </div>
       )}
@@ -276,7 +276,7 @@ export function AnnouncementsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <PageHeader emoji="📢" title="Annonces" subtitle="Publier des annonces ciblées par groupe, rôle ou école entière" />
+        <PageHeader icon={Megaphone} title="Annonces" subtitle="Publier des annonces ciblées par groupe, rôle ou club entier" />
         {can("create") && (
           <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Nouvelle Annonce
@@ -314,16 +314,16 @@ export function AnnouncementsPage() {
               <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Audience</label>
               <Select value={audienceFilter} onChange={(e) => setAudienceFilter(e.target.value as typeof audienceFilter)} className="w-full">
                 <option value="all">Toutes les audiences</option>
-                <option value="students">Élèves</option>
+                <option value="students">Chevaliers</option>
                 <option value="parents">Parents</option>
-                <option value="teachers">Enseignants</option>
+                <option value="teachers">Entraîneurs</option>
               </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Groupe ciblé</label>
               <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-full">
                 <option value="all">Tous</option>
-                <option value="school">Toute l&apos;école (sans groupe)</option>
+                <option value="school">Toute l&apos;club (sans groupe)</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -353,7 +353,7 @@ export function AnnouncementsPage() {
           <h3 className="font-bold text-ink">Aucune annonce</h3>
           <p className="text-xs text-muted mt-1">
             {announcements.length === 0
-              ? "Créez votre première annonce pour informer vos élèves, parents ou profs."
+              ? "Créez votre première annonce pour informer vos chevaliers, parents ou entraîneurs."
               : "Aucune annonce ne correspond aux filtres actuels."}
           </p>
         </Card>
@@ -390,7 +390,7 @@ export function AnnouncementsPage() {
                     {/* Targeted groups */}
                     <div className="mt-2.5 flex flex-wrap gap-1">
                       {targets.length === 0 ? (
-                        <Badge tone="neutral" className="text-[9px]">Toute l&apos;école</Badge>
+                        <Badge tone="neutral" className="text-[9px]">Toute l&apos;club</Badge>
                       ) : (
                         <>
                           {groupNames(targets).slice(0, 3).map((n) => (

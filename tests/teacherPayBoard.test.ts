@@ -12,11 +12,11 @@ import {
 import type { Teacher } from "@/lib/types";
 
 /**
- * L'ÉCRAN DE PAIE MOIS PAR MOIS.
+ * L'ÉCRAN DE PAIE CARTE PAR CARTE.
  *
- * On règle UN mois d'UN emploi du temps, et cet écran montre trois tables :
- * les élèves du mois, les arriérés rattrapés, les retenues. Ces tests pilotent
- * les vraies actions du store — présence, solde, avance de l'école, règlement —
+ * On règle UN carte d'UN emploi du temps, et cet écran montre trois tables :
+ * les chevaliers de la carte, les arriérés rattrapés, les retenues. Ces tests pilotent
+ * les vraies actions du store — présence, solde, avance du club, règlement —
  * et relisent exactement ce que l'écran affiche.
  */
 
@@ -28,14 +28,14 @@ const STU2 = "stu-3";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un emploi du temps propre, tarifé au mois, avec les élèves demandés. */
+/** Un emploi du temps propre, tarifé à la carte, avec les chevaliers demandés. */
 function board(monthSeances = 4, studentIds: string[] = [STU]) {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
   sub.monthlySeances = monthSeances;
   sub.monthlyPrice = 1800;
   sub.schoolMonthShare = 650;
-  // 1 800 le mois, 650 pour l'école, 1 150 pour l'enseignant : sa séance vaut
+  // 1 800 la carte, 650 pour le club, 1 150 pour l'entraîneur : sa séance vaut
   // 1 150 ÷ 4 = 287,50 DA — une division qui ne tombe PAS juste, exprès.
   sub.teacherPerSeance = (1800 - 650) / monthSeances;
   sub.pricePerSession = 1800 / monthSeances;
@@ -96,11 +96,11 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("la part de l'enseignant se calcule au centime", () => {
-  it("part du mois ÷ séances × présences payables, décimales comprises", async () => {
+describe("la part de l'entraîneur se calcule au centime", () => {
+  it("part de la carte ÷ séances × présences payables, décimales comprises", async () => {
     const sub = board(4);
     const days = scheduledDays(4);
-    // Il paie son mois d'avance : rien n'est retenu.
+    // Il paie son carte d'avance : rien n'est retenu.
     await useData
       .getState()
       .addSold({ studentId: STU, subscriptionId: SUB, amount: 1800, monthCode: "M1" });
@@ -114,14 +114,14 @@ describe("la part de l'enseignant se calcule au centime", () => {
     const row = b.students.find((r) => r.studentId === STU)!;
     expect(row.seances).toBe(4);
     expect(row.perSeance).toBeCloseTo(287.5, 2);
-    // 4 × 287,50 = 1 150 — exactement la part enseignant du mois.
+    // 4 × 287,50 = 1 150 — exactement la part entraîneur de la carte.
     expect(row.amount).toBeCloseTo(1150, 2);
     expect(row.withheld).toBe(false);
     expect(b.studentsTotal).toBeCloseTo(1150, 2);
     expect(sub.teacherPerSeance).toBeCloseTo(287.5, 2);
   });
 
-  it("un élève qui n'a pas payé RETIENT sa part — elle n'entre pas dans le total", async () => {
+  it("un chevalier qui n'a pas payé RETIENT sa part — elle n'entre pas dans le total", async () => {
     board(4, [STU, STU2]);
     const days = scheduledDays(4);
     // Le premier paie, le second non.
@@ -146,7 +146,7 @@ describe("la part de l'enseignant se calcule au centime", () => {
   });
 });
 
-describe("l'école avance la dette : la part se débloque et l'élève passe en rouge", () => {
+describe("le club avance la dette : la part se débloque et le chevalier passe en rouge", () => {
   it("après l'avance, la part devient payable et la ligne est signalée", async () => {
     board(4, [STU2]);
     const days = scheduledDays(4);
@@ -168,8 +168,8 @@ describe("l'école avance la dette : la part se débloque et l'élève passe en 
   });
 });
 
-describe("les arriérés appartiennent à leur mois d'origine", () => {
-  it("un élève qui paie en retard réapparaît sur le mois SUIVANT, jamais dans le mois courant", async () => {
+describe("les arriérés appartiennent à leur carte d'origine", () => {
+  it("un chevalier qui paie en retard réapparaît sur la carte SUIVANT, jamais dans la carte courante", async () => {
     board(4, [STU, STU2]);
     const days = scheduledDays(8);
 
@@ -215,7 +215,7 @@ describe("les arriérés appartiennent à leur mois d'origine", () => {
 
     // --- M2 : le retardataire s'acquitte de son M1 ------------------------
     // Il paie aussi son M2 : tant qu'il doit QUOI QUE CE SOIT, sa part reste
-    // retenue — c'est la dette entière qui bloque, pas seulement le mois.
+    // retenue — c'est la dette entière qui bloque, pas seulement la carte.
     await useData
       .getState()
       .addSold({ studentId: STU2, subscriptionId: SUB, amount: 1800, monthCode: "M1" });
@@ -229,7 +229,7 @@ describe("les arriérés appartiennent à leur mois d'origine", () => {
 
     const m2 = openBoard("M2");
     // Sa part de M1 est due maintenant — mais elle est dans la TABLE 2, avec
-    // son mois d'origine, pas mélangée aux élèves du M2.
+    // son carte d'origine, pas mélangée aux chevaliers du M2.
     expect(m2.arrears).toHaveLength(1);
     expect(m2.arrears[0].studentId).toBe(STU2);
     expect(m2.arrears[0].monthCode).toBe("M1");
@@ -242,7 +242,7 @@ describe("les arriérés appartiennent à leur mois d'origine", () => {
   });
 });
 
-describe("la liste des mois va toujours de M1 à M12", () => {
+describe("la liste des cartes va toujours de M1 à M12", () => {
   it("douze pastilles, avec l'état de chacune", async () => {
     board(4);
     const days = scheduledDays(3);
@@ -253,12 +253,12 @@ describe("la liste des mois va toujours de M1 à M12", () => {
     expect(tiles.map((t) => t.code)).toEqual(
       Array.from({ length: 12 }, (_, i) => `M${i + 1}`),
     );
-    // « 3/4 » : le mois court encore, il n'est pas à régler.
+    // « 3/4 » : la carte court encore, il n'est pas à régler.
     expect(tiles[0].held).toBe(3);
     expect(tiles[0].size).toBe(4);
     expect(tiles[0].complete).toBe(false);
     expect(tiles[0].state).not.toBe("payable");
-    // Les mois jamais atteints existent quand même, vides.
+    // Les cartes jamais atteints existent quand même, vides.
     expect(tiles[11].held).toBe(0);
     expect(tiles[11].state).toBe("empty");
   });
@@ -273,7 +273,7 @@ describe("le règlement fige ses trois tables", () => {
       .addSold({ studentId: STU, subscriptionId: SUB, amount: 1800, monthCode: "M1" });
     for (const day of days) await attend(STU, day);
 
-    // Une dépense avancée par l'école, retenue sur cette paie.
+    // Une dépense avancée par le club, retenue sur cette paie.
     useData.setState({
       teacherExpenses: [
         {

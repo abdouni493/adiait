@@ -70,10 +70,10 @@ export function sessionTimeLabel(session: ScheduleSession, day?: Day): string {
 }
 
 /**
- * The salle ONE day of an emploi du temps runs in.
+ * The arène ONE day of an emploi du temps runs in.
  *
- * An emploi may occupy a different room depending on the day — Samedi in Salle
- * A, Mardi in Salle B, still one emploi. `daySalles` holds those overrides and
+ * An emploi may occupy a different room depending on the day — Samedi in Arène
+ * A, Mardi in Arène B, still one emploi. `daySalles` holds those overrides and
  * `salleId` remains the default, so a timing that keeps the same room all week
  * stores nothing extra.
  */
@@ -82,7 +82,7 @@ export function sessionSalleOn(session: ScheduleSession, day?: Day): string {
   return override || session.salleId || "";
 }
 
-/** Every salle an emploi occupies over its week, without duplicates. */
+/** Every arène an emploi occupies over its week, without duplicates. */
 export function sessionSalleIds(session: ScheduleSession): string[] {
   if (session.isOpen && session.salleIds?.length) return [...new Set(session.salleIds)];
   const ids = (session.days ?? []).map((d) => sessionSalleOn(session, d)).filter(Boolean);
@@ -90,7 +90,7 @@ export function sessionSalleIds(session: ScheduleSession): string[] {
   return [...new Set(out)];
 }
 
-/** Does the emploi keep the same salle every day it runs? */
+/** Does the emploi keep the same arène every day it runs? */
 export function hasUniformSalles(session: ScheduleSession): boolean {
   return sessionSalleIds(session).length <= 1;
 }
@@ -119,10 +119,10 @@ export function timesOverlap(a: DayTime, b: DayTime): boolean {
 
 /**
  * The days on which two emplois du temps collide in time — used to tell the
- * desk which salle is already taken before it picks one.
+ * desk which arène is already taken before it picks one.
  *
- * `salleId` narrows the check to ONE room: an emploi that runs Samedi in Salle A
- * and Mardi in Salle B only blocks Salle A on the Samedi. Without it every
+ * `salleId` narrows the check to ONE room: an emploi that runs Samedi in Arène A
+ * and Mardi in Arène B only blocks Arène A on the Samedi. Without it every
  * shared day that overlaps in time is returned, whatever room each holds.
  */
 export function clashingDays(
@@ -132,8 +132,8 @@ export function clashingDays(
 ): Day[] {
   const shared = (a.days ?? []).filter((d) => (b.days ?? []).includes(d));
   return shared.filter((d) => {
-    // Une séance libre occupe toutes ses salles tous ses jours : elle n'a pas
-    // de salle « du jour » à comparer.
+    // Une séance libre occupe toutes ses arènes tous ses jours : elle n'a pas
+    // de arène « du jour » à comparer.
     if (salleId && !(b.isOpen && b.salleIds?.length)) {
       if (sessionSalleOn(b, d) !== salleId) return false;
     }
@@ -200,7 +200,7 @@ export function siblingSessions(db: Database, session: ScheduleSession): Schedul
  * UN EMPLOI DU TEMPS SUPPRIMÉ N'EST PAS EFFACÉ, IL EST ARCHIVÉ.
  *
  * Sa ligne reste en base avec son tarif, si bien que tout ce qui s'y rattache —
- * présences pointées, soldes, paiements des élèves, parts dues à l'enseignant —
+ * présences pointées, soldes, paiements des chevaliers, parts dues à l'entraîneur —
  * garde un nom sur les écrans d'historique au lieu de se réduire à un tiret.
  *
  * Ces deux fonctions tracent la frontière : les écrans qui servent à TRAVAILLER
@@ -236,14 +236,14 @@ export function isArchivedSub(db: Database, subscriptionId?: string): boolean {
  * Les groupes d'un emploi du temps.
  *
  * Un même créneau peut réunir plusieurs groupes — deux demi-groupes qui suivent
- * le même cours à la même heure dans la même salle. `groupIds` porte la liste
+ * le même cours à la même heure dans la même arène. `groupIds` porte la liste
  * complète, `groupId` reste le PREMIER pour tout ce qui n'a besoin que d'un
  * groupe (le scan, les vieux écrans, la base). Lire toujours par ici, pour que
  * le repli tienne en un seul endroit.
  */
 export function sessionGroupIds(session?: ScheduleSession): string[] {
   if (!session) return [];
-  // Un emploi multi-niveaux range ses groupes CLASSE PAR CLASSE : l'union de
+  // Un emploi multi-niveaux range ses groupes CATÉGORIE PAR CATÉGORIE : l'union de
   // ces listes est la vraie composition du créneau, `groupIds` n'en étant que
   // le reflet à plat. On lit donc les deux, dans cet ordre.
   const perClass = Object.values(session.classGroups ?? {}).flat().filter(Boolean);
@@ -254,12 +254,12 @@ export function sessionGroupIds(session?: ScheduleSession): string[] {
 
 // ---- Un emploi du temps, PLUSIEURS NIVEAUX --------------------------------
 /**
- * Les classes (niveaux) d'un emploi du temps.
+ * Les catégories (niveaux) d'un emploi du temps.
  *
  * Un créneau peut réunir la 4e moyenne et la 3e secondaire — deux niveaux qui
- * partagent la même heure, la même salle et le même enseignant, chacun avec
+ * partagent la même heure, la même arène et le même entraîneur, chacun avec
  * ses propres groupes. `classGroups` porte l'association complète, `classIds`
- * la liste à plat, et `classId` la PREMIÈRE classe (la colonne historique que
+ * la liste à plat, et `classId` la PREMIÈRE catégorie (la colonne historique que
  * le scan et la base lisent). Lire toujours par ici.
  */
 export function sessionClassIds(session?: ScheduleSession): string[] {
@@ -284,16 +284,16 @@ export function sessionClassesLabel(db: Database, session?: ScheduleSession): st
     .join(" · ");
 }
 
-/** Cet emploi du temps réunit-il cette classe ? */
+/** Cet emploi du temps réunit-il cette catégorie ? */
 export function sessionHasClass(session: ScheduleSession, classId: string): boolean {
   return sessionClassIds(session).includes(classId);
 }
 
 /**
- * Les groupes qu'UNE classe amène sur cet emploi du temps.
+ * Les groupes qu'UNE catégorie amène sur cet emploi du temps.
  *
  * Sur un emploi à un seul niveau, ce sont simplement tous ses groupes : la
- * question ne se pose pas. Sur un emploi multi-niveaux, chaque classe a les
+ * question ne se pose pas. Sur un emploi multi-niveaux, chaque catégorie a les
  * siens, et c'est précisément ce que `classGroups` conserve.
  */
 export function sessionGroupsOfClass(session: ScheduleSession, classId: string): string[] {
@@ -318,9 +318,9 @@ export function sessionHasGroup(session: ScheduleSession, groupId: string): bool
 /**
  * CET EMPLOI DU TEMPS EST-IL SOUMIS AUX FRAIS D'INSCRIPTION ?
  *
- * L'école décide qui les paie depuis l'écran des abonnements : tout le monde,
- * les élèves de certains NIVEAUX (« tout le secondaire »), de certaines CLASSES,
- * ou seulement ceux inscrits sur certains EMPLOIS DU TEMPS. Un élève qui ne
+ * Le club décide qui les paie depuis l'écran des abonnements : tout le monde,
+ * les chevaliers de certains NIVEAUX (« tout le secondaire »), de certaines CATÉGORIES,
+ * ou seulement ceux inscrits sur certains EMPLOIS DU TEMPS. Un chevalier qui ne
  * coche que des emplois hors périmètre ne les doit tout simplement pas, et
  * l'écran d'inscription cesse alors de les réclamer.
  */
@@ -363,8 +363,8 @@ export function registrationFeeSubIds(
   return subIds.filter((id) => registrationFeeAppliesToSub(db, school, id));
 }
 
-/** Ce qu'un élève doit de frais d'inscription pour les emplois qu'il coche.
- *  0 dès qu'aucun d'eux n'est dans le périmètre choisi par l'école. */
+/** Ce qu'un chevalier doit de frais d'inscription pour les emplois qu'il coche.
+ *  0 dès qu'aucun d'eux n'est dans le périmètre choisi par le club. */
 export function registrationFeeFor(
   db: Database,
   school: School | undefined,
@@ -378,7 +378,7 @@ export function registrationFeeFor(
 /** Comment se lit le périmètre choisi, en une ligne. */
 export function registrationFeeScopeLabel(db: Database, school?: School): string {
   const scope = school?.registrationFeeScope ?? "all";
-  if (scope === "all") return "Tous les élèves";
+  if (scope === "all") return "Tous les chevaliers";
   if (scope === "levels") {
     const list = school?.registrationFeeLevels ?? [];
     if (list.length === 0) return "Aucun niveau sélectionné";
@@ -388,7 +388,7 @@ export function registrationFeeScopeLabel(db: Database, school?: School): string
   }
   if (scope === "classes") {
     const list = school?.registrationFeeClassIds ?? [];
-    if (list.length === 0) return "Aucune classe sélectionnée";
+    if (list.length === 0) return "Aucune catégorie sélectionnée";
     return list
       .map((id) => db.classes.find((c) => c.id === id)?.name ?? "—")
       .join(", ");
@@ -475,10 +475,10 @@ export function teacherMonthShareOf(sub?: Subscription): number {
  * when present, otherwise teacherMonthShare / monthlySeances. This is what a
  * teacher settlement multiplies by the number of séances actually attended.
  *
- * LA DIVISION GARDE SES DÉCIMALES : 1 500 DA de part enseignant sur 3 séances
+ * LA DIVISION GARDE SES DÉCIMALES : 1 500 DA de part entraîneur sur 3 séances
  * font 500 DA, mais 1 000 DA sur 3 séances font 333,33 DA — pas 333. Arrondir à
- * l'entier ici faisait perdre (ou gagner) à l'enseignant quelques dinars par
- * séance, et l'écart devenait visible au bout d'un mois de présences.
+ * l'entier ici faisait perdre (ou gagner) à l'entraîneur quelques dinars par
+ * séance, et l'écart devenait visible au bout d'une carte de présences.
  */
 export function teacherPerSeanceOf(sub?: Subscription): number {
   if (!sub) return 0;
@@ -487,8 +487,8 @@ export function teacherPerSeanceOf(sub?: Subscription): number {
   return n > 0 ? positiveMoney(teacherMonthShareOf(sub) / n) : 0;
 }
 
-/** Le prix d'UNE séance déduit du pack mensuel : prix du mois ÷ séances du
- *  mois, décimales comprises. C'est le tarif que l'emploi du temps affiche. */
+/** Le prix d'UNE séance déduit du pack par carte : prix de la carte ÷ séances du
+ *  carte, décimales comprises. C'est le tarif que l'emploi du temps affiche. */
 export function seancePriceOf(sub?: Subscription): number {
   if (!sub) return 0;
   const n = sub.monthlySeances ?? 0;
@@ -521,7 +521,7 @@ export function discountLabel(discount?: SubscriptionDiscount): string {
 
 /**
  * What ONE séance of a subscription costs the SCHOOL side of the split:
- * `part école du mois ÷ séances du mois`. With a month at 2000 DA over 4
+ * `part club du mois ÷ séances du mois`. With a month at 2000 DA over 4
  * séances of which the school keeps 800, that is 200 DA — not 500.
  *
  * Falls back on the ordinary séance price when the emploi carries no monthly
@@ -548,7 +548,7 @@ export function teacherSeanceShareOf(sub?: Subscription): number {
 
 // ---- Cas spécial : la gratuité, emploi du temps par emploi du temps --------
 /**
- * L'élève est-il un « cas spécial (gratuit) » ?
+ * Le chevalier est-il un « cas spécial (gratuit) » ?
  *
  * Répond de son CAS, pas de ce qu'il paie : un cas spécial peut très bien
  * régler l'un de ses emplois du temps (voir `isFreeSub`).
@@ -558,14 +558,14 @@ export function studentIsFreeCase(student?: Student): boolean {
 }
 
 /**
- * CET emploi du temps est-il offert à CET élève ?
+ * CET emploi du temps est-il offert à CET chevalier ?
  *
  * La gratuité se coche module par module sur la fiche : les emplois listés dans
- * `freeSubscriptionIds` ne coûtent rien — ni à l'élève, ni en part école, ni en
- * part enseignant — et les autres sont facturés au tarif ordinaire.
+ * `freeSubscriptionIds` ne coûtent rien — ni au chevalier, ni en part club, ni en
+ * part entraîneur — et les autres sont facturés au tarif ordinaire.
  *
  * Une fiche SANS liste est entièrement offerte : c'est ainsi que le cas se
- * lisait avant d'être détaillé, et les élèves déjà en base gardent donc
+ * lisait avant d'être détaillé, et les chevaliers déjà en base gardent donc
  * exactement le comportement qu'ils avaient.
  */
 export function isFreeSub(student: Student | undefined, subscriptionId?: string): boolean {
@@ -578,7 +578,7 @@ export function isFreeSub(student: Student | undefined, subscriptionId?: string)
   return list.includes(subscriptionId);
 }
 
-/** Toute sa scolarité est-elle offerte ? (aucun emploi du temps facturé) */
+/** Toute sa cotisation est-elle offerte ? (aucun emploi du temps facturé) */
 export function studentFullyFree(student: Student | undefined, subIds?: string[]): boolean {
   if (!studentIsFreeCase(student)) return false;
   const list = student!.freeSubscriptionIds;
@@ -624,25 +624,25 @@ export function caseReductionCut(
  * split, minus the school's half of a « cas réduction ».
  */
 export function studentSchoolPerSeance(student: Student | undefined, sub?: Subscription): number {
-  // Un emploi du temps offert ne rapporte rien à l'école non plus.
+  // Un emploi du temps offert ne rapporte rien au club non plus.
   if (isFreeSub(student, sub?.id)) return 0;
   const part = schoolPerSeanceOf(sub);
   return positiveMoney(part - caseReductionCut(student, "school", part));
 }
 
-// ---- « École seule » : l'option se coche EMPLOI DU TEMPS PAR EMPLOI DU TEMPS
+// ---- « Club seule » : l'option se coche EMPLOI DU TEMPS PAR EMPLOI DU TEMPS
 /**
- * CET emploi du temps est-il « payé à l'école seulement » pour CET élève ?
+ * CET emploi du temps est-il « payé au club seulement » pour CET chevalier ?
  *
- * Le cas « École seulement » se règle exactement comme la gratuité : emploi par
- * emploi. Sur un emploi ACTIVÉ, la famille ne verse que la part de l'école,
- * l'enseignant n'est pas payé pour cet élève — et l'élève ne figure même pas
- * sur l'écran de paie de cet enseignant pour cet emploi-là. Sur un emploi NON
- * activé, tout se calcule normalement : l'école ET l'enseignant sont réglés, et
- * l'élève apparaît sur la feuille de paie comme n'importe quel autre.
+ * Le cas « Club seulement » se règle exactement comme la gratuité : emploi par
+ * emploi. Sur un emploi ACTIVÉ, la famille ne verse que la part du club,
+ * l'entraîneur n'est pas payé pour ce chevalier — et le chevalier ne figure même pas
+ * sur l'écran de paie de cet entraîneur pour cet emploi-là. Sur un emploi NON
+ * activé, tout se calcule normalement : le club ET l'entraîneur sont réglés, et
+ * le chevalier apparaît sur la feuille de paie comme n'importe quel autre.
  *
  * ABSENT (`schoolOnlySubscriptionIds` non renseigné) = les fiches d'avant, qui
- * ne connaissaient que la liste d'enseignants non payés : on retombe alors sur
+ * ne connaissaient que la liste d'entraîneurs non payés : on retombe alors sur
  * `unpaidTeacherIds`, pour que rien ne change de sens en base.
  */
 export function isSchoolOnlySub(
@@ -656,12 +656,12 @@ export function isSchoolOnlySub(
     if (!subscriptionId) return list.length > 0;
     return list.includes(subscriptionId);
   }
-  // Fiches anciennes : c'est la liste des enseignants qui décidait.
+  // Fiches anciennes : c'est la liste des entraîneurs qui décidait.
   if (!teacherId) return true;
   return (student.unpaidTeacherIds ?? []).includes(teacherId);
 }
 
-/** Les emplois du temps sur lesquels l'option « école seule » est ACTIVE. */
+/** Les emplois du temps sur lesquels l'option « club seule » est ACTIVE. */
 export function schoolOnlySubIdsOf(student: Student | undefined): string[] {
   if (!student || student.studentCase !== "school_only") return [];
   return student.schoolOnlySubscriptionIds ?? student.subscriptionIds ?? [];
@@ -670,7 +670,7 @@ export function schoolOnlySubIdsOf(student: Student | undefined): string[] {
 /**
  * What the TEACHER actually earns on one séance of this student: his part of
  * the split, minus his own half of a « cas réduction ». A « cas spécial » and an
- * « école seule » élève (SUR LES EMPLOIS OÙ L'OPTION EST ACTIVE) earn him
+ * « club seule » chevalier (SUR LES EMPLOIS OÙ L'OPTION EST ACTIVE) earn him
  * nothing — the same rule `teacherDueFor` writes on every présence.
  */
 export function studentTeacherPerSeance(
@@ -689,13 +689,13 @@ export function studentTeacherPerSeance(
  * The LIST price of one séance for one student — before his per-module remise.
  *
  * Everybody pays the emploi's séance price, with TWO exceptions:
- *  - an « école seule » élève pays only what the school keeps, because the
+ *  - an « club seule » chevalier pays only what the school keeps, because the
  *    teacher is deliberately not paid for him: charging him the full price
  *    would collect a teacher's share nobody is ever going to hand over;
- *  - a « cas réduction » élève pays the price MINUS the two halves of his
+ *  - a « cas réduction » chevalier pays the price MINUS the two halves of his
  *    reduction — the school grants its part, the teacher grants his, and the
  *    family only ever hands over what is left. `teacherDueFor` takes the very
- *    same teacher half off the part enseignant, so the two sides always add
+ *    same teacher half off the part entraîneur, so the two sides always add
  *    back up to what was actually paid.
  */
 export function studentListPrice(
@@ -707,18 +707,18 @@ export function studentListPrice(
   if (!student || !sub) return base;
   // Emploi du temps offert : la séance ne coûte rien à la famille.
   if (isFreeSub(student, sub.id)) return 0;
-  // « École seule » ACTIVÉE sur cet emploi : la famille ne verse que la part de
-  // l'école. Sur un emploi non activé, elle paie le tarif entier comme tout le
-  // monde et l'enseignant touche sa part.
+  // « Club seule » ACTIVÉE sur cet emploi : la famille ne verse que la part de
+  // le club. Sur un emploi non activé, elle paie le tarif entier comme tout le
+  // monde et l'entraîneur touche sa part.
   if (isSchoolOnlySub(student, sub.id)) {
     const schoolPart = schoolPerSeanceOf(sub);
     return schoolPart > 0 ? schoolPart : base;
   }
   if (student.studentCase === "reduction") {
-    // Sans répartition mensuelle, l'emploi ne porte pas de « part enseignant » :
+    // Sans répartition par carte, l'emploi ne porte pas de « part entraîneur » :
     // `schoolPerSeanceOf` rend alors le prix entier et `teacherSeanceShareOf`
-    // rend 0, si bien que seule la moitié « école » de la remise sort d'ici. La
-    // moitié « enseignant » est retirée là où elle a un sens dans ce cas-là :
+    // rend 0, si bien que seule la moitié « club » de la remise sort d'ici. La
+    // moitié « entraîneur » est retirée là où elle a un sens dans ce cas-là :
     // sur le pourcentage que `teacherDueFor` lui verse. Elle n'est donc jamais
     // comptée deux fois.
     return positiveMoney(
@@ -855,9 +855,20 @@ export const DEFAULT_CYCLE_SIZE = 4;
 /** How many months the month pickers offer. */
 export const MONTH_CYCLE_COUNT = 12;
 
+/**
+ * LA CARTE N° i+1.
+ *
+ * `code` est ce qui est ÉCRIT EN BASE et n'a pas changé : « M1 », « M2 ».
+ * Des milliers de lignes le portent déjà — fiches de paie figées, points
+ * d'entrée d'inscription, crédits de solde — et le réécrire demanderait de
+ * toutes les reprendre pour ne rien gagner.
+ *
+ * `label` et `short` sont ce qui S'AFFICHE, et eux parlent de cartes :
+ * « Carte 3 » et « C3 ». Personne ne voit plus jamais un « M ».
+ */
 export function monthCycleAt(index: number): SchoolMonth {
   const i = Math.max(0, Math.round(index));
-  return { code: `M${i + 1}`, index: i, label: `Mois ${i + 1}`, short: `M${i + 1}` };
+  return { code: `M${i + 1}`, index: i, label: `Carte ${i + 1}`, short: `C${i + 1}` };
 }
 
 export const SCHOOL_MONTHS: SchoolMonth[] = Array.from({ length: MONTH_CYCLE_COUNT }, (_, i) =>
@@ -875,11 +886,25 @@ export function monthOrder(code: string): number {
   return schoolMonthByCode(code)?.index ?? -1;
 }
 
-/** "M3 · Mois 3" — the human label of a month code. */
+/** « Carte 3 » — ce qu'un code de carte donne à lire. */
 export function monthCodeLabel(code: string): string {
-  const m = schoolMonthByCode(code);
-  return m ? `${m.code} · ${m.label}` : code;
+  return schoolMonthByCode(code)?.label ?? code;
 }
+
+/**
+ * « C3 » — la forme courte, pour les tableaux denses et les pastilles.
+ *
+ * Elle traduit le code stocké (« M3 ») sans jamais le modifier : c'est le seul
+ * endroit d'où sort la lettre affichée, si bien qu'un futur changement de
+ * vocabulaire se fait ici et nulle part ailleurs.
+ */
+export function carteShort(code: string): string {
+  return schoolMonthByCode(code)?.short ?? code;
+}
+
+/** « Carte 3 » — alias explicite de `monthCodeLabel`, pour les écrans qui
+ *  parlent de cartes plutôt que de codes. */
+export const carteLabel = monthCodeLabel;
 
 /** Months from M1 up to (and including) the given code. */
 export function schoolMonthsUpTo(code: string): SchoolMonth[] {
@@ -1324,18 +1349,18 @@ export function studentSoldDebtRows(db: Database, studentId: string): SoldDebtRo
   return out;
 }
 
-/** Ce que l'encaissement propose à la réception, sur UN mois d'UN emploi. */
+/** Ce que l'encaissement propose à la réception, sur UN carte d'UN emploi. */
 export interface MonthProposal {
-  /** prix d'une séance pour cet élève, son cas et sa remise appliqués */
+  /** prix d'une séance pour ce chevalier, son cas et sa remise appliqués */
   unit: number;
-  /** les séances de ce mois qui sont les SIENNES : le pack, moins celles
+  /** les séances de cette carte qui sont les SIENNES : le pack, moins celles
    *  tenues avant son inscription — elles ne furent jamais à lui */
   mine: number;
-  /** ce qu'il a déjà versé sur ce mois */
+  /** ce qu'il a déjà versé sur cette carte */
   credited: number;
   /** séances que ce versement couvre déjà */
   covered: number;
-  /** séances qu'il doit encore, comptées DEPUIS SA PREMIÈRE du mois */
+  /** séances qu'il doit encore, comptées DEPUIS SA PREMIÈRE de la carte */
   billable: number;
   /** ce que ces séances coûtent — le montant proposé */
   total: number;
@@ -1345,16 +1370,16 @@ export interface MonthProposal {
 }
 
 /**
- * CE QU'IL RESTE À PAYER SUR UN MOIS — COMPTÉ DEPUIS SA PREMIÈRE SÉANCE.
+ * CE QU'IL RESTE À PAYER SUR UN CARTE — COMPTÉ DEPUIS SA PREMIÈRE SÉANCE.
  *
  * L'erreur qu'il faut éviter tient en une phrase : VENIR À UNE SÉANCE NE LA
- * PAIE PAS. Un élève qui entre dans le mois à la séance 1 et qui a déjà été
+ * PAIE PAS. Un chevalier qui entre dans la carte à la séance 1 et qui a déjà été
  * pointé une fois en est à sa deuxième — et il doit toujours les quatre, la
  * première comprise. Partir de son dernier pointage pour proposer un montant
- * laissait donc les séances déjà tenues impayées, et le mois se terminait avec
+ * laissait donc les séances déjà tenues impayées, et la carte se terminait avec
  * un trou que personne ne voyait passer.
  *
- * Le calcul part de sa PREMIÈRE séance du mois : son mois entier — les séances
+ * Le calcul part de sa PREMIÈRE séance de la carte : son carte entière — les séances
  * tenues avant son inscription en moins, puisqu'elles ne furent jamais les
  * siennes — moins ce qu'il a déjà versé dessus.
  */
@@ -1368,7 +1393,7 @@ export function monthProposal(
   const student = db.students.find((s) => s.id === studentId);
   const cycle = cycleOf(db, studentId, subscriptionId, code);
 
-  // Son tarif à LUI : un « école seule » ne paie que la part de l'école, et une
+  // Son tarif à LUI : un « club seule » ne paie que la part du club, et une
   // remise s'applique avant tout calcul.
   const enrollment = db.enrollments.find(
     (e) => e.studentId === studentId && e.subscriptionId === subscriptionId,
@@ -1394,7 +1419,7 @@ export function monthProposal(
   };
 }
 
-// ---- Frais portés au compte d'un élève -------------------------------------
+// ---- Frais portés au compte d'un chevalier -------------------------------------
 /**
  * CE QU'UN FRAIS DOIT ENCORE : son montant, moins ce qui a déjà été versé
  * dessus. Jamais un nombre négatif — trop-perçu ou pas, un frais réglé ne doit
@@ -1404,7 +1429,7 @@ export function chargeRemaining(charge: StudentCharge): number {
   return positiveMoney(charge.amount - (charge.paidAmount ?? 0));
 }
 
-/** TOUS les frais d'un élève, du plus récent au plus ancien. */
+/** TOUS les frais d'un chevalier, du plus récent au plus ancien. */
 export function studentChargesOf(db: Database, studentId: string): StudentCharge[] {
   return db.studentCharges
     .filter((c) => c.studentId === studentId)
@@ -1417,17 +1442,17 @@ export function studentOpenCharges(db: Database, studentId: string): StudentChar
 }
 
 /**
- * CE QUE L'ÉLÈVE DOIT SUR SES FRAIS, tous frais confondus.
+ * CE QUE LE CHEVALIER DOIT SUR SES FRAIS, tous frais confondus.
  *
  * À ne pas confondre avec `studentDebt`, qui est sa SCOLARITÉ : c'est elle, et
- * elle seule, qui retient la part d'un enseignant. Un livre impayé alerte le
+ * elle seule, qui retient la part d'un entraîneur. Un livre impayé alerte le
  * guichet mais ne prive personne de sa paie.
  */
 export function studentChargeDebt(db: Database, studentId: string): number {
   return money(studentOpenCharges(db, studentId).reduce((t, c) => t + chargeRemaining(c), 0));
 }
 
-/** Les frais que l'école s'est avancée à elle-même et qui restent à récupérer. */
+/** Les frais que le club s'est avancée à elle-même et qui restent à récupérer. */
 export function studentAdvanceDebt(db: Database, studentId: string): number {
   return money(
     studentOpenCharges(db, studentId)
@@ -1443,13 +1468,13 @@ export function chargePayments(db: Database, chargeId: string): Payment[] {
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
-/** Ce que TOUTE l'école attend encore sur les frais de ses élèves. */
+/** Ce que TOUTE le club attend encore sur les frais de ses chevaliers. */
 export function totalStudentChargeDebt(db: Database): number {
   return money(db.students.reduce((t, st) => t + studentChargeDebt(db, st.id), 0));
 }
 
 /**
- * TOUT CE QU'UN ÉLÈVE DOIT, scolarité ET frais réunis — le seul nombre à
+ * TOUT CE QU'UN CHEVALIER DOIT, cotisation ET frais réunis — le seul nombre à
  * afficher quand on veut dire « il doit de l'argent ». Les deux dettes vivent
  * séparément parce qu'elles n'ont pas les mêmes conséquences, mais au guichet
  * la famille n'en voit qu'une.
@@ -1458,7 +1483,7 @@ export function studentTotalDue(db: Database, studentId: string): number {
   return money(studentDebt(db, studentId) + studentChargeDebt(db, studentId));
 }
 
-/** Une dette qu'un élève n'a pas payée : l'école l'a avancée de sa caisse. */
+/** Une dette qu'un chevalier n'a pas payée : le club l'a avancée de sa caisse. */
 export interface SchoolAdvanceRow {
   paymentId: string;
   studentId: string;
@@ -1470,11 +1495,11 @@ export interface SchoolAdvanceRow {
   monthCode: string;
   amount: number;
   date: string;
-  /** ce que l'élève doit ENCORE, l'avance faite */
+  /** ce que le chevalier doit ENCORE, l'avance faite */
   stillOwed: number;
   /**
    * LE FRAIS QUI PORTE LE REMBOURSEMENT. L'avance n'est pas un souvenir : c'est
-   * une dette de la famille envers l'école, encaissable au guichet comme
+   * une dette de la famille envers le club, encaissable au guichet comme
    * n'importe quel frais. `remaining` est ce qu'il en reste à récupérer.
    */
   chargeId?: string;
@@ -1482,16 +1507,16 @@ export interface SchoolAdvanceRow {
 }
 
 /**
- * CE QUE L'ÉCOLE A AVANCÉ DE SA PROPRE CAISSE, ÉLÈVE PAR ÉLÈVE.
+ * CE QUE LE CLUB A AVANCÉ DE SA PROPRE CAISSE, CHEVALIER PAR CHEVALIER.
  *
  * Quand une famille n'a pas payé, la part que ses séances rapportent à
- * l'enseignant est retenue. L'école peut refuser de le faire attendre et régler
- * à la place de la famille : le versement entre au crédit de l'élève, une
+ * l'entraîneur est retenue. Le club peut refuser de le faire attendre et régler
+ * à la place de la famille : le versement entre au crédit du chevalier, une
  * sortie du même montant le finance, et la part se débloque.
  *
- * Cet argent-là, l'école l'a sorti sans l'encaisser. C'est une alerte, et elle
- * appartient à l'ÉLÈVE — pas à la fiche de paie de son enseignant, qui est
- * soldée depuis longtemps. L'écran des étudiants la porte donc, du plus récent
+ * Cet argent-là, le club l'a sorti sans l'encaisser. C'est une alerte, et elle
+ * appartient à l'CHEVALIER — pas à la fiche de paie de son entraîneur, qui est
+ * soldée depuis longtemps. L'écran des chevaliers la porte donc, du plus récent
  * au plus ancien, tant que personne ne l'a remboursée.
  */
 export function schoolAdvancedRows(db: Database): SchoolAdvanceRow[] {
@@ -1509,10 +1534,10 @@ export function schoolAdvancedRows(db: Database): SchoolAdvanceRow[] {
       return {
         paymentId: p.id,
         studentId: p.studentId,
-        studentName: student ? studentName(student) : "Élève supprimé",
+        studentName: student ? studentName(student) : "Chevalier supprimé",
         registrationNumber: student ? registrationNumberOf(db, student) : "—",
         phone: student?.phone ?? "",
-        label: sub ? subscriptionLabel(db, sub) : (p.description ?? "Dette de l'élève"),
+        label: sub ? subscriptionLabel(db, sub) : (p.description ?? "Dette du chevalier"),
         monthCode: p.monthCode || "M1",
         amount: positiveMoney(p.amountPaid),
         date: p.date,
@@ -1528,17 +1553,17 @@ export function schoolAdvancedRows(db: Database): SchoolAdvanceRow[] {
 }
 
 /**
- * TOUT ce qu'un élève doit, dans le détail que l'écran de règlement demande :
- * les mois dans le rouge emploi par emploi, les restes laissés par d'anciens
+ * TOUT ce qu'un chevalier doit, dans le détail que l'écran de règlement demande :
+ * les cartes dans le rouge emploi par emploi, les restes laissés par d'anciens
  * paiements, et les frais d'inscription jamais réglés.
  *
  * C'est exactement l'ensemble que `studentHasDebt` regarde pour retenir la part
- * de l'enseignant : couvrir ce total, et rien de moins, débloque sa paie.
+ * de l'entraîneur : couvrir ce total, et rien de moins, débloque sa paie.
  */
 export interface StudentDebtSummary {
-  /** les mois dans le rouge, emploi par emploi */
+  /** les cartes dans le rouge, emploi par emploi */
   soldRows: SoldDebtRow[];
-  /** ce que ces mois totalisent */
+  /** ce que ces cartes totalisent */
   soldDebt: number;
   /** ce que d'anciens paiements ont laissé impayé */
   rests: number;
@@ -1564,22 +1589,22 @@ export function studentDebtSummary(db: Database, studentId: string): StudentDebt
 }
 
 /**
- * D'OÙ vient l'argent versé sur UN mois d'UN emploi du temps.
+ * D'OÙ vient l'argent versé sur UN carte d'UN emploi du temps.
  *
- * Un « fils d'enseignant » peut payer lui-même AVANT que son père ne soit
+ * Un « fils d'entraîneur » peut payer lui-même AVANT que son père ne soit
  * réglé : ces versements-là sont de la famille, et ils ne doivent plus être
  * retenus une seconde fois sur le salaire. Ceux qui sortent du salaire portent
- * `paidFrom: "teacher_salary"`, ceux que l'école a couverts `"school_cash"`.
+ * `paidFrom: "teacher_salary"`, ceux que le club a couverts `"school_cash"`.
  */
 export interface CycleCredits {
   /** versé par la famille, au guichet */
   family: number;
-  /** retenu sur le salaire d'un enseignant père */
+  /** retenu sur le salaire d'un entraîneur père */
   salary: number;
   /** crédité d'avance et PORTÉ sur le salaire du père — la retenue attend sa
    *  prochaine paie (`TeacherChildDebt`) */
   charged: number;
-  /** couvert par la caisse de l'école */
+  /** couvert par la caisse du club */
   school: number;
   total: number;
 }
@@ -1848,7 +1873,7 @@ export function studentCaseLabel(student: Student): string {
       return "Cas spécial · gratuit";
     }
     case "teacher_child":
-      return "Fils d'enseignant";
+      return "Fils d'entraîneur";
     case "reduction":
       return "Réduction";
     case "school_only": {
@@ -1860,11 +1885,11 @@ export function studentCaseLabel(student: Student): string {
         const active = followed.filter((id) => only.includes(id)).length;
         if (active < followed.length) {
           return active > 0
-            ? `École seule · ${active} emploi(s)`
-            : "École seule · aucun emploi";
+            ? `Club seule · ${active} emploi(s)`
+            : "Club seule · aucun emploi";
         }
       }
-      return "École seule";
+      return "Club seule";
     }
     default:
       return "";
@@ -2027,8 +2052,8 @@ export function attendanceOn(
 }
 
 
-// ---- Séances libres de groupe ----------------------------------------------
-/** Everything a "séance libre de groupe" is worth, from the three numbers
+// ---- Sorties libres de groupe ----------------------------------------------
+/** Everything a "sortie libre de groupe" is worth, from the three numbers
  *  reception typed. Never negative: the school's part is capped at the price. */
 export interface GroupSeanceTotals {
   students: number;
@@ -2036,11 +2061,11 @@ export interface GroupSeanceTotals {
   schoolPerStudent: number;
   /** what ONE student earns the teacher */
   teacherPerStudent: number;
-  /** élèves × prix élève */
+  /** chevaliers × prix chevalier */
   total: number;
-  /** élèves × part école */
+  /** chevaliers × part club */
   schoolTotal: number;
-  /** élèves × part enseignant — what the fiche de paie pays */
+  /** chevaliers × part entraîneur — what the fiche de paie pays */
   teacherTotal: number;
 }
 
@@ -2065,21 +2090,21 @@ export function groupSeanceTotals(seance: {
 }
 
 /**
- * CE QU'UNE SÉANCE LIBRE D'UN PASSAGER PARTAGE — l'école et l'enseignant.
+ * CE QU'UNE SÉANCE LIBRE D'UN PASSAGER PARTAGE — le club et l'entraîneur.
  *
  * La réception tape deux nombres : le prix TOTAL que le passager verse, et la
- * part que l'école garde. Le reste appartient à l'enseignant, et c'est cette
- * part-là que la paie du mois lui règle, séance par séance.
+ * part que le club garde. Le reste appartient à l'entraîneur, et c'est cette
+ * part-là que la paie de la carte lui règle, séance par séance.
  *
- * Une séance enregistrée AVANT ce découpage n'a pas de part d'école écrite :
- * l'école gardait alors tout, donc la part de l'enseignant vaut zéro et aucun
+ * Une séance enregistrée AVANT ce découpage n'a pas de part de club écrite :
+ * le club gardait alors tout, donc la part de l'entraîneur vaut zéro et aucun
  * ancien total ne change de valeur derrière le dos de personne.
  */
 export interface IndependentTotals {
   price: number;
   school: number;
   teacher: number;
-  /** la part de l'école n'a jamais été saisie (séance d'avant le découpage) */
+  /** la part du club n'a jamais été saisie (séance d'avant le découpage) */
   unsplit: boolean;
 }
 
@@ -2105,14 +2130,14 @@ export function passagersOn(
     .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 }
 
-/** The séances libres de groupe of one teacher, most recent first. */
+/** The sorties libres de groupe of one teacher, most recent first. */
 export function teacherGroupSeances(db: Database, teacherId: string): GroupSeance[] {
   return db.groupSeances
     .filter((g) => g.teacherId === teacherId)
     .sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`));
 }
 
-/** What the séances libres de groupe have paid a teacher in total. */
+/** What the sorties libres de groupe have paid a teacher in total. */
 export function teacherGroupSeanceTotal(db: Database, teacherId: string): number {
   return teacherGroupSeances(db, teacherId).reduce(
     (s, g) => s + groupSeanceTotals(g).teacherTotal,
@@ -2120,23 +2145,23 @@ export function teacherGroupSeanceTotal(db: Database, teacherId: string): number
   );
 }
 
-/** Readable hours of a séance libre de groupe. */
+/** Readable hours of a sortie libre de groupe. */
 export function groupSeanceTimeLabel(g: GroupSeance): string {
   return `${g.startTime || "--:--"} → ${g.endTime || "--:--"}`;
 }
 
 // ---------------------------------------------------------------------------
-// Où en est un élève de ses inscriptions — classe, année, emploi du temps
+// Où en est un chevalier de ses inscriptions — catégorie, année, emploi du temps
 // ---------------------------------------------------------------------------
 
 /**
- * UNE INSCRIPTION D'ÉLÈVE, LUE EN TOUTES LETTRES.
+ * UNE INSCRIPTION D'CHEVALIER, LUE EN TOUTES LETTRES.
  *
- * Avant de changer un élève de créneau, la réception a besoin de voir où il en
- * est : dans QUELLE classe, sur QUELLE année, et sur QUEL emploi du temps. La
+ * Avant de changer un chevalier de créneau, la réception a besoin de voir où il en
+ * est : dans QUELLE catégorie, sur QUELLE année, et sur QUEL emploi du temps. La
  * question paraît triviale, mais l'information était éclatée entre trois tables
- * — la classe porte le niveau et l'année, l'emploi porte le module, le groupe,
- * la salle et l'enseignant, l'abonnement porte le prix.
+ * — la catégorie porte le niveau et l'année, l'emploi porte le module, le groupe,
+ * l'arène et l'entraîneur, l'abonnement porte le prix.
  *
  * Cette ligne les réunit, une fois, pour tous les écrans qui inscrivent.
  */
@@ -2148,14 +2173,14 @@ export interface StudentInscriptionRow {
   className: string;
   /** « Primaire », « Formation » … */
   levelLabel: string;
-  /** l'année ou la section de la classe ("4AP", "Grande section", …) */
+  /** l'année ou la section de la catégorie ("4AP", "Grande section", …) */
   year: string;
   groupName: string;
   salleName: string;
   teacherName: string;
   daysLabel: string;
   timeLabel: string;
-  /** prix d'une séance pour CET élève (son cas et sa remise appliqués) */
+  /** prix d'une séance pour CET chevalier (son cas et sa remise appliqués) */
   unitPrice: number;
   /** son solde sur cet emploi du temps — négatif = ce qu'il doit */
   balance: number;
@@ -2170,7 +2195,7 @@ export interface StudentInscriptionRow {
 }
 
 /**
- * Les inscriptions d'un élève, celles d'aujourd'hui d'abord.
+ * Les inscriptions d'un chevalier, celles d'aujourd'hui d'abord.
  *
  * `includePast` ajoute les emplois qu'il a QUITTÉS : sa fiche les garde, datés
  * de la sortie, et un écran qui l'inscrit ailleurs gagne à les montrer — c'est
@@ -2231,15 +2256,15 @@ export function studentInscriptionRows(
 }
 
 // ---------------------------------------------------------------------------
-// Scolarités d'enfants portées sur le salaire de leur père
+// Cotisations d'enfants portées sur le salaire de leur père
 // ---------------------------------------------------------------------------
 
-/** Ce qui attend d'être retenu sur le prochain règlement d'un enseignant. */
+/** Ce qui attend d'être retenu sur le prochain règlement d'un entraîneur. */
 export function teacherChildDebtsOf(db: Database, teacherId: string) {
   return db.teacherChildDebts.filter((d) => d.teacherId === teacherId && !d.paid);
 }
 
-/** Son total — ce que sa prochaine paie va lui coûter en scolarités. */
+/** Son total — ce que sa prochaine paie va lui coûter en cotisations. */
 export function teacherChildDebtTotal(db: Database, teacherId: string): number {
   return teacherChildDebtsOf(db, teacherId).reduce((s, d) => s + d.amount, 0);
 }

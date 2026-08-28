@@ -34,7 +34,7 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("dépenses de l'enseignant", () => {
+describe("dépenses de l'entraîneur", () => {
   it("une dépense enregistrée attend le prochain règlement", () => {
     const before = unpaidExpenses().length;
     useData.getState().push("teacherExpenses", {
@@ -120,7 +120,7 @@ describe("dépenses de l'enseignant", () => {
   });
 });
 
-describe("les enfants de l'enseignant, scolarisés sur son salaire", () => {
+describe("les enfants de l'entraîneur, scolarisés sur son salaire", () => {
   /**
    * Puts stu-2 in the red on sub-4 the way the app does it: he attends séances
    * his solde does not cover. Nothing is hand-written on the enrollment, so the

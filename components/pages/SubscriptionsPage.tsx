@@ -29,24 +29,7 @@ import { Input } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  Trash2,
-  Edit,
-  Eye,
-  Plus,
-  MoreVertical,
-  Ticket,
-  Search,
-  Wallet,
-  Check,
-  Users,
-  Clock,
-  AlertTriangle,
-  CalendarRange,
-  CalendarClock,
-  Gift,
-  Power,
-} from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarRange, Check, Clock, Edit, Eye, Gift, MoreVertical, Plus, Power, Search, Ticket, Trash2, Users, Wallet } from "lucide-react";
 import type {
   FreePeriod,
   FreePeriodStat,
@@ -79,7 +62,7 @@ export function SubscriptionsPage() {
   /**
    * L'écran des tarifs ne parle que des emplois du temps VIVANTS. Un emploi
    * supprimé est archivé avec son tarif : la ligne survit pour que les soldes et
-   * les paiements des élèves gardent un nom dans les historiques, mais elle n'a
+   * les paiements des chevaliers gardent un nom dans les historiques, mais elle n'a
    * plus rien à faire dans un catalogue de prix qu'on vient éditer.
    */
   const sessions = useMemo(() => allSessions.filter((s) => !s.archivedAt), [allSessions]);
@@ -118,8 +101,8 @@ export function SubscriptionsPage() {
   /**
    * LA RÉPARTITION SE FAIT AU CENTIME, PAS AU DINAR.
    *
-   * La part de l'enseignant est toujours le reste du prix du mois, et sa paie
-   * par séance ce reste divisé par les séances du mois. Cette division tombe
+   * La part de l'entraîneur est toujours le reste du prix de la carte, et sa paie
+   * par séance ce reste divisé par les séances de la carte. Cette division tombe
    * rarement juste — 1 000 DA sur 3 séances font 333,33 DA — et l'arrondir à
    * l'entier faisait dériver sa paie de quelques dinars à chaque présence.
    */
@@ -141,10 +124,10 @@ export function SubscriptionsPage() {
   /**
    * QUI DOIT LES FRAIS D'INSCRIPTION.
    *
-   * Tout le monde ne les paie pas forcément : l'école peut ne les réclamer
-   * qu'aux classes du secondaire, à trois classes précises, ou seulement aux
-   * élèves inscrits sur certains emplois du temps. Le périmètre choisi ici est
-   * exactement celui que l'écran « Nouvel élève » interroge avant de réclamer
+   * Tout le monde ne les paie pas forcément : le club peut ne les réclamer
+   * qu'aux catégories du secondaire, à trois catégories précises, ou seulement aux
+   * chevaliers inscrits sur certains emplois du temps. Le périmètre choisi ici est
+   * exactement celui que l'écran « Nouvel chevalier » interroge avant de réclamer
    * quoi que ce soit à la famille.
    */
   const [feeScope, setFeeScope] = useState<RegistrationFeeScope>(
@@ -352,15 +335,15 @@ export function SubscriptionsPage() {
       return false;
     }
     if (isFormation && (levelPrice <= 0 || periodMonths <= 0)) {
-      alert("Veuillez saisir le prix du niveau et la durée (en mois) de la formation.");
+      alert("Veuillez saisir le prix du niveau et la durée (en carte) de la formation.");
       return false;
     }
     if (monthlyEnabled && monthlySeances <= 0) {
-      alert("Veuillez saisir le nombre de séances comprises dans le mois.");
+      alert("Veuillez saisir le nombre de séances comprises dans la carte.");
       return false;
     }
     if (monthlyEnabled && monthlyPrice <= 0) {
-      alert("Veuillez saisir le prix du mois.");
+      alert("Veuillez saisir le prix de la carte.");
       return false;
     }
 
@@ -486,7 +469,7 @@ export function SubscriptionsPage() {
   };
 
   /**
-   * "Abonnement mensuel": the second way a cours can be sold. The school says
+   * "Abonnement par carte": the second way a cours can be sold. The school says
    * how many séances a month holds and what that month costs — the total of its
    * séances is proposed, never imposed. At the inscription, reception picks the
    * formula and the month expires one month after its start date.
@@ -510,7 +493,7 @@ export function SubscriptionsPage() {
         <span>
           <strong className="flex items-center gap-1.5 text-ink">
             <CalendarClock className="h-3.5 w-3.5 text-primary" />
-            Proposer aussi un abonnement mensuel
+            Proposer aussi un abonnement par carte
           </strong>
           <span className="mt-0.5 block text-muted">
             Un mois = un nombre de séances fixe, à un prix fixe. Il expire un mois après sa date de
@@ -568,7 +551,7 @@ export function SubscriptionsPage() {
               séance are always derived from it. */}
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">
-              Part de l&apos;école sur le mois (DA) *
+              Part de l&apos;club sur le mois (DA) *
             </label>
             <Input
               type="number"
@@ -595,11 +578,11 @@ export function SubscriptionsPage() {
               <strong className="text-ink">{formatDA(monthComputedTotal)}</strong>
             </div>
             <div className="flex justify-between border-t border-line pt-1">
-              <span className="font-semibold text-muted">Prix du mois facturé :</span>
+              <span className="font-semibold text-muted">Prix de la carte facturé :</span>
               <strong className="text-sm text-primary">{formatDA(monthlyPrice || 0)}</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted">Prix d&apos;une séance du mois :</span>
+              <span className="text-muted">Prix d&apos;une séance de la carte :</span>
               <strong className="text-ink">
                 {formatDA(seancePriceCalc)}
                 <span className="ml-1 font-normal text-[10px] text-muted">
@@ -608,7 +591,7 @@ export function SubscriptionsPage() {
               </strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted">Part de l&apos;école :</span>
+              <span className="text-muted">Part de l&apos;club :</span>
               <strong className="text-ink">
                 {formatDA(schoolMonthShare || 0)}
                 <span className="ml-1 font-normal text-[10px] text-muted">
@@ -617,7 +600,7 @@ export function SubscriptionsPage() {
               </strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted">Part de l&apos;enseignant :</span>
+              <span className="text-muted">Part de l&apos;entraîneur :</span>
               <strong className="text-success">{formatDA(teacherMonthShare)}</strong>
             </div>
             <div className="flex justify-between border-t border-line pt-1">
@@ -637,7 +620,7 @@ export function SubscriptionsPage() {
             {monthSaving !== 0 && monthlySeances > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted">
-                  {monthSaving > 0 ? "Économie pour l'élève :" : "Supplément mensuel :"}
+                  {monthSaving > 0 ? "Économie pour le chevalier :" : "Supplément par carte :"}
                 </span>
                 <strong className={monthSaving > 0 ? "text-success" : "text-warning"}>
                   {monthSaving > 0 ? "−" : "+"}
@@ -647,7 +630,7 @@ export function SubscriptionsPage() {
             )}
           </div>
 
-          {/* Which enseignant this split actually pays, and how his fiche is
+          {/* Which entraîneur this split actually pays, and how his fiche is
               set up — the two screens have to agree for the money to move. */}
           {(() => {
             const sess = sessions.find((x) => x.id === selectedSessionId);
@@ -673,7 +656,7 @@ export function SubscriptionsPage() {
                     est rémunéré{" "}
                     <strong className="text-warning">
                       {teacher.paymentType === "monthly"
-                        ? "au fixe mensuel"
+                        ? "au fixe par carte"
                         : `au pourcentage (${teacher.percentage ?? 0}%)`}
                     </strong>{" "}
                     sur sa fiche. Le tarif défini ici reste prioritaire sur cet emploi du temps —
@@ -739,11 +722,11 @@ export function SubscriptionsPage() {
       {/* -----------------------------------------------------------------
           LES FRAIS D'INSCRIPTION — leur montant, ET QUI LES DOIT.
 
-          Tout le monde ne les paie pas forcément. L'école choisit ici son
-          périmètre : tous les élèves, tout un NIVEAU (« tout le secondaire »),
-          certaines CLASSES, ou seulement les élèves inscrits sur certains
+          Tout le monde ne les paie pas forcément. Le club choisit ici son
+          périmètre : tous les chevaliers, tout un NIVEAU (« tout le secondaire »),
+          certaines CATÉGORIES, ou seulement les chevaliers inscrits sur certains
           EMPLOIS DU TEMPS — qui se cherchent par leur nom. L'écran « Nouvel
-          élève » interroge exactement ce périmètre : un enfant qui ne coche que
+          chevalier » interroge exactement ce périmètre : un enfant qui ne coche que
           des emplois hors périmètre ne se voit rien réclamer.
           ----------------------------------------------------------------- */}
       <Card className="mb-6">
@@ -756,7 +739,7 @@ export function SubscriptionsPage() {
               <div>
                 <h3 className="text-sm font-bold text-ink">Frais d&apos;inscription uniques</h3>
                 <p className="mt-0.5 text-xs text-muted">
-                  Payés une seule fois par élève, à sa première inscription. Choisissez le montant
+                  Payés une seule fois par chevalier, à sa première inscription. Choisissez le montant
                   puis <strong className="text-ink">qui doit les régler</strong>.
                 </p>
               </div>
@@ -806,9 +789,9 @@ export function SubscriptionsPage() {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {(
                 [
-                  { value: "all", label: "Tous les élèves", hint: "Aucune exception" },
+                  { value: "all", label: "Tous les chevaliers", hint: "Aucune exception" },
                   { value: "levels", label: "Par niveau", hint: "Ex: tout le secondaire" },
-                  { value: "classes", label: "Par classe", hint: "Classes choisies" },
+                  { value: "classes", label: "Par catégorie", hint: "Catégories choisies" },
                   { value: "sessions", label: "Par emploi du temps", hint: "Créneaux choisis" },
                 ] as { value: RegistrationFeeScope; label: string; hint: string }[]
               ).map((opt) => (
@@ -902,7 +885,7 @@ export function SubscriptionsPage() {
                   <Input
                     value={feeSessionSearch}
                     onChange={(e) => setFeeSessionSearch(e.target.value)}
-                    placeholder="Rechercher un emploi du temps (module, classe, groupe, enseignant…)"
+                    placeholder="Rechercher un emploi du temps (module, catégorie, groupe, entraîneur…)"
                     className="pl-9"
                   />
                 </div>
@@ -955,7 +938,7 @@ export function SubscriptionsPage() {
             )}
 
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
-              À la création d&apos;un élève, l&apos;écran ne réclame les frais que si l&apos;un des
+              À la création d&apos;un chevalier, l&apos;écran ne réclame les frais que si l&apos;un des
               emplois du temps cochés entre dans ce périmètre. Il propose alors de les encaisser
               tout de suite <strong className="text-ink">ou de créer la fiche avec la dette</strong>,
               qui reste visible jusqu&apos;à son règlement.
@@ -997,7 +980,7 @@ export function SubscriptionsPage() {
                           )}
                           {hasMonthlyPlan(sub) && (
                             <Badge tone="warning" className="text-[9px] px-1.5 py-0">
-                              Mensuel
+                              Par carte
                             </Badge>
                           )}
                         </div>
@@ -1056,7 +1039,7 @@ export function SubscriptionsPage() {
 
                   <div className="mt-4 space-y-1 text-xs">
                     <div className="flex justify-between text-muted">
-                      <span>Enseignant:</span>
+                      <span>Entraîneur:</span>
                       <strong className="text-ink">
                         {details.teacher}
                         {details.teacherIsPassager && (
@@ -1071,7 +1054,7 @@ export function SubscriptionsPage() {
                           <strong className="text-ink truncate max-w-[60%] text-right">{details.groupsLabel}</strong>
                         </div>
                         <div className="flex justify-between text-muted">
-                          <span>Salles:</span>
+                          <span>Arènes:</span>
                           <strong className="text-ink truncate max-w-[60%] text-right">{details.sallesLabel}</strong>
                         </div>
                       </>
@@ -1094,7 +1077,7 @@ export function SubscriptionsPage() {
                           <strong className="text-ink">{sub.monthlySeances}</strong>
                         </div>
                         <div className="flex justify-between text-muted">
-                          <span>Prix du mois:</span>
+                          <span>Prix de la carte:</span>
                           <strong className="text-primary">
                             {formatDA(monthlyPriceOf(sub))}
                             {monthlySeancesValue(sub) > monthlyPriceOf(sub) && (
@@ -1105,7 +1088,7 @@ export function SubscriptionsPage() {
                           </strong>
                         </div>
                         <div className="flex justify-between text-muted">
-                          <span>École / Enseignant:</span>
+                          <span>Club / Enseignant:</span>
                           <strong className="text-ink">
                             {schoolMonthShareOf(sub)} / <span className="text-success">{teacherMonthShareOf(sub)}</span> DA
                           </strong>
@@ -1168,9 +1151,9 @@ export function SubscriptionsPage() {
   return (
     <div>
       <PageHeader
-        emoji="🎫"
+        icon={Ticket}
         title="Abonnements"
-        subtitle="Un tarif par cours (à la séance et/ou au mois), appliqué à tous ses groupes — et les périodes offertes"
+        subtitle="Un tarif par cours (à la séance et/ou à la carte), appliqué à tous ses groupes — et les périodes offertes"
       />
 
       <Tabs
@@ -1190,7 +1173,7 @@ export function SubscriptionsPage() {
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filtrer par module, classe, niveau, enseignant ou groupe..."
+                placeholder="Filtrer par module, catégorie, niveau, entraîneur ou groupe..."
                 className="pl-9"
               />
             </div>
@@ -1271,7 +1254,7 @@ export function SubscriptionsPage() {
             />
             <p className="mt-1 text-[11px] text-muted">
               C&apos;est ce prix qui est multiplié par le nombre de séances lors du paiement de
-              l&apos;étudiant, et qui sert de base à la part de l&apos;enseignant.
+              l&apos;chevalier, et qui sert de base à la part de l&apos;enseignant.
             </p>
           </div>
 
@@ -1303,7 +1286,7 @@ export function SubscriptionsPage() {
               </div>
               <div className="bg-primary-50/50 border border-line rounded-xl p-3 text-xs text-muted">
                 🎓 <strong className="text-ink">Formation :</strong> prix indicatif du niveau complet, valable pendant la
-                durée indiquée. Lors de l&apos;inscription d&apos;un étudiant, vous choisirez sa date de début et la date
+                durée indiquée. Lors de l&apos;inscription d&apos;un chevalier, vous choisirez sa date de début et la date
                 d&apos;expiration sera calculée automatiquement.
               </div>
             </>
@@ -1317,7 +1300,7 @@ export function SubscriptionsPage() {
 
           <div className="bg-canvas/40 border border-line rounded-xl p-3 text-xs text-muted">
             🎫 Les <strong className="text-ink">frais d&apos;inscription uniques</strong> sont définis globalement en haut de cette page
-            et s&apos;appliquent une seule fois par étudiant.
+            et s&apos;appliquent une seule fois par chevalier.
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
@@ -1409,11 +1392,11 @@ export function SubscriptionsPage() {
                 <span className="font-bold text-ink">{getSessionDetails(selectedSub.sessionId)?.module}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase">Classe</span>
+                <span className="text-[10px] text-muted block uppercase">Catégorie</span>
                 <span className="font-semibold text-ink">{getSessionDetails(selectedSub.sessionId)?.class}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase">Enseignant</span>
+                <span className="text-[10px] text-muted block uppercase">Entraîneur</span>
                 <span className="font-semibold text-ink">{getSessionDetails(selectedSub.sessionId)?.teacher}</span>
               </div>
               <div>
@@ -1433,13 +1416,13 @@ export function SubscriptionsPage() {
                   {hasMonthlyPlan(selectedSub) && (
                     <>
                       <div className="flex justify-between items-center text-sm border-b border-line pb-2">
-                        <span className="text-muted">Abonnement mensuel:</span>
+                        <span className="text-muted">Abonnement par carte:</span>
                         <strong className="text-ink font-bold">
                           {selectedSub.monthlySeances} séances / mois
                         </strong>
                       </div>
                       <div className="flex justify-between items-center text-sm border-b border-line pb-2">
-                        <span className="text-muted">Prix du mois:</span>
+                        <span className="text-muted">Prix de la carte:</span>
                         <strong className="text-primary font-bold">
                           {formatDA(monthlyPriceOf(selectedSub))}
                           <span className="ms-1 text-[10px] font-normal text-muted">
@@ -1645,7 +1628,7 @@ function FreePeriodsPanel() {
       return;
     }
     if (selectedClassIds.length === 0) {
-      setError("Sélectionnez au moins une classe.");
+      setError("Sélectionnez au moins une catégorie.");
       return;
     }
 
@@ -1684,7 +1667,7 @@ function FreePeriodsPanel() {
     const stat = statOf(fp.id);
     const warning =
       stat.presences > 0
-        ? `\n\nATTENTION : ${stat.presences} présence(s) déjà offertes par cette période perdront leur rattachement (les élèves ne seront PAS débités, mais le récapitulatif de ${formatDA(stat.waived)} disparaîtra). Pour la stopper sans perdre l'historique, utilisez plutôt « Désactiver ».`
+        ? `\n\nATTENTION : ${stat.presences} présence(s) déjà offertes par cette période perdront leur rattachement (les chevaliers ne seront PAS débités, mais le récapitulatif de ${formatDA(stat.waived)} disparaîtra). Pour la stopper sans perdre l'historique, utilisez plutôt « Désactiver ».`
         : "";
     if (confirm(`Supprimer la période gratuite « ${fp.name} » ?${warning}`)) {
       deleteFrom("freePeriods", fp.id);
@@ -1703,10 +1686,10 @@ function FreePeriodsPanel() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-xl text-xs text-muted">
-          Pendant une période gratuite, l&apos;élève badge normalement et sa{" "}
+          Pendant une période gratuite, l&apos;chevalier badge normalement et sa{" "}
           <strong className="text-ink">présence est enregistrée</strong>, mais{" "}
           <strong className="text-ink">aucune séance n&apos;est décomptée</strong>. Le prix non
-          facturé est mémorisé : c&apos;est le coût réel de la période pour l&apos;école.
+          facturé est mémorisé : c&apos;est le coût réel de la période pour l&apos;club.
         </p>
         <Button onClick={openCreate} className="flex items-center gap-2">
           <Plus className="h-4 w-4" /> Nouvelle période gratuite
@@ -1761,7 +1744,7 @@ function FreePeriodsPanel() {
       {/* History — one card per period */}
       {sorted.length === 0 ? (
         <EmptyState
-          emoji="🎁"
+          icon={Gift}
           message="Aucune période gratuite. Créez-en une pour offrir les séances sur une plage de dates."
         />
       ) : (
@@ -1848,10 +1831,10 @@ function FreePeriodsPanel() {
 
                     <div className="mt-3 space-y-1 text-xs">
                       <div className="flex justify-between text-muted">
-                        <span>Classes:</span>
+                        <span>Catégories:</span>
                         <strong className="max-w-[60%] truncate text-right text-ink">
                           {fp.allClasses
-                            ? "Toutes les classes"
+                            ? "Toutes les catégories"
                             : `${covered.length} classe${covered.length > 1 ? "s" : ""}`}
                         </strong>
                       </div>
@@ -1860,11 +1843,11 @@ function FreePeriodsPanel() {
                         <strong className="text-ink">{stat.presences}</strong>
                       </div>
                       <div className="flex justify-between text-muted">
-                        <span>Élèves concernés:</span>
+                        <span>Chevaliers concernés:</span>
                         <strong className="text-ink">{stat.students}</strong>
                       </div>
                       <div className="flex justify-between text-muted">
-                        <span>Enseignants payés:</span>
+                        <span>Entraîneurs payés:</span>
                         <strong className="text-ink">{fp.payTeachers ? "Oui" : "Non"}</strong>
                       </div>
                     </div>
@@ -1922,7 +1905,7 @@ function FreePeriodsPanel() {
             </div>
           </div>
 
-          {/* Classes — all selected by default, the user unchecks what stays payant */}
+          {/* Catégories — all selected by default, the user unchecks what stays payant */}
           <div className="rounded-xl border border-line p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-muted">
@@ -1978,8 +1961,8 @@ function FreePeriodsPanel() {
 
             <p className="mt-2 text-[11px] text-muted">
               {classes.length > 0 && selectedClassIds.length === classes.length
-                ? "✅ Toutes les classes sont couvertes — une classe créée plus tard le sera aussi."
-                : "Seules les classes cochées bénéficient de la gratuité ; les autres restent facturées normalement."}
+                ? "✅ Toutes les catégories sont couvertes — une catégorie créée plus tard le sera aussi."
+                : "Seules les catégories cochées bénéficient de la gratuité ; les autres restent facturées normalement."}
             </p>
           </div>
 
@@ -1991,10 +1974,10 @@ function FreePeriodsPanel() {
               className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
             />
             <span>
-              <strong className="text-ink">Rémunérer les enseignants normalement</strong>
+              <strong className="text-ink">Rémunérer les entraîneurs normalement</strong>
               <span className="mt-0.5 block text-muted">
                 Les enseignants payés au pourcentage touchent leur part sur le prix habituel de la
-                séance, même si l&apos;élève n&apos;a rien payé. Décochez pour que la séance offerte
+                séance, même si l&apos;chevalier n&apos;a rien payé. Décochez pour que la séance offerte
                 ne génère aucune part enseignant.
               </span>
             </span>
@@ -2107,11 +2090,11 @@ function FreePeriodsPanel() {
                     <strong className="text-ink">{statOf(viewing.id).presences}</strong>
                   </div>
                   <div className="flex items-center justify-between border-b border-line pb-2 text-sm">
-                    <span className="text-muted">Élèves concernés:</span>
+                    <span className="text-muted">Chevaliers concernés:</span>
                     <strong className="text-ink">{statOf(viewing.id).students}</strong>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-muted">Coût pour l&apos;école:</span>
+                    <span className="font-semibold text-muted">Coût pour l&apos;club:</span>
                     <strong className="text-lg font-extrabold text-warning">
                       {formatDA(statOf(viewing.id).waived)}
                     </strong>
@@ -2131,7 +2114,7 @@ function FreePeriodsPanel() {
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-canvas/80 backdrop-blur">
                       <tr className="text-left text-[10px] uppercase text-muted">
-                        <th className="px-3 py-2">Élève</th>
+                        <th className="px-3 py-2">Chevalier</th>
                         <th className="px-3 py-2">Séance</th>
                         <th className="px-3 py-2">Date</th>
                         <th className="px-3 py-2 text-right">Offert</th>

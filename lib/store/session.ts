@@ -11,7 +11,7 @@
  * DEUX FAÇONS D'ÊTRE IDENTIFIÉ, et il faut les deux :
  *
  *   `id`       — l'identifiant du COMPTE (`auth.users.id`).
- *   `entityId` — l'identifiant de la FICHE (élève, enseignant, parent,
+ *   `entityId` — l'identifiant de la FICHE (chevalier, entraîneur, parent,
  *                travailleur), sous laquelle vivent ses données.
  *
  * Ils sont égaux pour un compte créé en même temps que sa fiche. Ils DIFFÈRENT

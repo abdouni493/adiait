@@ -14,12 +14,12 @@
  * ce que la page de connexion affiche.
  *
  * LA CLÉ DE SERVICE (`service_role`), elle, n'apparaît NULLE PART dans ce dépôt
- * et ne doit jamais rejoindre un navigateur. Créer le compte d'un enseignant ou
+ * et ne doit jamais rejoindre un navigateur. Créer le compte d'un entraîneur ou
  * d'un travailleur passe par les fonctions `security definer` du schéma, qui
  * vérifient elles-mêmes qui appelle.
  *
  * Les variables d'environnement l'emportent quand elles sont posées (un autre
- * projet, une préproduction) ; sinon on retombe sur le projet de l'école, pour
+ * projet, une préproduction) ; sinon on retombe sur le projet du club, pour
  * qu'un dépôt fraîchement cloné démarre sans configuration.
  */
 
@@ -35,7 +35,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * que quoi que ce soit s'affiche.
  *
  * Une adresse vide n'est pas une adresse. On la traite donc comme une absence,
- * et le projet de l'école reprend la main.
+ * et le projet du club reprend la main.
  */
 function envOr(name: string, value: string | undefined, fallback: string): string {
   const clean = typeof value === "string" ? value.trim() : "";
@@ -49,7 +49,7 @@ function envOr(name: string, value: string | undefined, fallback: string): strin
   return fallback;
 }
 
-/** Le projet de l'école, utilisé quand rien n'est posé dans l'environnement. */
+/** Le projet du club, utilisé quand rien n'est posé dans l'environnement. */
 const DEFAULT_URL = "https://nbhfpumaqirvhridhygr.supabase.co";
 const DEFAULT_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaGZwdW1hcWlydmhyaWRoeWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NjgyMjQsImV4cCI6MjEwMzQ0NDIyNH0.Ph5Fhegn16rpiGdsXxznXch0cZfIb-JR_sjJk5FUcEY";
@@ -68,7 +68,7 @@ export const SUPABASE_ANON_KEY = envOr(
 
 /**
  * Une adresse mal formée ne doit pas non plus casser l'application : elle est
- * signalée une fois, et le projet de l'école reprend la main. Sans cela, une
+ * signalée une fois, et le projet du club reprend la main. Sans cela, une
  * faute de frappe dans une variable d'environnement rendrait la même page morte
  * que celle qu'on vient de réparer.
  */

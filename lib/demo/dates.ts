@@ -8,8 +8,8 @@
  * séances vivantes, quel que soit le jour où la démonstration est ouverte.
  *
  * Le hasard, lui, ne bouge pas : `rng()` tire ses nombres d'une graine de texte
- * (identifiant de l'élève + date), jamais de `Math.random()`. Deux visiteurs
- * voient la même école et un rechargement ne rejoue pas le mois.
+ * (identifiant du chevalier + date), jamais de `Math.random()`. Deux visiteurs
+ * voient la même club et un rechargement ne rejoue pas la carte.
  */
 
 import type { Day } from "@/lib/types";
@@ -74,7 +74,7 @@ export function pastOccurrences(days: Day[], since: number, until = 0): string[]
   return out;
 }
 
-/** Le mois calendaire d'une date, sous la forme « 08/2026 » des periodes de paie. */
+/** La carte calendaire d'une date, sous la forme « 08/2026 » des periodes de paie. */
 export function monthKeyOf(dateIso: string): string {
   const [y, m] = dateIso.split("-");
   return `${m}/${y}`;

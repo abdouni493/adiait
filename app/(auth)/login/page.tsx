@@ -39,7 +39,7 @@ export default function LoginPage() {
   /**
    * LE PREMIER ADMINISTRATEUR.
    *
-   * Une école qui vient d'être installée n'a AUCUN compte : personne ne peut se
+   * Un club qui vient d'être installée n'a AUCUN compte : personne ne peut se
    * connecter, donc personne ne peut créer le premier administrateur. Ce
    * formulaire est la seule porte d'entrée de ce cas-là.
    *
@@ -236,7 +236,7 @@ export default function LoginPage() {
           base elle-même refuse un second amorçage.
         */}
         {state === null && (
-          <p className="mt-6 text-center text-xs text-muted">Vérification de l&apos;école…</p>
+          <p className="mt-6 text-center text-xs text-muted">Vérification de l&apos;club…</p>
         )}
 
         {needsAdmin && (
@@ -246,13 +246,13 @@ export default function LoginPage() {
                 <p className="text-center text-xs leading-relaxed text-muted">
                   {state === "unreachable" ? (
                     <>
-                      Impossible de vérifier si cette école a déjà un compte
+                      Impossible de vérifier si ce club a déjà un compte
                       d&apos;administration ({lastSchemaError()}). Vous pouvez essayer de le
                       créer&nbsp;: s&apos;il en existe déjà un, la base le dira.
                     </>
                   ) : (
                     <>
-                      Cette école n&apos;a encore aucun compte. Créez celui de
+                      Ce club n&apos;a encore aucun compte. Créez celui de
                       l&apos;administration pour commencer — il n&apos;est proposé qu&apos;une
                       fois.
                     </>
@@ -343,7 +343,7 @@ export default function LoginPage() {
         */}
         {state === "not-installed" && (
           <p className="mt-6 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-center text-xs font-medium leading-relaxed text-warning">
-            La base de cette école n&apos;est pas encore installée. Exécutez{" "}
+            La base de ce club n&apos;est pas encore installée. Exécutez{" "}
             <code className="font-bold">supabase/schema.sql</code> dans le SQL Editor de votre
             projet Supabase, puis rechargez cette page.
           </p>
@@ -352,7 +352,7 @@ export default function LoginPage() {
         {created && (
           <p className="mt-6 rounded-2xl border border-success/30 bg-success/10 p-3 text-center text-xs font-medium leading-relaxed text-success">
             Le compte administrateur est créé. Ses identifiants sont déjà
-            saisis&nbsp;: connectez-vous pour ouvrir l&apos;école.
+            saisis&nbsp;: connectez-vous pour ouvrir l&apos;club.
           </p>
         )}
       </motion.div>

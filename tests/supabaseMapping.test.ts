@@ -1,7 +1,7 @@
 /**
  * LE PONT ENTRE L'APPLICATION ET LA BASE.
  *
- * Une école entière est fabriquée en mémoire (`lib/demo/seed.ts` — il sert
+ * Un club entier est fabriquée en mémoire (`lib/demo/seed.ts` — il sert
  * désormais de jeu d'essai), puis on vérifie que CHAQUE champ de CHAQUE ligne
  * qu'elle contient a bien une colonne pour l'accueillir.
  *
@@ -120,7 +120,7 @@ describe("ce qui part, et ce qui revient", () => {
 describe("la comparaison qui décide d'envoyer, ou de ne rien faire", () => {
   it("ignore l'ordre des propriétés", () => {
     // Un objet reconstruit par étalement ressort dans un autre ordre sans avoir
-    // changé. Le prendre pour une modification ferait repartir toute l'école à
+    // changé. Le prendre pour une modification ferait repartir toute le club à
     // chaque pointage.
     expect(sameRow({ id: "a", name: "x" }, { name: "x", id: "a" })).toBe(true);
     expect(sameRow({ id: "a", meta: { b: 1, a: 2 } }, { id: "a", meta: { a: 2, b: 1 } })).toBe(true);

@@ -64,7 +64,7 @@ export function buildSeed(): Database {
 /**
  * Brings the hand-written demo data in line with the current model, so the seed
  * itself stays readable:
- *  - every élève gets his sequential registration number (00001, 00002 …),
+ *  - every chevalier gets his sequential registration number (00001, 00002 …),
  *  - every emploi du temps gets a monthly pack (it is what opens and closes the
  *    M1 / M2 months of its students),
  *  - every inscription gets its money SOLDE, derived from the séances it was
@@ -151,7 +151,7 @@ function rawSeed(): Database {
     school: {
       id: "sch-1",
       name: "ALTECH SCHOOL",
-      description: "École privée — cours de soutien et formations",
+      description: "Club privée — cours de soutien et formations",
       phone: "0550 12 34 56",
       email: "contact@altech-school.dz",
       address: "12 Rue des Frères Bouadou, Alger",
@@ -188,9 +188,9 @@ function rawSeed(): Database {
     ],
 
     salles: [
-      { id: "sal-1", name: "Salle 1" },
-      { id: "sal-2", name: "Salle 2" },
-      { id: "sal-3", name: "Salle 3" },
+      { id: "sal-1", name: "Arène 1" },
+      { id: "sal-2", name: "Arène 2" },
+      { id: "sal-3", name: "Arène 3" },
     ],
 
     classes: [
@@ -443,7 +443,7 @@ function rawSeed(): Database {
         pricePerSession: 600,
         monthlySeances: 8,
         monthlyPrice: 4200, // au lieu de 4800 à l'unité
-        schoolMonthShare: 2200, // école 2200, enseignant 2000
+        schoolMonthShare: 2200, // club 2200, entraîneur 2000
         teacherPerSeance: 250, // 2000 ÷ 8
       },
       { id: "sub-2", sessionId: "ses-2", pricePerSession: 600 },
@@ -454,7 +454,7 @@ function rawSeed(): Database {
         pricePerSession: 500,
         monthlySeances: 8,
         monthlyPrice: 3600, // au lieu de 4000 à l'unité
-        schoolMonthShare: 1600, // école 1600, enseignant 2000
+        schoolMonthShare: 1600, // club 1600, entraîneur 2000
         teacherPerSeance: 250, // 2000 ÷ 8
       },
       {
@@ -471,7 +471,7 @@ function rawSeed(): Database {
       {
         id: "frp-1",
         name: "Semaine portes ouvertes",
-        description: "Séances offertes à toutes les classes pendant la rentrée",
+        description: "Séances offertes à toutes les catégories pendant la rentrée",
         startDate: shiftDays(-40),
         endDate: shiftDays(-34),
         allClasses: true,
@@ -551,7 +551,7 @@ function rawSeed(): Database {
         parentId: "par-2",
         subscriptionIds: ["sub-1", "sub-5"],
         subscriptionDates: {
-          // Abonnement mensuel en cours : renouvelé il y a 6 jours.
+          // Abonnement par carte en cours : renouvelé il y a 6 jours.
           "sub-1": {
             subscribedAt: shiftDays(-30),
             startDate: shiftDays(-6),
@@ -593,7 +593,7 @@ function rawSeed(): Database {
         isFree: false,
         subscriptionIds: ["sub-4", "sub-6"],
         subscriptionDates: {
-          // Mois échu il y a quelques jours : ses séances restantes sont perdues
+          // Carte échu il y a quelques jours : ses séances restantes sont perdues
           // et sa carte est refusée sur ce module jusqu'au renouvellement.
           "sub-4": {
             subscribedAt: shiftDays(-40),
@@ -732,7 +732,7 @@ function rawSeed(): Database {
         expiryDate: shiftDays(-5),
         createdAt: stamp(-200, "09:35"),
       },
-      // Anis — élève gratuit: séances are recorded but never consumed.
+      // Anis — chevalier gratuit: séances are recorded but never consumed.
       {
         id: "enr-8",
         studentId: "stu-5",
@@ -742,7 +742,7 @@ function rawSeed(): Database {
         startDate: shiftDays(-60),
         createdAt: stamp(-60, "14:00"),
       },
-      // Ines — un mois ÉCHU avec des séances non consommées (elles sont perdues,
+      // Ines — une carte ÉCHU avec des séances non consommées (elles sont perdues,
       // la carte est refusée) + un pack de séances libres.
       {
         id: "enr-9",
@@ -873,14 +873,14 @@ function rawSeed(): Database {
         enrollmentId: "enr-6",
         seancesPurchased: 8,
         unitPrice: 600,
-        grossTotal: 4200, // prix du mois, au lieu de 4800 à l'unité
+        grossTotal: 4200, // prix de la carte, au lieu de 4800 à l'unité
         netTotal: 4200,
         amountPaid: 4200,
         rest: 0,
         type: "subscription_payment",
         plan: "month",
         date: stamp(-6, "09:30"),
-        description: `Abonnement mensuel (8 séances) — Mathématiques — jusqu'au ${monthlyExpiry(shiftDays(-6))}`,
+        description: `Abonnement par carte (8 séances) — Mathématiques — jusqu'au ${monthlyExpiry(shiftDays(-6))}`,
       },
       {
         id: "pay-7",
@@ -902,7 +902,7 @@ function rawSeed(): Database {
         enrollmentId: "enr-9",
         seancesPurchased: 8,
         unitPrice: 500,
-        grossTotal: 3600, // prix du mois, au lieu de 4000 à l'unité
+        grossTotal: 3600, // prix de la carte, au lieu de 4000 à l'unité
         discountType: "amount",
         discountValue: 100,
         netTotal: 3500,
@@ -911,7 +911,7 @@ function rawSeed(): Database {
         type: "subscription_payment",
         plan: "month",
         date: stamp(-38, "09:00"),
-        description: `Abonnement mensuel (8 séances) — Français — jusqu'au ${monthlyExpiry(shiftDays(-38))}`,
+        description: `Abonnement par carte (8 séances) — Français — jusqu'au ${monthlyExpiry(shiftDays(-38))}`,
       },
       {
         id: "pay-9",
@@ -1043,7 +1043,7 @@ function rawSeed(): Database {
         teacherId: "tea-1",
         name: "Photocopies de séries d'exercices",
         amount: 1800,
-        description: "3 séries · 40 élèves",
+        description: "3 séries · 40 chevaliers",
         date: shiftDays(-8),
         paid: false,
         createdAt: stamp(-8, "10:30"),
@@ -1081,7 +1081,7 @@ function rawSeed(): Database {
       {
         id: "suj-2",
         title: "TP — Lois de Newton",
-        description: "Compte-rendu du TP réalisé en salle 1.",
+        description: "Compte-rendu du TP réalisé en arène 1.",
         sessionId: "ses-3",
         date: stamp(-3, "17:00"),
       },
@@ -1101,7 +1101,7 @@ function rawSeed(): Database {
       {
         id: "ann-2",
         title: "Réunion parents — 3ème AS",
-        description: "Réunion avec les parents des élèves de 3ème AS samedi à 10h.",
+        description: "Réunion avec les parents des chevaliers de 3ème AS samedi à 10h.",
         audience: "parents",
         endDate: shiftDays(7),
         date: stamp(-1, "16:00"),
@@ -1117,7 +1117,7 @@ function rawSeed(): Database {
     ],
 
     expenses: [
-      { id: "exp-1", name: "Loyer du mois", categoryId: "cat-1", amount: 60000, date: stamp(-18, "10:00") },
+      { id: "exp-1", name: "Loyer du local", categoryId: "cat-1", amount: 60000, date: stamp(-18, "10:00") },
       { id: "exp-2", name: "Facture Sonelgaz", categoryId: "cat-2", amount: 9500, date: stamp(-11, "10:00") },
       { id: "exp-3", name: "Ramettes de papier", categoryId: "cat-3", amount: 3200, date: stamp(-5, "10:00") },
     ],
@@ -1127,7 +1127,7 @@ function rawSeed(): Database {
       { id: "csh-2", type: "student_payment", amount: 6000, date: stamp(-30, "09:30"), description: "Versement Yacine Amrani" },
       { id: "csh-3", type: "student_payment", amount: 3000, date: stamp(-25, "11:00"), description: "Versement Mehdi Bouzid" },
       { id: "csh-4", type: "student_payment", amount: 9000, date: stamp(-15, "14:20"), description: "Versement Sarah Khelifi" },
-      { id: "csh-5", type: "expense", amount: -60000, date: stamp(-18, "10:00"), description: "Loyer du mois" },
+      { id: "csh-5", type: "expense", amount: -60000, date: stamp(-18, "10:00"), description: "Loyer du local" },
       { id: "csh-6", type: "expense", amount: -9500, date: stamp(-11, "10:00"), description: "Facture Sonelgaz" },
       { id: "csh-7", type: "teacher_payment", amount: -18000, date: stamp(-20, "17:00"), description: "Règlement séances Karim Bensalah" },
     ],

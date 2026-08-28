@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LE PREMIER COMPTE DE L'ÉCOLE.
+ * LE PREMIER COMPTE DE LE CLUB.
  *
  * Une base fraîchement installée n'a AUCUN compte : personne ne peut se
  * connecter, donc personne ne peut créer le premier administrateur. C'est le
@@ -11,7 +11,7 @@
  * `schemaState()` décide de ce que la page de connexion propose.
  * `bootstrapAdmin()` crée le compte — et la base REFUSE l'appel dès qu'un
  * administrateur existe. Le bouton n'est donc pas seulement caché : même
- * appelée à la main, la fonction ne peut pas amorcer une école qui tourne déjà.
+ * appelée à la main, la fonction ne peut pas amorcer un club qui tourne déjà.
  *
  * ELLES PASSENT PAR `rpcAnon`, ET NON PAR LE CLIENT SUPABASE. Les deux
  * fonctions sont ouvertes à `anon` et n'ont besoin d'aucune session ; les faire
@@ -77,7 +77,7 @@ export async function adminExists(): Promise<boolean> {
   return (await schemaState()) === "ready";
 }
 
-/** Crée le compte d'administration de l'école, et rend son identifiant. */
+/** Crée le compte d'administration du club, et rend son identifiant. */
 export async function bootstrapAdmin(
   email: string,
   password: string,
@@ -98,7 +98,7 @@ export async function bootstrapAdmin(
   if (error) {
     if (error.code === "PGRST202") {
       throw new Error(
-        "La base de cette école n'est pas installée : exécutez supabase/schema.sql " +
+        "La base de ce club n'est pas installée : exécutez supabase/schema.sql " +
           "dans le SQL Editor de votre projet Supabase.",
       );
     }

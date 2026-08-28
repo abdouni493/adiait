@@ -11,7 +11,7 @@
  *               utiliser.
  *
  * Cocher un écran n'ouvre AUCUN bouton : un travailleur peut très bien
- * consulter les élèves sans pouvoir en créer un. Décocher un écran retire ses
+ * consulter les chevaliers sans pouvoir en créer un. Décocher un écran retire ses
  * boutons du même geste — ils n'auraient plus rien à ouvrir.
  */
 
@@ -28,6 +28,7 @@ import {
 import type { ReceptionStaff } from "@/lib/types";
 import { workerName } from "@/lib/workers";
 
+import { navIcon } from "@/lib/icons";
 export function WorkerPermissionsModal({
   worker,
   onClose,
@@ -195,7 +196,7 @@ export function WorkerPermissionsModal({
                       onClick={() => setFocused(p.key)}
                       className="flex min-w-0 flex-1 items-center gap-2 text-start"
                     >
-                      <span className="text-base leading-none">{p.emoji}</span>
+                      {(() => { const I = navIcon(p.key); return <I className="h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.9} aria-hidden="true" />; })()}
                       <span className="min-w-0 flex-1">
                         <span
                           className={`block truncate text-xs font-semibold ${
@@ -225,7 +226,7 @@ export function WorkerPermissionsModal({
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-canvas px-3 py-2">
               <div className="min-w-0">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                  <span className="text-base leading-none">{page.emoji}</span>
+                  {(() => { const I = navIcon(page.key); return <I className="h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.9} aria-hidden="true" />; })()}
                   {page.label}
                 </span>
                 <span className="mt-0.5 block text-[10px] leading-snug text-muted">{page.hint}</span>

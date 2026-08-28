@@ -16,7 +16,7 @@ export type MessageStatus = "accepted" | "sent" | "delivered" | "read" | "failed
  *  - `template` : message d'entreprise proactif, via un modèle approuvé par Meta.
  *    Toujours délivrable, y compris hors fenêtre de service client.
  *  - `text` : message libre. Meta ne l'accepte que si une fenêtre de service
- *    client de 24 h est ouverte (le destinataire a écrit à l'école récemment). */
+ *    client de 24 h est ouverte (le destinataire a écrit au club récemment). */
 export type OutgoingMessage =
   | {
       kind: "template";

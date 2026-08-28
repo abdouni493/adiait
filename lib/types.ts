@@ -8,7 +8,7 @@ export type { Role };
  * Chaque ligne que quelqu'un crée dans l'application — un encaissement, une
  * présence, un frais, une dépense, une fiche — porte désormais le compte qui
  * l'a écrite. Le nom est recopié à l'instant de l'écriture plutôt que relu plus
- * tard : un travailleur qui quitte l'école, et dont la fiche disparaît, laisse
+ * tard : un travailleur qui quitte le club, et dont la fiche disparaît, laisse
  * quand même un historique lisible.
  *
  * Absent = la ligne est antérieure à cette traçabilité (ou vient d'un
@@ -59,22 +59,22 @@ export interface School {
   /**
    * QUI DOIT LES FRAIS D'INSCRIPTION.
    *
-   * Tout le monde ne les paie pas forcément : l'école peut n'en réclamer qu'aux
-   * classes du secondaire, à trois classes précises, ou seulement aux élèves
+   * Tout le monde ne les paie pas forcément : le club peut n'en réclamer qu'aux
+   * catégories du secondaire, à trois catégories précises, ou seulement aux chevaliers
    * inscrits sur certains emplois du temps.
    *
-   *  - `all`      : tous les élèves (le comportement d'origine),
-   *  - `levels`   : tous les élèves des NIVEAUX listés (`registrationFeeLevels`),
-   *  - `classes`  : uniquement les classes listées (`registrationFeeClassIds`),
+   *  - `all`      : tous les chevaliers (le comportement d'origine),
+   *  - `levels`   : tous les chevaliers des NIVEAUX listés (`registrationFeeLevels`),
+   *  - `classes`  : uniquement les catégories listées (`registrationFeeClassIds`),
    *  - `sessions` : uniquement les emplois du temps listés
    *                 (`registrationFeeSessionIds`).
    *
-   * Absent = `all`, pour que les écoles déjà en base ne changent pas de règle.
+   * Absent = `all`, pour que les clubs déjà en base ne changent pas de règle.
    */
   registrationFeeScope?: RegistrationFeeScope;
   /** `levels` : les niveaux concernés ("lycee", "moyen", …, "formation") */
   registrationFeeLevels?: string[];
-  /** `classes` : les classes concernées */
+  /** `classes` : les catégories concernées */
   registrationFeeClassIds?: string[];
   /** `sessions` : les emplois du temps concernés */
   registrationFeeSessionIds?: string[];
@@ -112,7 +112,7 @@ export interface SchoolClass extends Authored {
   formationLevel?: FormationLevel;
 }
 
-/** Optional grouping for kindergarten classes (e.g. "Petite / Moyenne / Grande
+/** Optional grouping for kindergarten catégories (e.g. "Petite / Moyenne / Grande
  *  section"). Created inline from the class creation screen. */
 export interface ClassCategory extends Authored {
   id: string;
@@ -136,7 +136,7 @@ export interface Salle extends Authored {
  *  - `monthly`: a fixed salary, independent of the séances,
  *  - `percentage`: a % of what each présent student generated,
  *  - `per_group`: the pay is defined GROUPE PAR GROUPE on the emploi du temps
- *    itself (abonnement -> part de l'école / part de l'enseignant), so each
+ *    itself (abonnement -> part du club / part de l'entraîneur), so each
  *    séance earns him that emploi's `teacherPerSeance` and nothing else.
  */
 export type TeacherPaymentType = "monthly" | "percentage" | "per_group";
@@ -150,11 +150,11 @@ export interface Teacher extends Authored {
   monthlyAmount?: number;
   startDate?: string;
   percentage?: number;
-  /** "enseignant passager": intervenant sans compte de connexion, réglé
-   *  créneau par créneau depuis la fiche enseignant */
+  /** "entraîneur passager": intervenant sans compte de connexion, réglé
+   *  créneau par créneau depuis la fiche entraîneur */
   isPassager?: boolean;
   /** quand la fiche a été créée — c'est ce qui met les derniers arrivés en tête
-   *  de la liste des enseignants. Absent sur les fiches d'avant la colonne. */
+   *  de la liste des entraîneurs. Absent sur les fiches d'avant la colonne. */
   createdAt?: string;
 }
 
@@ -189,11 +189,11 @@ export interface TeacherPayment extends Authored {
   /**
    * LES ARRIÉRÉS DÉBLOQUÉS que ce règlement a payés.
    *
-   * Un mois déjà réglé peut encore devoir quelque chose : l'élève n'avait pas
-   * payé, la part de l'enseignant a donc été retenue. Quand l'élève s'acquitte,
-   * cette part revient — sur le règlement SUIVANT, jamais dans le mois en cours.
+   * Une carte déjà réglée peut encore devoir quelque chose : le chevalier n'avait pas
+   * payé, la part de l'entraîneur a donc été retenue. Quand le chevalier s'acquitte,
+   * cette part revient — sur le règlement SUIVANT, jamais dans la carte en cours.
    * Elle est figée ici pour que la fiche de paie et l'historique la montrent
-   * pour ce qu'elle est : un rattrapage, pas le mois du jour.
+   * pour ce qu'elle est : un rattrapage, pas la carte du jour.
    */
   arrears?: TeacherPaymentArrear[];
   /** le mouvement de caisse que ce règlement a écrit — annulé avec lui */
@@ -201,12 +201,12 @@ export interface TeacherPayment extends Authored {
   /**
    * L'ÉCRAN DE PAIE, FIGÉ TEL QUEL.
    *
-   * Le règlement se fait désormais MOIS PAR MOIS sur UN emploi du temps, et
-   * l'écran qui le prépare montre trois tableaux : les élèves du mois, les
+   * Le règlement se fait désormais CARTE PAR CARTE sur UN emploi du temps, et
+   * l'écran qui le prépare montre trois tableaux : les chevaliers de la carte, les
    * arriérés rattrapés, et les retenues. `board` en garde la photographie
    * exacte, si bien que « voir le détail » d'un vieux règlement et la fiche de
    * paie réimprimée affichent les mêmes lignes qu'au moment du versement —
-   * même si un élève a changé de groupe ou de tarif depuis.
+   * même si un chevalier a changé de groupe ou de tarif depuis.
    *
    * Absent = règlement enregistré avant cet écran (l'ancien détail suffit).
    */
@@ -215,7 +215,7 @@ export interface TeacherPayment extends Authored {
 }
 
 /**
- * LA PHOTOGRAPHIE D'UN RÈGLEMENT DE MOIS, TABLEAU PAR TABLEAU.
+ * LA PHOTOGRAPHIE D'UN RÈGLEMENT DE CARTE, TABLEAU PAR TABLEAU.
  *
  * Elle est écrite au moment du versement et ne bouge plus : c'est ce que
  * l'écran de détail réaffiche et ce que la fiche de paie imprime.
@@ -230,27 +230,27 @@ export interface TeacherPayBoard {
   daysLabel: string;
   timeLabel: string;
   monthCode: string;
-  /** séances que le mois contient */
+  /** séances que la carte contient */
   size: number;
   /** séances effectivement tenues */
   held: number;
-  /** prix du mois complet pour un élève */
+  /** prix de la carte complète pour un chevalier */
   monthPrice: number;
-  /** ce que le mois complet rapporte à l'enseignant */
+  /** ce que la carte complète rapporte à l'entraîneur */
   teacherMonthShare: number;
-  /** part enseignant d'UNE séance (teacherMonthShare ÷ size) */
+  /** part entraîneur d'UNE séance (teacherMonthShare ÷ size) */
   perSeance: number;
-  /** tableau 1 — les élèves du mois */
+  /** tableau 1 — les chevaliers de la carte */
   students: TeacherPayStudentLine[];
-  /** tableau 2 — les élèves qui ont payé en retard (mois déjà réglés) */
+  /** tableau 2 — les chevaliers qui ont payé en retard (carte déjà réglés) */
   arrears: TeacherPayArrearLine[];
   /**
-   * tableau 2 bis — LES SÉANCES LIBRES DU MOIS.
+   * tableau 2 bis — LES SÉANCES LIBRES DU CARTE.
    *
-   * Les élèves de passage n'ont pas de fiche, pas de solde et pas de mois : ils
-   * paient la séance sur place. Ce que l'école ne garde pas revient à
-   * l'enseignant et se règle avec le mois où la séance est tombée — d'où sa
-   * place ici, à côté des retards, et jamais dans le tableau des élèves
+   * Les chevaliers de passage n'ont pas de fiche, pas de solde et pas de carte : ils
+   * paient la séance sur place. Ce que le club ne garde pas revient à
+   * l'entraîneur et se règle avec la carte où la séance est tombée — d'où sa
+   * place ici, à côté des retards, et jamais dans le tableau des chevaliers
    * inscrits.
    *
    * Absent = règlement enregistré avant les séances libres par passager.
@@ -260,7 +260,7 @@ export interface TeacherPayBoard {
   deductions: TeacherPayDeductionLine[];
   studentsTotal: number;
   arrearsTotal: number;
-  /** ce que les séances libres rapportent à l'enseignant */
+  /** ce que les séances libres rapportent à l'entraîneur */
   passagersTotal?: number;
   deductionsTotal: number;
   /** studentsTotal + arrearsTotal + passagersTotal */
@@ -269,7 +269,7 @@ export interface TeacherPayBoard {
   net: number;
 }
 
-/** Une ligne du tableau des séances libres — un élève de passage, une séance. */
+/** Une ligne du tableau des séances libres — un chevalier de passage, une séance. */
 export interface TeacherPayPassagerLine {
   /** l'`IndependentSession` réglée */
   id: string;
@@ -280,13 +280,13 @@ export interface TeacherPayPassagerLine {
   label?: string;
   /** ce que le passager a payé */
   price: number;
-  /** ce que l'école garde dessus */
+  /** ce que le club garde dessus */
   schoolShare: number;
-  /** price − schoolShare : ce que l'enseignant touche */
+  /** price − schoolShare : ce que l'entraîneur touche */
   teacherShare: number;
 }
 
-/** Une ligne du tableau des élèves d'un mois, sur la paie de l'enseignant. */
+/** Une ligne du tableau des chevaliers d'une carte, sur la paie de l'entraîneur. */
 export interface TeacherPayStudentLine {
   studentId: string;
   name: string;
@@ -298,34 +298,34 @@ export interface TeacherPayStudentLine {
   presents: number;
   absents: number;
   cancelled: number;
-  /** séances de ce mois qui rapportent quelque chose à l'enseignant */
+  /** séances de cette carte qui rapportent quelque chose à l'entraîneur */
   seances: number;
   /**
-   * LE MOIS SÉANCE PAR SÉANCE, comme la feuille de présence l'affiche :
+   * LE CARTE SÉANCE PAR SÉANCE, comme la feuille de présence l'affiche :
    * `"present" | "late" | "absent" | "cancelled"`, `null` pour une séance pas
    * encore pointée, et `"before"` pour une séance tenue AVANT son inscription
    * — celle-là n'a jamais été la sienne, elle reste vide sur sa ligne.
    */
   slots?: (string | null)[];
-  /** ce qu'une de ses séances rapporte à l'enseignant */
+  /** ce qu'une de ses séances rapporte à l'entraîneur */
   perSeance: number;
-  /** ce que le mois lui coûte */
+  /** ce que la carte lui coûte */
   expected: number;
-  /** ce qu'il a versé sur ce mois */
+  /** ce qu'il a versé sur cette carte */
   credited: number;
   /** ce qu'il doit encore */
   debt: number;
-  /** ce que ses séances rapportent à l'enseignant sur ce mois */
+  /** ce que ses séances rapportent à l'entraîneur sur cette carte */
   amount: number;
   /** sa part est RETENUE : il doit encore de l'argent */
   withheld: boolean;
-  /** l'école a avancé sa dette de sa propre caisse pour débloquer la part */
+  /** le club a avancé sa dette de sa propre caisse pour débloquer la part */
   schoolCovered: boolean;
 }
 
-/** Une ligne du tableau des arriérés — une part d'un mois DÉJÀ réglé. */
+/** Une ligne du tableau des arriérés — une part d'une carte DÉJÀ réglé. */
 export interface TeacherPayArrearLine extends TeacherPayStudentLine {
-  /** le mois d'origine de la part */
+  /** la carte d'origine de la part */
   monthCode: string;
   emploi: string;
   /** les jours concernés */
@@ -336,10 +336,10 @@ export interface TeacherPayArrearLine extends TeacherPayStudentLine {
 export interface TeacherPayDeductionLine {
   id: string;
   /**
-   *  - `expense`     : une dépense que l'école a avancée pour lui,
+   *  - `expense`     : une dépense que le club a avancée pour lui,
    *  - `acompte`     : une avance sur salaire,
-   *  - `child`       : la scolarité ENCORE DUE d'un de ses enfants,
-   *  - `child_debt`  : une scolarité d'enfant déjà créditée au guichet et
+   *  - `child`       : la cotisation ENCORE DUE d'un de ses enfants,
+   *  - `child_debt`  : une cotisation d'enfant déjà créditée au guichet et
    *                    portée sur ce salaire.
    */
   kind: "expense" | "acompte" | "child" | "child_debt";
@@ -351,7 +351,7 @@ export interface TeacherPayDeductionLine {
   paid: boolean;
 }
 
-/** Un arriéré débloqué, réglé par un versement postérieur au mois concerné. */
+/** Un arriéré débloqué, réglé par un versement postérieur à la carte concerné. */
 export interface TeacherPaymentArrear {
   studentId: string;
   studentName: string;
@@ -403,29 +403,29 @@ export interface TeacherChildCharge extends Authored {
 }
 
 /**
- * UNE SCOLARITÉ D'ENFANT PORTÉE EN DETTE SUR SON PÈRE ENSEIGNANT.
+ * UNE SCOLARITÉ D'ENFANT PORTÉE EN DETTE SUR SON PÈRE ENTRAÎNEUR.
  *
- * Un fils d'enseignant n'a pas à attendre la paie de son père pour être en
- * règle : la réception peut solder son mois depuis la feuille de présence du
+ * Un fils d'entraîneur n'a pas à attendre la paie de son père pour être en
+ * règle : la réception peut solder son carte depuis la feuille de présence du
  * groupe, sans ouvrir le moindre écran de paie. Deux chemins s'offrent alors,
  * et l'un d'eux écrit cette ligne :
  *
  *  - « la famille paie maintenant » : l'argent entre en caisse comme n'importe
  *    quel versement, et RIEN n'est retenu au père (aucune ligne ici) ;
  *  - « à porter sur le salaire du père » : le solde de l'enfant est crédité
- *    tout de suite — ses mois cessent d'être en dette, la part que ses séances
- *    rapportent à l'enseignant se débloque — et le montant est inscrit ICI, en
+ *    tout de suite — ses carte cessent d'être en dette, la part que ses séances
+ *    rapportent à l'entraîneur se débloque — et le montant est inscrit ICI, en
  *    attente. Le prochain règlement du père le lit, le retient sur son net et
  *    le passe à `paid` : il ne peut donc être retenu qu'UNE fois.
  */
 export interface TeacherChildDebt extends Authored {
   id: string;
-  /** l'enseignant père sur qui la somme est portée */
+  /** l'entraîneur père sur qui la somme est portée */
   teacherId: string;
   studentId: string;
   /** l'emploi du temps crédité (absent = une dette hors emploi : restes, frais) */
   subscriptionId?: string;
-  /** le mois de cet emploi qui a été soldé (M1, M2 …) */
+  /** la carte de cet emploi qui a été soldé (M1, M2 …) */
   monthCode?: string;
   /** ce que la ligne dit sur la fiche de paie */
   label: string;
@@ -454,10 +454,10 @@ export interface TeacherPaymentDetail {
 export type ReceptionPaymentType = "daily" | "monthly" | "half_day" | "hourly";
 
 /**
- * UN MÉTIER DE TRAVAILLEUR, tel que l'école le nomme elle-même.
+ * UN MÉTIER DE TRAVAILLEUR, tel que le club le nomme elle-même.
  *
  * Les trois métiers d'origine — réception, agent de sécurité, ménage — n'étaient
- * pas les seuls que l'école emploie : il y a le chauffeur, le cuisinier, le
+ * pas les seuls que le club emploie : il y a le chauffeur, le cuisinier, le
  * surveillant, le comptable. Ils se créent et se suppriment désormais depuis
  * l'écran de création d'un travailleur, sans passer par le code.
  *
@@ -540,7 +540,7 @@ export interface WorkerShift extends Authored {
  * L'écran des travailleurs devinait autrefois ce qui avait déjà été payé en
  * relisant la DESCRIPTION des mouvements de caisse (« le libellé contient le
  * nom de famille et « 08/2026 » »). Deux homonymes, un nom mal tapé, une
- * description modifiée à la main, et un mois payé repassait pour impayé.
+ * description modifiée à la main, et une carte payée repassait pour impayé.
  *
  * Un règlement est désormais une ligne à part entière : elle nomme les périodes
  * qu'elle solde (`periodKeys`), ce qu'elles valaient (`gross`), les acomptes et
@@ -553,7 +553,7 @@ export interface WorkerPayment extends Authored {
   /** le type de contrat au moment du règlement */
   kind: ReceptionPaymentType;
   /**
-   * CE QUE CE RÈGLEMENT SOLDE : « 08/2026 » pour un mois, « 2026-08-14 » pour
+   * CE QUE CE RÈGLEMENT SOLDE : « 08/2026 » pour une carte, « 2026-08-14 » pour
    * une journée, l'identifiant d'une journée pointée pour un contrat horaire.
    */
   periodKeys: string[];
@@ -586,7 +586,7 @@ export interface WorkerPayment extends Authored {
  * qui l'a prise, et elle ne revient jamais sur le suivant.
  *
  * Les acomptes des travailleurs vivaient autrefois dans la table des acomptes
- * d'ENSEIGNANTS, dont la clé étrangère exige pourtant un enseignant : la base
+ * d'ENTRAÎNEURS, dont la clé étrangère exige pourtant un entraîneur : la base
  * refusait la ligne, et l'avance n'était jamais enregistrée. Ils ont désormais
  * leur table.
  */
@@ -646,7 +646,7 @@ export interface ScheduleSession extends Authored {
    */
   dayTimes?: Partial<Record<Day, DayTime>>;
   /**
-   * Per-day salle. An emploi that runs Samedi in Salle A and Mardi in Salle B is
+   * Per-day arène. An emploi that runs Samedi in Arène A and Mardi in Arène B is
    * still ONE emploi: each day simply carries the room it occupies. A day absent
    * from the map falls back on `salleId`, which always holds the first day's
    * room so anything that only needs "roughly where" can read it directly.
@@ -657,13 +657,13 @@ export interface ScheduleSession extends Authored {
   /**
    * UN EMPLOI DU TEMPS SUR PLUSIEURS NIVEAUX À LA FOIS.
    *
-   * Un même créneau réunit parfois deux classes qui n'ont rien à voir : la 4e
+   * Un même créneau réunit parfois deux catégories qui n'ont rien à voir : la 4e
    * année moyenne et la 3e année secondaire, chacune avec SES groupes. Ce
-   * champ dit, classe par classe, quels groupes cette classe amène :
+   * champ dit, catégorie par catégorie, quels groupes cette catégorie amène :
    *
    *     { "cls-4am": ["grp-a", "grp-b"], "cls-3as": ["grp-c"] }
    *
-   * `classIds` porte la liste des classes, `classId` la PREMIÈRE (la colonne
+   * `classIds` porte la liste des catégories, `classId` la PREMIÈRE (la colonne
    * historique que le scan et la base lisent), et `groupIds` l'union de tous
    * les groupes — de sorte que rien de ce qui existait n'a besoin de savoir
    * qu'un emploi peut désormais couvrir plusieurs niveaux.
@@ -671,7 +671,7 @@ export interface ScheduleSession extends Authored {
    * Absent = emploi du temps à un seul niveau, exactement comme avant.
    */
   classGroups?: Record<string, string[]>;
-  /** "séance libre" timing: several classes/groups/salles over a date period */
+  /** "séance libre" timing: several catégories/groups/arènes over a date period */
   isOpen?: boolean;
   /** explicit, readable name — only set for séance libre timings */
   title?: string;
@@ -687,8 +687,8 @@ export interface ScheduleSession extends Authored {
    *
    * Un emploi du temps n'est jamais effacé : le supprimer l'ARCHIVE. La ligne
    * reste en base, donc les présences qui y ont été pointées, les soldes et les
-   * paiements des élèves, et les parts déjà dues à l'enseignant continuent de
-   * s'afficher — avec le nom du module, du groupe et de la salle. Il disparaît
+   * paiements des chevaliers, et les parts déjà dues à l'entraîneur continuent de
+   * s'afficher — avec le nom du module, du groupe et de l'arène. Il disparaît
    * simplement des écrans qui servent à travailler aujourd'hui (grille, feuille
    * de présence, catalogue d'inscription).
    *
@@ -711,9 +711,9 @@ export interface Subscription extends Authored {
   /** the schedule this subscription is priced against */
   sessionId: string;
   pricePerSession: number;
-  /** formation classes: fixed price for the whole level (pricePerSession stays 0) */
+  /** formation catégories: fixed price for the whole level (pricePerSession stays 0) */
   levelPrice?: number;
-  /** formation classes: duration in months, drives the per-student expiry date */
+  /** formation catégories: duration in months, drives the per-student expiry date */
   periodMonths?: number;
   /** monthly formula: how many séances one month of this cours includes.
    *  0 / undefined = the cours is only sold séance by séance. */
@@ -875,12 +875,12 @@ export interface Student extends Authored {
   /**
    * « Cas spécial (gratuit) »: WHICH emplois du temps are offered.
    *
-   * La gratuité se coche emploi par emploi : un élève peut suivre trois modules
+   * La gratuité se coche emploi par emploi : un chevalier peut suivre trois modules
    * dont deux offerts et un payant. Les emplois listés ici ne coûtent rien —
-   * ni à l'élève, ni à la charge de l'école, ni en part enseignant — et ceux
+   * ni au chevalier, ni à la charge du club, ni en part entraîneur — et ceux
    * qui n'y sont pas sont facturés au tarif ordinaire.
    *
-   * ABSENT = toute sa scolarité est offerte, exactement comme le cas se lisait
+   * ABSENT = toute sa cotisation est offerte, exactement comme le cas se lisait
    * avant d'être détaillé : les fiches déjà en base ne changent pas de sens.
    */
   freeSubscriptionIds?: string[];
@@ -891,25 +891,25 @@ export interface Student extends Authored {
   /** school_only: teachers NOT paid for this student's presences */
   unpaidTeacherIds?: string[];
   /**
-   * « École seulement » : SUR QUELS EMPLOIS DU TEMPS l'option est ACTIVE.
+   * « Club seulement » : SUR QUELS EMPLOIS DU TEMPS l'option est ACTIVE.
    *
-   * Exactement comme la gratuité, l'option se coche emploi par emploi. Un élève
-   * peut suivre trois modules dont un « école seule » et deux ordinaires : sur
-   * l'emploi activé, la famille ne verse que la part de l'école, l'enseignant
+   * Exactement comme la gratuité, l'option se coche emploi par emploi. Un chevalier
+   * peut suivre trois modules dont un « club seule » et deux ordinaires : sur
+   * l'emploi activé, la famille ne verse que la part du club, l'entraîneur
    * n'est pas payé pour lui et il n'apparaît même pas sur l'écran de paie de cet
-   * enseignant ; sur les deux autres, tout se calcule normalement.
+   * entraîneur ; sur les deux autres, tout se calcule normalement.
    *
    * ABSENT = les fiches d'avant, pilotées par `unpaidTeacherIds` seul.
    */
   schoolOnlySubscriptionIds?: string[];
   /**
-   * OÙ LA RÉCEPTION EN ÉTAIT quand elle a créé la fiche : le niveau (« classe »)
+   * OÙ LA RÉCEPTION EN ÉTAIT quand elle a créé la fiche : le niveau (« catégorie »)
    * et l'année choisis dans le catalogue d'inscription.
    *
-   * Un élève peut très bien être créé avec sa classe et son année SANS emploi du
+   * Un chevalier peut très bien être créé avec sa catégorie et son année SANS emploi du
    * temps — le créneau n'est pas encore ouvert, la famille hésite. Sans ces deux
    * champs, l'écran de modification rouvrait sur un primaire/1AP qui ne le
-   * concernait pas et la réception devait retrouver la classe à la main.
+   * concernait pas et la réception devait retrouver la catégorie à la main.
    */
   enrollmentLevel?: string;
   enrollmentYear?: string;
@@ -1019,7 +1019,7 @@ export interface Payment extends Authored {
    * Un règlement de frais ne touche AUCUN emploi du temps : il ne porte donc
    * ni `subscriptionId` ni `monthCode`, et son `rest` reste à 0 — ce qui
    * demeure dû se lit sur le frais lui-même. C'est ce qui l'empêche d'être
-   * confondu avec une scolarité impayée et de retenir la part d'un enseignant
+   * confondu avec une cotisation impayée et de retenir la part d'un entraîneur
    * qui n'a rien à voir avec un livre ou une tenue.
    */
   chargeId?: string;
@@ -1037,21 +1037,21 @@ export interface Payment extends Authored {
 }
 
 /**
- * D'OÙ VIENT UN FRAIS porté au compte d'un élève :
+ * D'OÙ VIENT UN FRAIS porté au compte d'un chevalier :
  *  - `manual` : la réception l'a saisi elle-même (livre, tenue, sortie,
  *    transport, dégât matériel…) ;
- *  - `school_advance` : l'école a réglé une dette de scolarité DE SA PROPRE
- *    CAISSE pour débloquer la part de l'enseignant. L'argent est sorti sans
- *    jamais entrer : la famille le doit désormais à l'école, et c'est ce frais
+ *  - `school_advance` : le club a réglé une dette de cotisation DE SA PROPRE
+ *    CAISSE pour débloquer la part de l'entraîneur. L'argent est sorti sans
+ *    jamais entrer : la famille le doit désormais au club, et c'est ce frais
  *    qui le dit.
  */
 export type StudentChargeOrigin = "manual" | "school_advance";
 
 /**
- * UNE DETTE DE L'ÉLÈVE QUI N'EST PAS DE LA SCOLARITÉ.
+ * UNE DETTE DE LE CHEVALIER QUI N'EST PAS DE LA SCOLARITÉ.
  *
  * La réception tape un nom, un montant, une description facultative et une
- * date ; le frais s'inscrit au compte de l'élève et l'y suit jusqu'à ce qu'il
+ * date ; le frais s'inscrit au compte du chevalier et l'y suit jusqu'à ce qu'il
  * soit réglé — sur sa fiche, dans son historique, et sur la feuille de présence
  * du groupe, où il devient une alerte encaissable sur place.
  *
@@ -1059,8 +1059,8 @@ export type StudentChargeOrigin = "manual" | "school_advance";
  * versé, et `amount − paidAmount` est ce qui reste dû. Un versement partiel
  * laisse donc le frais ouvert, exactement comme au comptoir.
  *
- * CE QU'IL NE FAIT PAS : retenir la paie d'un enseignant. Un livre impayé ne
- * regarde pas l'enseignant de mathématiques — seule la scolarité (les soldes
+ * CE QU'IL NE FAIT PAS : retenir la paie d'un entraîneur. Un livre impayé ne
+ * regarde pas l'entraîneur de mathématiques — seule la cotisation (les soldes
  * dans le rouge, les restes d'anciens paiements et les frais d'inscription)
  * bloque sa part.
  */
@@ -1076,11 +1076,11 @@ export interface StudentCharge extends Authored {
   date: string;
   /** `manual` quand absent — les fiches déjà en base sont des saisies */
   origin?: StudentChargeOrigin;
-  /** avance de l'école : le versement qui l'a fait naître */
+  /** avance du club : le versement qui l'a fait naître */
   sourcePaymentId?: string;
   /** l'emploi du temps concerné, quand le frais en désigne un (avances) */
   subscriptionId?: string;
-  /** le mois de cet emploi, même remarque */
+  /** la carte de cet emploi, même remarque */
   monthCode?: string;
   /** ce qui a DÉJÀ été versé dessus, tous versements confondus */
   paidAmount?: number;
@@ -1300,34 +1300,34 @@ export interface IndependentSession extends Authored {
    *  créneau attended only by passagers has no unpaid_teacher_sessions row */
   teacherPaid?: boolean;
   /**
-   * CE QUE L'ÉCOLE GARDE SUR `price`.
+   * CE QUE LE CLUB GARDE SUR `price`.
    *
-   * Une séance libre se vend comme un mois d'emploi du temps : la réception
-   * tape le prix TOTAL payé par l'élève de passage, puis la part que l'école
-   * garde. Le reste — `price − schoolShare` — est la part de l'enseignant, et
-   * c'est elle que l'écran de paie du mois lui règle, passager par passager.
+   * Une séance libre se vend comme une carte d'emploi du temps : la réception
+   * tape le prix TOTAL payé par le chevalier de passage, puis la part que le club
+   * garde. Le reste — `price − schoolShare` — est la part de l'entraîneur, et
+   * c'est elle que l'écran de paie de la carte lui règle, passager par passager.
    *
-   * ABSENT = séance enregistrée avant ce découpage : l'école gardait tout, donc
-   * la part enseignant vaut zéro et aucun ancien total ne bouge.
+   * ABSENT = séance enregistrée avant ce découpage : le club gardait tout, donc
+   * la part entraîneur vaut zéro et aucun ancien total ne bouge.
    */
   schoolShare?: number;
-  /** l'enseignant que cette séance paie — figé à la création, parce que
+  /** l'entraîneur que cette séance paie — figé à la création, parce que
    *  l'emploi du temps peut changer de titulaire après coup */
   teacherId?: string;
 }
 
 /**
- * A "séance libre de groupe": one ponctual séance sold to a WHOLE group of
+ * A "sortie libre de groupe": one ponctual séance sold to a WHOLE group of
  * students at once, without naming any of them.
  *
  * Reception picks the teacher, the day and the hours, names the séance, types
  * how many students came, what one of them pays and how much of that the
  * school keeps. Everything else is arithmetic:
  *
- *     part enseignant d'un élève = prix élève − part école
- *     total encaissé  = élèves × prix élève
- *     total école     = élèves × part école
- *     total enseignant= élèves × part enseignant
+ *     part entraîneur d'un chevalier = prix chevalier − part club
+ *     total encaissé  = chevaliers × prix chevalier
+ *     total club     = chevaliers × part club
+ *     total entraîneur= chevaliers × part entraîneur
  *
  * Creating one posts BOTH cash movements (the money in, the teacher's pay out),
  * so the caisse and the rapports read it like any other séance — and editing or

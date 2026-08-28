@@ -10,7 +10,7 @@
  *      séances he attended, what he generated and what that earned the
  *      teacher — with the emploi's subtotal, then the grand total,
  *   3. the students whose case changes what is owed (cas spéciaux, réductions,
- *      écoles-seules) so nothing on the first table looks like a mistake,
+ *      clubs-seules) so nothing on the first table looks like a mistake,
  *   4. his own children, schooled on his pay: what they owed, emploi by
  *      emploi, and what is therefore taken off,
  *   5. the dépenses and the acomptes he has already had, each listed,
@@ -64,7 +64,7 @@ export interface PayslipStudent {
   studentId?: string;
   name: string;
   registrationNumber?: string;
-  /** "Fils d'enseignant", "Réduction" … — empty for an ordinary student */
+  /** "Fils d'entraîneur", "Réduction" … — empty for an ordinary student */
   caseLabel?: string;
   isPassager: boolean;
   /** his money is held back: the teacher is not paid for him yet */
@@ -74,10 +74,10 @@ export interface PayslipStudent {
   fees: number;
   /** what they earn the teacher */
   total: number;
-  /** part enseignant d'un mois PRÉCÉDENT, débloquée par un versement récent de
-   *  l'élève et réglée avec ce bulletin */
+  /** part entraîneur d'une carte PRÉCÉDENT, débloquée par un versement récent de
+   *  le chevalier et réglée avec ce bulletin */
   arrears?: number;
-  /** les mois d'où viennent ces arriérés ("M2", "M2, M3" …) */
+  /** les cartes d'où viennent ces arriérés ("M2", "M2, M3" …) */
   arrearsMonths?: string;
 }
 
@@ -123,16 +123,16 @@ export interface TeacherPayslipData {
   /**
    * LES ARRIÉRÉS DÉBLOQUÉS réglés par ce bulletin.
    *
-   * Des parts d'un mois DÉJÀ payé, retenues à l'époque parce que l'élève
-   * n'avait rien versé, et libérées depuis. Elles n'appartiennent pas au mois
-   * courant : elles ont leur propre tableau, avec le mois d'origine, les dates
-   * concernées et le nombre de séances, pour que l'enseignant vérifie
+   * Des parts d'une carte DÉJÀ payé, retenues à l'époque parce que le chevalier
+   * n'avait rien versé, et libérées depuis. Elles n'appartiennent pas à la carte
+   * courant : elles ont leur propre tableau, avec la carte d'origine, les dates
+   * concernées et le nombre de séances, pour que l'entraîneur vérifie
    * exactement ce qu'on lui rattrape.
    */
   arrears?: PayslipArrear[];
 }
 
-/** Une part d'un mois passé, débloquée par le paiement tardif d'un élève. */
+/** Une part d'une carte passé, débloquée par le paiement tardif d'un chevalier. */
 export interface PayslipArrear {
   studentName: string;
   registrationNumber?: string;
@@ -156,41 +156,41 @@ const EXTRA_CSS = `
 
 const LABELS = {
   fr: {
-    docTitle: "Fiche de Paie — Enseignant",
+    docTitle: "Fiche de Paie — Entraîneur",
     receiptNo: "Bon N° :",
-    teacherInfo: "Informations de l'enseignant",
+    teacherInfo: "Informations de l'entraîneur",
     fullName: "Nom complet :",
     phone: "Téléphone :",
     email: "E-mail :",
     status: "Statut :",
-    passager: "Enseignant passager (sans compte)",
-    regular: "Enseignant de l'école",
+    passager: "Entraîneur passager (sans compte)",
+    regular: "Entraîneur du club",
     contract: "Contrat :",
     method: "Mode de calcul :",
     methodFixed: "Montant fixe saisi",
-    methodPercent: (p: number) => `Pourcentage — ${p}% du montant généré par élève`,
-    methodGroup: "Par groupe — tarif enseignant de chaque emploi du temps",
+    methodPercent: (p: number) => `Pourcentage — ${p}% du montant généré par chevalier`,
+    methodGroup: "Par groupe — tarif entraîneur de chaque emploi du temps",
     contractGroup: "Par groupe (tarif de chaque emploi du temps)",
     emploisTitle: "Détail par emploi du temps",
     noEmplois: "Aucun emploi du temps réglé sur cette période.",
-    student: "Élève",
+    student: "Chevalier",
     number: "N°",
     presents: "Présences",
     fees: "Montant généré",
-    share: "Part enseignant",
+    share: "Part entraîneur",
     arrears: "Arriérés débloqués",
     subtotal: "Sous-total",
     grandTotal: "TOTAL DES SÉANCES (BRUT)",
-    casesTitle: "Cas particuliers des élèves",
-    caseStudent: "Élève",
+    casesTitle: "Cas particuliers des chevaliers",
+    caseStudent: "Chevalier",
     caseEmploi: "Emploi du temps",
     caseKind: "Cas",
-    childrenTitle: "Enfants de l'enseignant scolarisés à l'école",
+    childrenTitle: "Enfants de l'entraîneur scolarisés au club",
     childrenNote:
-      "La scolarité des enfants de l'enseignant est réglée sur son salaire : les montants ci-dessous sont retenus sur sa paie et leurs soldes sont remis à jour.",
+      "La cotisation des enfants de l'entraîneur est réglée sur son salaire : les montants ci-dessous sont retenus sur sa paie et leurs soldes sont remis à jour.",
     childName: "Enfant",
     childEmploi: "Emploi du temps",
-    childMonth: "Mois",
+    childMonth: "Carte",
     childAmount: "Montant dû",
     deductionsTitle: "Dépenses & acomptes retenus",
     dedDate: "Date",
@@ -206,23 +206,23 @@ const LABELS = {
     gross: "Total brut des séances :",
     totalExpenses: "Dépenses retenues :",
     totalAcomptes: "Acomptes retenus :",
-    totalChildren: "Scolarité des enfants :",
-    withheld: (n: number) => `Présences en attente (${n} élève(s) en dette) :`,
+    totalChildren: "Cotisation des enfants :",
+    withheld: (n: number) => `Présences en attente (${n} chevalier(s) en dette) :`,
     paidOn: "Payé le :",
-    net: "NET VERSÉ À L'ENSEIGNANT :",
-    signTeacher: "Signature de l'enseignant",
+    net: "NET VERSÉ À L'ENTRAÎNEUR :",
+    signTeacher: "Signature de l'entraîneur",
     signCashier: "La Caisse / Direction",
     seances: "séance(s)",
-    months: "Mois réglé(s) :",
-    arrearsTitle: "Arriérés débloqués — élèves ayant payé en retard",
+    months: "Carte réglée(s) :",
+    arrearsTitle: "Arriérés débloqués — chevaliers ayant payé en retard",
     arrearsNote:
-      "Ces parts appartiennent à des MOIS DÉJÀ RÉGLÉS : elles avaient été retenues parce que l'élève n'avait pas payé. L'élève s'est acquitté depuis, la part est donc due aujourd'hui et réglée avec ce bulletin — elle ne se confond pas avec le mois en cours.",
+      "Ces parts appartiennent à des CARTE DÉJÀ RÉGLÉS : elles avaient été retenues parce que le chevalier n'avait pas payé. Le chevalier s'est acquitté depuis, la part est donc due aujourd'hui et réglée avec ce bulletin — elle ne se confond pas avec la carte en cours.",
     arrearEmploi: "Emploi du temps",
-    arrearMonth: "Mois d'origine",
+    arrearMonth: "Carte d'origine",
     arrearDates: "Séances concernées",
     arrearAmount: "Part rattrapée",
     arrearsTotal: "TOTAL DES ARRIÉRÉS DÉBLOQUÉS",
-    monthsSubtotal: "Total des mois réglés",
+    monthsSubtotal: "Total des carte réglées",
   },
   ar: {
     docTitle: "كشف الراتب — الأستاذ",
@@ -327,7 +327,7 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
                   <strong>${esc(st.name)}</strong>
                   ${st.isPassager ? `<span class="badge badge-warning" style="margin-inline-start:6px;">passager</span>` : ""}
                   ${st.caseLabel ? `<br/><span style="font-size:0.78em;color:#5c567a;">${esc(st.caseLabel)}</span>` : ""}
-                  ${st.withheld ? `<br/><span class="badge badge-danger">élève en dette — non réglé</span>` : ""}
+                  ${st.withheld ? `<br/><span class="badge badge-danger">chevalier en dette — non réglé</span>` : ""}
                 </td>
                 <td class="ctr"><strong>${st.presents}</strong></td>
                 <td class="num">${da(st.fees)}</td>
@@ -406,10 +406,10 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
 
   // ---- 3 bis. LES ARRIÉRÉS DÉBLOQUÉS — leur propre tableau ----------------
   /**
-   * Un mois déjà réglé peut encore devoir quelque chose : l'élève n'avait pas
-   * payé, la part de l'enseignant a donc été retenue. Quand l'élève s'acquitte,
-   * elle revient — mais elle appartient toujours à SON mois. Elle se lit donc
-   * ici, à part, avec le mois d'origine et les dates des séances.
+   * Une carte déjà réglée peut encore devoir quelque chose : le chevalier n'avait pas
+   * payé, la part de l'entraîneur a donc été retenue. Quand le chevalier s'acquitte,
+   * elle revient — mais elle appartient toujours à SON carte. Elle se lit donc
+   * ici, à part, avec la carte d'origine et les dates des séances.
    */
   const arrears = data.arrears ?? [];
   const totalArrears = arrears.reduce((s, a) => s + a.amount, 0);

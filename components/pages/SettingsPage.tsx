@@ -10,27 +10,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  Settings,
-  Shield,
-  Download,
-  Upload,
-  AlertTriangle,
-  School as SchoolIcon,
-  Phone,
-  Mail,
-  MapPin,
-  FileText,
-  Lock,
-  User,
-  DollarSign,
-  Save,
-  Globe,
-  Image,
-  Coins,
-  MessageCircle,
-  RotateCcw
-} from "lucide-react";
+import { AlertTriangle, Coins, DollarSign, Download, FileText, Globe, Image, Lock, Mail, MapPin, MessageCircle, Phone, RotateCcw, Save, School as SchoolIcon, Settings, Shield, Upload, User } from "lucide-react";
 import { WhatsAppSettingsPanel } from "@/components/whatsapp/WhatsAppSettingsPanel";
 
 import { useCan } from "@/lib/usePermissions";
@@ -226,7 +206,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader emoji="⚙️" title="Paramètres" subtitle="Configuration générale, sécurité et maintenance du système" />
+      <PageHeader icon={Settings} title="Paramètres" subtitle="Configuration générale, sécurité et maintenance du système" />
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
         {/* Settings Navigation Sidebar */}
@@ -302,7 +282,7 @@ export function SettingsPage() {
                   <h3 className="text-sm font-bold text-ink flex items-center gap-2">
                     <SchoolIcon className="h-5 w-5 text-primary" /> Profil de l'Établissement
                   </h3>
-                  <p className="text-xs text-muted mt-1">Gérer les détails descriptifs et l'identité visuelle de votre école.</p>
+                  <p className="text-xs text-muted mt-1">Gérer les détails descriptifs et l'identité visuelle de votre club.</p>
                 </div>
 
                 {/* Section 1: General Info */}
@@ -314,12 +294,12 @@ export function SettingsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div>
                       <label className="block text-xs font-semibold text-muted mb-1 flex items-center gap-1.5">
-                        Nom de l'école *
+                        Nom de l'club *
                       </label>
                       <Input
                         value={schoolName}
                         onChange={(e) => setSchoolName(e.target.value)}
-                        placeholder="Ex: École Privée El Ilm"
+                        placeholder="Ex: Club Privée El Ilm"
                         className="rounded-xl"
                       />
                     </div>
@@ -354,7 +334,7 @@ export function SettingsPage() {
                           <label className="block text-xs font-bold text-ink">Facturation automatique des absences</label>
                           <p className="text-[10px] text-muted mt-0.5 leading-relaxed">
                             La semaine court d&apos;un <strong className="text-ink">vendredi au vendredi suivant</strong>.
-                            Pour chaque module, si l&apos;élève n&apos;a ni scanné sa carte (sur son groupe ou sur
+                            Pour chaque module, si l&apos;chevalier n&apos;a ni scanné sa carte (sur son groupe ou sur
                             n&apos;importe quel autre groupe du même cours) ni été marqué présent de toute la semaine,
                             une séance de ce module est décomptée de son abonnement.
                           </p>
@@ -713,7 +693,7 @@ export function SettingsPage() {
 
                   <p className="text-xs text-muted/80 leading-relaxed">
                     Téléchargez une copie complète au format <strong>JSON</strong> contenant toutes les informations enregistrées :
-                    élèves, abonnements, présences, acomptes, journal de caisse et dépenses de fonctionnement.
+                    chevaliers, abonnements, présences, acomptes, journal de caisse et dépenses de fonctionnement.
                   </p>
 
                   <div className="pt-2">
@@ -778,7 +758,7 @@ export function SettingsPage() {
                 </CardBody>
               </Card>
 
-              {/* Relire la base — l'école telle qu'elle est en ce moment */}
+              {/* Relire la base — le club telle qu'elle est en ce moment */}
               <Card className="border border-line rounded-2xl card-shadow">
                 <CardBody className="space-y-4 p-6">
                   <div>
@@ -786,12 +766,12 @@ export function SettingsPage() {
                       <RotateCcw className="h-5 w-5 text-primary" /> Recharger depuis la base
                     </h3>
                     <p className="text-xs text-muted mt-1">
-                      Relire l&apos;école telle qu&apos;elle est enregistrée en ce moment.
+                      Relire l&apos;club telle qu&apos;elle est enregistrée en ce moment.
                     </p>
                   </div>
 
                   <p className="text-xs text-muted/80 leading-relaxed">
-                    L&apos;application charge toute l&apos;école à la connexion, puis calcule sur
+                    L&apos;application charge toute l&apos;club à la connexion, puis calcule sur
                     cet instantané : c&apos;est ce qui rend les écrans instantanés. Ce que{" "}
                     <strong>un autre poste</strong> a saisi depuis n&apos;y est donc pas encore.
                     Recharger jette cet instantané et relit la base — rien n&apos;est perdu, tout

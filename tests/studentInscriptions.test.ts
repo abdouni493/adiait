@@ -34,7 +34,7 @@ describe("cocher des créneaux — plusieurs inscriptions, un seul groupe par co
     expect(selection).toEqual(["sub-1", "sub-3"]);
   });
 
-  it("cocher un autre groupe du même cours DÉPLACE l'élève au lieu de le facturer deux fois", () => {
+  it("cocher un autre groupe du même cours DÉPLACE le chevalier au lieu de le facturer deux fois", () => {
     let selection = toggleTimingSelection([], mathsGroupA);
     selection = toggleTimingSelection(selection, mathsGroupB);
     expect(selection).toEqual(["sub-2"]);
@@ -61,7 +61,7 @@ describe("cocher des créneaux — plusieurs inscriptions, un seul groupe par co
   });
 });
 
-describe("chiffres affichés sur la carte élève", () => {
+describe("chiffres affichés sur la carte chevalier", () => {
   it("les présences comptent les séances suivies, jamais les absences", () => {
     const db = useData.getState();
     const stu = db.students[0];
@@ -101,15 +101,15 @@ describe("chiffres affichés sur la carte élève", () => {
     expect(attendedSeances(useData.getState(), stu.id)).toBe(before + 2);
   });
 
-  it("les présences sont comptées élève par élève", () => {
+  it("les présences sont comptées chevalier par chevalier", () => {
     const db = useData.getState();
-    // Chaque compteur ne retient que les lignes de SON élève…
+    // Chaque compteur ne retient que les lignes de SON chevalier…
     for (const stu of db.students) {
       expect(attendedSeances(db, stu.id)).toBe(
         db.attendance.filter((a) => a.studentId === stu.id && a.status !== "absent").length,
       );
     }
-    // …et la somme des compteurs couvre toutes les présences de l'école.
+    // …et la somme des compteurs couvre toutes les présences du club.
     expect(db.students.reduce((n, s) => n + attendedSeances(db, s.id), 0)).toBe(
       db.attendance.filter((a) => a.status !== "absent").length,
     );
@@ -133,7 +133,7 @@ describe("chiffres affichés sur la carte élève", () => {
   });
 });
 
-describe("renouvellement — ce que la fenêtre séances / mois donne à voir", () => {
+describe("renouvellement — ce que la fenêtre séances / carte donne à voir", () => {
   it("à la séance, payer recharge le compteur existant sans toucher au consommé", async () => {
     const db = useData.getState();
     const stu = db.students[0];
@@ -165,12 +165,12 @@ describe("renouvellement — ce que la fenêtre séances / mois donne à voir", 
     );
   });
 
-  it("renouveler un mois repart du pack complet, sans reporter l'ancien", async () => {
+  it("renouveler une carte repart du pack complet, sans reporter l'ancien", async () => {
     const db = useData.getState();
     const stu = db.students[0];
     const tariff = db.subscriptions.find((s) => s.id === "sub-1")!;
 
-    // Premier mois, à moitié consommé.
+    // Première carte, à moitié consommé.
     await useData.getState().createEnrollmentPayment({
       studentId: stu.id,
       subscriptionId: "sub-1",
@@ -179,7 +179,7 @@ describe("renouvellement — ce que la fenêtre séances / mois donne à voir", 
       monthSeances: tariff.monthlySeances,
       packagePrice: tariff.monthlyPrice,
       amountPaid: tariff.monthlyPrice ?? 0,
-      description: "Mois 1",
+      description: "Carte 1",
     });
     useData.setState((s) => ({
       enrollments: s.enrollments.map((e) =>
@@ -198,7 +198,7 @@ describe("renouvellement — ce que la fenêtre séances / mois donne à voir", 
       monthSeances: tariff.monthlySeances,
       packagePrice: tariff.monthlyPrice,
       amountPaid: tariff.monthlyPrice ?? 0,
-      description: "Mois 2",
+      description: "Carte 2",
     });
 
     const enrollment = useData

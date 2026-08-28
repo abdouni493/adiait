@@ -4,8 +4,14 @@ import { PERMISSION_PAGES, canSeePage, type AccessRights } from "@/lib/permissio
 export interface NavItem {
   /** i18n key under `nav.*` */
   key: string;
-  emoji: string;
   href: string;
+  /**
+   * LE QUARTIER DU MENU auquel l'écran appartient — clé i18n sous
+   * `navSection.*`. La barre latérale s'en sert pour poser un intertitre :
+   * dix-sept écrans à la file se lisent mal, quatre groupes de quatre se
+   * balaient d'un regard.
+   */
+  section?: string;
   /** logout is an action, not a route */
   action?: "logout";
 }
@@ -13,8 +19,8 @@ export interface NavItem {
 /** La déconnexion : une action, pas un écran. Elle est toujours affichée. */
 export const LOGOUT_ITEM: NavItem = {
   key: "logout",
-  emoji: "🚪",
   href: "/login",
+  section: "keep",
   action: "logout",
 };
 
@@ -41,82 +47,86 @@ export function landingRoute(role: Role, rights: AccessRights): string {
   return first?.href ?? home;
 }
 
-/** Resolve a route href to its nav metadata (emoji + i18n key), looking
+/** Resolve a route href to its nav metadata (i18n key + section), looking
  *  across every role's menu. Used by the generic module placeholder. */
-export function navMetaForHref(href: string): { key: string; emoji: string } | null {
+export function navMetaForHref(href: string): { key: string } | null {
   for (const items of Object.values(NAV_BY_ROLE)) {
     const match = items.find((i) => i.href === href && i.action !== "logout");
-    if (match) return { key: match.key, emoji: match.emoji };
+    if (match) return { key: match.key };
   }
   return null;
 }
 
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   admin: [
-    { key: "dashboard", emoji: "📊", href: "/dashboard" },
-    { key: "classes", emoji: "🏫", href: "/classes" },
-    { key: "planner", emoji: "📅", href: "/planner" },
-    { key: "subscriptions", emoji: "🎫", href: "/subscriptions" },
-    { key: "students", emoji: "🎓", href: "/students" },
-    { key: "attendance", emoji: "✅", href: "/attendance" },
-    { key: "teachers", emoji: "👨‍🏫", href: "/teachers" },
-    { key: "subjects", emoji: "📄", href: "/subjects" },
-    { key: "workers", emoji: "👥", href: "/workers" },
-    { key: "independent", emoji: "🧩", href: "/independent" },
-    { key: "parents", emoji: "👨‍👩‍👧", href: "/parents" },
-    { key: "announcements", emoji: "📢", href: "/announcements" },
-    { key: "expenses", emoji: "🧾", href: "/expenses" },
-    { key: "analytics", emoji: "📈", href: "/analytics" },
-    { key: "cash", emoji: "💵", href: "/cash" },
-    { key: "reports", emoji: "💰", href: "/reports" },
-    { key: "settings", emoji: "⚙️", href: "/settings" },
+    { key: "dashboard", href: "/dashboard", section: "order" },
+    { key: "classes", href: "/classes", section: "order" },
+    { key: "planner", href: "/planner", section: "order" },
+    { key: "subscriptions", href: "/subscriptions", section: "order" },
+
+    { key: "students", href: "/students", section: "company" },
+    { key: "attendance", href: "/attendance", section: "company" },
+    { key: "teachers", href: "/teachers", section: "company" },
+    { key: "parents", href: "/parents", section: "company" },
+    { key: "workers", href: "/workers", section: "company" },
+    { key: "independent", href: "/independent", section: "company" },
+
+    { key: "announcements", href: "/announcements", section: "stewardship" },
+    { key: "expenses", href: "/expenses", section: "stewardship" },
+    { key: "analytics", href: "/analytics", section: "stewardship" },
+    { key: "cash", href: "/cash", section: "stewardship" },
+    { key: "reports", href: "/reports", section: "stewardship" },
+
+    { key: "settings", href: "/settings", section: "keep" },
     logout,
   ],
   reception: [
-    { key: "dashboard", emoji: "📊", href: "/dashboard" },
-    { key: "classes", emoji: "🏫", href: "/classes" },
-    { key: "planner", emoji: "📅", href: "/planner" },
-    { key: "subscriptions", emoji: "🎫", href: "/subscriptions" },
-    { key: "students", emoji: "🎓", href: "/students" },
-    { key: "attendance", emoji: "✅", href: "/attendance" },
-    { key: "subjects", emoji: "📄", href: "/subjects" },
-    { key: "independent", emoji: "🧩", href: "/independent" },
-    { key: "parents", emoji: "👨‍👩‍👧", href: "/parents" },
-    { key: "announcements", emoji: "📢", href: "/announcements" },
-    { key: "expenses", emoji: "🧾", href: "/expenses" },
-    { key: "settings", emoji: "⚙️", href: "/settings" },
+    { key: "dashboard", href: "/dashboard", section: "order" },
+    { key: "classes", href: "/classes", section: "order" },
+    { key: "planner", href: "/planner", section: "order" },
+    { key: "subscriptions", href: "/subscriptions", section: "order" },
+
+    { key: "students", href: "/students", section: "company" },
+    { key: "attendance", href: "/attendance", section: "company" },
+    { key: "parents", href: "/parents", section: "company" },
+    { key: "independent", href: "/independent", section: "company" },
+
+    { key: "announcements", href: "/announcements", section: "stewardship" },
+    { key: "expenses", href: "/expenses", section: "stewardship" },
+
+    { key: "settings", href: "/settings", section: "keep" },
     logout,
   ],
   student: [
-    { key: "home", emoji: "🏠", href: "/home" },
-    { key: "schedule", emoji: "🗓️", href: "/schedule" },
-    { key: "attendance", emoji: "✅", href: "/attendance" },
-    { key: "subjects", emoji: "📄", href: "/subjects" },
-    { key: "payments", emoji: "💵", href: "/payments" },
-    { key: "announcements", emoji: "📣", href: "/announcements" },
-    { key: "profile", emoji: "👤", href: "/profile" },
+    { key: "home", href: "/home", section: "order" },
+    { key: "schedule", href: "/schedule", section: "order" },
+    { key: "attendance", href: "/attendance", section: "order" },
+    { key: "payments", href: "/payments", section: "stewardship" },
+    { key: "announcements", href: "/announcements", section: "stewardship" },
+    { key: "profile", href: "/profile", section: "keep" },
     logout,
   ],
   teacher: [
-    { key: "dashboard", emoji: "🏠", href: "/dashboard" },
-    { key: "schedule", emoji: "🗓️", href: "/schedule" },
-    { key: "attendance", emoji: "✅", href: "/attendance" },
-    { key: "subjects", emoji: "📄", href: "/subjects" },
-    { key: "salary", emoji: "💵", href: "/salary" },
-    { key: "myClasses", emoji: "👥", href: "/my-classes" },
-    { key: "announcements", emoji: "📣", href: "/announcements" },
-    { key: "profile", emoji: "👤", href: "/profile" },
+    { key: "dashboard", href: "/dashboard", section: "order" },
+    { key: "schedule", href: "/schedule", section: "order" },
+    { key: "attendance", href: "/attendance", section: "order" },
+    { key: "myClasses", href: "/my-classes", section: "company" },
+    { key: "salary", href: "/salary", section: "stewardship" },
+    { key: "announcements", href: "/announcements", section: "stewardship" },
+    { key: "profile", href: "/profile", section: "keep" },
     logout,
   ],
   parent: [
-    { key: "home", emoji: "🏠", href: "/home" },
-    { key: "myChildren", emoji: "👦", href: "/my-children" },
-    { key: "schedule", emoji: "🗓️", href: "/schedule" },
-    { key: "subjects", emoji: "📄", href: "/subjects" },
-    { key: "payments", emoji: "💵", href: "/payments" },
-    { key: "notifications", emoji: "🔔", href: "/notifications" },
-    { key: "announcements", emoji: "📣", href: "/announcements" },
-    { key: "account", emoji: "👤", href: "/account" },
+    { key: "home", href: "/home", section: "order" },
+    { key: "myChildren", href: "/my-children", section: "company" },
+    { key: "schedule", href: "/schedule", section: "order" },
+    { key: "payments", href: "/payments", section: "stewardship" },
+    { key: "notifications", href: "/notifications", section: "stewardship" },
+    { key: "announcements", href: "/announcements", section: "stewardship" },
+    { key: "account", href: "/account", section: "keep" },
     logout,
   ],
 };
+
+/** L'ordre dans lequel les quartiers du menu se suivent. */
+export const NAV_SECTIONS = ["order", "company", "stewardship", "keep"] as const;

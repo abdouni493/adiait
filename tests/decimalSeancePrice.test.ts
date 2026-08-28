@@ -13,14 +13,14 @@ import { formatDA, money } from "@/lib/utils";
 /**
  * LE PRIX D'UNE SÉANCE GARDE SES DÉCIMALES.
  *
- * Un mois ne se divise presque jamais en un compte rond : 4 000 DA sur 3
+ * Une carte ne se divise presque jamais en un compte rond : 4 000 DA sur 3
  * séances font 1 333,33 DA la séance, pas 1 333. Arrondir chaque division à
- * l'entier faisait dériver l'addition de plusieurs dinars par mois — l'élève
- * payait un peu trop, l'enseignant touchait un peu moins, et la somme des
+ * l'entier faisait dériver l'addition de plusieurs dinars par carte — le chevalier
+ * payait un peu trop, l'entraîneur touchait un peu moins, et la somme des
  * lignes cessait d'égaler le total affiché.
  *
- * Ces tests fixent la règle des deux côtés du partage : ce que l'élève paie, ce
- * que l'école garde, ce que l'enseignant touche.
+ * Ces tests fixent la règle des deux côtés du partage : ce que le chevalier paie, ce
+ * que le club garde, ce que l'entraîneur touche.
  */
 
 const SUB = "sub-1";
@@ -29,7 +29,7 @@ const STU = "stu-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un mois de 4 000 DA sur 3 séances, dont l'école garde 2 500. */
+/** Une carte de 4 000 DA sur 3 séances, dont le club garde 2 500. */
 function board() {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -80,7 +80,7 @@ describe("le prix d'une séance, en décimales", () => {
     board();
   });
 
-  it("divise le mois sans arrondir au dinar", () => {
+  it("divise la carte sans arrondir au dinar", () => {
     const sub = useData.getState().subscriptions.find((s) => s.id === SUB)!;
     expect(seancePriceOf(sub)).toBe(1333.33);
     expect(schoolPerSeanceOf(sub)).toBe(833.33);
@@ -96,12 +96,12 @@ describe("le prix d'une séance, en décimales", () => {
     const sub = useData.getState().subscriptions.find((s) => s.id === SUB)!;
     expect(sub.monthlyPrice).toBe(2500);
     expect(sub.schoolMonthShare).toBe(1000);
-    // 1 500 DA de part enseignant sur 7 séances = 214,29 DA — jamais 214.
+    // 1 500 DA de part entraîneur sur 7 séances = 214,29 DA — jamais 214.
     expect(teacherPerSeanceOf(sub)).toBe(214.29);
     expect(schoolPerSeanceOf(sub)).toBe(142.86);
   });
 
-  it("débite le solde de l'élève au centime près", async () => {
+  it("débite le solde du chevalier au centime près", async () => {
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 4000 });
     await useData
       .getState()
@@ -113,7 +113,7 @@ describe("le prix d'une séance, en décimales", () => {
     expect(soldFor(db, STU, SUB)).toBe(2666.67);
   });
 
-  it("paie l'enseignant au centime près sur chaque présence", async () => {
+  it("paie l'entraîneur au centime près sur chaque présence", async () => {
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 4000 });
     await useData
       .getState()

@@ -1,42 +1,51 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Cairo } from "next/font/google";
+import { Geist, Geist_Mono, Cairo, Cinzel } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const cairo = Cairo({
   variable: "--font-arabic",
   subsets: ["arabic", "latin"],
+  display: "swap",
+});
+
+/** La capitale romaine du blason — la marque et les titres d'écran. */
+const cinzel = Cinzel({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "ALTECH SCHOOL",
+  title: "Ordre des Chevaliers",
   description:
-    "Gestion d'école privée — abonnements, présence par carte RFID, séances, paiements.",
-  // The app deliberately ships NO tab icon. Dropping app/favicon.ico is not
-  // enough on its own: the browser then falls back to requesting /favicon.ico
-  // and happily keeps showing the one it cached earlier. Declaring an empty
-  // icon states "there is none", which stops both.
-  icons: { icon: "data:," },
+    "Gestion du club de chevalerie — chevaliers, cartes d'abonnement, présence par carte RFID, entraînements et paiements.",
+  // L'écusson vient de app/icon.svg (convention de fichier Next.js) : plus
+  // d'icône déclarée à la main ici, sans quoi elle prendrait le dessus.
 };
 
 /** Sets theme + direction from persisted settings before first paint to
- *  avoid a flash. Mirrors the logic in lib/store/settings.ts. */
+ *  avoid a flash. Mirrors the logic in lib/store/settings.ts — including the
+ *  translation of the two legacy theme ids. */
 const noFlashScript = `
 (function () {
   try {
     var raw = localStorage.getItem('ecole-settings');
     var st = raw ? (JSON.parse(raw).state || {}) : {};
-    var theme = st.theme || 'purple';
+    var theme = (st.theme === 'dark' || st.theme === 'dark-red') ? 'dark' : 'light';
     var lang = st.language || 'fr';
     var el = document.documentElement;
     el.setAttribute('data-theme', theme);
@@ -55,9 +64,9 @@ export default function RootLayout({
     <html
       lang="fr"
       dir="ltr"
-      data-theme="purple"
+      data-theme="light"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${cairo.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${cairo.variable} ${cinzel.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />

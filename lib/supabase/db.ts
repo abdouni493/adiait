@@ -10,11 +10,11 @@
  * présences, paiements et paie sans vingt requêtes.
  *
  * CE QUE CHACUN RAMÈNE N'EST PAS LA MÊME CHOSE : la RLS filtre à la source. Le
- * comptoir voit l'école entière ; un parent ne ramène que ses enfants. Aucun
+ * comptoir voit le club entier ; un parent ne ramène que ses enfants. Aucun
  * écran n'a à le savoir — la collection est simplement plus courte.
  *
  * LA PAGINATION EST OBLIGATOIRE : PostgREST rend mille lignes au maximum par
- * requête, et une école d'un trimestre dépasse largement ce chiffre en
+ * requête, et un club d'un trimestre dépasse largement ce chiffre en
  * présences. Une lecture tronquée ne lèverait aucune erreur — elle ferait juste
  * disparaître des présences et fausserait toutes les paies.
  */
@@ -32,7 +32,7 @@ const PAGE = 1000;
 export function emptySchool(): School {
   return {
     id: SCHOOL_ROW_ID,
-    name: "École",
+    name: "Club",
     description: "",
     phone: "",
     email: "",
@@ -93,7 +93,7 @@ async function loadTable(table: string, orderBy: string): Promise<Record<string,
  * plus lente.
  *
  * Une table qui échoue ne fait pas tomber les autres : elle revient vide, et
- * son erreur est signalée. Mieux vaut une école à laquelle il manque les
+ * son erreur est signalée. Mieux vaut un club à laquelle il manque les
  * annonces qu'un écran de connexion qui tourne dans le vide.
  */
 export async function loadDatabase(): Promise<Database> {

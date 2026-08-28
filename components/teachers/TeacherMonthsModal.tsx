@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * « Mois & emplois du temps » — l'état de la paie d'un enseignant, sans rien
+ * « Carte & emplois du temps » — l'état de la paie d'un entraîneur, sans rien
  * régler.
  *
  * Il répond aux trois questions que le bureau pose devant sa fiche :
- *   1. sur quel MOIS est-il en ce moment, et à quelle SÉANCE de ce mois ?
- *   2. les mois précédents sont-ils réglés — par les élèves ET à l'enseignant ?
- *   3. qui n'a pas payé, combien, et sur quel mois ?
+ *   1. sur quel CARTE est-il en ce moment, et à quelle SÉANCE de cette carte ?
+ *   2. les cartes précédents sont-ils réglés — par les chevaliers ET à l'entraîneur ?
+ *   3. qui n'a pas payé, combien, et sur quel carte ?
  *
- * Les mois sont ceux de l'emploi du temps (M1, M2 …) : M1 s'ouvre à la première
- * présence et se ferme sur la séance qui complète le pack. Tout ce qu'un mois
- * n'a pas encaissé est reporté — et se lit sur le mois suivant.
+ * Les cartes sont ceux de l'emploi du temps (M1, M2 …) : M1 s'ouvre à la première
+ * présence et se ferme sur la séance qui complète le pack. Tout ce qu'une carte
+ * n'a pas encaissé est reporté — et se lit sur la carte suivante.
  */
 
 import { useMemo, useState } from "react";
@@ -21,7 +21,10 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/SearchInput";
 import { formatDA } from "@/lib/utils";
-import { formatDateFr } from "@/lib/helpers";
+import {
+  carteShort,
+  formatDateFr,
+} from "@/lib/helpers";
 import {
   teacherEmplois,
   unpaidStudents,
@@ -44,7 +47,7 @@ import {
 import type { Teacher } from "@/lib/types";
 
 const MONTH_STATE: Record<MonthState, { label: string; tone: Tone }> = {
-  done: { label: "Mois clos", tone: "primary" },
+  done: { label: "Carte close", tone: "primary" },
   running: { label: "En cours", tone: "warning" },
   upcoming: { label: "À venir", tone: "neutral" },
 };
@@ -66,7 +69,7 @@ export function TeacherMonthsModal({
   open: boolean;
   teacher: Teacher | null;
   onClose: () => void;
-  /** ouvre l'écran de règlement depuis un mois clos non payé */
+  /** ouvre l'écran de règlement depuis une carte close non payé */
   onPay?: () => void;
 }) {
   const db = useData();
@@ -93,7 +96,7 @@ export function TeacherMonthsModal({
   if (!teacher) return null;
 
   return (
-    <Modal open={open} onClose={onClose} title="Mois & emplois du temps de l'enseignant" full>
+    <Modal open={open} onClose={onClose} title="Carte & emplois du temps de l'entraîneur" full>
       <div className="space-y-4">
         {/* ---- en-tête ------------------------------------------------- */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-canvas p-4">
@@ -103,10 +106,10 @@ export function TeacherMonthsModal({
             </strong>
             <span className="text-[11px] text-muted">
               {teacher.paymentType === "monthly"
-                ? `Fixe mensuel — ${formatDA(teacher.monthlyAmount ?? 0)}`
+                ? `Fixe par carte — ${formatDA(teacher.monthlyAmount ?? 0)}`
                 : teacher.paymentType === "per_group"
                   ? "Par groupe — tarif défini sur chaque emploi du temps"
-                  : `Pourcentage — ${teacher.percentage ?? 0}% par élève`}
+                  : `Pourcentage — ${teacher.percentage ?? 0}% par chevalier`}
               {" · "}
               {emplois.length} emploi(s) du temps
             </span>
@@ -138,13 +141,13 @@ export function TeacherMonthsModal({
             icon={closedUnpaid.length > 0 ? AlertTriangle : CheckCircle2}
             title={
               closedUnpaid.length > 0
-                ? `${closedUnpaid.length} mois clos non réglé(s)`
-                : "Aucun mois clos en attente"
+                ? `${closedUnpaid.length} carte close non réglé(s)`
+                : "Aucune carte close en attente"
             }
             text={
               closedUnpaid.length > 0
-                ? closedUnpaid.map((m) => `${m.code} (${formatDA(m.payable)})`).join(" · ")
-                : "Tous les mois terminés ont été payés à l'enseignant."
+                ? closedUnpaid.map((m) => `${carteShort(m.code)} (${formatDA(m.payable)})`).join(" · ")
+                : "Tous les cartes terminés ont été payés à l'entraîneur."
             }
           />
           <AlertCard
@@ -152,22 +155,22 @@ export function TeacherMonthsModal({
             icon={debtors.length > 0 ? AlertTriangle : CheckCircle2}
             title={
               debtors.length > 0
-                ? `${debtors.length} impayé(s) élève — ${formatDA(studentsDebt)}`
-                : "Tous les élèves sont à jour"
+                ? `${debtors.length} impayé(s) chevalier — ${formatDA(studentsDebt)}`
+                : "Tous les chevaliers sont à jour"
             }
             text={
               debtors.length > 0
-                ? "Ces montants sont reportés sur le mois suivant et bloquent la part de l'enseignant."
-                : "Aucune dette sur les mois de ces emplois du temps."
+                ? "Ces montants sont reportés sur la carte suivante et bloquent la part de l'entraîneur."
+                : "Aucune dette sur les cartes de ces emplois du temps."
             }
           />
           <AlertCard
             tone={totalWithheld > 0 ? "warning" : "primary"}
             icon={Clock}
-            title={`${formatDA(totalWithheld)} de part enseignant en attente`}
+            title={`${formatDA(totalWithheld)} de part entraîneur en attente`}
             text={
               totalWithheld > 0
-                ? "Réglés automatiquement au prochain paiement, dès que ces élèves auront payé."
+                ? "Réglés automatiquement au prochain paiement, dès que ces chevaliers auront payé."
                 : "Rien n'est bloqué : tout ce qui est dû est réglable."
             }
           />
@@ -178,7 +181,7 @@ export function TeacherMonthsModal({
           {(
             [
               { key: "emplois", label: `Emplois du temps (${emplois.length})`, icon: CalendarClock },
-              { key: "unpaid", label: `Élèves impayés (${debtors.length})`, icon: AlertTriangle },
+              { key: "unpaid", label: `Chevaliers impayés (${debtors.length})`, icon: AlertTriangle },
             ] as const
           ).map((t) => (
             <button
@@ -300,13 +303,13 @@ function EmploiCard({
             {emploi.priced ? (
               <>part enseignant {formatDA(emploi.perSeance)} / séance</>
             ) : (
-              <span className="font-semibold text-warning">aucune part enseignant définie</span>
+              <span className="font-semibold text-warning">aucune part entraîneur définie</span>
             )}{" "}
-            · {emploi.rosterCount} élève(s)
+            · {emploi.rosterCount} chevalier(s)
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Où en est le groupe : mois courant et séance courante de ce mois */}
+          {/* Où en est le groupe : carte courante et séance courante de cette carte */}
           <Badge tone="primary" className="gap-1 font-bold">
             <CalendarClock className="h-3 w-3" />
             {emploi.currentCode} · séance {Math.min(Math.max(emploi.currentHeld, 0), emploi.size)}/
@@ -354,13 +357,13 @@ function EmploiCard({
             <table className="w-full min-w-[860px] text-xs">
               <thead className="bg-canvas/60">
                 <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
-                  <th className="px-2 py-2">Mois</th>
+                  <th className="px-2 py-2">Carte</th>
                   <th className="px-2 py-2">État</th>
                   <th className="px-2 py-2">Séances</th>
                   <th className="px-2 py-2">Période</th>
-                  <th className="px-2 py-2 text-center">Élèves payés</th>
-                  <th className="px-2 py-2 text-right">Dette élèves</th>
-                  <th className="px-2 py-2 text-right">Part enseignant</th>
+                  <th className="px-2 py-2 text-center">Chevaliers payés</th>
+                  <th className="px-2 py-2 text-right">Dette chevaliers</th>
+                  <th className="px-2 py-2 text-right">Part entraîneur</th>
                   <th className="px-2 py-2 text-right">Réglé</th>
                   <th className="px-2 py-2 text-right">Reste</th>
                 </tr>
@@ -403,7 +406,7 @@ function MonthRows({
       >
         <td className="px-2 py-2 font-bold text-ink">
           {expanded ? "▾ " : "▸ "}
-          {month.code}
+          {carteShort(month.code)}
           {month.isCurrent && (
             <Badge tone="primary" className="ml-1.5 text-[9px]">
               en cours
@@ -487,7 +490,7 @@ function MonthRows({
                   <thead className="bg-canvas/60">
                     <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                       <th className="px-2 py-1.5">N°</th>
-                      <th className="px-2 py-1.5">Élève</th>
+                      <th className="px-2 py-1.5">Chevalier</th>
                       <th className="px-2 py-1.5 text-center">Séances</th>
                       <th className="px-2 py-1.5 text-center">P / A / An.</th>
                       <th className="px-2 py-1.5 text-right">Dû (mois)</th>
@@ -502,7 +505,7 @@ function MonthRows({
                     {month.students.length === 0 ? (
                       <tr>
                         <td colSpan={10} className="px-2 py-4 text-center italic text-muted">
-                          Aucun élève n&apos;a encore atteint ce mois.
+                          Aucun chevalier n&apos;a encore atteint ce mois.
                         </td>
                       </tr>
                     ) : (
@@ -609,7 +612,7 @@ function UnpaidTable({
   onSearch: (v: string) => void;
 }) {
   const shown = rows.filter((r) =>
-    `${r.name} ${r.registrationNumber} ${r.emploi} ${r.monthCode}`
+    `${r.name} ${r.registrationNumber} ${r.emploi} ${carteShort(r.monthCode)}`
       .toLowerCase()
       .includes(search.trim().toLowerCase()),
   );
@@ -623,7 +626,7 @@ function UnpaidTable({
           <Input
             value={search}
             onChange={(e) => onSearch(e.target.value)}
-            placeholder="Rechercher un élève, un emploi du temps ou un mois…"
+            placeholder="Rechercher un chevalier, un emploi du temps ou une carte…"
             className="pl-9"
           />
         </div>
@@ -634,7 +637,7 @@ function UnpaidTable({
 
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line py-10 text-center text-xs italic text-success">
-          Aucun impayé — tous les mois de cet enseignant sont réglés par les élèves. ✅
+          Aucun impayé — tous les mois de cet enseignant sont réglés par les chevaliers. ✅
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-line">
@@ -642,10 +645,10 @@ function UnpaidTable({
             <thead className="bg-canvas/60">
               <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
                 <th className="px-2 py-2">N°</th>
-                <th className="px-2 py-2">Élève</th>
+                <th className="px-2 py-2">Chevalier</th>
                 <th className="px-2 py-2">Téléphone</th>
                 <th className="px-2 py-2">Emploi du temps</th>
-                <th className="px-2 py-2">Mois</th>
+                <th className="px-2 py-2">Carte</th>
                 <th className="px-2 py-2 text-center">Séances</th>
                 <th className="px-2 py-2 text-right">Versé</th>
                 <th className="px-2 py-2 text-right">Reste dû</th>
@@ -655,7 +658,7 @@ function UnpaidTable({
             <tbody>
               {shown.map((r) => (
                 <tr
-                  key={`${r.studentId}-${r.sessionId}-${r.monthCode}`}
+                  key={`${r.studentId}-${r.sessionId}-${carteShort(r.monthCode)}`}
                   className="border-t border-line/60 hover:bg-danger/5"
                 >
                   <td className="px-2 py-2 font-mono text-muted">{r.registrationNumber}</td>
@@ -664,7 +667,7 @@ function UnpaidTable({
                   <td className="px-2 py-2 text-muted">{r.emploi}</td>
                   <td className="px-2 py-2">
                     <Badge tone={MONTH_STATE[r.monthState].tone} className="text-[9px]">
-                      {r.monthCode} · {MONTH_STATE[r.monthState].label}
+                      {carteShort(r.monthCode)} · {MONTH_STATE[r.monthState].label}
                     </Badge>
                   </td>
                   <td className="px-2 py-2 text-center font-mono text-muted">
@@ -688,8 +691,8 @@ function UnpaidTable({
 
       <p className="flex items-start gap-1.5 rounded-xl border border-warning/30 bg-warning/5 p-2.5 text-[10px] text-warning">
         <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Ces montants sont <strong>reportés sur le mois suivant</strong> de l&apos;emploi du temps
-        concerné : le solde de l&apos;élève reste négatif tant qu&apos;il n&apos;a pas payé, et la
+        Ces montants sont <strong>reportés sur la carte suivante</strong> de l&apos;emploi du temps
+        concerné : le solde de l&apos;chevalier reste négatif tant qu&apos;il n&apos;a pas payé, et la
         part de l&apos;enseignant correspondante reste en attente au lieu d&apos;être versée.
       </p>
     </div>

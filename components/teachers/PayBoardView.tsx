@@ -4,18 +4,22 @@
  * LA RELECTURE D'UN RÈGLEMENT — les trois mêmes tables, en lecture seule.
  *
  * Un règlement enregistré fige ce qu'il a payé (`TeacherPayment.board`). Cet
- * écran le réaffiche tel quel : les élèves du mois, les arriérés rattrapés, les
+ * écran le réaffiche tel quel : les chevaliers de la carte, les arriérés rattrapés, les
  * retenues, et le net. C'est volontairement le même découpage, les mêmes
  * colonnes et les mêmes totaux que l'écran de règlement — la personne qui a
- * versé et celle qui vérifie six mois plus tard doivent lire la même page.
+ * versé et celle qui vérifie six carte plus tard doivent lire la même page.
  *
- * Rien n'est recalculé : un élève qui a changé de groupe, un tarif corrigé
+ * Rien n'est recalculé : un chevalier qui a changé de groupe, un tarif corrigé
  * depuis, n'ont aucune prise sur ce qui a été payé ce jour-là.
  */
 
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { formatDA } from "@/lib/utils";
-import { formatDateFr, monthCodeLabel } from "@/lib/helpers";
+import {
+  carteShort,
+  formatDateFr,
+  monthCodeLabel,
+} from "@/lib/helpers";
 import type { TeacherPayBoard, TeacherPayDeductionLine } from "@/lib/types";
 import { AlertTriangle, GraduationCap, HandCoins, Lock, Receipt, Users, Wallet } from "lucide-react";
 
@@ -23,7 +27,7 @@ import { AlertTriangle, GraduationCap, HandCoins, Lock, Receipt, Users, Wallet }
 /**
  * LES MÊMES PASTILLES QUE LA FEUILLE DE PRÉSENCE — même écran, même langage.
  *
- * `"before"` marque une séance tenue avant l'inscription de l'élève : elle
+ * `"before"` marque une séance tenue avant l'inscription du chevalier : elle
  * n'a jamais été la sienne, donc elle reste vide plutôt que de se lire comme
  * un pointage oublié.
  */
@@ -67,9 +71,9 @@ const DED_KIND: Record<
 > = {
   expense: { label: "Dépense", tone: "warning", icon: <Receipt className="h-3 w-3" /> },
   acompte: { label: "Acompte", tone: "primary", icon: <Wallet className="h-3 w-3" /> },
-  child: { label: "Scolarité enfant", tone: "danger", icon: <GraduationCap className="h-3 w-3" /> },
+  child: { label: "Cotisation enfant", tone: "danger", icon: <GraduationCap className="h-3 w-3" /> },
   child_debt: {
-    label: "Scolarité avancée",
+    label: "Cotisation avancée",
     tone: "danger",
     icon: <GraduationCap className="h-3 w-3" />,
   },
@@ -78,7 +82,7 @@ const DED_KIND: Record<
 export function PayBoardView({ board }: { board: TeacherPayBoard }) {
   return (
     <div className="space-y-4">
-      {/* ---- l'emploi du temps et le mois réglés -------------------------- */}
+      {/* ---- l'emploi du temps et la carte réglées -------------------------- */}
       <div className="flex flex-wrap items-start justify-between gap-2 rounded-2xl border border-primary/30 bg-primary-50/40 p-3">
         <div className="min-w-0">
           <strong className="block text-sm text-ink">
@@ -108,13 +112,13 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
       <section className="overflow-hidden rounded-2xl border border-line">
         <div className="bg-primary-50/60 p-2.5">
           <strong className="flex items-center gap-1.5 text-xs text-ink">
-            <Users className="h-3.5 w-3.5 text-primary" /> 1. Élèves de {board.monthCode} (
+            <Users className="h-3.5 w-3.5 text-primary" /> 1. Chevaliers de {carteShort(board.monthCode)} (
             {board.students.length})
           </strong>
         </div>
         {board.students.length === 0 ? (
           <p className="bg-surface px-3 py-5 text-center text-[11px] italic text-muted">
-            Aucun élève réglé sur ce mois.
+            Aucun chevalier réglé sur ce mois.
           </p>
         ) : (
           <div className="overflow-x-auto bg-surface">
@@ -122,7 +126,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
               <thead className="bg-canvas/60">
                 <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">N°</th>
-                  <th className="px-2 py-2">Élève</th>
+                  <th className="px-2 py-2">Chevalier</th>
                   {Array.from({ length: board.size }, (_, i) => (
                     <th key={i} className="px-1 py-2 text-center">
                       S{i + 1}
@@ -133,7 +137,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                   <th className="px-2 py-2 text-right">Part / séance</th>
                   <th className="px-2 py-2 text-right">Versé</th>
                   <th className="px-2 py-2 text-right">Reste dû</th>
-                  <th className="px-2 py-2 text-right">Part enseignant</th>
+                  <th className="px-2 py-2 text-right">Part entraîneur</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,7 +161,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                         )}
                         {r.schoolCovered && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-danger px-2 py-0.5 text-[8px] font-bold text-white">
-                            <AlertTriangle className="h-2.5 w-2.5" /> avancé par l&apos;école
+                            <AlertTriangle className="h-2.5 w-2.5" /> avancé par l&apos;club
                           </span>
                         )}
                       </div>
@@ -231,8 +235,8 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
               <thead className="bg-canvas/60">
                 <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">N°</th>
-                  <th className="px-2 py-2">Élève</th>
-                  <th className="px-2 py-2 text-center">Mois d&apos;origine</th>
+                  <th className="px-2 py-2">Chevalier</th>
+                  <th className="px-2 py-2 text-center">Carte d&apos;origine</th>
                   <th className="px-2 py-2 text-center">Séances</th>
                   <th className="px-2 py-2">Dates</th>
                   <th className="px-2 py-2 text-right">Part rattrapée</th>
@@ -240,7 +244,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
               </thead>
               <tbody>
                 {board.arrears.map((r, i) => (
-                  <tr key={`${r.studentId}-${r.monthCode}-${i}`} className="border-t border-line/60">
+                  <tr key={`${r.studentId}-${carteShort(r.monthCode)}-${i}`} className="border-t border-line/60">
                     <td className="px-2 py-2 font-mono text-[10px] text-muted">
                       {r.registrationNumber || "—"}
                     </td>
@@ -249,7 +253,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                     </td>
                     <td className="px-2 py-2 text-center">
                       <Badge tone="success" className="font-mono text-[10px]">
-                        {r.monthCode}
+                        {carteShort(r.monthCode)}
                       </Badge>
                     </td>
                     <td className="px-2 py-2 text-center font-mono">{r.seances}</td>
@@ -342,7 +346,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
 
       {/* =================== LE NET =================== */}
       <div className="space-y-1.5 rounded-2xl border-2 border-primary/40 bg-primary-50/40 p-3.5">
-        <Line label="Table 1 — élèves du mois" value={formatDA(board.studentsTotal)} tone="text-ink" />
+        <Line label="Table 1 — chevaliers de la carte" value={formatDA(board.studentsTotal)} tone="text-ink" />
         <Line label="Table 2 — arriérés rattrapés" value={formatDA(board.arrearsTotal)} tone="text-success" />
         <div className="border-t border-line pt-1.5">
           <Line label="TOTAL BRUT" value={formatDA(board.gross)} tone="text-primary" />
@@ -353,7 +357,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
           tone="text-danger"
         />
         <div className="flex items-center justify-between border-t-2 border-primary/40 pt-2">
-          <strong className="text-sm text-ink">NET VERSÉ À L&apos;ENSEIGNANT</strong>
+          <strong className="text-sm text-ink">NET VERSÉ À L&apos;ENTRAÎNEUR</strong>
           <strong className="font-mono text-xl font-black text-primary">{formatDA(board.net)}</strong>
         </div>
       </div>

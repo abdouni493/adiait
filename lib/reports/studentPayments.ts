@@ -32,14 +32,14 @@ import {
 
 const LABELS = {
   fr: {
-    docTitle: "Relevé des Paiements Élève",
+    docTitle: "Relevé des Paiements Chevalier",
     period: (s: string, e: string) => `Période du <strong>${s}</strong> au <strong>${e}</strong>`,
-    studentInfo: "Informations de l'Élève",
+    studentInfo: "Informations de l'Chevalier",
     fullName: "Nom Complet :",
     card: "N° Carte / RFID :",
     phone: "Téléphone :",
     parent: "Parent / Tuteur :",
-    classLevel: "Classe / Niveau :",
+    classLevel: "Catégorie / Niveau :",
     enrollments: "Modules & Groupes :",
     none: "Aucune inscription",
     paymentsTitle: "Détail des Paiements de la Période",
@@ -53,7 +53,7 @@ const LABELS = {
     paid: "Payé",
     rest: "Reste",
     typePurchase: "Achat séances",
-    typeMonth: "Abonn. mensuel",
+    typeMonth: "Abonn. par carte",
     typeDebt: "Règl. dette",
     noTx: "Aucun paiement sur cette période.",
     totalsTitle: "Totaux de la Période",
@@ -64,8 +64,8 @@ const LABELS = {
     currentDebt: "Dette restante du compte :",
     remaining: "Séances restantes :",
     printedOn: "Date d'impression :",
-    signParent: "Signature du Parent / Élève",
-    signCashier: "Cachet & Signature de l'École",
+    signParent: "Signature du Parent / Chevalier",
+    signCashier: "Cachet & Signature de l'Club",
     da: "DA",
   },
   ar: {

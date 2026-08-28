@@ -9,14 +9,14 @@ import {
 import { teacherEmplois } from "@/lib/teacherMonths";
 
 /**
- * « ÉCOLE SEULEMENT » SE COCHE EMPLOI DU TEMPS PAR EMPLOI DU TEMPS.
+ * « CLUB SEULEMENT » SE COCHE EMPLOI DU TEMPS PAR EMPLOI DU TEMPS.
  *
- * Exactement comme la gratuité. Un élève peut suivre deux modules dont un seul
- * est « école seule » : sur celui-là, la famille ne verse que la part de
- * l'école, l'enseignant n'est pas payé pour lui — et l'élève ne figure même pas
- * sur l'écran de paie de cet enseignant, parce qu'une ligne qui ne rapportera
+ * Exactement comme la gratuité. Un chevalier peut suivre deux modules dont un seul
+ * est « club seule » : sur celui-là, la famille ne verse que la part de
+ * le club, l'entraîneur n'est pas payé pour lui — et le chevalier ne figure même pas
+ * sur l'écran de paie de cet entraîneur, parce qu'une ligne qui ne rapportera
  * jamais rien n'invite qu'à des erreurs de calcul. Sur l'autre module, tout se
- * calcule normalement et l'élève apparaît comme n'importe qui.
+ * calcule normalement et le chevalier apparaît comme n'importe qui.
  */
 
 const SUB_ON = "sub-1"; // l'emploi où l'option est ACTIVE
@@ -69,7 +69,7 @@ function board() {
   useData.setState(db);
 }
 
-describe("« école seulement », emploi par emploi", () => {
+describe("« club seulement », emploi par emploi", () => {
   beforeEach(board);
 
   it("ne s'applique qu'aux emplois du temps cochés", () => {
@@ -78,7 +78,7 @@ describe("« école seulement », emploi par emploi", () => {
     expect(isSchoolOnlySub(student, SUB_OFF, TEACHER)).toBe(false);
   });
 
-  it("fait payer la seule part de l'école sur l'emploi coché, le prix plein sur l'autre", () => {
+  it("fait payer la seule part du club sur l'emploi coché, le prix plein sur l'autre", () => {
     const db = useData.getState();
     const student = db.students.find((s) => s.id === STU)!;
     const on = db.subscriptions.find((s) => s.id === SUB_ON)!;
@@ -88,7 +88,7 @@ describe("« école seulement », emploi par emploi", () => {
     expect(studentListPrice(student, off)).toBe(500); // le tarif ordinaire
   });
 
-  it("ne paie pas l'enseignant sur l'emploi coché, le paie normalement sur l'autre", () => {
+  it("ne paie pas l'entraîneur sur l'emploi coché, le paie normalement sur l'autre", () => {
     const db = useData.getState();
     const student = db.students.find((s) => s.id === STU)!;
     const on = db.subscriptions.find((s) => s.id === SUB_ON)!;
@@ -98,7 +98,7 @@ describe("« école seulement », emploi par emploi", () => {
     expect(studentTeacherPerSeance(student, off, TEACHER)).toBe(300);
   });
 
-  it("retire l'élève de l'écran de paie du seul emploi coché", () => {
+  it("retire le chevalier de l'écran de paie du seul emploi coché", () => {
     const emplois = teacherEmplois(useData.getState(), TEACHER);
     const on = emplois.find((e) => e.sessionId === SES_ON)!;
     const off = emplois.find((e) => e.sessionId === SES_OFF)!;
@@ -110,7 +110,7 @@ describe("« école seulement », emploi par emploi", () => {
     expect(listedOff).toBe(true);
   });
 
-  it("garde le sens des anciennes fiches, qui ne listaient que des enseignants", () => {
+  it("garde le sens des anciennes fiches, qui ne listaient que des entraîneurs", () => {
     useData.setState((state) => ({
       students: state.students.map((st) =>
         st.id === STU ? { ...st, schoolOnlySubscriptionIds: undefined } : st,

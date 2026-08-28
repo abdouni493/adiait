@@ -24,14 +24,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PresenceSheet } from "@/components/attendance/PresenceSheet";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
 import { formatDA } from "@/lib/utils";
-import {
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Search,
-  UserCheck,
-} from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Clock, Search, UserCheck } from "lucide-react";
 import type { Day, ScheduleSession } from "@/lib/types";
 import {
   DAY_LABELS_FR,
@@ -152,9 +145,9 @@ export function AttendancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        emoji="✅"
+        icon={UserCheck}
         title="Présences"
-        subtitle="Pointage des emplois du temps, mois par mois"
+        subtitle="Pointage des emplois du temps, carte par carte"
       />
 
       <div className="flex gap-2">
@@ -313,7 +306,7 @@ export function AttendancePage() {
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                  Élève
+                  Chevalier
                 </label>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -332,7 +325,7 @@ export function AttendancePage() {
                 <thead className="bg-canvas/60">
                   <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
                     <th className="px-3 py-2.5">Date</th>
-                    <th className="px-3 py-2.5">Élève</th>
+                    <th className="px-3 py-2.5">Chevalier</th>
                     <th className="px-3 py-2.5">Emploi du temps</th>
                     <th className="px-3 py-2.5">Statut</th>
                     <th className="px-3 py-2.5 text-right">Décompté</th>

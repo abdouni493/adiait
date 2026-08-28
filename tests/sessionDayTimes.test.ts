@@ -72,7 +72,7 @@ describe("chevauchement de créneaux", () => {
   });
 
   it("deux créneaux qui se touchent ne se chevauchent PAS", () => {
-    // La salle se libère à 10:00 : le cours suivant peut commencer à 10:00.
+    // L'arène se libère à 10:00 : le cours suivant peut commencer à 10:00.
     expect(
       timesOverlap({ startTime: "08:00", endTime: "10:00" }, { startTime: "10:00", endTime: "12:00" }),
     ).toBe(false);
@@ -85,7 +85,7 @@ describe("chevauchement de créneaux", () => {
   });
 });
 
-describe("conflit de salle", () => {
+describe("conflit de arène", () => {
   const occupant = base({ id: "ses-a", days: ["saturday", "tuesday"], startTime: "08:00", endTime: "10:00" });
 
   it("signale le jour partagé où les heures se recouvrent", () => {

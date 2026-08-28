@@ -21,15 +21,15 @@
  *   - tout le reste                                 -> rien ne part.
  *
  * Un pointage de présence n'envoie donc QUE la présence — pas les vingt mille
- * lignes de l'école.
+ * lignes du club.
  *
  * L'ÉCRITURE EST GROUPÉE (250 ms) : une action qui touche six collections d'un
- * coup — encaisser, débiter le solde, créditer la part de l'enseignant, écrire
+ * coup — encaisser, débiter le solde, créditer la part de l'entraîneur, écrire
  * la caisse — ne produit qu'UN envoi.
  *
  * L'ORDRE COMPTE : les créations suivent l'ordre des dépendances (`WRITE_ORDER`,
- * un élève avant son inscription), les suppressions l'ordre inverse. Sans cela,
- * PostgreSQL refuserait une inscription dont l'élève n'est pas encore arrivé.
+ * un chevalier avant son inscription), les suppressions l'ordre inverse. Sans cela,
+ * PostgreSQL refuserait une inscription dont le chevalier n'est pas encore arrivé.
  *
  * QUAND L'ENVOI ÉCHOUE — droits insuffisants, réseau coupé — l'écran garde ce
  * qu'il affiche, l'erreur est signalée une fois, et la référence n'avance PAS :
@@ -110,7 +110,7 @@ function snapshotOf(db: Database): Snapshot {
  * DIT CE QUI EST DÉJÀ EN BASE.
  *
  * Appelé juste après la lecture initiale : sans cela, la première modification
- * ferait repartir l'école entière comme si elle venait d'être créée.
+ * ferait repartir le club entier comme si elle venait d'être créée.
  */
 export function setBaseline(db: Database): void {
   baseline = snapshotOf(db);
@@ -174,7 +174,7 @@ async function deleteCollection(
 async function push(db: Database): Promise<void> {
   if (!baseline) {
     // Rien n'a été lu : on ne sait pas ce qui est en base, et tout envoyer
-    // écraserait une école entière. On pose la référence et on attend le
+    // écraserait un club entier. On pose la référence et on attend le
     // prochain changement.
     baseline = snapshotOf(db);
     return;
@@ -200,7 +200,7 @@ async function push(db: Database): Promise<void> {
     if (failed) failures.push(failed);
   }
 
-  // Les suppressions ensuite, dans l'ordre inverse : on ne retire un élève
+  // Les suppressions ensuite, dans l'ordre inverse : on ne retire un chevalier
   // qu'une fois ses inscriptions parties.
   for (const key of DELETE_ORDER) {
     const nextRows = next.rows.get(key)!;

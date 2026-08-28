@@ -139,7 +139,7 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
         {toast.studentName && (
           <div className="bg-canvas/30 rounded-xl p-2.5 space-y-1 text-xs border border-line mt-2">
             <div className="flex justify-between">
-              <span className="text-muted">Élève:</span>
+              <span className="text-muted">Chevalier:</span>
               <strong className="text-ink">{toast.studentName}</strong>
             </div>
             {/* A presence costs ONE séance, never money. `cost` carries the

@@ -10,25 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Modal } from "@/components/ui/Modal";
-import {
-  Users,
-  Calendar,
-  FileText,
-  DollarSign,
-  Megaphone,
-  User,
-  AlertTriangle,
-  Clock,
-  Eye,
-  Bell,
-  MapPin,
-  BookOpen,
-  Search,
-  Download,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Wallet
-} from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, Bell, BookOpen, Calendar, CalendarDays, Clock, DollarSign, Download, Eye, FileText, Home, MapPin, Megaphone, Search, Swords, User, Users, Wallet } from "lucide-react";
 import type {
   Enrollment,
   Parent,
@@ -181,9 +163,9 @@ function ParentHomeView({
   return (
     <div className="space-y-6 text-xs">
       <PageHeader
-        emoji="🏠"
+        icon={Home}
         title={`Espace Tuteur : ${parent.firstName} ${parent.lastName}`}
-        subtitle="Suivi de la scolarité et des séances de vos enfants"
+        subtitle="Suivi de la cotisation et des séances de vos enfants"
       />
 
       {indebtedChildren.length > 0 && (
@@ -322,7 +304,7 @@ function ParentChildrenView({
 }) {
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="👦" title="Mes Enfants" subtitle="Profils, séances restantes et inscriptions" />
+      <PageHeader icon={Swords} title="Mes Enfants" subtitle="Profils, séances restantes et inscriptions" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {myChildren.map((c) => {
@@ -480,7 +462,7 @@ function ParentScheduleView({
     setSelectedSession({
       ...ses,
       teacherName: teacherObj ? `${teacherObj.firstName} ${teacherObj.lastName}` : "Non spécifié",
-      salleName: salleObj ? salleObj.name : "Salle non spécifiée",
+      salleName: salleObj ? salleObj.name : "Arène non spécifiée",
     });
     setIsDetailsOpen(true);
   };
@@ -494,7 +476,7 @@ function ParentScheduleView({
   return (
     <div className="space-y-6 text-xs">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <PageHeader emoji="🗓️" title="Planning des Cours" subtitle="Emploi du temps hebdomadaire par enfant" />
+        <PageHeader icon={CalendarDays} title="Planning des Cours" subtitle="Emploi du temps hebdomadaire par enfant" />
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Child Select */}
@@ -587,7 +569,7 @@ function ParentScheduleView({
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Enseignant</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Entraîneur</span>
                 <span className="font-semibold text-ink">{selectedSession.teacherName}</span>
               </div>
             </div>
@@ -711,7 +693,7 @@ function ParentSubjectsView({
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="📄" title="Fiches & Exercices des Enfants" subtitle="Ressources de cours partagées pour vos enfants" />
+      <PageHeader icon={FileText} title="Fiches & Exercices des Enfants" subtitle="Ressources de cours partagées pour vos enfants" />
 
       {/* Filter toolbar */}
       <Card className="border border-line shadow-sm">
@@ -847,7 +829,7 @@ function ParentPaymentsView({
 
   const getChildName = (sid: string) => {
     const c = myChildren.find((kid) => kid.id === sid);
-    return c ? `${c.firstName} ${c.lastName}` : "Élève inconnu";
+    return c ? `${c.firstName} ${c.lastName}` : "Chevalier inconnu";
   };
 
   /** Module label of a payment, resolved through the child's inscriptions. */
@@ -895,7 +877,7 @@ function ParentPaymentsView({
   return (
     <div className="space-y-6 text-xs">
       <PageHeader
-        emoji="💵"
+        icon={Banknote}
         title="Historique des paiements"
         subtitle="Séances achetées, remises et restes à payer de vos enfants"
       />
@@ -1004,7 +986,7 @@ function ParentPaymentsView({
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher par module, élève, désignation..."
+              placeholder="Rechercher par module, chevalier, désignation..."
               className="pl-9 w-full"
             />
           </div>
@@ -1078,7 +1060,7 @@ function ParentPaymentsView({
                     </div>
 
                     <div className="mb-2 flex items-center justify-between rounded-xl border border-line/60 bg-canvas/30 p-2.5 text-[10px]">
-                      <span className="uppercase font-semibold text-muted">Élève</span>
+                      <span className="uppercase font-semibold text-muted">Chevalier</span>
                       <span className="block max-w-[140px] truncate font-bold text-primary">
                         {getChildName(p.studentId)}
                       </span>
@@ -1142,7 +1124,7 @@ function ParentNotificationsView({
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="🔔" title="Notifications & Alertes" subtitle="Toutes les alertes et messages administratifs reçus" />
+      <PageHeader icon={Bell} title="Notifications & Alertes" subtitle="Toutes les alertes et messages administratifs reçus" />
 
       {alerts.length === 0 ? (
         <Card className="p-8 text-center bg-canvas/30 border border-line">
@@ -1181,7 +1163,7 @@ function ParentAnnouncementsView({ announcements }: { announcements: any[] }) {
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="📣" title="Annonces Administratives" subtitle="Toutes les alertes scolaires et évènements" />
+      <PageHeader icon={Megaphone} title="Annonces Administratives" subtitle="Toutes les alertes du club et évènements" />
 
       {activeAnn.length === 0 ? (
         <Card className="p-8 text-center bg-canvas/30 border border-line">
@@ -1257,7 +1239,7 @@ function ParentProfileView({
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="👤" title="Mon Profil Parent" subtitle="Gérer vos identifiants d'accès et vos contacts" />
+      <PageHeader icon={User} title="Mon Profil Parent" subtitle="Gérer vos identifiants d'accès et vos contacts" />
 
       <div className="max-w-2xl">
         <Card>

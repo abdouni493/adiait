@@ -9,27 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  Trash2,
-  Edit,
-  Eye,
-  Plus,
-  MoreVertical,
-  Search,
-  Printer,
-  User,
-  BookOpen,
-  History,
-  CheckCircle,
-  Scan,
-  Bell,
-  Send,
-  AlertTriangle,
-  MessageCircle,
-  Repeat,
-  Receipt,
-  Wallet,
-} from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, MessageCircle, MoreVertical, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Swords, Trash2, User, Wallet } from "lucide-react";
 import type {
   AbsencePenalty,
   AttendanceRecord,
@@ -39,6 +19,8 @@ import type {
   SubscriptionPlan,
 } from "@/lib/types";
 import {
+  EXPIRY_WARNING_DAYS,
+  carteShort,
   daysUntil,
   discountLabel,
   enrollmentLabel,
@@ -51,7 +33,6 @@ import {
   studentEnrollments,
   studentPayments,
   totalRemainingSeances,
-  EXPIRY_WARNING_DAYS,
 } from "@/lib/helpers";
 import { useSettings } from "@/lib/store/settings";
 import { printHtmlDocument } from "@/lib/print";
@@ -143,8 +124,8 @@ export function StudentsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   /** the fiche being edited — the create screen, pre-filled */
   const [editStudent, setEditStudent] = useState<Student | null>(null);
-  /** « Situation d'un élève » : rechercher, choisir un emploi du temps et lire
-   *  ses présences du mois avec ce qu'il reste à payer */
+  /** « Situation d'un chevalier » : rechercher, choisir un emploi du temps et lire
+   *  ses présences de la carte avec ce qu'il reste à payer */
   const [situationOpen, setSituationOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   /** "Payer & recharger" — the ONE money action of a card. */
@@ -154,7 +135,7 @@ export function StudentsPage() {
   const [selectedAlertStudentIds, setSelectedAlertStudentIds] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-  // WhatsApp — fenêtre d'envoi partagée par les boutons « élève » et « parent »
+  // WhatsApp — fenêtre d'envoi partagée par les boutons « chevalier » et « parent »
   const [waTarget, setWaTarget] = useState<{
     recipients: WhatsAppRecipient[];
     students: WhatsAppStudentContext[];
@@ -213,12 +194,12 @@ export function StudentsPage() {
   // Active overlay actions index
   const [overlayStudentId, setOverlayStudentId] = useState<string | null>(null);
 
-  /** « Dettes & frais » d'un élève : la liste, la saisie et l'encaissement. */
+  /** « Dettes & frais » d'un chevalier : la liste, la saisie et l'encaissement. */
   const [chargeStudent, setChargeStudent] = useState<{
     student: Student;
     tab: "list" | "pay";
   } | null>(null);
-  /** la saisie seule, ouverte en un clic depuis la carte d'un élève */
+  /** la saisie seule, ouverte en un clic depuis la carte d'un chevalier */
   const [chargeFormStudent, setChargeFormStudent] = useState<Student | null>(null);
 
   // Scanner state
@@ -310,7 +291,7 @@ export function StudentsPage() {
   };
 
   /** The timing an inscription was taken on — the créneau ticked when the
-   *  student was enrolled: group, days, hours, salle and teacher. */
+   *  student was enrolled: group, days, hours, arène and teacher. */
   const getTimingLabel = (subId: string) => {
     const sub = subscriptions.find((s) => s.id === subId);
     const s = sub ? sessions.find((se) => se.id === sub.sessionId) : undefined;
@@ -381,8 +362,8 @@ export function StudentsPage() {
 
       if (!matchesSearch) return false;
 
-      // « En dette » se lit comme la famille l'entend : la scolarité ET les
-      // frais divers. Un élève qui ne doit qu'un livre reste un élève à qui il
+      // « En dette » se lit comme la famille l'entend : la cotisation ET les
+      // frais divers. Un chevalier qui ne doit qu'un livre reste un chevalier à qui il
       // faut réclamer quelque chose.
       if (filterType === "debt")
         return debtFor(s) > 0 || (s.registrationDue ?? 0) > 0 || studentChargeDebt(db, s.id) > 0;
@@ -437,7 +418,7 @@ export function StudentsPage() {
    * RÉIMPRIMER LE REÇU D'UN VERSEMENT.
    *
    * La famille repart avec un papier au moment de l'encaissement, mais elle le
-   * perd, ou l'école en veut un double pour son classeur. Le reçu se rejoue
+   * perd, ou le club en veut un double pour son catégorieur. Le reçu se rejoue
    * donc depuis la ligne elle-même, sur le MÊME modèle que celui du guichet.
    */
   const printPaymentReceipt = (p: Payment) => {
@@ -447,7 +428,7 @@ export function StudentsPage() {
       addToast({
         type: "danger",
         title: "Impression impossible",
-        message: "Ce versement ne porte sur aucun élève connu.",
+        message: "Ce versement ne porte sur aucun chevalier connu.",
       });
     }
   };
@@ -457,7 +438,7 @@ export function StudentsPage() {
     setOverlayStudentId(null);
   };
 
-  /** Les frais de l'élève — livres, tenues, sorties, avances de l'école. */
+  /** Les frais du chevalier — livres, tenues, sorties, avances du club. */
   const openCharges = (stu: Student, tab: "list" | "pay" = "list") => {
     setChargeStudent({ student: stu, tab });
     setOverlayStudentId(null);
@@ -469,7 +450,7 @@ export function StudentsPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cet étudiant ?")) {
+    if (confirm("Êtes-vous sûr de vouloir supprimer ce chevalier ?")) {
       deleteFrom("students", id);
       void deleteRoleUser(id);
       setOverlayStudentId(null);
@@ -523,7 +504,7 @@ export function StudentsPage() {
         title: "Modification impossible",
         message:
           res.messageKey === "attendance.duplicateDay"
-            ? "Une présence existe déjà pour cet élève sur ce créneau à cette date."
+            ? "Une présence existe déjà pour ce chevalier sur ce créneau à cette date."
             : "La présence n'a pas pu être modifiée.",
       });
       return;
@@ -531,7 +512,7 @@ export function StudentsPage() {
     addToast({
       type: "success",
       title: "Présence modifiée",
-      message: `Prix de la séance retenu pour la part enseignant : ${res.cost ?? 0} DA.`,
+      message: `Prix de la séance retenu pour la part entraîneur : ${res.cost ?? 0} DA.`,
     });
     closeAttModals();
   };
@@ -597,7 +578,7 @@ export function StudentsPage() {
         remaining: res.remaining,
         consumed: (res.cost ?? 0) > 0,
         msg: (res.messageKey === "scan.alreadyPresent"
-          ? "Élève déjà marqué présent pour cette séance aujourd'hui (aucune séance décomptée)."
+          ? "Chevalier déjà marqué présent pour cette séance aujourd'hui (aucune séance décomptée)."
           : res.outOfSeances
           ? `Présence enregistrée${seance} — ATTENTION: aucune séance restante, à régulariser à la réception.`
           : res.messageKey === "scan.successLate"
@@ -608,25 +589,25 @@ export function StudentsPage() {
       const failureMsgs: Record<string, string> = {
         "scan.noSession": "Aucune séance programmée à cette heure.",
         "scan.noSessionToday": "Aucune séance de son niveau/module aujourd'hui.",
-        "scan.noSessionNow": "Ce n'est pas l'heure de la séance de cet élève.",
+        "scan.noSessionNow": "Ce n'est pas l'heure de la séance de ce chevalier.",
         "scan.tooEarly": `Trop tôt — la séance n'a pas encore commencé.${res.nextStart ? ` Prochaine séance à ${res.nextStart}.` : ""}`,
-        "scan.sessionEnded": "Séance déjà terminée — scan refusé, l'élève reste absent.",
+        "scan.sessionEnded": "Séance déjà terminée — scan refusé, le chevalier reste absent.",
         "scan.subscriptionExpired": "Abonnement EXPIRÉ pour ce module — carte refusée.",
-        "scan.notEligible": "La séance en cours est d'un autre niveau ou d'un module non affecté à cet élève.",
+        "scan.notEligible": "La séance en cours est d'un autre niveau ou d'un module non affecté à ce chevalier.",
         "scan.cooldown": "Déjà enregistré sur cette séance — passage ignoré (moins de 30 min depuis le dernier scan sur ce créneau).",
         "scan.notFound": "Carte introuvable.",
         "scan.error": "Erreur lors du scan — réessayez.",
       };
       setScanResult({
         ok: false,
-        studentName: matchedStu ? `${matchedStu.firstName} ${matchedStu.lastName}` : "Étudiant inconnu",
+        studentName: matchedStu ? `${matchedStu.firstName} ${matchedStu.lastName}` : "Chevalier inconnu",
         msg: failureMsgs[res.messageKey] ?? "Carte introuvable.",
       });
     }
     setScanRfidInput("");
   };
 
-  /** « Modifier » ouvre LA fiche élève — exactement l'écran de création, déjà
+  /** « Modifier » ouvre LA fiche chevalier — exactement l'écran de création, déjà
    *  rempli : identité, cas, emplois du temps, soldes et compte du portail. */
   const openEdit = (stu: Student) => {
     setEditStudent(stu);
@@ -646,7 +627,7 @@ export function StudentsPage() {
     setOverlayStudentId(null);
   };
 
-  /** Ouvre l'envoi WhatsApp pour un élève. Les deux numéros (élève et parent
+  /** Ouvre l'envoi WhatsApp pour un chevalier. Les deux numéros (chevalier et parent
    *  rattaché) sont toujours proposés ; `focus` détermine celui coché d'emblée,
    *  pour pouvoir prévenir les deux en une fois sans rouvrir la fenêtre. */
   const openWhatsApp = (stu: Student, focus: "student" | "parent") => {
@@ -684,8 +665,8 @@ export function StudentsPage() {
   };
 
   /** Alertes de séances en lot : notification dans l'application pour tous, plus
-   *  un WhatsApp personnalisé par élève — au parent rattaché s'il en a un,
-   *  sinon à l'élève lui-même. */
+   *  un WhatsApp personnalisé par chevalier — au parent rattaché s'il en a un,
+   *  sinon au chevalier lui-même. */
   const handleSendLowBalanceAlerts = async () => {
     const selected = selectedAlertStudentIds
       .map((id) => students.find((s) => s.id === id))
@@ -710,7 +691,7 @@ export function StudentsPage() {
     const msgLang = language === "ar" ? "ar" : "fr";
     // Même résolution destinataire + modèle que l'alerte automatique du scan
     // (lib/whatsapp/alert) : le parent rattaché s'il est joignable, sinon
-    // l'élève. `low: true` — ce bouton EST l'alerte « séances bientôt épuisées »,
+    // le chevalier. `low: true` — ce bouton EST l'alerte « séances bientôt épuisées »,
     // qui exige un modèle approuvé par Meta (message proactif).
     const waRecipients = selected.flatMap((stu) => {
       const parent = parents.find((p) => p.id === stu.parentId);
@@ -852,7 +833,7 @@ export function StudentsPage() {
     const html = `
       <html>
         <head>
-          <title>Fiche Étudiant - ${stu.firstName} ${stu.lastName}</title>
+          <title>Fiche Chevalier - ${stu.firstName} ${stu.lastName}</title>
           <style>
             @media print {
               body { padding: 0; margin: 0; background: #fff; color: #000; font-size: 11px; }
@@ -937,13 +918,13 @@ export function StudentsPage() {
 
           <!-- Document Title -->
           <div class="doc-title-banner">
-            <h1>Dossier & Relevé de Compte Élève</h1>
+            <h1>Dossier & Relevé de Compte Chevalier</h1>
             <p>Date d'édition : <strong>${new Date().toLocaleDateString("fr-DZ")}</strong></p>
           </div>
 
           <!-- Student Profile Frame -->
           <div class="frame frame-info" style="margin-bottom: 20px;">
-            <h3>Informations Personnelles de l'Élève</h3>
+            <h3>Informations Personnelles de l'Chevalier</h3>
             <table style="margin-top:0;">
               <tr>
                 <td style="width:15%; font-weight:bold; color:#5c567a;">Nom Complet :</td>
@@ -954,7 +935,7 @@ export function StudentsPage() {
               <tr>
                 <td style="font-weight:bold; color:#5c567a;">Date de Naiss. :</td>
                 <td>${formatDate(stu.birthDate)}</td>
-                <td style="font-weight:bold; color:#5c567a;">Téléphone Élève :</td>
+                <td style="font-weight:bold; color:#5c567a;">Téléphone Chevalier :</td>
                 <td style="font-family:monospace;">${[stu.phone, stu.phone2].filter(Boolean).join(" / ") || "-"}</td>
               </tr>
               <tr>
@@ -982,9 +963,9 @@ export function StudentsPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Module (Classe)</th>
-                    <th>Enseignant</th>
-                    <th>Groupe & Salle</th>
+                    <th>Module (Catégorie)</th>
+                    <th>Entraîneur</th>
+                    <th>Groupe & Arène</th>
                     <th style="text-align:right;">Tarif Séance</th>
                     <th>Horaires & Planification</th>
                   </tr>
@@ -1101,7 +1082,7 @@ export function StudentsPage() {
 
           <!-- Séances + debt summary -->
           <div class="summary-card">
-            <h3 style="margin-top:0; border-bottom:1px solid #7c3aed; padding-bottom:6px; color:#7c3aed;">Situation des Séances de l'Élève</h3>
+            <h3 style="margin-top:0; border-bottom:1px solid #7c3aed; padding-bottom:6px; color:#7c3aed;">Situation des Séances de l'Chevalier</h3>
             <div class="summary-line">
               <span>Séances achetées (cumul) :</span>
               <strong>${totalSeancesBought}</strong>
@@ -1142,7 +1123,7 @@ export function StudentsPage() {
           <!-- Signature blocks -->
           <div class="signatures">
             <div class="signature-block">
-              <span class="signature-label">Signature de l'Élève / Parent</span>
+              <span class="signature-label">Signature de l'Chevalier / Parent</span>
             </div>
             <div class="signature-block">
               <span class="signature-label">Le Secrétariat / Caisse</span>
@@ -1150,7 +1131,7 @@ export function StudentsPage() {
           </div>
 
           <div class="meta-text">
-            Fiche éditée par le système centralisé de l'école ${school.name} le ${new Date().toLocaleString("fr-DZ")}
+            Fiche éditée par le système centralisé du club ${school.name} le ${new Date().toLocaleString("fr-DZ")}
           </div>
         </body>
       </html>
@@ -1198,7 +1179,7 @@ export function StudentsPage() {
         discountLabel: disc && disc.value > 0
           ? disc.type === "percent" ? `-${disc.value}%` : `-${formatDA(disc.value)}`
           : "",
-        unit: isFormation ? `${sub.periodMonths ?? 0} mois` : "séance",
+        unit: isFormation ? `${sub.periodMonths ?? 0} carte` : "séance",
       }];
     });
 
@@ -1347,7 +1328,7 @@ export function StudentsPage() {
             <!-- Left Column -->
             <div class="info-column">
               <div class="info-item">
-                <span class="info-label">Élève :</span>
+                <span class="info-label">Chevalier :</span>
                 <span class="info-value" style="color: #7c3aed;">${stu.lastName} ${stu.firstName}</span>
               </div>
               <div class="info-item">
@@ -1391,7 +1372,7 @@ export function StudentsPage() {
 
           <!-- Portal account (login the family uses on the app) -->
           <div class="credentials">
-            <h3>🔐 Compte de l'Élève (Espace en ligne)</h3>
+            <h3>🔐 Compte de l'Chevalier (Espace en ligne)</h3>
             <div class="cred-grid">
               <div class="info-item">
                 <span class="info-label">Email / Identifiant :</span>
@@ -1405,8 +1386,8 @@ export function StudentsPage() {
               </div>
             </div>
             <div class="cred-note">
-              ⚠️ Document confidentiel — remettre en main propre au parent / à l'élève.
-              ${portalPassword ? "Le mot de passe peut être modifié à tout moment depuis l'espace personnel." : "Le mot de passe n'a pas été enregistré à la création : réinitialisez-le depuis la fiche de l'élève pour le faire apparaître ici."}
+              ⚠️ Document confidentiel — remettre en main propre au parent / au chevalier.
+              ${portalPassword ? "Le mot de passe peut être modifié à tout moment depuis l'espace personnel." : "Le mot de passe n'a pas été enregistré à la création : réinitialisez-le depuis la fiche du chevalier pour le faire apparaître ici."}
             </div>
           </div>
 
@@ -1422,7 +1403,7 @@ export function StudentsPage() {
                   <th>Module</th>
                   <th>Classe / Niveau</th>
                   <th>Groupe</th>
-                  <th>Enseignant</th>
+                  <th>Entraîneur</th>
                   <th class="num">Tarif</th>
                 </tr>
               </thead>
@@ -1502,7 +1483,7 @@ export function StudentsPage() {
           <!-- Signature blocks -->
           <div class="signatures">
             <div class="signature-block">
-              <span class="signature-label">Le Parent / Élève</span>
+              <span class="signature-label">Le Parent / Chevalier</span>
             </div>
             <div class="signature-block">
               <span class="signature-label">La Caisse / Direction</span>
@@ -1510,7 +1491,7 @@ export function StudentsPage() {
           </div>
 
           <div class="meta-text">
-            Reçu généré par le système centralisé de l'école ${school.name}
+            Reçu généré par le système centralisé du club ${school.name}
           </div>
         </body>
       </html>
@@ -1521,7 +1502,7 @@ export function StudentsPage() {
   return (
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <PageHeader emoji="🎓" title="Étudiants" subtitle="Gérer les inscriptions et abonnements des élèves" />
+        <PageHeader icon={Swords} title="Chevaliers" subtitle="Gérer les inscriptions et abonnements des chevaliers" />
 
         <div className="flex items-center gap-2">
           <Button
@@ -1546,7 +1527,7 @@ export function StudentsPage() {
               variant="outline"
               className="flex items-center gap-2"
             >
-              <Search className="h-4 w-4" /> Situation d&apos;un élève
+              <Search className="h-4 w-4" /> Situation d&apos;un chevalier
             </Button>
           )}
           {can("scan") && (
@@ -1556,7 +1537,7 @@ export function StudentsPage() {
           )}
           {can("create") && (
             <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Nouvel Étudiant
+              <Plus className="h-4 w-4" /> Nouvel Chevalier
             </Button>
           )}
         </div>
@@ -1592,10 +1573,10 @@ export function StudentsPage() {
         </div>
       </div>
 
-      {/* ---- LES DETTES QUE L'ÉCOLE A AVANCÉES ---------------------------
-          Elles ne sont plus signalées sur la paie de l'enseignant : lui a été
-          réglé, et il n'a rien à réclamer. C'est l'ÉLÈVE qui doit cet argent à
-          l'école, donc c'est ici que l'alerte vit, tant que personne ne l'a
+      {/* ---- LES DETTES QUE LE CLUB A AVANCÉES ---------------------------
+          Elles ne sont plus signalées sur la paie de l'entraîneur : lui a été
+          réglé, et il n'a rien à réclamer. C'est l'CHEVALIER qui doit cet argent à
+          le club, donc c'est ici que l'alerte vit, tant que personne ne l'a
           remboursée. */}
       {(() => {
         const advances = schoolAdvancedRows(db);
@@ -1611,16 +1592,16 @@ export function StudentsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-bold text-ink">
-                      Dettes avancées par l&apos;école ({advances.length})
+                      Dettes avancées par l&apos;club ({advances.length})
                     </h3>
                     <Badge tone="danger" className="font-mono text-[11px]">
                       {formatDA(total)} à récupérer
                     </Badge>
                   </div>
                   <p className="mt-0.5 text-xs text-muted">
-                    L&apos;école a réglé à la place de ces familles pour ne pas faire attendre
+                    L&apos;club a réglé à la place de ces familles pour ne pas faire attendre
                     l&apos;enseignant. Cet argent est sorti de la caisse sans jamais y entrer : il
-                    reste à récupérer auprès de l&apos;élève. Chaque avance est portée à son compte
+                    reste à récupérer auprès de l&apos;chevalier. Chaque avance est portée à son compte
                     comme un frais — <strong className="text-ink">« Rembourser »</strong>{" "}
                     l&apos;encaisse, en totalité ou en partie, et la ligne disparaît d&apos;ici
                     quand elle est soldée.
@@ -1638,7 +1619,7 @@ export function StudentsPage() {
                           <strong className="text-ink">{a.studentName}</strong>
                           <span className="text-muted">
                             {" "}
-                            — {a.label} · {a.monthCode}
+                            — {a.label} · {carteShort(a.monthCode)}
                             {a.phone ? ` · ${a.phone}` : ""}
                           </span>
                         </span>
@@ -1650,7 +1631,7 @@ export function StudentsPage() {
                           </Badge>
                           {a.stillOwed > 0 && (
                             <Badge tone="warning" className="font-mono text-[10px]">
-                              doit encore {formatDA(a.stillOwed)} de scolarité
+                              doit encore {formatDA(a.stillOwed)} de cotisation
                             </Badge>
                           )}
                           {(() => {
@@ -1733,7 +1714,7 @@ export function StudentsPage() {
         {getFilteredStudents().map((stu) => {
           const isOverlaid = overlayStudentId === stu.id;
           const debt = debtFor(stu);
-          /** ses frais hors scolarité, avances de l'école comprises */
+          /** ses frais hors cotisation, avances du club comprises */
           const chargeDue = studentChargeDebt(db, stu.id);
           const number = registrationNumberOf(db, stu);
           const caseLabel = studentCaseLabel(stu);
@@ -1790,7 +1771,7 @@ export function StudentsPage() {
                             >
                               {debt > 0
                                 ? `Dette de ${formatDA(debt)} à régler`
-                                : "Soldes par emploi du temps, mois par mois"}
+                                : "Soldes par emploi du temps, carte par carte"}
                             </span>
                           </span>
                         </button>
@@ -1798,7 +1779,7 @@ export function StudentsPage() {
                       )}
 
                       {/* LA DETTE QUI N'EST PAS DE LA SCOLARITÉ — un livre, une
-                          tenue, une sortie, un transport, ou ce que l'école a
+                          tenue, une sortie, un transport, ou ce que le club a
                           avancé de sa caisse. On la crée ici, et on l'encaisse
                           au même endroit. */}
                       {can("charges") && (
@@ -1831,7 +1812,7 @@ export function StudentsPage() {
                       {/* Fiche */}
                       <div>
                         <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
-                          Fiche élève
+                          Fiche chevalier
                         </span>
                         <div className="grid grid-cols-2 gap-1.5 text-[11px]">
                           {can("view") && (
@@ -1882,12 +1863,12 @@ export function StudentsPage() {
                             disabled={!isSendablePhone(stu.phone)}
                             title={
                               isSendablePhone(stu.phone)
-                                ? "Envoyer un message WhatsApp à l'élève"
-                                : "Aucun numéro exploitable pour cet élève"
+                                ? "Envoyer un message WhatsApp au chevalier"
+                                : "Aucun numéro exploitable pour ce chevalier"
                             }
                             className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/90 py-2 font-semibold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            <MessageCircle className="h-3.5 w-3.5" /> Élève
+                            <MessageCircle className="h-3.5 w-3.5" /> Chevalier
                           </button>
                           {(() => {
                             const parent = parents.find((p) => p.id === stu.parentId);
@@ -1898,7 +1879,7 @@ export function StudentsPage() {
                                 disabled={!canSend}
                                 title={
                                   !parent
-                                    ? "Aucun parent rattaché à cet élève"
+                                    ? "Aucun parent rattaché à ce chevalier"
                                     : canSend
                                       ? `Envoyer un message WhatsApp à ${parent.firstName} ${parent.lastName}`
                                       : "Le parent rattaché n'a pas de numéro exploitable"
@@ -1918,7 +1899,7 @@ export function StudentsPage() {
                           onClick={() => handleDelete(stu.id)}
                           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-danger py-2 text-[11px] font-bold hover:bg-danger/80"
                         >
-                          <Trash2 className="h-3.5 w-3.5" /> Supprimer l&apos;élève
+                          <Trash2 className="h-3.5 w-3.5" /> Supprimer l&apos;chevalier
                         </button>
                       )}
                     </div>
@@ -1930,7 +1911,7 @@ export function StudentsPage() {
                     <button
                       type="button"
                       onClick={() => openDetails(stu)}
-                      title="Voir la fiche de l'élève"
+                      title="Voir la fiche du chevalier"
                       className="flex items-center gap-2 text-start rounded-xl hover:bg-primary-50/60 transition-colors p-0.5 -m-0.5"
                     >
                       <div className="h-10 w-10 shrink-0 bg-primary/10 rounded-xl flex flex-col items-center justify-center font-bold text-primary leading-none">
@@ -1995,12 +1976,12 @@ export function StudentsPage() {
                     </button>
 
                     {/* LES FRAIS : une alerte à part, parce qu'ils ne se
-                        règlent pas comme la scolarité et ne retiennent la paie
+                        règlent pas comme la cotisation et ne retiennent la paie
                         de personne. Un clic ouvre directement l'encaissement. */}
                     {chargeDue > 0 ? (
                       <button
                         onClick={() => openCharges(stu, "pay")}
-                        title="Régler ses frais : livres, tenues, sorties, avances de l'école…"
+                        title="Régler ses frais : livres, tenues, sorties, avances du club…"
                         className="flex w-full items-center justify-between rounded-xl border border-danger/50 bg-danger/10 px-3 py-2 text-start transition-colors hover:bg-danger/20"
                       >
                         <span>
@@ -2070,7 +2051,7 @@ export function StudentsPage() {
 
       {/* Edit Modal */}
       {/* Details Modal with subdivisions */}
-      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Fiche Étudiant" wide>
+      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Fiche Chevalier" wide>
         {selectedStudent && (
           <div className="space-y-6">
             {/* Header brief info */}
@@ -2205,7 +2186,7 @@ export function StudentsPage() {
                 // Sa fiche liste TOUT son parcours : les emplois qu'il suit et
                 // ceux dont il a été désinscrit — ces derniers gardent leurs
                 // présences, leurs paiements et leur solde, avec la date de
-                // sortie. Rien ne disparaît quand un élève quitte un groupe.
+                // sortie. Rien ne disparaît quand un chevalier quitte un groupe.
                 const historyIds = studentSubscriptionHistory(db, selectedStudent);
                 const leftIds = historyIds.filter(
                   (id) => !selectedStudent.subscriptionIds.includes(id),
@@ -2214,7 +2195,7 @@ export function StudentsPage() {
                 <div className="space-y-3">
                   {historyIds.length === 0 ? (
                     <p className="text-xs text-muted italic">
-                      Cet élève n&apos;est inscrit sur aucun emploi du temps.
+                      Ce chevalier n&apos;est inscrit sur aucun emploi du temps.
                     </p>
                   ) : (
                     <>
@@ -2310,7 +2291,7 @@ export function StudentsPage() {
                               <table className="w-full min-w-[420px] text-[11px]">
                                 <thead>
                                   <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
-                                    <th className="py-1">Mois</th>
+                                    <th className="py-1">Carte</th>
                                     <th className="py-1 text-center">Séances</th>
                                     <th className="py-1 text-right">Versé</th>
                                     <th className="py-1 text-right">Consommé</th>
@@ -2387,7 +2368,7 @@ export function StudentsPage() {
                                   onClick={() => {
                                     if (
                                       confirm(
-                                        "Désinscrire cet élève de cet emploi du temps ?\nSes présences, ses paiements et son solde restent sur sa fiche, datés de la sortie.",
+                                        "Désinscrire ce chevalier de cet emploi du temps ?\nSes présences, ses paiements et son solde restent sur sa fiche, datés de la sortie.",
                                       )
                                     ) {
                                       void unsubscribeStudent(selectedStudent.id, subId);
@@ -2440,10 +2421,10 @@ export function StudentsPage() {
                       </span>
                     </div>
 
-                    {/* ---- LES DETTES & FRAIS DIVERS DE CET ÉLÈVE -------------
-                        Ils ne sont pas de la scolarité et ne se lisent donc pas
+                    {/* ---- LES DETTES & FRAIS DIVERS DE CET CHEVALIER -------------
+                        Ils ne sont pas de la cotisation et ne se lisent donc pas
                         dans la liste des versements de séances : livres, tenues,
-                        sorties, ou ce que l'école a avancé de sa caisse. Chacun
+                        sorties, ou ce que le club a avancé de sa caisse. Chacun
                         montre ce qu'il a coûté, ce qui a été versé dessus, ce
                         qu'il reste à payer et le détail de ses règlements. */}
                     {(() => {
@@ -2489,7 +2470,7 @@ export function StudentsPage() {
                           </div>
                           {charges.length === 0 ? (
                             <p className="py-3 text-center text-[11px] italic text-muted">
-                              Aucun frais n&apos;a été porté au compte de cet élève.
+                              Aucun frais n&apos;a été porté au compte de ce chevalier.
                             </p>
                           ) : (
                             <div className="space-y-2">
@@ -2521,7 +2502,7 @@ export function StudentsPage() {
                           </div>
                           <div>
                             <label className="mb-1 block text-[10px] font-bold uppercase text-muted">
-                              Mois concerné
+                              Carte concerné
                             </label>
                             <Select
                               value={payMonth}
@@ -2583,10 +2564,10 @@ export function StudentsPage() {
                                   <strong className="font-bold text-success">
                                     +{formatDA(p.amountPaid)}
                                   </strong>
-                                  {/* Le reçu se réimprime des mois plus tard :
-                                      la famille l'a perdu, ou l'école en veut
-                                      un double pour son classeur. C'est le
-                                      papier de l'école, celui-là même qui sort
+                                  {/* Le reçu se réimprime des cartes plus tard :
+                                      la famille l'a perdu, ou le club en veut
+                                      un double pour son catégorieur. C'est le
+                                      papier du club, celui-là même qui sort
                                       au moment de l'encaissement. */}
                                   {can("print_receipt") && (
                                     <button
@@ -2718,7 +2699,7 @@ export function StudentsPage() {
                       <div className="flex gap-1">
                         {([
                           ["all", "Tout"],
-                          ["month", "Par mois"],
+                          ["month", "Par carte"],
                           ["range", "Période"],
                         ] as const).map(([mode, label]) => (
                           <Button
@@ -2819,7 +2800,7 @@ export function StudentsPage() {
                                   <span className="text-[10px] text-muted">
                                     {att.timestamp.substring(0, 16).replace("T", " ")}
                                     {s ? ` · ${s.startTime}-${s.endTime}` : ""}
-                                    {salleName ? ` · Salle ${salleName}` : ""}
+                                    {salleName ? ` · Arène ${salleName}` : ""}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
@@ -2959,7 +2940,7 @@ export function StudentsPage() {
                   onChange={(e) => setAttEditAmount(Number(e.target.value))}
                 />
                 <p className="mt-1 text-[10px] text-muted">
-                  Aucun montant n&apos;est débité à l&apos;élève : ce prix sert uniquement à calculer
+                  Aucun montant n&apos;est débité à l&apos;chevalier : ce prix sert uniquement à calculer
                   la part due à l&apos;enseignant. Mettez <strong>0</strong> pour une séance offerte.
                 </p>
               </div>
@@ -3023,7 +3004,7 @@ export function StudentsPage() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
                 <p className="text-xs leading-relaxed text-ink">
                   L&apos;absence hebdomadaire sera supprimée et la séance décomptée sera recréditée
-                  sur l&apos;inscription de l&apos;élève.
+                  sur l&apos;inscription de l&apos;chevalier.
                 </p>
               </div>
 
@@ -3070,7 +3051,7 @@ export function StudentsPage() {
               <h4 className="font-bold flex items-center gap-1.5">
                 {scanResult.ok ? "✔ Succès" : "❌ Échec"}
               </h4>
-              <p><strong>Élève:</strong> {scanResult.studentName}</p>
+              <p><strong>Chevalier:</strong> {scanResult.studentName}</p>
               <p>{scanResult.msg}</p>
               {scanResult.ok && (
                 <>
@@ -3093,9 +3074,9 @@ export function StudentsPage() {
       >
         <div className="space-y-4">
           <p className="text-xs text-muted">
-            Les étudiants suivants ont au moins une inscription presque épuisée (2 séances ou moins).
-            Chaque élève sélectionné reçoit une notification dans l&apos;application et un message
-            WhatsApp personnalisé — envoyé au parent rattaché, ou à l&apos;élève à défaut.
+            Les chevaliers suivants ont au moins une inscription presque épuisée (2 séances ou moins).
+            Chaque chevalier sélectionné reçoit une notification dans l&apos;application et un message
+            WhatsApp personnalisé — envoyé au parent rattaché, ou à l&apos;chevalier à défaut.
           </p>
 
           {/* Automatic alert settings (Email & WhatsApp toggles) */}
@@ -3126,7 +3107,7 @@ export function StudentsPage() {
           {/* List of low balance students */}
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {students.filter(isSoonToRunOut).length === 0 ? (
-              <p className="text-xs text-muted italic p-4 text-center">Aucun étudiant n&apos;a de séances presque épuisées en ce moment.</p>
+              <p className="text-xs text-muted italic p-4 text-center">Aucun chevalier n&apos;a de séances presque épuisées en ce moment.</p>
             ) : (
               <>
                 <div className="flex justify-between items-center px-1 pb-1">
@@ -3146,7 +3127,7 @@ export function StudentsPage() {
                     Tout Sélectionner
                   </label>
                   <span className="text-[10px] text-muted font-mono">
-                    {selectedAlertStudentIds.length} / {students.filter(isSoonToRunOut).length} élèves
+                    {selectedAlertStudentIds.length} / {students.filter(isSoonToRunOut).length} chevaliers
                   </span>
                 </div>
 
@@ -3217,7 +3198,7 @@ export function StudentsPage() {
         <div className="space-y-4">
           {selectedStudent && (
             <div className="bg-canvas border border-line rounded-xl p-3 text-xs">
-              <span className="text-[10px] text-muted block uppercase">Élève</span>
+              <span className="text-[10px] text-muted block uppercase">Chevalier</span>
               <strong className="text-ink block mt-0.5">
                 {selectedStudent.firstName} {selectedStudent.lastName}
               </strong>
@@ -3305,7 +3286,7 @@ export function StudentsPage() {
         </div>
       </Modal>
 
-      {/* Envoi WhatsApp (élève et/ou parent rattaché) */}
+      {/* Envoi WhatsApp (chevalier et/ou parent rattaché) */}
       {waTarget && (
         <WhatsAppMessageModal
           onClose={() => setWaTarget(null)}
@@ -3315,7 +3296,7 @@ export function StudentsPage() {
         />
       )}
 
-      {/* Création d'un élève — the shared screen, also used by the dashboard
+      {/* Création d'un chevalier — the shared screen, also used by the dashboard
           and by every présence sheet. */}
       <CreateStudentModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 
@@ -3328,7 +3309,7 @@ export function StudentsPage() {
         />
       )}
 
-      {/* Situation d'un élève : ses emplois du temps, ses présences du mois et
+      {/* Situation d'un chevalier : ses emplois du temps, ses présences de la carte et
           ce qu'il lui reste à payer */}
       {situationOpen && <StudentSituationModal onClose={() => setSituationOpen(false)} />}
 

@@ -1,31 +1,31 @@
 "use client";
 
 /**
- * LES FAMILLES DE L'ÉCOLE DE DÉMONSTRATION.
+ * LES FAMILLES DE LE CLUB DE DÉMONSTRATION.
  *
  * Les vingt premières fiches sont écrites à la main : ce sont les CAS, et
  * chacune existe pour montrer une situation de facturation que l'application
  * traite différemment.
  *
- *   normal .............. l'élève ordinaire, qui paie le tarif affiché
+ *   normal .............. le chevalier ordinaire, qui paie le tarif affiché
  *   normal + remise ..... une réduction accordée sur UN module
  *   normal + dette ...... un versement partiel, donc un reste à payer
- *   normal + frais ...... un livre, une tenue — une dette qui n'est pas de la scolarité
+ *   normal + frais ...... un livre, une tenue — une dette qui n'est pas de la cotisation
  *   special ............. gratuité TOTALE
  *   special partiel ..... gratuité sur CERTAINS emplois du temps seulement
- *   teacher_child ....... la scolarité se règle sur le salaire du père enseignant
- *   teacher_child porté . la scolarité a été créditée d'avance et attend la paie
- *   reduction (%) ....... l'école et l'enseignant renoncent chacun à une part
+ *   teacher_child ....... la cotisation se règle sur le salaire du père entraîneur
+ *   teacher_child porté . la cotisation a été créditée d'avance et attend la paie
+ *   reduction (%) ....... le club et l'entraîneur renoncent chacun à une part
  *   reduction (montant) . la même chose, en dinars
- *   school_only ......... l'école est payée, l'enseignant ne l'est pas
+ *   school_only ......... le club est payée, l'entraîneur ne l'est pas
  *   school_only partiel . la même chose, sur un seul emploi du temps
- *   entrée en cours ..... inscrit au 2ᵉ mois, sur la 3ᵉ séance
+ *   entrée en cours ..... inscrit au 2ᵉ carte, sur la 3ᵉ séance
  *   désinscrit .......... sorti d'un emploi, dont l'historique reste lisible
- *   avance de l'école ... l'école a réglé sa dette de sa caisse pour débloquer l'enseignant
+ *   avance du club ... le club a réglé sa dette de sa caisse pour débloquer l'entraîneur
  *
  * Le reste de l'effectif est fabriqué par `COHORT`, à partir de listes de noms
  * et d'une affectation déterministe : c'est ce qui donne à la démonstration le
- * VOLUME d'une vraie école (des listes qui se paginent, des feuilles de présence
+ * VOLUME d'une vraie club (des listes qui se paginent, des feuilles de présence
  * pleines, des statistiques qui veulent dire quelque chose).
  */
 
@@ -56,7 +56,7 @@ export const PARENTS: Parent[] = [
 // Les vingt cas
 // ---------------------------------------------------------------------------
 
-/** Une fiche d'élève, sans les champs que le générateur remplit tout seul. */
+/** Une fiche de chevalier, sans les champs que le générateur remplit tout seul. */
 type CaseStudent = Omit<Student, "registrationNumber">;
 
 const rfid = (n: number) => `RFID-${String(1000 + n)}`;
@@ -64,7 +64,7 @@ const mail = (first: string, last: string) =>
   `${first}.${last}`.toLowerCase().replace(/[^a-z.]/g, "") + "@eleve.altech-school.dz";
 
 export const CASE_STUDENTS: CaseStudent[] = [
-  // 1 — l'élève ordinaire, bien approvisionné sur ses deux modules.
+  // 1 — le chevalier ordinaire, bien approvisionné sur ses deux modules.
   {
     id: "stu-1", firstName: "Yacine", lastName: "Amrani", birthDate: "2007-03-14",
     phone: "0550 10 10 10", phone2: "0770 10 10 10", email: mail("yacine", "amrani"),
@@ -122,7 +122,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 5 — CAS SPÉCIAL : toute sa scolarité est offerte.
+  // 5 — CAS SPÉCIAL : toute sa cotisation est offerte.
   {
     id: "stu-5", firstName: "Anis", lastName: "Ferhat", birthDate: "2007-09-09",
     phone: "0550 10 10 14", email: mail("anis", "ferhat"),
@@ -135,7 +135,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 6 — un mois ÉCHU (séances restantes perdues) + un pack de séances libres.
+  // 6 — une carte ÉCHU (séances restantes perdues) + un pack de séances libres.
   {
     id: "stu-6", firstName: "Ines", lastName: "Boulahia", birthDate: "2009-04-17",
     phone: "0550 10 10 15", email: mail("ines", "boulahia"),
@@ -178,7 +178,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 9 — FILS D'ENSEIGNANT : sa scolarité se retient sur la paie de son père.
+  // 9 — FILS D'ENTRAÎNEUR : sa cotisation se retient sur la paie de son père.
   {
     id: "stu-9", firstName: "Bilal", lastName: "Bensalah", birthDate: "2009-02-11",
     phone: "0661 22 33 44", email: mail("bilal", "bensalah"),
@@ -190,7 +190,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 10 — même cas, mais la scolarité a DÉJÀ été créditée au guichet : elle
+  // 10 — même cas, mais la cotisation a DÉJÀ été créditée au guichet : elle
   //      attend d'être retenue sur le prochain règlement du père.
   {
     id: "stu-10", firstName: "Nour", lastName: "Bensalah", birthDate: "2011-07-04",
@@ -203,8 +203,8 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 11 — CAS RÉDUCTION en POURCENTAGE : l'école renonce à 20 % de sa part,
-  //      l'enseignant à 20 % de la sienne.
+  // 11 — CAS RÉDUCTION en POURCENTAGE : le club renonce à 20 % de sa part,
+  //      l'entraîneur à 20 % de la sienne.
   {
     id: "stu-11", firstName: "Adel", lastName: "Haddad", birthDate: "2008-05-19",
     phone: "0550 10 10 20", email: mail("adel", "haddad"),
@@ -218,7 +218,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 12 — CAS RÉDUCTION en MONTANT : 100 DA de moins côté école, 50 côté enseignant.
+  // 12 — CAS RÉDUCTION en MONTANT : 100 DA de moins côté club, 50 côté entraîneur.
   {
     id: "stu-12", firstName: "Meriem", lastName: "Haddad", birthDate: "2010-10-27",
     phone: "0550 10 10 21", email: mail("meriem", "haddad"),
@@ -231,8 +231,8 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 13 — ÉCOLE SEULE (fiche ancienne, pilotée par la liste d'enseignants) :
-  //      la famille ne verse que la part de l'école.
+  // 13 — CLUB SEULE (fiche ancienne, pilotée par la liste d'entraîneurs) :
+  //      la famille ne verse que la part du club.
   {
     id: "stu-13", firstName: "Sami", lastName: "Kaci", birthDate: "2007-01-08",
     phone: "0550 10 10 22", email: mail("sami", "kaci"),
@@ -245,8 +245,8 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 14 — ÉCOLE SEULE sur UN emploi du temps seulement : ses maths sont
-  //      « école seule », son histoire-géo se facture normalement.
+  // 14 — CLUB SEULE sur UN emploi du temps seulement : ses maths sont
+  //      « club seule », son histoire-géo se facture normalement.
   {
     id: "stu-14", firstName: "Rania", lastName: "Kaci", birthDate: "2009-09-30",
     phone: "0550 10 10 23", email: mail("rania", "kaci"),
@@ -260,7 +260,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 15 — ENTRÉE EN COURS DE ROUTE : inscrit au 2ᵉ mois du groupe, sur la 3ᵉ
+  // 15 — ENTRÉE EN COURS DE ROUTE : inscrit au 2ᵉ carte du groupe, sur la 3ᵉ
   //      séance. Les séances tenues avant lui restent vides sur sa ligne.
   {
     id: "stu-15", firstName: "Amir", lastName: "Sadi", birthDate: "2007-04-02",
@@ -305,8 +305,8 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 18 — L'ÉCOLE A AVANCÉ sa dette de sa propre caisse pour débloquer la part
-  //      de l'enseignant : la famille la doit désormais à l'école.
+  // 18 — LE CLUB A AVANCÉ sa dette de sa propre caisse pour débloquer la part
+  //      de l'entraîneur : la famille la doit désormais au club.
   {
     id: "stu-18", firstName: "Sonia", lastName: "Belkacem", birthDate: "2006-08-14",
     phone: "0550 10 10 27", email: mail("sonia", "belkacem"),
@@ -331,7 +331,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
     },
     registrationDue: 0,
   },
-  // 20 — maternelle : le pack de douze séances par mois.
+  // 20 — maternelle : le pack de douze séances par carte.
   {
     id: "stu-20", firstName: "Sirine", lastName: "Nait Slimane", birthDate: "2020-06-18",
     phone: "0550 10 10 29", email: mail("sirine", "naitslimane"),
@@ -346,7 +346,7 @@ export const CASE_STUDENTS: CaseStudent[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// L'effectif — le VOLUME d'une vraie école
+// L'effectif — le VOLUME d'une vraie club
 // ---------------------------------------------------------------------------
 
 const FIRST_NAMES = [
@@ -364,7 +364,7 @@ const LAST_NAMES = [
 ];
 
 /**
- * L'AFFECTATION DE L'EFFECTIF : combien d'élèves par emploi du temps, et à quel
+ * L'AFFECTATION DE L'EFFECTIF : combien de chevaliers par emploi du temps, et à quel
  * niveau ils appartiennent. C'est ce qui remplit les feuilles de présence et
  * donne du sens aux statistiques.
  */
@@ -402,7 +402,7 @@ const EXPIRING_SUBS: Record<string, number> = {
 
 /**
  * Fabrique le reste de l'effectif. Chaque fiche est TIRÉE de son identifiant :
- * le même élève porte toujours le même prénom, la même remise et la même date
+ * le même chevalier porte toujours le même prénom, la même remise et la même date
  * d'inscription, d'un chargement à l'autre.
  */
 export function buildCohort(startIndex: number): Student[] {
@@ -455,7 +455,7 @@ export function buildCohort(startIndex: number): Student[] {
         subscriptionIds: [...spec.subs],
         subscriptionDates: dates,
         ...(discounts ? { subscriptionDiscounts: discounts } : {}),
-        // Un élève sur cinq n'a pas encore réglé ses frais d'inscription.
+        // Un chevalier sur cinq n'a pas encore réglé ses frais d'inscription.
         registrationDue: pick(`${id}:reg`, 0, 4) === 0 ? 2000 : 0,
       });
       n += 1;

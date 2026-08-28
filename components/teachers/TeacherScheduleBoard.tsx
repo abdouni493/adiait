@@ -3,15 +3,15 @@
 /**
  * MON EMPLOI DU TEMPS — la semaine telle qu'elle se vit, pas telle qu'elle se stocke.
  *
- * Sept colonnes, une par jour, du samedi au vendredi comme l'école les compte.
+ * Sept colonnes, une par jour, du samedi au vendredi comme le club les compte.
  * Chaque créneau porte LA COULEUR DE SON EMPLOI DU TEMPS, tirée de son
  * identifiant : le même groupe garde la même couleur du mardi au jeudi, et la
  * semaine se lit d'un coup d'œil au lieu de se déchiffrer ligne à ligne.
  *
  * Un créneau ne dit pas seulement « quand » : il dit AVEC QUI (le groupe, la
- * classe, l'effectif), OÙ (la salle du jour — un emploi peut changer de salle
- * selon le jour), et OÙ EN EST LE GROUPE (son mois, sa séance dans le mois).
- * Un clic ouvre la liste de ses élèves, en lecture seule.
+ * catégorie, l'effectif), OÙ (l'arène du jour — un emploi peut changer de arène
+ * selon le jour), et OÙ EN EST LE GROUPE (son carte, sa séance dans la carte).
+ * Un clic ouvre la liste de ses chevaliers, en lecture seule.
  */
 
 import { useMemo, useState } from "react";
@@ -32,15 +32,7 @@ import {
 import { payEmplois } from "@/lib/teacherPayBoard";
 import type { TeacherEmploi } from "@/lib/teacherMonths";
 import type { Day, ScheduleSession, Teacher } from "@/lib/types";
-import {
-  AlertTriangle,
-  CalendarRange,
-  Clock,
-  Hourglass,
-  Layers,
-  MapPin,
-  Users,
-} from "lucide-react";
+import { AlertTriangle, CalendarDays, CalendarRange, Clock, Hourglass, Layers, MapPin, Users } from "lucide-react";
 
 const JS_DAYS: Day[] = [
   "sunday",
@@ -52,7 +44,7 @@ const JS_DAYS: Day[] = [
   "saturday",
 ];
 
-/** L'ordre où la semaine se lit à l'école : samedi ouvre, vendredi ferme. */
+/** L'ordre où la semaine se lit au club : samedi ouvre, vendredi ferme. */
 const WEEK_ORDER: Day[] = [
   "saturday",
   "sunday",
@@ -163,9 +155,9 @@ export function TeacherScheduleBoard({ teacher }: { teacher: Teacher }) {
   return (
     <div className="space-y-5 text-xs">
       <PageHeader
-        emoji="🗓️"
+        icon={CalendarDays}
         title="Mon emploi du temps"
-        subtitle="Votre semaine, groupe par groupe — cliquez un créneau pour voir sa liste d'élèves"
+        subtitle="Votre semaine, groupe par groupe — cliquez un créneau pour voir sa liste de chevaliers"
         actions={
           mySessions.length > 1 ? (
             <Select
@@ -209,7 +201,7 @@ export function TeacherScheduleBoard({ teacher }: { teacher: Teacher }) {
         />
         <WeekStat
           icon={<Users className="h-3.5 w-3.5" />}
-          label="Élèves suivis"
+          label="Chevaliers suivis"
           value={String(weekStudents)}
           tone="text-primary"
         />
@@ -278,7 +270,7 @@ export function TeacherScheduleBoard({ teacher }: { teacher: Teacher }) {
                           style={{ borderInlineStartWidth: 4, borderInlineStartColor: color }}
                           title={
                             e
-                              ? `${e.title} · ${e.groupName} — voir la liste des élèves`
+                              ? `${e.title} · ${e.groupName} — voir la liste des chevaliers`
                               : "Créneau sans abonnement"
                           }
                         >

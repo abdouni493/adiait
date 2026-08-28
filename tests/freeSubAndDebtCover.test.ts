@@ -20,15 +20,15 @@ import { teacherEmplois } from "@/lib/teacherMonths";
  *  1. LA GRATUITÉ SE COCHE EMPLOI PAR EMPLOI. Un « cas spécial » peut suivre
  *     trois modules dont deux offerts et un payant : les offerts ne coûtent
  *     rien et ne rapportent rien, le payant est facturé comme pour n'importe
- *     quel élève, et l'enseignant y touche sa part.
+ *     quel chevalier, et l'entraîneur y touche sa part.
  *
- *  2. UN FILS D'ENSEIGNANT PEUT PAYER AVANT SON PÈRE. Le versement de la
- *     famille passe par la caisse comme n'importe quel autre, et le mois n'est
+ *  2. UN FILS D'ENTRAÎNEUR PEUT PAYER AVANT SON PÈRE. Le versement de la
+ *     famille passe par la caisse comme n'importe quel autre, et la carte n'est
  *     plus retenu sur le salaire.
  *
- *  3. L'ÉCOLE PEUT AVANCER LA DETTE D'UN ÉLÈVE pour ne pas faire attendre
- *     l'enseignant. La caisse porte alors DEUX mouvements qui s'annulent : le
- *     paiement porté au crédit de l'élève et la sortie qui l'a financé.
+ *  3. LE CLUB PEUT AVANCER LA DETTE D'UN CHEVALIER pour ne pas faire attendre
+ *     l'entraîneur. La caisse porte alors DEUX mouvements qui s'annulent : le
+ *     paiement porté au crédit du chevalier et la sortie qui l'a financé.
  */
 
 const SUB = "sub-1";
@@ -39,7 +39,7 @@ const TEACHER = "tea-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un mois de 4 séances à 2000 DA dont l'école garde 800 : séance = 500. */
+/** Une carte de 4 séances à 2000 DA dont le club garde 800 : séance = 500. */
 function board() {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -133,7 +133,7 @@ describe("la gratuité, emploi du temps par emploi du temps", () => {
     expect(studentTeacherPerSeance(st, subOf(SUB), TEACHER)).toBe(0);
   });
 
-  it("un emploi DÉCOCHÉ est facturé au tarif ordinaire, part enseignant comprise", () => {
+  it("un emploi DÉCOCHÉ est facturé au tarif ordinaire, part entraîneur comprise", () => {
     board();
     // Cas spécial, mais cet emploi-là n'est PAS dans la liste des offerts.
     patch(STU, { studentCase: "special", isFree: true, freeSubscriptionIds: [] });
@@ -171,14 +171,14 @@ describe("la gratuité, emploi du temps par emploi du temps", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("l'école avance la dette d'un élève", () => {
+describe("le club avance la dette d'un chevalier", () => {
   /** Quatre séances jamais payées : 2000 DA de dette, la part prof est bloquée. */
   async function indebted() {
     board();
     for (const day of scheduledDays(4)) await attend(STU, day);
   }
 
-  it("la dette bloque la part de l'enseignant tant qu'elle n'est pas réglée", async () => {
+  it("la dette bloque la part de l'entraîneur tant qu'elle n'est pas réglée", async () => {
     await indebted();
     expect(studentHasDebt(useData.getState(), STU)).toBe(true);
     const emploi = teacherEmplois(useData.getState(), TEACHER).find((e) => e.sessionId === SES)!;
@@ -194,13 +194,13 @@ describe("l'école avance la dette d'un élève", () => {
     expect(res.ok).toBe(true);
     expect(res.amount).toBe(2000);
 
-    // La dette est soldée : la part de l'enseignant redevient payable.
+    // La dette est soldée : la part de l'entraîneur redevient payable.
     expect(studentHasDebt(useData.getState(), STU)).toBe(false);
     const emploi = teacherEmplois(useData.getState(), TEACHER).find((e) => e.sessionId === SES)!;
     expect(emploi.withheld).toBe(0);
     expect(emploi.payable).toBe(4 * 300);
 
-    // Deux lignes dans l'historique, et un solde de caisse inchangé : l'école
+    // Deux lignes dans l'historique, et un solde de caisse inchangé : le club
     // n'a pas encaissé 2000 DA, elle les a avancés.
     const posted = useData.getState().cash.slice(before);
     expect(posted).toHaveLength(2);
@@ -227,7 +227,7 @@ describe("l'école avance la dette d'un élève", () => {
     expect(studentHasDebt(useData.getState(), STU)).toBe(false);
   });
 
-  it("restreinte à un emploi du temps, elle ne touche que ses mois", async () => {
+  it("restreinte à un emploi du temps, elle ne touche que ses carte", async () => {
     await indebted();
     patch(STU, { registrationDue: 700 });
 

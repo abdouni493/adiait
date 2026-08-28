@@ -80,11 +80,12 @@ import type { Teacher } from "@/lib/types";
 import {
   DAY_LABELS_FR,
   attendanceOn,
+  carteShort,
+  currentCycleCode,
   cycleLead,
   cycleOf,
   cycleSizeOf,
   cycleSlots,
-  currentCycleCode,
   dayKeyOf,
   enrolledInMonth,
   enrollmentCycles,
@@ -92,27 +93,27 @@ import {
   groupName,
   independentTotals,
   joinPointFor,
-  passagersOn,
   moduleName as moduleNameOf,
   monthCodeLabel,
   monthOrder,
   monthProposal,
+  passagersOn,
   registrationNumberOf,
-  schoolPerSeanceOf,
   salleName,
+  schoolPerSeanceOf,
   sessionSalleOn,
   sessionTimesOn,
   slotCountFor,
   soldFor,
   soldStatus,
+  studentAdvanceDebt,
   studentCaseLabel,
   studentCaseTone,
+  studentChargeDebt,
+  studentDebtSummary,
   studentListPrice,
   studentMatches,
   studentMonthPrice,
-  studentAdvanceDebt,
-  studentChargeDebt,
-  studentDebtSummary,
   studentName,
   studentSoldDebtRows,
   teacherName,
@@ -177,9 +178,9 @@ export function PresenceSheet({
   const [drill, setDrill] = useState<{
     student: Student;
     /**
-     * `previous` : ses mois passés SUR CET EMPLOI ;
-     * `other`    : ses mois en dette sur les AUTRES emplois du temps ;
-     * `all`      : TOUT ce qu'il doit en scolarité, celui-ci compris — ce que
+     * `previous` : ses carte passés SUR CET EMPLOI ;
+     * `other`    : ses carte en dette sur les AUTRES emplois du temps ;
+     * `all`      : TOUT ce qu'il doit en cotisation, celui-ci compris — ce que
      *              l'alerte du haut ouvre, parce qu'elle parle de la dette
      *              entière et non d'une moitié.
      */
@@ -188,23 +189,23 @@ export function PresenceSheet({
   const [receipt, setReceipt] = useState<string | null>(null);
   /** the student the desk is about to take off the group */
   const [leaving, setLeaving] = useState<Student | null>(null);
-  /** inscrire un élève DÉJÀ dans la base sur cet emploi du temps */
+  /** inscrire un chevalier DÉJÀ dans la base sur cet emploi du temps */
   const [addOpen, setAddOpen] = useState(false);
   /** pointer tout le monde d'un coup — présents, ou séance annulée pour tous */
   const [bulkStatus, setBulkStatus] = useState<"present" | "cancelled" | null>(null);
-  /** l'historique des paiements d'un élève sur cet emploi — modifiable */
+  /** l'historique des paiements d'un chevalier sur cet emploi — modifiable */
   const [history, setHistory] = useState<Student | null>(null);
   /** le pointage qu'on s'apprête à RETIRER, en rendant ce qu'il avait débité */
   const [removing, setRemoving] = useState<{ student: Student; record: AttendanceRecord } | null>(
     null,
   );
-  /** l'enfant d'enseignant dont on règle la scolarité au guichet */
+  /** l'enfant d'entraîneur dont on règle la cotisation au guichet */
   const [childPay, setChildPay] = useState<Student | null>(null);
-  /** « Dettes & frais » d'un élève, ouvert depuis sa ligne — encaissement compris */
+  /** « Dettes & frais » d'un chevalier, ouvert depuis sa ligne — encaissement compris */
   const [charges, setCharges] = useState<{ student: Student; tab: "list" | "pay" } | null>(null);
-  /** porter un NOUVEAU frais à un élève, sans quitter la feuille */
+  /** porter un NOUVEAU frais à un chevalier, sans quitter la feuille */
   const [chargeForm, setChargeForm] = useState<Student | null>(null);
-  /** la saisie des élèves de passage venus sur LA séance affichée */
+  /** la saisie des chevaliers de passage venus sur LA séance affichée */
   const [passagerOpen, setPassagerOpen] = useState(false);
   /** la séance libre d'un passager que l'on s'apprête à retirer */
   const [passagerToRemove, setPassagerToRemove] = useState<IndependentSession | null>(null);
@@ -250,19 +251,19 @@ export function PresenceSheet({
    * la seconde — il n'y a rien à rafraîchir.
    */
   /**
-   * QUI DOIT DE L'ARGENT DANS CE GROUPE — les trois dettes d'un élève, lues
+   * QUI DOIT DE L'ARGENT DANS CE GROUPE — les trois dettes d'un chevalier, lues
    * ensemble, parce que la réception les réclame dans la même phrase :
    *
-   *   * la SCOLARITÉ : ses mois dans le rouge, sur cet emploi et sur les
+   *   * la SCOLARITÉ : ses carte dans le rouge, sur cet emploi et sur les
    *     autres, plus les restes d'anciens paiements et les frais d'inscription ;
    *   * les FRAIS : un livre, une tenue, une sortie — tout ce qui a été porté à
-   *     son compte hors scolarité ;
-   *   * les AVANCES DE L'ÉCOLE : ce que la caisse a réglé À SA PLACE pour ne
-   *     pas faire attendre l'enseignant. Cet argent est sorti sans jamais
-   *     entrer : la famille le doit à l'école, et c'est ici qu'on le lui
+   *     son compte hors cotisation ;
+   *   * les AVANCES DE LE CLUB : ce que la caisse a réglé À SA PLACE pour ne
+   *     pas faire attendre l'entraîneur. Cet argent est sorti sans jamais
+   *     entrer : la famille le doit au club, et c'est ici qu'on le lui
    *     rappelle, en face de son nom, le jour où elle est là.
    *
-   * Les trois se règlent sur CET écran, sans jamais ouvrir la fiche de l'élève.
+   * Les trois se règlent sur CET écran, sans jamais ouvrir la fiche du chevalier.
    */
   const alerts = useMemo(() => {
     const rows = roster
@@ -332,7 +333,7 @@ export function PresenceSheet({
         title: "Pointage refusé",
         message:
           res.messageKey === "scan.wrongGroup"
-            ? "L'élève ne peut être pointé que dans SON groupe."
+            ? "Le chevalier ne peut être pointé que dans SON groupe."
             : "Impossible d'enregistrer ce pointage.",
         studentName: studentName(student),
       });
@@ -360,7 +361,7 @@ export function PresenceSheet({
    * d'être consommée, et le prix qu'elle avait pris sur le solde de CET emploi
    * du temps y est RENDU au dinar près (une séance annulée ou non facturée
    * n'ayant rien coûté, il n'y a rien à rendre). La part que la séance devait à
-   * l'enseignant s'en va avec elle, tant qu'elle n'a pas été réglée.
+   * l'entraîneur s'en va avec elle, tant qu'elle n'a pas été réglée.
    */
   const removeRecord = async (student: Student, record: AttendanceRecord) => {
     if (!canMark) return refuse("corriger un pointage");
@@ -409,14 +410,14 @@ export function PresenceSheet({
       addToast({
         type: "danger",
         title: "Désinscription refusée",
-        message: "Cet élève n'est pas inscrit sur cet emploi du temps.",
+        message: "Ce chevalier n'est pas inscrit sur cet emploi du temps.",
         studentName: studentName(student),
       });
       return;
     }
     addToast({
       type: "success",
-      title: "Élève désinscrit",
+      title: "Chevalier désinscrit",
       message: `Retiré de ${title} le ${formatDateFr(res.leftOn ?? date)}. Ses présences, ses paiements et son solde de ${formatDA(
         res.balance ?? 0,
       )} restent sur sa fiche, datés de cette sortie.`,
@@ -438,17 +439,17 @@ export function PresenceSheet({
       addToast({
         type: "danger",
         title: "Inscription refusée",
-        message: "Impossible d'inscrire cet élève sur cet emploi du temps.",
+        message: "Impossible d'inscrire ce chevalier sur cet emploi du temps.",
         studentName: studentName(student),
       });
       return;
     }
-    // Il entre LÀ OÙ EN EST LE GROUPE, comme un élève créé depuis la feuille :
+    // Il entre LÀ OÙ EN EST LE GROUPE, comme un chevalier créé depuis la feuille :
     // les séances tenues avant lui ne sont pas les siennes.
     onMonthChange(res.monthCode ?? monthCode);
     addToast({
       type: "success",
-      title: "Élève inscrit sur le groupe",
+      title: "Chevalier inscrit sur le groupe",
       message: `Entre en ${res.monthCode ?? monthCode} · séance ${(res.slotIndex ?? 0) + 1} — aucune fiche à ressaisir.`,
       studentName: studentName(student),
     });
@@ -459,7 +460,7 @@ export function PresenceSheet({
    * « Tout présent » et « Séance annulée pour tous » écrivent la même chose sur
    * toute la liste, avec deux différences de fond : une présence consomme une
    * séance et débite le solde, une séance ANNULÉE ne coûte rien à personne — ni
-   * séance, ni argent, ni part enseignant — et n'avance pas le mois du groupe.
+   * séance, ni argent, ni part entraîneur — et n'avance pas la carte du groupe.
    *
    * Une annulation, elle, RÉÉCRIT un pointage déjà saisi : la séance n'a pas eu
    * lieu, donc la présence notée par erreur doit être reprise (et le solde
@@ -481,8 +482,8 @@ export function PresenceSheet({
       title: status === "present" ? "Présences enregistrées" : "Séance annulée pour le groupe",
       message:
         status === "present"
-          ? `${ids.length} élève(s) marqué(s) présents le ${formatDateFr(date)}.`
-          : `${ids.length} élève(s) — séance du ${formatDateFr(date)} annulée : aucune séance consommée, aucun solde débité.`,
+          ? `${ids.length} chevalier(s) marqué(s) présents le ${formatDateFr(date)}.`
+          : `${ids.length} chevalier(s) — séance du ${formatDateFr(date)} annulée : aucune séance consommée, aucun solde débité.`,
     });
   };
 
@@ -514,7 +515,7 @@ export function PresenceSheet({
       type: "success",
       title: "Paiement encaissé",
       message:
-        `${formatDA(amount)} sur ${pay.label} (${pay.monthCode}) — ` +
+        `${formatDA(amount)} sur ${pay.label} (${carteShort(pay.monthCode)}) — ` +
         (left < 0
           ? `il doit encore ${formatDA(-left)}`
           : `${formatDA(left)} d'avance conservés sur cet emploi du temps`),
@@ -539,18 +540,18 @@ export function PresenceSheet({
     setDrill(null);
   };
 
-  // ---- les élèves de passage de CETTE séance ------------------------------
+  // ---- les chevaliers de passage de CETTE séance ------------------------------
   /**
    * LES PASSAGERS D'UNE SÉANCE, ET D'ELLE SEULE.
    *
-   * Un élève de passage n'est pas inscrit : il vient une fois, paie sa séance
-   * et repart. Il n'a donc ni mois, ni solde, ni place sur la feuille du jour
+   * Un chevalier de passage n'est pas inscrit : il vient une fois, paie sa séance
+   * et repart. Il n'a donc ni carte, ni solde, ni place sur la feuille du jour
    * suivant — sa ligne est attachée à LA DATE affichée. Ouvrir la séance
    * d'après ne le montre pas : si la même personne revient, la réception la
    * ressaisit, ce qui est exactement ce qui se passe au comptoir.
    *
-   * Ce que sa séance rapporte à l'enseignant (prix − part de l'école) se règle
-   * avec le MOIS où cette date tombe, dans la table « Retards de paiement &
+   * Ce que sa séance rapporte à l'entraîneur (prix − part du club) se règle
+   * avec le CARTE où cette date tombe, dans la table « Retards de paiement &
    * séances libres » de sa paie.
    */
   const passagers = passagersOn(db, session.id, date);
@@ -583,14 +584,14 @@ export function PresenceSheet({
       addToast({
         type: "danger",
         title: "Enregistrement impossible",
-        message: "Ces élèves de passage n'ont pas pu être ajoutés à la séance.",
+        message: "Ces chevaliers de passage n'ont pas pu être ajoutés à la séance.",
       });
       return;
     }
     setPassagerOpen(false);
     addToast({
       type: "success",
-      title: `${input.names.length} élève(s) de passage ajouté(s)`,
+      title: `${input.names.length} chevalier(s) de passage ajouté(s)`,
       message: `${formatDA(res.total ?? 0)} encaissés sur la séance du ${formatDateFr(date)} · ${formatDA(
         res.teacherTotal ?? 0,
       )} pour ${teacherName(db, session.teacherId)} — réglés avec ${monthCodeLabel(monthCode)}.`,
@@ -602,8 +603,8 @@ export function PresenceSheet({
     setPassagerToRemove(null);
     addToast({
       type: "success",
-      title: "Élève de passage retiré",
-      message: `${p.passagerName ?? "Passager"} — la séance et la part de l'enseignant s'en vont avec lui.`,
+      title: "Chevalier de passage retiré",
+      message: `${p.passagerName ?? "Passager"} — la séance et la part de l'entraîneur s'en vont avec lui.`,
     });
   };
 
@@ -667,7 +668,7 @@ export function PresenceSheet({
             Enseignant : {teacherName(db, session.teacherId)} · {cycleSizeOf(sub)} séances / mois ·
             séance à {formatDA(unitPrice)}
             {schoolOnlyPrice > 0 && schoolOnlyPrice !== unitPrice && (
-              <> · « école seule » : {formatDA(schoolOnlyPrice)} / séance</>
+              <> · « club seule » : {formatDA(schoolOnlyPrice)} / séance</>
             )}
           </p>
         </div>
@@ -677,7 +678,7 @@ export function PresenceSheet({
               onClick={() => onMonthChange(`M${Math.max(1, monthIndex)}`)}
               disabled={monthIndex === 0}
               className="rounded-lg p-1 text-muted hover:bg-primary-50 hover:text-ink disabled:opacity-30"
-              title="Mois précédent"
+              title="Carte précédent"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -687,19 +688,19 @@ export function PresenceSheet({
             <button
               onClick={() => onMonthChange(`M${monthIndex + 2}`)}
               className="rounded-lg p-1 text-muted hover:bg-primary-50 hover:text-ink"
-              title="Mois suivant"
+              title="Carte suivant"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
           {onCreateStudent && (
             <Button size="sm" variant="outline" onClick={onCreateStudent} className="gap-1.5">
-              <UserPlus className="h-3.5 w-3.5" /> Nouvel élève
+              <UserPlus className="h-3.5 w-3.5" /> Nouvel chevalier
             </Button>
           )}
           {/* Déjà dans la base : on l'ajoute au groupe sans ressaisir sa fiche. */}
           <Button size="sm" variant="outline" onClick={() => setAddOpen(true)} className="gap-1.5">
-            <UserRoundPlus className="h-3.5 w-3.5" /> Élève existant
+            <UserRoundPlus className="h-3.5 w-3.5" /> Chevalier existant
           </Button>
           {/* IL EST VENU UNE FOIS. On ne lui crée pas de fiche, on ne l'inscrit
               pas : il paie sa séance et il figure sur CETTE feuille-là. */}
@@ -708,9 +709,9 @@ export function PresenceSheet({
             variant="outline"
             onClick={() => setPassagerOpen(true)}
             className="gap-1.5"
-            title="Ajouter un ou plusieurs élèves de passage à la séance du jour — sans fiche, sans inscription"
+            title="Ajouter un ou plusieurs chevaliers de passage à la séance du jour — sans fiche, sans inscription"
           >
-            <Ticket className="h-3.5 w-3.5 text-primary" /> Élève passager
+            <Ticket className="h-3.5 w-3.5 text-primary" /> Chevalier passager
           </Button>
           <Button size="sm" variant="success" onClick={() => setBulkStatus("present")} className="gap-1.5">
             <CheckCheck className="h-3.5 w-3.5" /> Tout présent
@@ -732,7 +733,7 @@ export function PresenceSheet({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un élève — nom ou n° d'inscription (00001)…"
+            placeholder="Rechercher un chevalier — nom ou n° d'inscription (00001)…"
             className="pl-9"
           />
         </div>
@@ -740,10 +741,10 @@ export function PresenceSheet({
           <Clock className="h-3 w-3" />
           {DAY_LABELS_FR[JS_DAYS[new Date(`${date}T12:00:00`).getDay()]]} {formatDateFr(date)}
         </Badge>
-        <Badge tone="neutral">{shown.length} élève(s)</Badge>
+        <Badge tone="neutral">{shown.length} chevalier(s)</Badge>
         {notYetHere > 0 && (
-          <Badge tone="warning" title="Inscrits après ce mois-là — ils apparaissent sur le leur">
-            {notYetHere} pas encore inscrit(s) en {monthCode}
+          <Badge tone="warning" title="Inscrits après cette carte-là — ils apparaissent sur le leur">
+            {notYetHere} pas encore inscrit(s) en {carteShort(monthCode)}
           </Badge>
         )}
       </div>
@@ -751,11 +752,11 @@ export function PresenceSheet({
       {/* ---- le compte de la journée, mis à jour à chaque clic ------------- */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <TallyCard
-          label="Élèves du groupe"
+          label="Chevaliers du groupe"
           value={dayTally.total}
           tone="primary"
           icon={<Users className="h-4 w-4" />}
-          hint={`Inscrits sur ${monthCode}`}
+          hint={`Inscrits sur ${carteShort(monthCode)}`}
         />
         <TallyCard
           label="Présents"
@@ -796,7 +797,7 @@ export function PresenceSheet({
 
       {/* ---- L'ALERTE DU GROUPE : QUI DOIT DE L'ARGENT ---------------------
           Elle est en haut de la feuille parce que c'est le seul moment où la
-          famille est joignable : l'élève est là, devant le comptoir. Chaque
+          famille est joignable : le chevalier est là, devant le comptoir. Chaque
           ligne se règle d'un clic, sans quitter l'écran ni ouvrir de fiche. */}
       {alerts.rows.length > 0 && (
         <section className="overflow-hidden rounded-2xl border-2 border-danger/40">
@@ -807,10 +808,10 @@ export function PresenceSheet({
               </span>
               <div className="min-w-0">
                 <strong className="block text-xs text-ink">
-                  {alerts.rows.length} élève(s) de ce groupe doivent de l&apos;argent
+                  {alerts.rows.length} chevalier(s) de ce groupe doivent de l&apos;argent
                 </strong>
                 <span className="block text-[10px] text-muted">
-                  Scolarité, frais divers et dettes avancées par l&apos;école — encaissables ici
+                  Cotisation, frais divers et dettes avancées par l&apos;club — encaissables ici
                   même, à la date de votre choix, en totalité ou en partie.
                 </span>
               </div>
@@ -827,7 +828,7 @@ export function PresenceSheet({
               {alerts.advances > 0 && (
                 <Badge tone="warning" className="gap-1 font-mono text-[10px]">
                   <Landmark className="h-3 w-3" /> {formatDA(alerts.advances)} avancés par
-                  l&apos;école
+                  l&apos;club
                 </Badge>
               )}
             </div>
@@ -848,10 +849,10 @@ export function PresenceSheet({
                     <span className="text-[10px] text-muted"> · {r.student.phone}</span>
                   )}
                   <span className="block text-[10px] text-muted">
-                    {r.school > 0 ? `Scolarité ${formatDA(r.school)}` : "Scolarité à jour"}
+                    {r.school > 0 ? `Cotisation ${formatDA(r.school)}` : "Cotisation à jour"}
                     {r.charges > 0 ? ` · Frais ${formatDA(r.charges)}` : ""}
                     {r.advances > 0
-                      ? ` · dont ${formatDA(r.advances)} avancés par l'école`
+                      ? ` · dont ${formatDA(r.advances)} avancés par le club`
                       : ""}
                   </span>
                 </span>
@@ -862,16 +863,16 @@ export function PresenceSheet({
                   {r.school > 0 && (
                     <button
                       onClick={() => setDrill({ student: r.student, kind: "all" })}
-                      title="Voir et régler ses mois en dette, emploi par emploi"
+                      title="Voir et régler ses carte en dette, emploi par emploi"
                       className="flex h-7 items-center gap-1 rounded-lg border border-primary/40 bg-primary-50/70 px-2 text-[10px] font-bold text-primary hover:bg-primary hover:text-white"
                     >
-                      <Wallet className="h-3 w-3" /> Régler la scolarité
+                      <Wallet className="h-3 w-3" /> Régler la cotisation
                     </button>
                   )}
                   {r.charges > 0 && (
                     <button
                       onClick={() => setCharges({ student: r.student, tab: "pay" })}
-                      title="Régler ses frais : livres, tenues, avances de l'école…"
+                      title="Régler ses frais : livres, tenues, avances du club…"
                       className="flex h-7 items-center gap-1 rounded-lg border border-danger/40 bg-danger/10 px-2 text-[10px] font-bold text-danger hover:bg-danger hover:text-white"
                     >
                       <Receipt className="h-3 w-3" /> Régler les frais
@@ -890,14 +891,14 @@ export function PresenceSheet({
           <thead className="bg-canvas/60">
             <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
               <th className="px-2 py-2.5">N°</th>
-              <th className="px-2 py-2.5">Élève</th>
+              <th className="px-2 py-2.5">Chevalier</th>
               <th className="px-2 py-2.5">Téléphone</th>
               {Array.from({ length: slotCount }, (_, i) => (
-                <th key={i} className="px-1 py-2.5 text-center" title={`Séance ${i + 1} du mois`}>
+                <th key={i} className="px-1 py-2.5 text-center" title={`Séance ${i + 1} de la carte`}>
                   S{i + 1}
                 </th>
               ))}
-              <th className="px-2 py-2.5">Versé / Reste {monthCode}</th>
+              <th className="px-2 py-2.5">Versé / Reste {carteShort(monthCode)}</th>
               <th className="px-2 py-2.5">Mois préc.</th>
               <th className="px-2 py-2.5">Autres dettes</th>
               <th className="px-2 py-2.5">Frais &amp; avances</th>
@@ -911,9 +912,9 @@ export function PresenceSheet({
                 <td colSpan={slotCount + 9} className="px-3 py-10 text-center text-xs italic text-muted">
                   {roster.length === 0
                     ? notYetHere > 0
-                      ? `Aucun élève sur ${monthCode} — les ${notYetHere} inscrit(s) de cet emploi sont arrivés plus tard.`
-                      : "Aucun élève inscrit sur cet emploi du temps."
-                    : "Aucun élève ne correspond à la recherche."}
+                      ? `Aucun chevalier sur ${carteShort(monthCode)} — les ${notYetHere} inscrit(s) de cet emploi sont arrivés plus tard.`
+                      : "Aucun chevalier inscrit sur cet emploi du temps."
+                    : "Aucun chevalier ne correspond à la recherche."}
                 </td>
               </tr>
             ) : (
@@ -923,7 +924,7 @@ export function PresenceSheet({
                   student={st}
                   session={session}
                   subscriptionId={sub.id}
-                  monthCode={monthCode}
+                  monthCode={carteShort(monthCode)}
                   monthIndex={monthIndex}
                   slotCount={slotCount}
                   date={date}
@@ -944,18 +945,18 @@ export function PresenceSheet({
         </table>
       </div>
 
-      {/* ---- les élèves de passage de CETTE séance ------------------------- */}
+      {/* ---- les chevaliers de passage de CETTE séance ------------------------- */}
       <section className="overflow-hidden rounded-2xl border border-primary/30">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-primary-50/50 p-3">
           <div className="min-w-0">
             <strong className="flex items-center gap-1.5 text-sm text-ink">
-              <Ticket className="h-4 w-4 text-primary" /> Élèves de passage — séance du{" "}
+              <Ticket className="h-4 w-4 text-primary" /> Chevaliers de passage — séance du{" "}
               {formatDateFr(date)} ({passagers.length})
             </strong>
             <span className="block text-[11px] leading-relaxed text-muted">
               Ils ne sont pas inscrits : ils paient la séance sur place et n&apos;apparaissent que
               sur <strong className="text-ink">cette feuille-ci</strong>. La séance suivante repart
-              sans eux — s&apos;ils reviennent, on les ressaisit. Ce que l&apos;école ne garde pas
+              sans eux — s&apos;ils reviennent, on les ressaisit. Ce que l&apos;club ne garde pas
               revient à l&apos;enseignant et se règle avec {monthCodeLabel(monthCode)}.
             </span>
           </div>
@@ -966,19 +967,19 @@ export function PresenceSheet({
 
         {passagers.length === 0 ? (
           <p className="bg-surface px-3 py-5 text-center text-xs italic text-muted">
-            Aucun élève de passage sur la séance du {formatDateFr(date)}.
+            Aucun chevalier de passage sur la séance du {formatDateFr(date)}.
           </p>
         ) : (
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[640px] text-[11px]">
               <thead className="bg-canvas/60">
                 <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
-                  <th className="px-2 py-2">Élève de passage</th>
+                  <th className="px-2 py-2">Chevalier de passage</th>
                   <th className="px-2 py-2">Séance</th>
                   <th className="px-2 py-2 text-center">Horaire</th>
                   <th className="px-2 py-2 text-right">Prix payé</th>
-                  <th className="px-2 py-2 text-right">Part école</th>
-                  <th className="px-2 py-2 text-right">Part enseignant</th>
+                  <th className="px-2 py-2 text-right">Part club</th>
+                  <th className="px-2 py-2 text-right">Part entraîneur</th>
                   <th className="px-2 py-2 text-center">Retirer</th>
                 </tr>
               </thead>
@@ -1010,8 +1011,8 @@ export function PresenceSheet({
                           disabled={!!p.teacherPaid}
                           title={
                             p.teacherPaid
-                              ? "L'enseignant a déjà été réglé pour cette séance — annulez son règlement d'abord"
-                              : "Retirer cet élève de passage de la séance"
+                              ? "L'entraîneur a déjà été réglé pour cette séance — annulez son règlement d'abord"
+                              : "Retirer ce chevalier de passage de la séance"
                           }
                           className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line text-danger transition-colors hover:bg-danger/10 disabled:opacity-30"
                         >
@@ -1089,10 +1090,10 @@ export function PresenceSheet({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                  Mois concerné
+                  Carte concerné
                 </label>
                 <Select
-                  value={pay.monthCode}
+                  value={carteShort(pay.monthCode)}
                   onChange={(e) => setPay({ ...pay, monthCode: e.target.value })}
                   className="w-full"
                 >
@@ -1119,7 +1120,7 @@ export function PresenceSheet({
             </div>
             {/* LE JOUR DU VERSEMENT — la veille se saisit encore aujourd'hui,
                 et c'est cette date que porteront le reçu, l'historique de
-                l'élève et le mouvement de caisse. */}
+                le chevalier et le mouvement de caisse. */}
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
                 Date du paiement
@@ -1142,7 +1143,7 @@ export function PresenceSheet({
             {/* ---- LE RACCOURCI « UNE SÉANCE DE PLUS » -----------------------
                 La réception ne calcule plus de tête. Un bouton ajoute le prix
                 d'UNE séance, et il ne peut être cliqué qu'autant de fois qu'il
-                reste de séances À PAYER à cet élève sur ce mois — comptées
+                reste de séances À PAYER à ce chevalier sur cette carte — comptées
                 depuis SA première séance, pas depuis son dernier pointage : un
                 enfant venu une fois sur quatre en est à sa 2e séance, mais il
                 doit toujours les quatre. Le second bouton propose directement
@@ -1150,13 +1151,13 @@ export function PresenceSheet({
             <SeanceStepper
               student={pay.student}
               subscriptionId={pay.subscriptionId}
-              monthCode={pay.monthCode}
+              monthCode={carteShort(pay.monthCode)}
               amount={pay.amount || 0}
               onAmount={(next) => setPay({ ...pay, amount: next })}
             />
 
-            {/* Ce que ce versement laisse derrière lui. Un élève qui donne 2000
-                sur un mois à 1800 ne « perd » pas les 200 : ils restent sur le
+            {/* Ce que ce versement laisse derrière lui. Un chevalier qui donne 2000
+                sur une carte à 1800 ne « perd » pas les 200 : ils restent sur le
                 solde de CET emploi du temps et paieront ses séances suivantes. */}
             {(() => {
               const amount = Math.max(0, Math.round(pay.amount || 0));
@@ -1175,16 +1176,16 @@ export function PresenceSheet({
                 >
                   {rest > 0 ? (
                     <>
-                      Il restera <strong>{formatDA(rest)}</strong> à payer sur {pay.monthCode}.
+                      Il restera <strong>{formatDA(rest)}</strong> à payer sur {carteShort(pay.monthCode)}.
                     </>
                   ) : advance > 0 ? (
                     <>
-                      {pay.monthCode} est soldé et <strong>{formatDA(advance)}</strong> restent
+                      {carteShort(pay.monthCode)} est soldé et <strong>{formatDA(advance)}</strong> restent
                       d&apos;avance : cet argent est gardé sur le solde de cet emploi du temps et
                       paiera ses prochaines séances.
                     </>
                   ) : (
-                    <>{pay.monthCode} sera exactement soldé.</>
+                    <>{carteShort(pay.monthCode)} sera exactement soldé.</>
                   )}
                   <span className="mt-0.5 block text-[10px] opacity-80">
                     Solde de l&apos;emploi après encaissement :{" "}
@@ -1269,7 +1270,7 @@ export function PresenceSheet({
         </Modal>
       )}
 
-      {/* ---- inscrire un élève DÉJÀ créé ------------------------------------ */}
+      {/* ---- inscrire un chevalier DÉJÀ créé ------------------------------------ */}
       {addOpen && (
         <AddExistingStudentModal
           subscriptionId={sub.id}
@@ -1316,7 +1317,7 @@ export function PresenceSheet({
         />
       )}
 
-      {/* ---- la scolarité d'un fils d'enseignant, réglée au guichet --------- */}
+      {/* ---- la cotisation d'un fils d'entraîneur, réglée au guichet --------- */}
       {childPay && (
         <TeacherChildPayModal
           student={childPay}
@@ -1327,7 +1328,7 @@ export function PresenceSheet({
         />
       )}
 
-      {/* ---- LES FRAIS D'UN ÉLÈVE, RÉGLÉS DEPUIS LA FEUILLE DU GROUPE ------
+      {/* ---- LES FRAIS D'UN CHEVALIER, RÉGLÉS DEPUIS LA FEUILLE DU GROUPE ------
           La même liste que sur sa fiche : on coche ce que la famille paie, on
           corrige le montant, et ce qui n'est pas versé reste dû. */}
       {charges && (
@@ -1343,7 +1344,7 @@ export function PresenceSheet({
         <ChargeFormModal student={chargeForm} onClose={() => setChargeForm(null)} />
       )}
 
-      {/* ---- ajouter des élèves de passage à la séance du jour -------------- */}
+      {/* ---- ajouter des chevaliers de passage à la séance du jour -------------- */}
       {passagerOpen && (
         <PassagerModal
           title={title}
@@ -1359,9 +1360,9 @@ export function PresenceSheet({
         />
       )}
 
-      {/* ---- retirer un élève de passage ------------------------------------ */}
+      {/* ---- retirer un chevalier de passage ------------------------------------ */}
       {passagerToRemove && (
-        <Modal open onClose={() => setPassagerToRemove(null)} title="Retirer cet élève de passage">
+        <Modal open onClose={() => setPassagerToRemove(null)} title="Retirer ce chevalier de passage">
           <div className="space-y-3">
             <div className="rounded-xl bg-primary-50/60 p-3">
               <strong className="block text-sm text-ink">
@@ -1402,22 +1403,22 @@ export function PresenceSheet({
 // ---------------------------------------------------------------------------
 
 /**
- * AJOUTER DES ÉLÈVES DE PASSAGE À UNE SÉANCE — d'un seul geste.
+ * AJOUTER DES CHEVALIERS DE PASSAGE À UNE SÉANCE — d'un seul geste.
  *
  * Trois choses seulement sont demandées, parce qu'il n'y en a pas quatre à
  * savoir au comptoir :
  *
  *   · QUI est venu — un nom par ligne, et **une ligne vide reste valide** : on
  *     ne retient pas toujours le nom de quelqu'un qui vient une fois, elle
- *     s'enregistre alors comme « Passager ». Six élèves d'un coup se saisissent
+ *     s'enregistre alors comme « Passager ». Six chevaliers d'un coup se saisissent
  *     donc en tapant « 6 » puis, éventuellement, les noms qu'on connaît ;
  *   · COMBIEN un passager paie pour la séance ;
- *   · CE QUE L'ÉCOLE GARDE dessus. Le reste est la part de l'enseignant — elle
+ *   · CE QUE LE CLUB GARDE dessus. Le reste est la part de l'entraîneur — elle
  *     s'affiche pendant la saisie, personne ne la calcule de tête.
  *
  * Tout est écrit à la seconde : l'argent entre en caisse, les passagers
- * apparaissent sous la feuille de CETTE séance, et la part de l'enseignant
- * rejoint le mois où la séance tombe.
+ * apparaissent sous la feuille de CETTE séance, et la part de l'entraîneur
+ * rejoint la carte où la séance tombe.
  */
 function PassagerModal({
   title,
@@ -1465,7 +1466,7 @@ function PassagerModal({
   };
 
   return (
-    <Modal open onClose={onClose} title="Élèves de passage sur cette séance" wide>
+    <Modal open onClose={onClose} title="Chevaliers de passage sur cette séance" wide>
       <div className="space-y-4">
         <div className="rounded-xl bg-primary-50/60 p-3">
           <strong className="block text-sm text-ink">{title}</strong>
@@ -1474,7 +1475,7 @@ function PassagerModal({
             {teacher}
           </span>
           <span className="mt-1 block text-[11px] leading-relaxed text-muted">
-            Ces élèves ne sont <strong className="text-ink">pas inscrits</strong> : aucune fiche
+            Ces chevaliers ne sont <strong className="text-ink">pas inscrits</strong> : aucune fiche
             n&apos;est créée, aucun solde n&apos;est ouvert. Ils figureront sur la feuille de cette
             séance et sur aucune autre, et la part de l&apos;enseignant se règlera avec{" "}
             <strong className="text-ink">{monthLabel}</strong>.
@@ -1561,7 +1562,7 @@ function PassagerModal({
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted">
-                Part de l&apos;école / passager *
+                Part de l&apos;club / passager *
               </label>
               <Input
                 type="number"
@@ -1579,20 +1580,20 @@ function PassagerModal({
                 {formatDA(unitTeacher)}
               </div>
               <span className="mt-0.5 block text-[9px] text-muted">
-                calculée : prix − part école
+                calculée : prix − part club
               </span>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <MiniTotal label="Total encaissé" value={formatDA(total)} tone="text-success" />
-            <MiniTotal label="Total école" value={formatDA(totalSchool)} tone="text-ink" />
-            <MiniTotal label="Total enseignant" value={formatDA(totalTeacher)} tone="text-primary" />
+            <MiniTotal label="Total club" value={formatDA(totalSchool)} tone="text-ink" />
+            <MiniTotal label="Total entraîneur" value={formatDA(totalTeacher)} tone="text-primary" />
           </div>
 
           {price > 0 && unitTeacher === 0 && (
             <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-              L&apos;école garde tout : ces séances ne rapporteront rien à l&apos;enseignant.
+              L&apos;club garde tout : ces séances ne rapporteront rien à l&apos;enseignant.
             </p>
           )}
         </div>
@@ -1695,24 +1696,24 @@ function TallyCard({
  *
  * Le problème qu'il résout est trivial et coûte pourtant vingt secondes à
  * chaque encaissement : la réception connaît le prix d'une séance, connaît le
- * nombre de séances que l'élève a à payer sur ce mois, et refait la
+ * nombre de séances que le chevalier a à payer sur cette carte, et refait la
  * multiplication de tête. Ici, un bouton ajoute une séance, et un second pose
  * directement le total.
  *
- * LA PROPOSITION PART DE SA PREMIÈRE SÉANCE DU MOIS, PAS DE LÀ OÙ IL EN EST.
+ * LA PROPOSITION PART DE SA PREMIÈRE SÉANCE DU CARTE, PAS DE LÀ OÙ IL EN EST.
  *
- * C'est tout l'intérêt : venir à une séance ne la paie pas. Un élève qui entre
- * dans le mois à la séance 1 et qui a déjà été pointé une fois en est à sa
+ * C'est tout l'intérêt : venir à une séance ne la paie pas. Un chevalier qui entre
+ * dans la carte à la séance 1 et qui a déjà été pointé une fois en est à sa
  * deuxième — mais il doit toujours les QUATRE, la première comprise. Proposer
- * les trois qui restent laisserait la première impayée, et le mois se
+ * les trois qui restent laisserait la première impayée, et la carte se
  * terminerait avec un trou que personne ne verrait passer.
  *
- * Le plafond vaut donc son mois entier — les séances tenues avant son
+ * Le plafond vaut donc son carte entière — les séances tenues avant son
  * inscription en moins, puisqu'elles ne furent jamais les siennes — moins ce
- * qu'il a DÉJÀ versé sur ce mois. Un élève à jour de deux séances sur quatre ne
+ * qu'il a DÉJÀ versé sur cette carte. Un chevalier à jour de deux séances sur quatre ne
  * se voit proposer que les deux dernières ; celui qui n'a rien versé se voit
  * proposer les quatre. Passé ce plafond le bouton se verrouille : on ne fait
- * pas payer plus que le mois.
+ * pas payer plus que la carte.
  *
  * Le champ reste libre : ces boutons écrivent dedans, ils ne le remplacent pas.
  */
@@ -1765,14 +1766,14 @@ function SeanceStepper({
           className="gap-1.5"
           title={
             cap <= 0
-              ? "Ce mois est déjà entièrement versé"
+              ? "Cette carte est déjà entièrement versé"
               : `Ajouter le prix d'une séance (${formatDA(unit)})`
           }
         >
           <Banknote className="h-3.5 w-3.5" /> + 1 séance ({formatDA(unit)})
         </Button>
 
-        {/* La proposition toute faite : son mois entier, compté depuis SA
+        {/* La proposition toute faite : son carte entière, compté depuis SA
             première séance, moins ce qu'il a déjà versé — d'un seul clic. */}
         <Button
           size="sm"
@@ -1780,7 +1781,7 @@ function SeanceStepper({
           disabled={cap <= 0}
           onClick={() => onAmount(cap)}
           className="gap-1.5"
-          title={`Les ${billable} séance(s) qu'il doit sur ${monthCode}, depuis sa 1re séance du mois`}
+          title={`Les ${billable} séance(s) qu'il doit sur ${carteShort(monthCode)}, depuis sa 1re séance de la carte`}
         >
           <HandCoins className="h-3.5 w-3.5" /> Proposition : {formatDA(cap)}
         </Button>
@@ -1808,7 +1809,7 @@ function SeanceStepper({
           </span>
         ) : (
           <>
-            son mois compte <strong className="text-ink">{mine} séance(s)</strong> à partir de sa{" "}
+            son carte compte <strong className="text-ink">{mine} séance(s)</strong> à partir de sa{" "}
             <strong className="text-ink">1re</strong>
             {cycle.lead > 0 ? ` (il est entré à la séance ${cycle.lead + 1} du groupe)` : ""} ;
             {credited > 0 ? (
@@ -1834,7 +1835,7 @@ function SeanceStepper({
 }
 
 /**
- * « Élève existant » — il est déjà dans la base, on l'ajoute simplement à cet
+ * « Chevalier existant » — il est déjà dans la base, on l'ajoute simplement à cet
  * emploi du temps : aucune fiche à ressaisir, et il entre là où en est le
  * groupe à la date affichée.
  */
@@ -1868,11 +1869,11 @@ function AddExistingStudentModal({
   }, [db.students, subscriptionId, query]);
 
   return (
-    <Modal open onClose={onClose} title="Ajouter un élève existant au groupe">
+    <Modal open onClose={onClose} title="Ajouter un chevalier existant au groupe">
       <div className="space-y-3">
         <div className="rounded-xl bg-primary-50/60 p-3 text-[11px] text-muted">
           <strong className="block text-sm text-ink">{title}</strong>
-          Il entrera en <strong className="text-primary">{point.monthCode}</strong> · séance{" "}
+          Il entrera en <strong className="text-primary">{carteShort(point.monthCode)}</strong> · séance{" "}
           <strong className="text-primary">{point.slotIndex + 1}</strong> — là où en est le groupe
           le {formatDateFr(date)}. Les séances tenues avant lui resteront vides sur sa ligne.
         </div>
@@ -1890,8 +1891,8 @@ function AddExistingStudentModal({
           {candidates.length === 0 ? (
             <p className="py-8 text-center text-xs italic text-muted">
               {query.trim()
-                ? "Aucun élève ne correspond — il est peut-être déjà inscrit sur ce groupe."
-                : "Aucun élève à ajouter."}
+                ? "Aucun chevalier ne correspond — il est peut-être déjà inscrit sur ce groupe."
+                : "Aucun chevalier à ajouter."}
             </p>
           ) : (
             candidates.map((st) => (
@@ -1933,11 +1934,11 @@ function AddExistingStudentModal({
  * Le raccourci du matin, dans ses deux sens :
  *
  *  - « Tout présent » — la liste s'ouvre cochée sur ceux qui n'ont pas encore
- *    de pointage, et les élèves déjà pointés sont laissés tels quels ;
+ *    de pointage, et les chevaliers déjà pointés sont laissés tels quels ;
  *  - « Séance annulée pour tous » — la séance n'a pas eu lieu : TOUT LE MONDE
  *    est coché, y compris ceux déjà pointés, parce qu'une présence notée sur une
  *    séance qui n'a pas eu lieu doit être reprise. Rien n'est consommé, aucun
- *    solde n'est débité, aucune part enseignant n'est due, et le mois du groupe
+ *    solde n'est débité, aucune part entraîneur n'est due, et la carte du groupe
  *    n'avance pas.
  */
 function MarkAllModal({
@@ -1982,14 +1983,14 @@ function MarkAllModal({
           {cancelling ? (
             <>
               La séance du {formatDateFr(date)} sera marquée{" "}
-              <strong className="text-primary">annulée</strong> pour tous les élèves cochés :
+              <strong className="text-primary">annulée</strong> pour tous les chevaliers cochés :
               aucune séance consommée, aucun solde débité, aucune part enseignant due, et le mois du
               groupe n&apos;avance pas. Un pointage déjà saisi ce jour-là est{" "}
               <strong className="text-ink">repris</strong> et le solde rendu.
             </>
           ) : (
             <>
-              Tous les élèves cochés seront pointés <strong className="text-success">présents</strong>{" "}
+              Tous les chevaliers cochés seront pointés <strong className="text-success">présents</strong>{" "}
               le {formatDateFr(date)}. Ceux qui portent déjà un pointage ce jour-là ne sont pas
               réécrits — corrigez-les depuis leur ligne.
             </>
@@ -2002,7 +2003,7 @@ function MarkAllModal({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un élève…"
+              placeholder="Rechercher un chevalier…"
               className="pl-9"
             />
           </div>
@@ -2015,7 +2016,7 @@ function MarkAllModal({
         </div>
         <div className="max-h-[42vh] space-y-1 overflow-y-auto pr-1">
           {shown.length === 0 ? (
-            <p className="py-8 text-center text-xs italic text-muted">Aucun élève.</p>
+            <p className="py-8 text-center text-xs italic text-muted">Aucun chevalier.</p>
           ) : (
             shown.map((st) => {
               const already = attendanceOn(db, st.id, session.id, date);
@@ -2051,7 +2052,7 @@ function MarkAllModal({
         </div>
         <div className="flex items-center justify-between border-t border-line pt-3">
           <span className="text-[11px] font-semibold text-muted">
-            {picked.length} élève(s) sélectionné(s)
+            {picked.length} chevalier(s) sélectionné(s)
           </span>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} disabled={busy}>
@@ -2071,7 +2072,7 @@ function MarkAllModal({
               {busy
                 ? "Enregistrement…"
                 : cancelling
-                  ? `Annuler pour ${picked.length} élève(s)`
+                  ? `Annuler pour ${picked.length} chevalier(s)`
                   : `Marquer ${picked.length} présent(s)`}
             </Button>
           </div>
@@ -2082,7 +2083,7 @@ function MarkAllModal({
 }
 
 /**
- * L'historique des encaissements d'un élève SUR CET EMPLOI DU TEMPS, corrigeable
+ * L'historique des encaissements d'un chevalier SUR CET EMPLOI DU TEMPS, corrigeable
  * sur place : un montant mal tapé se modifie, un paiement saisi en double se
  * supprime — et le solde comme la caisse suivent le mouvement.
  */
@@ -2235,7 +2236,7 @@ export function PaymentHistoryModal({
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase text-muted">
-                  Mois concerné
+                  Carte concerné
                 </label>
                 <Select value={code} onChange={(e) => setCode(e.target.value)} className="w-full">
                   {Array.from({ length: 12 }, (_, i) => `M${i + 1}`).map((c) => (
@@ -2330,9 +2331,9 @@ function StudentRow({
   onDrill: (kind: "previous" | "other" | "all") => void;
   onLeave: () => void;
   onHistory: () => void;
-  /** retirer CE pointage-là — même s'il date d'un autre jour du mois */
+  /** retirer CE pointage-là — même s'il date d'un autre jour de la carte */
   onRemove: (record: AttendanceRecord) => void;
-  /** régler la scolarité d'un fils d'enseignant, au guichet */
+  /** régler la cotisation d'un fils d'entraîneur, au guichet */
   onChildPay: () => void;
   /** ouvrir ses frais — la liste, ou directement l'encaissement */
   onCharges: (tab: "list" | "pay") => void;
@@ -2348,19 +2349,19 @@ function StudentRow({
   const lead = cycleLead(db, student.id, subscriptionId, monthCode);
   const cycle = cycleOf(db, student.id, subscriptionId, monthCode);
   const sold = soldFor(db, student.id, subscriptionId);
-  // « École seule » paie la part de l'école, pas le prix complet.
+  // « Club seule » paie la part du club, pas le prix complet.
   const unit = studentListPrice(student, sub);
   const status = soldStatus(sold, unit);
   const today = attendanceOn(db, student.id, session.id, date);
 
-  /** Ce qu'il doit ENCORE sur le mois affiché — jamais un nombre négatif. */
+  /** Ce qu'il doit ENCORE sur la carte affiché — jamais un nombre négatif. */
   const monthDue = Math.max(0, -cycle.balance);
   const prevDebt =
     monthIndex > 0 ? Math.max(0, -cycleOf(db, student.id, subscriptionId, `M${monthIndex}`).balance) : 0;
   const otherDebt = studentSoldDebtRows(db, student.id)
     .filter((r) => r.subscriptionId !== subscriptionId)
     .reduce((s, r) => s + r.debt, 0);
-  /** ses frais : livres, tenues, sorties — et ce que l'école lui a avancé */
+  /** ses frais : livres, tenues, sorties — et ce que le club lui a avancé */
   const chargeDebt = studentChargeDebt(db, student.id);
   const advanceDebt = studentAdvanceDebt(db, student.id);
 
@@ -2397,7 +2398,7 @@ function StudentRow({
         const before = i < lead;
         const rec: AttendanceRecord | undefined = before ? undefined : slots[i - lead];
         // Une case DÉJÀ POINTÉE se clique : c'est là qu'on retire une présence
-        // ou une absence saisie par erreur, fût-elle d'un autre jour du mois,
+        // ou une absence saisie par erreur, fût-elle d'un autre jour de la carte,
         // et qu'on récupère ce qu'elle avait pris sur le solde.
         const cls = `inline-flex h-6 w-6 items-center justify-center rounded-lg border text-[11px] font-black ${
           before
@@ -2444,15 +2445,15 @@ function StudentRow({
           avec un moins devant. */}
       <td className="px-2 py-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge tone="success" className="font-mono" title={`Versé sur ${monthCode}`}>
+          <Badge tone="success" className="font-mono" title={`Versé sur ${carteShort(monthCode)}`}>
             {formatDA(cycle.credited)}
           </Badge>
           {monthDue > 0 ? (
-            <Badge tone="danger" className="font-mono" title={`Reste dû sur ${monthCode}`}>
+            <Badge tone="danger" className="font-mono" title={`Reste dû sur ${carteShort(monthCode)}`}>
               reste {formatDA(monthDue)}
             </Badge>
           ) : (
-            <Badge tone="success" title={`${monthCode} réglé`}>✅</Badge>
+            <Badge tone="success" title={`${carteShort(monthCode)} réglé`}>✅</Badge>
           )}
           {onPay && (
             <button
@@ -2466,7 +2467,7 @@ function StudentRow({
                   suggestion: monthDue,
                 })
               }
-              title="Encaisser un solde sur ce mois"
+              title="Encaisser un solde sur cette carte"
               className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary text-white transition-colors hover:brightness-110"
             >
               <Wallet className="h-3.5 w-3.5" />
@@ -2479,11 +2480,11 @@ function StudentRow({
           >
             <History className="h-3.5 w-3.5" />
           </button>
-          {/* Fils d'enseignant : il n'a pas à attendre la paie de son père. */}
+          {/* Fils d'entraîneur : il n'a pas à attendre la paie de son père. */}
           {student.studentCase === "teacher_child" && (
             <button
               onClick={onChildPay}
-              title="Fils d'enseignant — régler sa scolarité ici : par sa famille, ou portée sur le salaire de son père"
+              title="Fils d'entraîneur — régler sa cotisation ici : par sa famille, ou portée sur le salaire de son père"
               className="flex h-6 items-center gap-1 rounded-lg border border-primary/40 bg-primary-50/60 px-1.5 text-[9px] font-bold text-primary transition-colors hover:bg-primary hover:text-white"
             >
               <GraduationCap className="h-3 w-3" /> Fils d&apos;ens.
@@ -2493,7 +2494,7 @@ function StudentRow({
         <span className="mt-0.5 block text-[9px] text-muted">
           {cycle.done}/{Math.max(0, cycle.size - cycle.lead)} séance(s) · consommé{" "}
           {formatDA(cycle.consumed)}
-          {cycle.complete ? " · mois clos" : ""}
+          {cycle.complete ? " · carte close" : ""}
           {cycle.lead > 0 ? ` · entré à la séance ${cycle.lead + 1}` : ""}
         </span>
         <span className={`block text-[9px] font-semibold ${soldTone === "danger" ? "text-danger" : "text-muted"}`}>
@@ -2514,7 +2515,7 @@ function StudentRow({
             {formatDA(prevDebt)}
           </button>
         ) : (
-          <span className="text-sm" title="Mois précédent réglé">
+          <span className="text-sm" title="Carte précédent réglé">
             ✅
           </span>
         )}
@@ -2536,9 +2537,9 @@ function StudentRow({
         )}
       </td>
 
-      {/* FRAIS & AVANCES — ce qu'il doit hors scolarité : un livre, une tenue,
-          une sortie, ou la dette que l'école a réglée de sa caisse pour
-          débloquer la part de l'enseignant. Un clic l'encaisse, en totalité ou
+      {/* FRAIS & AVANCES — ce qu'il doit hors cotisation : un livre, une tenue,
+          une sortie, ou la dette que le club a réglée de sa caisse pour
+          débloquer la part de l'entraîneur. Un clic l'encaisse, en totalité ou
           en partie, à la date choisie. */}
       <td className="px-2 py-2">
         <div className="flex flex-wrap items-center gap-1">
@@ -2549,7 +2550,7 @@ function StudentRow({
                 advanceDebt > 0
                   ? `${formatDA(chargeDebt)} de frais, dont ${formatDA(
                       advanceDebt,
-                    )} avancés par l'école — cliquer pour encaisser`
+                    )} avancés par le club — cliquer pour encaisser`
                   : `${formatDA(chargeDebt)} de frais — cliquer pour encaisser`
               }
               className="flex items-center gap-1 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1 text-[10px] font-bold text-danger hover:bg-danger hover:text-white"
@@ -2572,7 +2573,7 @@ function StudentRow({
           )}
           <button
             onClick={onNewCharge}
-            title="Porter un nouveau frais à cet élève (livre, tenue, sortie…)"
+            title="Porter un nouveau frais à ce chevalier (livre, tenue, sortie…)"
             className="flex h-6 w-6 items-center justify-center rounded-lg border border-line text-muted transition-colors hover:bg-primary-50 hover:text-ink"
           >
             <Receipt className="h-3.5 w-3.5" />
@@ -2580,7 +2581,7 @@ function StudentRow({
         </div>
         {advanceDebt > 0 && (
           <span className="mt-0.5 block text-[9px] font-semibold text-warning">
-            dont {formatDA(advanceDebt)} avancés par l&apos;école
+            dont {formatDA(advanceDebt)} avancés par l&apos;club
           </span>
         )}
       </td>
@@ -2656,7 +2657,7 @@ function StudentRow({
           <button
             disabled={busy}
             onClick={onLeave}
-            title="Désinscrire cet élève de ce groupe"
+            title="Désinscrire ce chevalier de ce groupe"
             className="flex h-7 items-center gap-1 rounded-lg border border-line px-2 text-[10px] font-bold text-danger transition-colors hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-30"
           >
             <UserMinus className="h-3.5 w-3.5" /> Désinscrire
@@ -2787,22 +2788,22 @@ function RemovePresenceModal({
 }
 
 /**
- * LA SCOLARITÉ D'UN FILS D'ENSEIGNANT, RÉGLÉE DEPUIS LA FEUILLE DU GROUPE.
+ * LA SCOLARITÉ D'UN FILS D'ENTRAÎNEUR, RÉGLÉE DEPUIS LA FEUILLE DU GROUPE.
  *
- * Rien n'oblige un fils d'enseignant à attendre la paie de son père, et rien
+ * Rien n'oblige un fils d'entraîneur à attendre la paie de son père, et rien
  * n'oblige la réception à ouvrir un écran de règlement pour le mettre en règle.
  * Elle choisit ici, en deux clics, D'OÙ vient l'argent :
  *
- *  - « la famille paie maintenant » — un versement d'élève ordinaire : il entre
+ *  - « la famille paie maintenant » — un versement de chevalier ordinaire : il entre
  *    en caisse, et le salaire du père n'est PAS amputé. L'écran de paie de
- *    l'enseignant l'affiche « payé par la famille » ;
+ *    l'entraîneur l'affiche « payé par la famille » ;
  *  - « à porter sur le salaire du père » — l'enfant est soldé tout de suite,
  *    donc la part que ses séances rapportent se débloque, et le montant part en
  *    attente sur la fiche du père. Son prochain règlement le retient sur son
  *    net, une fois et une seule.
  *
- * Dans les deux cas le mois cesse d'être en dette : c'est la seule chose qui
- * bloquait la paie de l'enseignant.
+ * Dans les deux cas la carte cesse d'être en dette : c'est la seule chose qui
+ * bloquait la paie de l'entraîneur.
  */
 function TeacherChildPayModal({
   student,
@@ -2825,7 +2826,7 @@ function TeacherChildPayModal({
   const sub = db.subscriptions.find((x) => x.id === subscriptionId);
   const father: Teacher | undefined = db.teachers.find((t) => t.id === student.teacherFatherId);
 
-  /** Ses mois EN DETTE sur cet emploi du temps — ce qu'il y a à régler. */
+  /** Ses carte EN DETTE sur cet emploi du temps — ce qu'il y a à régler. */
   const owing = enrollmentCycles(db, student.id, subscriptionId).filter((c) => c.balance < 0);
   const current = currentCycleCode(db, student.id, subscriptionId);
   const monthPrice = sub ? studentMonthPrice(student, sub) : 0;
@@ -2852,8 +2853,8 @@ function TeacherChildPayModal({
     if (source === "teacher_debt" && !father) {
       addToast({
         type: "danger",
-        title: "Aucun enseignant père",
-        message: "Désignez l'enseignant père sur sa fiche avant de porter la somme sur un salaire.",
+        title: "Aucun entraîneur père",
+        message: "Désignez l'entraîneur père sur sa fiche avant de porter la somme sur un salaire.",
         studentName: studentName(student),
       });
       return;
@@ -2871,7 +2872,7 @@ function TeacherChildPayModal({
       addToast({
         type: "danger",
         title: "Règlement impossible",
-        message: "La scolarité n'a pas pu être enregistrée.",
+        message: "La cotisation n'a pas pu être enregistrée.",
         studentName: studentName(student),
       });
       return;
@@ -2881,8 +2882,8 @@ function TeacherChildPayModal({
       title: source === "cash" ? "Encaissé auprès de la famille" : "Porté sur le salaire du père",
       message:
         source === "cash"
-          ? `${formatDA(value)} sur ${monthCode} — l'argent entre en caisse, rien n'est retenu sur le salaire de son père.`
-          : `${formatDA(value)} sur ${monthCode} — retenus sur le prochain règlement de ${
+          ? `${formatDA(value)} sur ${carteShort(monthCode)} — l'argent entre en caisse, rien n'est retenu sur le salaire de son père.`
+          : `${formatDA(value)} sur ${carteShort(monthCode)} — retenus sur le prochain règlement de ${
               father ? `${father.firstName} ${father.lastName}` : "son père"
             }, et pas une fois de plus.`,
       studentName: studentName(student),
@@ -2903,7 +2904,7 @@ function TeacherChildPayModal({
   };
 
   return (
-    <Modal open onClose={onClose} title="Fils d'enseignant — régler sa scolarité" wide>
+    <Modal open onClose={onClose} title="Fils d'entraîneur — régler sa cotisation" wide>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-primary-50/60 p-3">
           <div className="min-w-0">
@@ -2928,10 +2929,10 @@ function TeacherChildPayModal({
           </p>
         )}
 
-        {/* Ses mois en dette sur CET emploi du temps */}
+        {/* Ses carte en dette sur CET emploi du temps */}
         <div className="space-y-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-            Mois à régler
+            Carte à régler
           </span>
           <div className="flex flex-wrap gap-1.5">
             {(owing.length > 0 ? owing.map((c) => c.code) : [current]).map((code) => {
@@ -2985,7 +2986,7 @@ function TeacherChildPayModal({
                 onClick={() => setAmount(due)}
                 className="pb-2.5 text-[11px] font-bold text-primary hover:underline"
               >
-                Régler la totalité de {monthCode} ({formatDA(due)})
+                Régler la totalité de {carteShort(monthCode)} ({formatDA(due)})
               </button>
             )}
           </div>
@@ -2999,7 +3000,7 @@ function TeacherChildPayModal({
                 <HandCoins className="h-4 w-4" /> La famille paie maintenant
               </strong>
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
-                Un versement d&apos;élève ordinaire : l&apos;argent <strong>entre en caisse</strong>{" "}
+                Un versement d&apos;chevalier ordinaire : l&apos;argent <strong>entre en caisse</strong>{" "}
                 et le salaire de son père n&apos;est <strong>pas amputé</strong>. Sa paie affichera
                 le mois « payé par la famille », pour que personne ne le retienne une seconde fois.
               </p>
@@ -3049,7 +3050,7 @@ function TeacherChildPayModal({
   );
 }
 
-/** The debt behind a "mois précédent" / "autres dettes" chip, payable here. */
+/** The debt behind a "carte précédente" / "autres dettes" chip, payable here. */
 function DebtDrill({
   student,
   kind,
@@ -3083,14 +3084,14 @@ function DebtDrill({
             size: c.size,
           }))
       : studentSoldDebtRows(db, student.id)
-          // « all » ne cache rien : le mois du groupe ouvert compte comme les
+          // « all » ne cache rien : la carte du groupe ouvert compte comme les
           // autres, sinon l'alerte annoncerait une somme qu'on ne pourrait pas
           // solder depuis l'écran qu'elle ouvre.
           .filter((r) => kind === "all" || r.subscriptionId !== subscriptionId)
           .map((r) => ({ ...r, done: 0, size: 0 }));
 
   // Les restes d'anciens paiements et les frais d'inscription ne relèvent
-  // d'aucun mois : ils se rappellent à part, sous la liste.
+  // d'aucune carte : ils se rappellent à part, sous la liste.
   const summary = studentDebtSummary(db, student.id);
   const loose = kind === "all" ? summary.rests + summary.registrationDue : 0;
 
@@ -3100,9 +3101,9 @@ function DebtDrill({
       onClose={onClose}
       title={
         kind === "previous"
-          ? "Dettes des mois précédents"
+          ? "Dettes des cartes précédents"
           : kind === "all"
-            ? "Toute la scolarité qu'il doit"
+            ? "Toute la cotisation qu'il doit"
             : "Dettes sur les autres emplois du temps"
       }
     >
@@ -3162,7 +3163,7 @@ function DebtDrill({
             {summary.registrationDue > 0
               ? ` ${formatDA(summary.registrationDue)} de frais d'inscription`
               : ""}
-            . Ils se règlent depuis la fiche de l&apos;élève.
+            . Ils se règlent depuis la fiche de l&apos;chevalier.
           </p>
         )}
         <div className="flex justify-end border-t border-line pt-3">

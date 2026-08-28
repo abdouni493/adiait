@@ -10,8 +10,8 @@ import {
 /**
  * TOUT LE MONDE NE DOIT PAS LES FRAIS D'INSCRIPTION.
  *
- * L'école choisit son périmètre : tous les élèves, tout un NIVEAU (« tout le
- * secondaire »), certaines CLASSES, ou seulement les élèves inscrits sur
+ * Le club choisit son périmètre : tous les chevaliers, tout un NIVEAU (« tout le
+ * secondaire »), certaines CATÉGORIES, ou seulement les chevaliers inscrits sur
  * certains EMPLOIS DU TEMPS. Un enfant qui ne coche que des emplois hors
  * périmètre ne se voit rien réclamer — et l'écran d'inscription cesse alors
  * d'afficher la moindre dette.
@@ -27,7 +27,7 @@ function board() {
   return useData.getState();
 }
 
-/** Les classes et emplois du temps des deux abonnements du test. */
+/** Les catégories et emplois du temps des deux abonnements du test. */
 function idsOf(subId: string) {
   const db = useData.getState();
   const sub = db.subscriptions.find((s) => s.id === subId)!;
@@ -42,10 +42,10 @@ describe("le périmètre des frais d'inscription", () => {
     const db = useData.getState();
     expect(registrationFeeAppliesToSub(db, db.school, SUB_A)).toBe(true);
     expect(registrationFeeFor(db, db.school, [SUB_A, SUB_B])).toBe(2000);
-    expect(registrationFeeScopeLabel(db, db.school)).toBe("Tous les élèves");
+    expect(registrationFeeScopeLabel(db, db.school)).toBe("Tous les chevaliers");
   });
 
-  it("se restreint aux classes choisies", () => {
+  it("se restreint aux catégories choisies", () => {
     const { classId } = idsOf(SUB_A);
     useData.getState().updateSchool({
       registrationFeeScope: "classes",
@@ -55,7 +55,7 @@ describe("le périmètre des frais d'inscription", () => {
     const other = idsOf(SUB_B);
 
     expect(registrationFeeAppliesToSub(db, db.school, SUB_A)).toBe(true);
-    // Le second abonnement n'est concerné que s'il partage la même classe.
+    // Le second abonnement n'est concerné que s'il partage la même catégorie.
     expect(registrationFeeAppliesToSub(db, db.school, SUB_B)).toBe(other.classId === classId);
   });
 
@@ -69,7 +69,7 @@ describe("le périmètre des frais d'inscription", () => {
 
     expect(registrationFeeAppliesToSub(db, db.school, SUB_A)).toBe(true);
     expect(registrationFeeAppliesToSub(db, db.school, SUB_B)).toBe(false);
-    // Un élève inscrit UNIQUEMENT hors périmètre ne doit rien.
+    // Un chevalier inscrit UNIQUEMENT hors périmètre ne doit rien.
     expect(registrationFeeFor(db, db.school, [SUB_B])).toBe(0);
     // Dès qu'un seul de ses emplois y entre, les frais sont dus — une fois.
     expect(registrationFeeFor(db, db.school, [SUB_A, SUB_B])).toBe(2000);

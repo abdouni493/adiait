@@ -10,24 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Modal } from "@/components/ui/Modal";
-import {
-  Wallet,
-  Calendar,
-  FileText,
-  DollarSign,
-  Megaphone,
-  User,
-  AlertTriangle,
-  Clock,
-  Eye,
-  MapPin,
-  BookOpen,
-  Download,
-  Filter,
-  Search,
-  ArrowDownCircle,
-  ArrowUpCircle
-} from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, BookOpen, Calendar, CalendarDays, Clock, DollarSign, Download, Eye, FileText, Filter, Home, MapPin, Megaphone, Search, User, UserCheck, Wallet } from "lucide-react";
 import type {
   AbsencePenalty,
   AttendanceRecord,
@@ -82,7 +65,7 @@ export function StudentPages({ slug }: PageProps) {
       <div className="p-8 text-center text-xs">
         <AlertTriangle className="h-8 w-8 text-danger mx-auto mb-2" />
         <h3 className="font-bold text-ink">Erreur de Profil</h3>
-        <p className="text-muted mt-1">Impossible de charger le profil de l'étudiant. Veuillez vous reconnecter.</p>
+        <p className="text-muted mt-1">Impossible de charger le profil de l'chevalier. Veuillez vous reconnecter.</p>
       </div>
     );
   }
@@ -218,9 +201,9 @@ function StudentHomeView({
   return (
     <div className="space-y-6 text-xs">
       <PageHeader
-        emoji="🏠"
+        icon={Home}
         title={`Bienvenue, ${student.firstName}`}
-        subtitle="Accédez à votre espace étudiant et vos cours"
+        subtitle="Accédez à votre espace chevalier et vos cours"
       />
 
       {debt > 0 && (
@@ -487,7 +470,7 @@ function StudentScheduleView({
     setSelectedSession({
       ...ses,
       teacherName: teacherObj ? `${teacherObj.firstName} ${teacherObj.lastName}` : "Non spécifié",
-      salleName: salleObj ? salleObj.name : "Salle non spécifiée",
+      salleName: salleObj ? salleObj.name : "Arène non spécifiée",
     });
     setIsDetailsOpen(true);
   };
@@ -495,7 +478,7 @@ function StudentScheduleView({
   return (
     <div className="space-y-6 text-xs">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader emoji="🗓️" title="Mon Emploi du Temps" subtitle="Votre planning de cours hebdomadaire" />
+        <PageHeader icon={CalendarDays} title="Mon Emploi du Temps" subtitle="Votre planning de cours hebdomadaire" />
         
         {/* Quick select filter for student */}
         <div className="w-56 self-start sm:self-center">
@@ -571,7 +554,7 @@ function StudentScheduleView({
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Enseignant</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Entraîneur</span>
                 <span className="font-semibold text-ink">{selectedSession.teacherName}</span>
               </div>
             </div>
@@ -683,7 +666,7 @@ function StudentSubjectsView({
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="📄" title="Documents & Fiches d'exercices" subtitle="Consulter les devoirs et supports partagés par vos profs" />
+      <PageHeader icon={FileText} title="Documents & Fiches d'exercices" subtitle="Consulter les devoirs et supports partagés par vos entraîneurs" />
 
       {/* Filter toolbar */}
       <Card className="border border-line shadow-sm">
@@ -891,7 +874,7 @@ function StudentAttendanceView({
   return (
     <div className="space-y-6 text-xs">
       <PageHeader
-        emoji="✅"
+        icon={UserCheck}
         title="Mes présences et absences"
         subtitle="Chaque passage de carte, et chaque semaine facturée comme absence"
       />
@@ -985,7 +968,7 @@ function StudentAttendanceView({
                           <Clock className="h-3 w-3" />
                           {att.timestamp.substring(0, 16).replace("T", " ")}
                           {s ? ` · ${s.startTime}-${s.endTime}` : ""}
-                          {s && salleName(s.salleId) ? ` · Salle ${salleName(s.salleId)}` : ""}
+                          {s && salleName(s.salleId) ? ` · Arène ${salleName(s.salleId)}` : ""}
                         </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
@@ -1106,7 +1089,7 @@ function StudentPaymentsView({
   return (
     <div className="space-y-6 text-xs">
       <PageHeader
-        emoji="💵"
+        icon={Banknote}
         title="Historique de mes paiements"
         subtitle="Séances achetées, remises appliquées et restes à payer"
       />
@@ -1332,7 +1315,7 @@ function StudentAnnouncementsView({ announcements }: { announcements: any[] }) {
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="📣" title="Annonces Administratives" subtitle="Toutes les alertes et informations scolaires actives" />
+      <PageHeader icon={Megaphone} title="Annonces Administratives" subtitle="Toutes les alertes et informations du club actives" />
 
       {activeAnn.length === 0 ? (
         <Card className="p-8 text-center bg-canvas/30 border border-line">
@@ -1410,7 +1393,7 @@ function StudentProfileView({
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader emoji="👤" title="Mon Profil Étudiant" subtitle="Consulter et mettre à jour vos coordonnées personnelles" />
+      <PageHeader icon={User} title="Mon Profil Chevalier" subtitle="Consulter et mettre à jour vos coordonnées personnelles" />
 
       <div className="max-w-2xl">
         <Card>

@@ -9,12 +9,12 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * ARRONDI MONÉTAIRE — À DEUX DÉCIMALES, JAMAIS À L'ENTIER.
  *
- * Le prix d'une séance ne tombe presque jamais juste : un mois à 4 000 DA sur 3
- * séances vaut 1 333,33 DA la séance, et un mois à 2 500 DA dont l'école garde
- * 1 000 laisse 1 500 DA à l'enseignant, soit 500 DA la séance sur 3 — mais
+ * Le prix d'une séance ne tombe presque jamais juste : une carte à 4 000 DA sur 3
+ * séances vaut 1 333,33 DA la séance, et une carte à 2 500 DA dont le club garde
+ * 1 000 laisse 1 500 DA à l'entraîneur, soit 500 DA la séance sur 3 — mais
  * 375 DA sur 4. Arrondir à l'entier à chaque division faisait dériver la paie
- * de l'enseignant et le solde de l'élève de quelques dinars par séance, et
- * l'écart se voyait au bout d'un mois.
+ * de l'entraîneur et le solde du chevalier de quelques dinars par séance, et
+ * l'écart se voyait au bout d'une carte.
  *
  * Toute la monnaie de l'application passe donc par ici : deux décimales, ni
  * plus (le dinar n'a pas de millimes) ni moins.

@@ -8,20 +8,20 @@ import { boardTotals, buildPayBoard, freezeBoard, settledMonthCodes } from "@/li
  * UNE PART RÉGLÉE NE REVIENT PAS — le bug du « double » et sa correction.
  *
  * L'écran de paie décide, SÉANCE PAR SÉANCE, ce qui est payable : une part
- * n'est retenue que si la séance qui l'a produite n'est pas payée sur CE mois
- * de CET emploi du temps. C'est la règle, et elle est juste — un élève à jour
- * ici débloque son enseignant même s'il doit ailleurs.
+ * n'est retenue que si la séance qui l'a produite n'est pas payée sur CE carte
+ * de CET emploi du temps. C'est la règle, et elle est juste — un chevalier à jour
+ * ici débloque son entraîneur même s'il doit ailleurs.
  *
- * L'enregistrement, lui, superposait un second filtre : « cet élève doit-il
+ * L'enregistrement, lui, superposait un second filtre : « ce chevalier doit-il
  * quelque chose, QUELQUE PART ? ». Les deux ne disaient pas la même chose, et
  * l'écart se payait cher :
  *
  *   · la part était cochée, le net sortait de la caisse, la fiche s'imprimait…
  *   · mais la ligne n'était jamais marquée réglée,
- *   · donc elle réapparaissait au mois suivant, et le mois lui-même continuait
+ *   · donc elle réapparaissait à la carte suivante, et la carte lui-même continuait
  *     de s'afficher « à régler » alors qu'un règlement existait.
  *
- * Deux cas le déclenchaient tous les mois : des frais d'inscription encore dus,
+ * Deux cas le déclenchaient tous les cartes : des frais d'inscription encore dus,
  * et un retardataire qui a soldé son M1 mais vit déjà son M2. Les deux sont
  * testés ici.
  */
@@ -145,10 +145,10 @@ function payMonth(code: string) {
 describe("une part réglée ne revient jamais", () => {
   beforeEach(board);
 
-  it("solde la part d'un élève à jour ICI, même s'il doit des frais d'inscription", async () => {
+  it("solde la part d'un chevalier à jour ICI, même s'il doit des frais d'inscription", async () => {
     const [d1, d2] = days(2);
     // Il doit encore ses frais d'inscription — une dette réelle, mais qui ne
-    // regarde pas cet enseignant : elle n'a rien à retenir de sa paie.
+    // regarde pas cet entraîneur : elle n'a rien à retenir de sa paie.
     useData.setState({
       students: useData
         .getState()
@@ -180,7 +180,7 @@ describe("une part réglée ne revient jamais", () => {
     expect(after.payable).toBe(0);
   });
 
-  it("solde un retard de paiement même si l'élève vit déjà son mois suivant", async () => {
+  it("solde un retard de paiement même si le chevalier vit déjà son carte suivante", async () => {
     const [d1, d2, d3, d4] = days(4);
 
     // M1 : les deux viennent, seul PAYER a réglé.
@@ -190,7 +190,7 @@ describe("une part réglée ne revient jamais", () => {
     await present(PAYER, d2);
     await present(LATE, d2);
 
-    // L'enseignant touche M1 sans la part de LATE : elle est retenue.
+    // L'entraîneur touche M1 sans la part de LATE : elle est retenue.
     const m1Board = buildPayBoard(
       useData.getState(),
       useData.getState().teachers.find((t) => t.id === TEACHER)!,
@@ -213,7 +213,7 @@ describe("une part réglée ne revient jamais", () => {
 
     const db = useData.getState();
     const m2 = buildPayBoard(db, db.teachers.find((t) => t.id === TEACHER)!, emploiOf(), "M2");
-    // Le retard de M1 est là, dans SA table, avec son mois d'origine.
+    // Le retard de M1 est là, dans SA table, avec son carte d'origine.
     expect(m2.arrears).toHaveLength(1);
     expect(m2.arrears[0].monthCode).toBe("M1");
     expect(m2.arrearsTotal).toBe(600);
@@ -233,7 +233,7 @@ describe("une part réglée ne revient jamais", () => {
     expect(m3.arrears).toHaveLength(0);
   });
 
-  it("marque le mois comme réglé, pour que l'écran ne repropose pas de le payer", async () => {
+  it("marque la carte comme réglé, pour que l'écran ne repropose pas de le payer", async () => {
     const [d1, d2] = days(2);
     await useData.getState().addSold({ studentId: PAYER, subscriptionId: SUB, amount: 1000 });
     await present(PAYER, d1);
@@ -246,11 +246,11 @@ describe("une part réglée ne revient jamais", () => {
     const settled = settledMonthCodes(db, TEACHER, SES);
     expect(settled.get("M1")?.id).toBe(res.paymentId);
 
-    // Le tableau du mois se sait réglé : l'écran verrouille alors ses cases et
+    // Le tableau de la carte se sait réglé : l'écran verrouille alors ses cases et
     // retire le bouton d'enregistrement.
     const b = buildPayBoard(db, db.teachers.find((t) => t.id === TEACHER)!, emploiOf(), "M1");
     expect(b.settlement?.id).toBe(res.paymentId);
-    // Plus rien à régler dessus : ni élève, ni retard, ni séance libre.
+    // Plus rien à régler dessus : ni chevalier, ni retard, ni séance libre.
     expect(b.studentsTotal).toBe(0);
     expect(b.arrearsTotal).toBe(0);
     expect(b.passagersTotal).toBe(0);
@@ -269,7 +269,7 @@ describe("une part réglée ne revient jamais", () => {
     await useData.getState().deleteTeacherPayment(res.paymentId!);
 
     const after = emploiOf();
-    // Les parts des élèves redeviennent dues…
+    // Les parts des chevaliers redeviennent dues…
     expect(after.months[0].open).toBe(600);
     // …et la caisse ne garde pas la sortie du règlement annulé.
     expect(useData.getState().cash.some((c) => c.type === "teacher_payment")).toBe(false);

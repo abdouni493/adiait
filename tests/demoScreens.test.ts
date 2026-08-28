@@ -4,7 +4,7 @@
  * Vérifier que les données sont cohérentes ne suffit pas : ce sont les LECTURES
  * de l'application qui doivent en tirer quelque chose. Ce fichier fait donc
  * tourner, sur la base de démonstration, ce que chaque grand écran calcule —
- * le tableau de bord, la fiche d'un élève, l'écran de paie d'un enseignant, la
+ * le tableau de bord, la fiche d'un chevalier, l'écran de paie d'un entraîneur, la
  * fiche d'un travailleur, la caisse et les rapports.
  *
  * Il attrape ce qu'aucune vérification d'invariants ne verrait : un écran qui
@@ -46,7 +46,7 @@ describe("les écrans, sur les données de démonstration", () => {
     expect(totalStudentDebt(db)).toBeGreaterThan(0);
   });
 
-  it("ouvre la fiche de chaque élève sans trébucher", () => {
+  it("ouvre la fiche de chaque chevalier sans trébucher", () => {
     for (const student of db.students) {
       const summary = studentDebtSummary(db, student.id);
       expect(summary.total).not.toBeNaN();
@@ -56,7 +56,7 @@ describe("les écrans, sur les données de démonstration", () => {
     }
   });
 
-  it("remplit l'écran de paie de chaque enseignant", () => {
+  it("remplit l'écran de paie de chaque entraîneur", () => {
     let boardsBuilt = 0;
 
     for (const teacher of db.teachers) {
@@ -94,7 +94,7 @@ describe("les écrans, sur les données de démonstration", () => {
       }
     }
 
-    // Au moins un enseignant a un mois complet à régler quand on ouvre l'app.
+    // Au moins un entraîneur a une carte complète à régler quand on ouvre l'app.
     expect(boardsBuilt).toBeGreaterThan(0);
   });
 

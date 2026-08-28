@@ -312,7 +312,7 @@ export function WorkerFormModal({
           {canManageRoles && rolesOpen && (
             <div className="space-y-2 rounded-xl border border-primary/25 bg-primary-50/40 p-3">
               <p className="text-[10px] leading-relaxed text-muted">
-                Les métiers appartiennent à l&apos;école : ajoutez un chauffeur, un cuisinier, un
+                Les métiers appartiennent à l&apos;club : ajoutez un chauffeur, un cuisinier, un
                 surveillant. Supprimer un métier laisse les fiches qui le portaient sans métier —
                 leur paie et leur historique ne bougent pas.
               </p>

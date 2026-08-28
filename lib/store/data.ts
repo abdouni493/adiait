@@ -3,14 +3,15 @@
 import { create } from "zustand";
 import { emptyDatabase, loadDatabase, loadSchool } from "@/lib/supabase/db";
 import {
+  carteShort,
   caseReductionCut,
-  cycleSizeOf,
   currentCycleCode,
+  cycleSizeOf,
+  groupSeanceTotals,
+  independentTotals,
   isFreeSub,
   isSchoolOnlySub,
   joinPointFor,
-  groupSeanceTotals,
-  independentTotals,
   netPriceFor,
   sessionTimesOn,
   soldFor,
@@ -85,7 +86,7 @@ export interface Database {
   teachers: Teacher[];
   teacherPayments: TeacherPayment[];
   reception: ReceptionStaff[];
-  /** les métiers que l'école a nommés elle-même (réception, chauffeur, …) */
+  /** les métiers que le club a nommés elle-même (réception, chauffeur, …) */
   workerRoles: WorkerJobRole[];
   workerShifts: WorkerShift[];
   /** les avances sur salaire versées aux travailleurs */
@@ -105,10 +106,10 @@ export interface Database {
   /** séance purchases and debt settlements */
   payments: Payment[];
   /**
-   * LES FRAIS PORTÉS AU COMPTE DES ÉLÈVES — tout ce qu'un élève doit à l'école
-   * SANS que ce soit de la scolarité : un livre, une tenue, une sortie, ou la
-   * dette que l'école a avancée de sa caisse pour débloquer la part d'un
-   * enseignant. Ils s'affichent en alerte partout où l'élève apparaît et se
+   * LES FRAIS PORTÉS AU COMPTE DES CHEVALIERS — tout ce qu'un chevalier doit au club
+   * SANS que ce soit de la cotisation : un livre, une tenue, une sortie, ou la
+   * dette que le club a avancée de sa caisse pour débloquer la part d'un
+   * entraîneur. Ils s'affichent en alerte partout où le chevalier apparaît et se
    * règlent en une ou plusieurs fois.
    */
   studentCharges: StudentCharge[];
@@ -118,7 +119,7 @@ export interface Database {
   acomptes: TeacherAcompte[];
   /** costs the school carries for a teacher, deducted from his next settlement */
   teacherExpenses: TeacherExpense[];
-  /** scolarités d'enfants créditées d'avance et portées sur le salaire du père */
+  /** cotisations d'enfants créditées d'avance et portées sur le salaire du père */
   teacherChildDebts: TeacherChildDebt[];
   absences: TeacherAbsence[];
   subjects: Subject[];
@@ -130,7 +131,7 @@ export interface Database {
   notifications: Notification[];
   coursework: Coursework[];
   independent: IndependentSession[];
-  /** séances libres vendues à un GROUPE d'élèves, sans nommer personne */
+  /** séances libres vendues à un GROUPE de chevaliers, sans nommer personne */
   groupSeances: GroupSeance[];
 }
 
@@ -447,17 +448,17 @@ interface DataActions {
     date?: string;
   }) => Promise<{ ok: boolean; paymentId?: string; balance?: number; monthCode?: string }>;
   /**
-   * UN FRAIS PORTÉ AU COMPTE D'UN ÉLÈVE — la dette qui n'est pas de la
-   * scolarité : un livre, une tenue, une sortie, un transport, un dégât.
+   * UN FRAIS PORTÉ AU COMPTE D'UN CHEVALIER — la dette qui n'est pas de la
+   * cotisation : un livre, une tenue, une sortie, un transport, un dégât.
    *
    * La réception tape un nom, un montant, une description facultative et une
-   * date. Le frais s'inscrit sur la fiche de l'élève, apparaît en alerte sur la
+   * date. Le frais s'inscrit sur la fiche du chevalier, apparaît en alerte sur la
    * feuille de présence de ses groupes, et y reste jusqu'à ce qu'il soit réglé.
    *
    * Passer un `id` déjà connu MODIFIE le frais au lieu d'en créer un second :
    * c'est ainsi qu'une faute de frappe se corrige.
    *
-   * Un frais NE RETIENT PAS la paie d'un enseignant : seule la scolarité le
+   * Un frais NE RETIENT PAS la paie d'un entraîneur : seule la cotisation le
    * fait. Un livre impayé ne regarde pas le professeur de mathématiques.
    */
   saveStudentCharge: (charge: {
@@ -479,7 +480,7 @@ interface DataActions {
    *
    * Chaque ligne écrit son propre versement (`payments`, type `debt_payment`,
    * `chargeId` renseigné) et sa propre entrée en caisse : l'historique de
-   * l'élève lit alors « Frais — Livre de maths » comme n'importe quel autre
+   * le chevalier lit alors « Frais — Livre de maths » comme n'importe quel autre
    * mouvement, et un reçu peut être imprimé.
    */
   payStudentCharges: (args: {
@@ -496,59 +497,59 @@ interface DataActions {
     messageKey?: string;
   }>;
   /**
-   * L'ÉCOLE COUVRE LA DETTE D'UN ÉLÈVE, de sa propre caisse.
+   * LE CLUB COUVRE LA DETTE D'UN CHEVALIER, de sa propre caisse.
    *
-   * Tant qu'un élève doit de l'argent, la part que ses séances rapportent à
-   * l'enseignant reste RETENUE : elle ne se règle pas. Quand l'école décide de
-   * ne pas faire attendre l'enseignant, elle avance elle-même ce que l'élève
+   * Tant qu'un chevalier doit de l'argent, la part que ses séances rapportent à
+   * l'entraîneur reste RETENUE : elle ne se règle pas. Quand le club décide de
+   * ne pas faire attendre l'entraîneur, elle avance elle-même ce que le chevalier
    * doit — et la paie se débloque immédiatement.
    *
-   * Tout ce que `studentHasDebt` regarde est couvert : les mois dans le rouge,
+   * Tout ce que `studentHasDebt` regarde est couvert : les cartes dans le rouge,
    * les restes d'anciens paiements et les frais d'inscription. Restreindre à un
    * `subscriptionId` (et éventuellement à un `monthCode`) ne couvre que cette
    * dette-là — les autres restent dues et continuent de retenir la part.
    *
    * Deux mouvements sont écrits dans la caisse par dette couverte : le paiement
-   * porté au crédit de l'élève, et la sortie qui l'a financé. Le solde de la
+   * porté au crédit du chevalier, et la sortie qui l'a financé. Le solde de la
    * caisse est donc juste, et l'historique montre exactement ce qui s'est passé.
    */
   coverStudentDebt: (args: {
     studentId: string;
     /** ne couvrir que cet emploi du temps (absent = toutes ses dettes) */
     subscriptionId?: string;
-    /** ne couvrir que ce mois de cet emploi */
+    /** ne couvrir que cette carte de cet emploi */
     monthCode?: string;
     /**
-     * LE CHOIX EXPLICITE DE LA CAISSE : les mois à couvrir, et pour COMBIEN.
+     * LE CHOIX EXPLICITE DE LA CAISSE : les cartes à couvrir, et pour COMBIEN.
      *
-     * Sans cette liste, l'école avance tout ce qui retient la part de
-     * l'enseignant, au dinar près. Avec elle, la réception décide : elle coche
-     * les mois impayés qu'elle veut régler et corrige le montant de chacun à la
-     * main — l'école peut donc n'avancer qu'une partie d'un mois, et le reste
+     * Sans cette liste, le club avance tout ce qui retient la part de
+     * l'entraîneur, au dinar près. Avec elle, la réception décide : elle coche
+     * les cartes impayés qu'elle veut régler et corrige le montant de chacun à la
+     * main — le club peut donc n'avancer qu'une partie d'une carte, et le reste
      * demeure dû par la famille. Une ligne à 0 est simplement ignorée.
      */
     lines?: { subscriptionId: string; monthCode: string; amount: number; label?: string }[];
-    /** ce que l'école règle sur les restes d'anciens paiements et les frais
+    /** ce que le club règle sur les restes d'anciens paiements et les frais
      *  d'inscription (n'a de sens qu'avec `lines`) */
     otherAmount?: number;
     description?: string;
   }) => Promise<{ ok: boolean; amount?: number; rows?: number; messageKey?: string }>;
   /**
-   * LA SCOLARITÉ D'UN FILS D'ENSEIGNANT, RÉGLÉE DEPUIS LA FEUILLE DU GROUPE.
+   * LA SCOLARITÉ D'UN FILS D'ENTRAÎNEUR, RÉGLÉE DEPUIS LA FEUILLE DU GROUPE.
    *
    * Deux chemins, et c'est la réception qui tranche au guichet :
    *
    *  - `source: "cash"` — la famille paie elle-même, maintenant. L'argent entre
-   *    en caisse comme n'importe quel versement d'élève, et RIEN n'est retenu au
+   *    en caisse comme n'importe quel versement de chevalier, et RIEN n'est retenu au
    *    père : son salaire n'est pas amputé, l'écran de paie affiche simplement
-   *    le mois « payé par la famille ».
+   *    la carte « payé par la famille ».
    *  - `source: "teacher_debt"` — à porter sur le salaire du père. Le solde de
-   *    l'enfant est crédité tout de suite (ses mois sortent du rouge, la part
+   *    l'enfant est crédité tout de suite (ses carte sortent du rouge, la part
    *    que ses séances rapportent se débloque) et le montant est inscrit en
-   *    attente sur l'enseignant : son prochain règlement le retient sur son net,
+   *    attente sur l'entraîneur : son prochain règlement le retient sur son net,
    *    une fois et une seule.
    *
-   * Dans les deux cas, aucun règlement d'enseignant n'a besoin d'être ouvert.
+   * Dans les deux cas, aucun règlement d'entraîneur n'a besoin d'être ouvert.
    */
   payTeacherChild: (args: {
     studentId: string;
@@ -570,11 +571,11 @@ interface DataActions {
    *
    * L'emploi disparaît de la grille, de la feuille de présence et du catalogue
    * d'inscription — mais sa ligne, son tarif et tout ce qui s'y rattache
-   * restent : les présences pointées, les soldes et les paiements des élèves,
-   * les parts dues à l'enseignant. L'historique continue donc de les afficher
-   * avec le nom du module, du groupe et de la salle, au lieu de tirets.
+   * restent : les présences pointées, les soldes et les paiements des chevaliers,
+   * les parts dues à l'entraîneur. L'historique continue donc de les afficher
+   * avec le nom du module, du groupe et de l'arène, au lieu de tirets.
    *
-   * Les élèves inscrits en sont sortis à la date du jour, exactement comme une
+   * Les chevaliers inscrits en sont sortis à la date du jour, exactement comme une
    * désinscription : leur fiche garde le module, daté de la sortie.
    */
   archiveSession: (
@@ -613,7 +614,7 @@ interface DataActions {
    * Comme la suppression d'un emploi du temps, elle ARCHIVE au lieu d'effacer :
    * un tarif effacé emporterait avec lui les inscriptions qui s'y accrochent —
    * donc les soldes — et rendrait illisibles les paiements déjà encaissés
-   * dessus. Le tarif quitte le catalogue, ses élèves en sont désinscrits à la
+   * dessus. Le tarif quitte le catalogue, ses chevaliers en sont désinscrits à la
    * date du jour, et tout l'historique reste nommé. Le redéfinir plus tard le
    * remet simplement en service.
    */
@@ -630,7 +631,7 @@ interface DataActions {
   /** Freezes days started without a clock-out once the day is over. */
   freezeOpenWorkerShifts: () => Promise<{ ok: boolean; frozen?: number }>;
   /**
-   * LE RÈGLEMENT D'UN TRAVAILLEUR — mois, journées, demi-journées ou heures.
+   * LE RÈGLEMENT D'UN TRAVAILLEUR — carte, journées, demi-journées ou heures.
    *
    * Une seule action pour les quatre contrats : elle écrit LA ligne de
    * règlement (`workerPayments`), sort l'argent de la caisse, et solde du même
@@ -717,34 +718,34 @@ interface DataActions {
     acompteIds?: string[];
     /** children whose inscriptions this settlement pays for */
     childCharges?: TeacherChildCharge[];
-    /** scolarités déjà créditées et portées sur lui (`TeacherChildDebt`) que ce
+    /** cotisations déjà créditées et portées sur lui (`TeacherChildDebt`) que ce
      *  règlement solde — elles ne reviendront pas sur le suivant */
     childDebtIds?: string[];
     /**
-     * LES ARRIÉRÉS DÉBLOQUÉS joints au règlement : des parts d'un mois DÉJÀ
-     * réglé, retenues à l'époque parce que l'élève n'avait pas payé, et
+     * LES ARRIÉRÉS DÉBLOQUÉS joints au règlement : des parts d'une carte DÉJÀ
+     * réglé, retenues à l'époque parce que le chevalier n'avait pas payé, et
      * libérées depuis. Elles sont soldées comme les autres dues, mais figées à
-     * part pour que la fiche de paie et l'historique les distinguent du mois
+     * part pour que la fiche de paie et l'historique les distinguent de la carte
      * courant.
      */
     arrearDueIds?: string[];
     /** leur détail figé, tel qu'il s'imprime sur la fiche de paie */
     arrears?: TeacherPaymentArrear[];
     /**
-     * LA PHOTOGRAPHIE DE L'ÉCRAN DE PAIE : les trois tables du mois, figées.
+     * LA PHOTOGRAPHIE DE L'ÉCRAN DE PAIE : les trois tables de la carte, figées.
      *
      * C'est elle que « voir le détail » réaffiche et que la fiche de paie
-     * réimprime, des mois plus tard — même si un élève a changé de groupe ou
+     * réimprime, des cartes plus tard — même si un chevalier a changé de groupe ou
      * si le tarif de l'emploi du temps a bougé depuis.
      */
     board?: TeacherPayBoard;
   }) => Promise<{ ok: boolean; paymentId?: string; sessions?: number; messageKey?: string }>;
   /**
-   * CORRIGER UN RÈGLEMENT D'ENSEIGNANT DÉJÀ ENREGISTRÉ.
+   * CORRIGER UN RÈGLEMENT D'ENTRAÎNEUR DÉJÀ ENREGISTRÉ.
    *
    * Seuls le net versé, la date et le libellé se rectifient : ce que le
    * règlement a SOLDÉ (les présences, les dépenses, les acomptes) ne bouge pas,
-   * sinon la paie du mois suivant se rouvrirait toute seule. Le mouvement de
+   * sinon la paie de la carte suivante se rouvrirait toute seule. Le mouvement de
    * caisse suit le nouveau montant au dinar près.
    */
   updateTeacherPayment: (
@@ -752,11 +753,11 @@ interface DataActions {
     fields: { amount?: number; description?: string; paidAt?: string },
   ) => Promise<{ ok: boolean; messageKey?: string }>;
   /**
-   * ANNULER UN RÈGLEMENT D'ENSEIGNANT.
+   * ANNULER UN RÈGLEMENT D'ENTRAÎNEUR.
    *
    * Tout ce qu'il avait soldé REDEVIENT DÛ : les présences repassent en attente
    * de paiement, les dépenses et les acomptes reviennent sur le prochain
-   * règlement, les scolarités portées sur le père aussi — et le mouvement de
+   * règlement, les cotisations portées sur le père aussi — et le mouvement de
    * caisse qui l'avait payé disparaît. La fiche de paie n'a donc jamais deux
    * versions d'une même vérité.
    */
@@ -834,7 +835,7 @@ interface DataActions {
   /**
    * Removes ONE money movement of a student from his history: the solde it
    * credited is taken back off the emploi du temps, and the cash movement it
-   * posted leaves the caisse with it. Used by the fiche élève and by the
+   * posted leaves the caisse with it. Used by the fiche chevalier and by the
    * group's présence sheet, so a mis-typed encaissement is undone where it was
    * made.
    */
@@ -851,28 +852,28 @@ interface DataActions {
     fields: { amount?: number; monthCode?: string; description?: string; date?: string },
   ) => Promise<{ ok: boolean; balance?: number; messageKey?: string }>;
   /**
-   * Creates or rewrites a "séance libre de groupe". Both cash movements — the
+   * Creates or rewrites a "sortie libre de groupe". Both cash movements — the
    * money in and the teacher's pay out — are written, rewritten or removed
-   * with the row, so the caisse, la fiche de l'enseignant et les rapports ne
+   * with the row, so the caisse, la fiche de l'entraîneur et les rapports ne
    * peuvent pas diverger.
    */
   saveGroupSeance: (
     input: Omit<GroupSeance, "cashInId" | "cashOutId" | "createdAt"> & { createdAt?: string },
   ) => Promise<{ ok: boolean; id?: string }>;
-  /** Deletes a séance libre de groupe and both of its cash movements. */
+  /** Deletes a sortie libre de groupe and both of its cash movements. */
   deleteGroupSeance: (id: string) => Promise<{ ok: boolean }>;
   /**
-   * INSCRIRE UN OU PLUSIEURS ÉLÈVES DE PASSAGE SUR UNE SÉANCE.
+   * INSCRIRE UN OU PLUSIEURS CHEVALIERS DE PASSAGE SUR UNE SÉANCE.
    *
-   * Un passager n'a pas de fiche, pas de solde et pas de mois : il paie la
+   * Un passager n'a pas de fiche, pas de solde et pas de carte : il paie la
    * séance sur place. La réception le nomme si elle le veut — un nom vide donne
    * simplement « Passager », parce qu'on ne retient pas toujours le nom de
    * quelqu'un qui vient une fois — et elle en saisit autant qu'il en est venu
    * d'un seul coup.
    *
    * Deux nombres suffisent : le prix TOTAL payé par un passager, et la part que
-   * l'école garde dessus. Le reste (`price − schoolShare`) est la part de
-   * l'enseignant : elle se règle avec le MOIS où la séance tombe, dans le
+   * le club garde dessus. Le reste (`price − schoolShare`) est la part de
+   * l'entraîneur : elle se règle avec le CARTE où la séance tombe, dans le
    * tableau « Retards de paiement & séances libres » de sa paie.
    *
    * L'argent entre en caisse tout de suite, comme n'importe quel encaissement,
@@ -888,7 +889,7 @@ interface DataActions {
     itemLabel?: string;
     startTime?: string;
     endTime?: string;
-    /** l'élève inscrit qui paie cette séance libre (un passager n'en a pas) */
+    /** le chevalier inscrit qui paie cette séance libre (un passager n'en a pas) */
     studentId?: string;
   }) => Promise<{ ok: boolean; ids?: string[]; total?: number; teacherTotal?: number }>;
   /** Uses up one séance of an inscription (attendance). */
@@ -1031,9 +1032,9 @@ function activeFreePeriod(
  * until the abonnement is given one — his fiche has no rate of its own.
  *
  * The STUDENT's case then has the last word, exactly as the fiche promises:
- *  - `special` (scolarité offerte SUR CET EMPLOI DU TEMPS): neither the school
+ *  - `special` (cotisation offerte SUR CET EMPLOI DU TEMPS): neither the school
  *    nor the teacher is paid. La gratuité se coche module par module, donc un
- *    même élève peut très bien rapporter sur un autre de ses emplois,
+ *    même chevalier peut très bien rapporter sur un autre de ses emplois,
  *  - `school_only`: the school is paid, the listed teachers are not,
  *  - `reduction`: the teacher grants his own part of the remise, so it comes
  *    off his share and not off the school's.
@@ -1047,8 +1048,8 @@ function teacherDueFor(
 ): number {
   if (student) {
     if (isFreeSub(student, sub?.id)) return 0;
-    // « École seule » : l'option se coche emploi par emploi. Sur un emploi
-    // ACTIVÉ l'enseignant ne touche rien pour cet élève ; sur un emploi non
+    // « Club seule » : l'option se coche emploi par emploi. Sur un emploi
+    // ACTIVÉ l'entraîneur ne touche rien pour ce chevalier ; sur un emploi non
     // activé, sa part se calcule comme pour n'importe qui d'autre.
     if (isSchoolOnlySub(student, sub?.id, session.teacherId)) return 0;
   }
@@ -1059,8 +1060,8 @@ function teacherDueFor(
       ? positiveMoney(perSeance)
       : teacherShare(db, session.teacherId, base);
 
-  // La moitié « enseignant » de la remise, calculée par le MÊME helper que
-  // celui qui l'affiche sur la paie et qui la retire du prix de l'élève : les
+  // La moitié « entraîneur » de la remise, calculée par le MÊME helper que
+  // celui qui l'affiche sur la paie et qui la retire du prix du chevalier : les
   // deux côtés du partage ne peuvent donc pas diverger.
   return positiveMoney(gross - caseReductionCut(student, "teacher", gross));
 }
@@ -1103,7 +1104,7 @@ export const useData = create<DataStore>((set, get) => ({
   /** Lit la base ENTIÈRE en un passage. Chaque écran travaille ensuite sur cet
    *  instantané, et `lib/supabase/persist.ts` renvoie vers la base tout ce qui
    *  y change. Ce que la lecture ramène dépend du compte : la RLS filtre à la
-   *  source (le comptoir voit l'école, un parent voit ses enfants). */
+   *  source (le comptoir voit le club, un parent voit ses enfants). */
   fetchAll: async () => {
     try {
       const db = await loadDatabase();
@@ -1325,7 +1326,7 @@ export const useData = create<DataStore>((set, get) => ({
 
     // A free period and a not-yet-started enrollment are both "offered": the
     // presence is written and NO séance is taken off the counter.
-    // Cet emploi du temps est-il offert à CET élève ? La gratuité se coche
+    // Cet emploi du temps est-il offert à CET chevalier ? La gratuité se coche
     // module par module, donc la question n'a de sens qu'avec l'abonnement.
     const freeHere = isFreeSub(student, scannedSub?.id);
     const offered = isFreePeriod || beforeStart;
@@ -1378,8 +1379,8 @@ export const useData = create<DataStore>((set, get) => ({
             : e,
         );
       }
-      // Une part NULLE n'est pas une dette : l'élève est offert ou « école
-      // seule » sur cet emploi, l'enseignant n'a rien à toucher pour lui, et
+      // Une part NULLE n'est pas une dette : le chevalier est offert ou « club
+      // seule » sur cet emploi, l'entraîneur n'a rien à toucher pour lui, et
       // une ligne à 0 DA le ferait réapparaître sur sa fiche de paie.
       if (matched.teacherId && teacherDue > 0) {
         patch.unpaidTeacher = [
@@ -1572,7 +1573,7 @@ export const useData = create<DataStore>((set, get) => ({
             : e,
         );
       }
-      // Idem : une part nulle (élève offert ou « école seule » sur cet emploi)
+      // Idem : une part nulle (chevalier offert ou « club seule » sur cet emploi)
       // n'ouvre aucune dette et ne doit pas figurer sur la fiche de paie.
       if (session.teacherId && !opts?.skipTeacherDue && teacherDue > 0) {
         patch.unpaidTeacher = [
@@ -1657,8 +1658,8 @@ export const useData = create<DataStore>((set, get) => ({
     }
     const discount =
       enrollment?.discount ?? (sub ? student.subscriptionDiscounts?.[sub.id] : undefined);
-    // « École seule » : il ne paie que la part de l'école, jamais celle de
-    // l'enseignant — que personne ne lui versera.
+    // « Club seule » : il ne paie que la part du club, jamais celle de
+    // l'entraîneur — que personne ne lui versera.
     const listPrice = studentListPrice(student, sub, session.openPrice ?? 0);
 
     const existing = db.attendance.find(
@@ -1890,14 +1891,14 @@ export const useData = create<DataStore>((set, get) => ({
      * Ce que la caisse enregistre :
      *  - un versement de la famille : une entrée, comme toujours ;
      *  - un règlement sur le salaire du père : RIEN, l'argent n'a jamais
-     *    traversé le tiroir (l'enseignant touche simplement moins) ;
-     *  - une scolarité PORTÉE sur le salaire du père : rien non plus, et pour
-     *    la même raison — l'école sera payée le jour de la paie, en versant
+     *    traversé le tiroir (l'entraîneur touche simplement moins) ;
+     *  - une cotisation PORTÉE sur le salaire du père : rien non plus, et pour
+     *    la même raison — le club sera payée le jour de la paie, en versant
      *    moins ; la retenue en attente vit dans `teacherChildDebts` ;
-     *  - une dette couverte par l'école : l'entrée portée au crédit de l'élève
+     *  - une dette couverte par le club : l'entrée portée au crédit du chevalier
      *    ET la sortie qui l'a financée. Les deux s'annulent, si bien que le
-     *    solde de la caisse ne bouge que du jour où l'enseignant est payé —
-     *    et l'historique montre noir sur blanc que l'école a avancé l'argent.
+     *    solde de la caisse ne bouge que du jour où l'entraîneur est payé —
+     *    et l'historique montre noir sur blanc que le club a avancé l'argent.
      */
     const studentLabel = `${student.firstName} ${student.lastName}`.trim();
     const cashRows: CashTransaction[] =
@@ -1912,7 +1913,7 @@ export const useData = create<DataStore>((set, get) => ({
               date: now,
               description:
                 source === "school_cash"
-                  ? `Dette ${code} de ${studentLabel} réglée par l'école`
+                  ? `Dette ${code} de ${studentLabel} réglée par le club`
                   : `Solde ${code} — ${studentLabel}`,
             },
             ...(source === "school_cash"
@@ -1923,7 +1924,7 @@ export const useData = create<DataStore>((set, get) => ({
                     type: "student_debt" as const,
                     amount: -credit,
                     date: now,
-                    description: `Caisse école → dette ${code} de ${studentLabel} (${
+                    description: `Caisse club → dette ${code} de ${studentLabel} (${
                       description?.trim() || "part enseignant débloquée"
                     })`,
                   },
@@ -1961,7 +1962,7 @@ export const useData = create<DataStore>((set, get) => ({
   },
 
   /**
-   * UN FRAIS PORTÉ AU COMPTE D'UN ÉLÈVE, ou la correction d'un frais existant.
+   * UN FRAIS PORTÉ AU COMPTE D'UN CHEVALIER, ou la correction d'un frais existant.
    *
    * Trois champs suffisent — un nom, un montant, une date — et la description
    * reste facultative parce que la plupart du temps le nom dit tout.
@@ -2031,7 +2032,7 @@ export const useData = create<DataStore>((set, get) => ({
     const settlements = db.payments.filter((p) => p.chargeId === id);
     // Le mouvement de caisse écrit à côté porte le MÊME horodatage et le même
     // montant : c'est ce qui l'identifie, comme pour la suppression d'un
-    // versement de scolarité.
+    // versement de cotisation.
     const cashIds = new Set<string>();
     for (const pay of settlements) {
       const row = db.cash.find(
@@ -2057,7 +2058,7 @@ export const useData = create<DataStore>((set, get) => ({
    *
    * Ligne par ligne : on ne verse jamais plus que ce qu'un frais doit encore,
    * et ce qui n'est pas versé RESTE DÛ — le frais demeure ouvert et continue
-   * d'alerter. Chaque ligne laisse sa trace dans l'historique de l'élève et son
+   * d'alerter. Chaque ligne laisse sa trace dans l'historique du chevalier et son
    * entrée en caisse, si bien qu'un reçu peut toujours être réimprimé.
    */
   payStudentCharges: async ({ studentId, lines, date, description }) => {
@@ -2095,8 +2096,8 @@ export const useData = create<DataStore>((set, get) => ({
         netTotal: take,
         amountPaid: take,
         // Ce qui reste dû vit sur le frais, jamais sur le versement : un `rest`
-        // ici serait lu comme une scolarité impayée et retiendrait la part d'un
-        // enseignant qui n'a rien à voir avec ce livre.
+        // ici serait lu comme une cotisation impayée et retiendrait la part d'un
+        // entraîneur qui n'a rien à voir avec ce livre.
         rest: 0,
         type: "debt_payment",
         paidFrom: "cash",
@@ -2131,7 +2132,7 @@ export const useData = create<DataStore>((set, get) => ({
       studentCharges: state.studentCharges.map((c) => patched.get(c.id) ?? c),
     }));
 
-    // Ce que l'élève doit ENCORE sur ses frais, l'encaissement fait.
+    // Ce que le chevalier doit ENCORE sur ses frais, l'encaissement fait.
     const rest = get()
       .studentCharges.filter((c) => c.studentId === studentId)
       .reduce((t, c) => t + positiveMoney(c.amount - (c.paidAmount ?? 0)), 0);
@@ -2140,9 +2141,9 @@ export const useData = create<DataStore>((set, get) => ({
   },
 
   /**
-   * L'école avance ce qu'un élève doit, pour que l'enseignant soit payé
+   * Le club avance ce qu'un chevalier doit, pour que l'entraîneur soit payé
    * aujourd'hui. Voir la description de l'action sur l'interface : tout ce qui
-   * retient la part de l'enseignant est couvert — les mois dans le rouge, les
+   * retient la part de l'entraîneur est couvert — les cartes dans le rouge, les
    * restes d'anciens paiements et les frais d'inscription.
    */
   coverStudentDebt: async ({
@@ -2159,13 +2160,13 @@ export const useData = create<DataStore>((set, get) => ({
 
     const summary = studentDebtSummary(db, studentId);
     /**
-     * Deux façons de décider ce que l'école avance :
+     * Deux façons de décider ce que le club avance :
      *
-     *  - la réception a coché les mois et corrigé les montants (`lines`) : on
+     *  - la réception a coché les cartes et corrigé les montants (`lines`) : on
      *    règle EXACTEMENT ce qu'elle a saisi, jamais plus que ce qui est dû sur
-     *    le mois — un montant partiel laisse le reste à la charge de la famille ;
-     *  - rien n'a été précisé : l'école avance tout ce qui retient la part de
-     *    l'enseignant, comme le bouton le promet depuis toujours.
+     *    la carte — un montant partiel laisse le reste à la charge de la famille ;
+     *  - rien n'a été précisé : le club avance tout ce qui retient la part de
+     *    l'entraîneur, comme le bouton le promet depuis toujours.
      */
     const picked = (lines ?? []).filter((l) => Math.round(l.amount || 0) > 0);
     const explicit = picked.length > 0 || (otherAmount ?? 0) > 0;
@@ -2180,8 +2181,8 @@ export const useData = create<DataStore>((set, get) => ({
             sessionId: known?.sessionId ?? "",
             label: l.label ?? known?.label ?? "Emploi du temps",
             code: l.monthCode,
-            // Avancer plus que ce que le mois doit créerait une avance sur le
-            // solde payée par l'école : on plafonne au dû.
+            // Avancer plus que ce que la carte doit créerait une avance sur le
+            // solde payée par le club : on plafonne au dû.
             debt: known ? Math.min(Math.round(l.amount), known.debt) : Math.round(l.amount),
           };
         }).filter((r) => r.debt > 0)
@@ -2190,7 +2191,7 @@ export const useData = create<DataStore>((set, get) => ({
             (!subscriptionId || r.subscriptionId === subscriptionId) &&
             (!monthCode || r.code === monthCode),
         );
-    // Restreindre à un emploi du temps ne touche QUE ses mois : les restes et
+    // Restreindre à un emploi du temps ne touche QUE ses carte : les restes et
     // les frais d'inscription ne relèvent d'aucun emploi en particulier, ils ne
     // sont donc soldés que quand toute la dette est couverte.
     const whole = !subscriptionId && !monthCode;
@@ -2201,23 +2202,23 @@ export const useData = create<DataStore>((set, get) => ({
         ? otherDue
         : 0;
     // Les restes s'éteignent avant les frais d'inscription : c'est la plus
-    // ancienne dette, et c'est celle qui bloque la part de l'enseignant.
+    // ancienne dette, et c'est celle qui bloque la part de l'entraîneur.
     const rests = Math.min(summary.rests, otherPaid);
     const registration = otherPaid - rests;
 
     const total = rows.reduce((t, r) => t + r.debt, 0) + rests + registration;
     if (total <= 0) return { ok: false, amount: 0, rows: 0, messageKey: "debt.nothingDue" };
 
-    const label = description?.trim() || "Dette avancée par l'école";
+    const label = description?.trim() || "Dette avancée par le club";
 
-    // Mois par mois : chaque versement porte sa provenance et pose ses deux
+    // Carte par carte : chaque versement porte sa provenance et pose ses deux
     // mouvements de caisse, donc l'historique reste lisible ligne par ligne.
     //
-    // ET CHAQUE AVANCE DEVIENT UN FRAIS AU COMPTE DE L'ÉLÈVE. L'école a sorti
-    // cet argent sans jamais l'encaisser : la scolarité, elle, est soldée — la
-    // part de l'enseignant se débloque — mais la FAMILLE doit maintenant cette
-    // somme à l'école. Sans ce frais, la dette disparaissait de toutes les
-    // fiches à la seconde où l'école la couvrait, et plus personne au guichet
+    // ET CHAQUE AVANCE DEVIENT UN FRAIS AU COMPTE DE LE CHEVALIER. Le club a sorti
+    // cet argent sans jamais l'encaisser : la cotisation, elle, est soldée — la
+    // part de l'entraîneur se débloque — mais la FAMILLE doit maintenant cette
+    // somme au club. Sans ce frais, la dette disparaissait de toutes les
+    // fiches à la seconde où le club la couvrait, et plus personne au guichet
     // ne savait qu'il fallait la réclamer.
     const advanceCharges: StudentCharge[] = [];
     const stamp = new Date().toISOString();
@@ -2237,8 +2238,8 @@ export const useData = create<DataStore>((set, get) => ({
         name: `${label} — ${row.label} (${row.code})`,
         amount: row.debt,
         description:
-          "Réglé par la caisse de l'école pour débloquer la part de l'enseignant : " +
-          "la famille doit cette somme à l'école.",
+          "Réglé par la caisse du club pour débloquer la part de l'entraîneur : " +
+          "la famille doit cette somme au club.",
         date: advanceDay,
         origin: "school_advance",
         sourcePaymentId: res.paymentId,
@@ -2254,11 +2255,11 @@ export const useData = create<DataStore>((set, get) => ({
     }
 
     // Les restes d'anciens paiements et les frais d'inscription se soldent en
-    // une seule écriture : ils ne portent ni emploi du temps ni mois.
+    // une seule écriture : ils ne portent ni emploi du temps ni carte.
     if (rests > 0 || registration > 0) {
       const now = new Date().toISOString();
       const settled = rests + registration;
-      // Du plus ancien au plus récent, jusqu'à épuisement de ce que l'école a
+      // Du plus ancien au plus récent, jusqu'à épuisement de ce que le club a
       // décidé d'avancer : un règlement partiel laisse les restes suivants dus.
       let left = rests;
       const cleared = new Map<string, number>();
@@ -2296,7 +2297,7 @@ export const useData = create<DataStore>((set, get) => ({
           ),
           receipt,
         ],
-        // La même règle que pour les mois : ce que l'école a avancé reste dû
+        // La même règle que pour les cartes : ce que le club a avancé reste dû
         // par la famille, et un frais le porte tant qu'il n'est pas remboursé.
         studentCharges: [
           ...state.studentCharges,
@@ -2309,8 +2310,8 @@ export const useData = create<DataStore>((set, get) => ({
                 : `${label} — restes d'anciens paiements`,
             amount: settled,
             description:
-              "Réglé par la caisse de l'école pour débloquer la part de l'enseignant : " +
-              "la famille doit cette somme à l'école.",
+              "Réglé par la caisse du club pour débloquer la part de l'entraîneur : " +
+              "la famille doit cette somme au club.",
             date: dateKey(new Date()),
             origin: "school_advance" as const,
             sourcePaymentId: receipt.id,
@@ -2332,7 +2333,7 @@ export const useData = create<DataStore>((set, get) => ({
             type: "student_payment" as const,
             amount: settled,
             date: now,
-            description: `Dette de ${studentLabel} réglée par l'école`,
+            description: `Dette de ${studentLabel} réglée par le club`,
           },
           {
             ...authorStamp(),
@@ -2340,7 +2341,7 @@ export const useData = create<DataStore>((set, get) => ({
             type: "student_debt" as const,
             amount: -settled,
             date: now,
-            description: `Caisse école → dette de ${studentLabel} (${label})`,
+            description: `Caisse club → dette de ${studentLabel} (${label})`,
           },
         ],
       }));
@@ -2350,7 +2351,7 @@ export const useData = create<DataStore>((set, get) => ({
   },
 
   /**
-   * La scolarité d'un fils d'enseignant, réglée depuis la feuille de présence
+   * La cotisation d'un fils d'entraîneur, réglée depuis la feuille de présence
    * du groupe. Voir la description de l'action : soit la famille paie au
    * guichet (l'argent entre en caisse, rien n'est retenu au père), soit le
    * montant est PORTÉ sur le salaire du père — l'enfant est soldé tout de
@@ -2364,7 +2365,7 @@ export const useData = create<DataStore>((set, get) => ({
     const due = Math.max(0, Math.round(amount || 0));
     if (due <= 0) return { ok: false, messageKey: "debt.nothingDue" };
 
-    // Porter la somme sur un père suppose qu'il y en ait un : sans enseignant
+    // Porter la somme sur un père suppose qu'il y en ait un : sans entraîneur
     // père désigné, la retenue n'aurait personne à qui être présentée.
     const teacherId = student.teacherFatherId;
     if (source === "teacher_debt" && !teacherId) {
@@ -2378,8 +2379,8 @@ export const useData = create<DataStore>((set, get) => ({
     const note =
       description?.trim() ||
       (source === "cash"
-        ? `Versé par la famille au guichet (${monthCode})`
-        : `Scolarité portée sur le salaire du père (${monthCode})`);
+        ? `Versé par la famille au guichet (${carteShort(monthCode)})`
+        : `Cotisation portée sur le salaire du père (${carteShort(monthCode)})`);
 
     const res = await get().addSold({
       studentId,
@@ -2417,7 +2418,7 @@ export const useData = create<DataStore>((set, get) => ({
   /**
    * Supprimer un emploi du temps, c'est l'ARCHIVER : voir la description de
    * l'action. Rien n'est effacé — ni les présences, ni les soldes, ni les
-   * paiements, ni les parts dues à l'enseignant — et l'historique continue donc
+   * paiements, ni les parts dues à l'entraîneur — et l'historique continue donc
    * de les nommer correctement.
    */
   archiveSession: async (sessionId) => {
@@ -2430,7 +2431,7 @@ export const useData = create<DataStore>((set, get) => ({
       .filter((sub) => sub.sessionId === sessionId)
       .map((sub) => sub.id);
 
-    // Les élèves en sortent comme d'une désinscription ordinaire : leur fiche
+    // Les chevaliers en sortent comme d'une désinscription ordinaire : leur fiche
     // garde le module, ses présences, ses paiements et son solde, datés du jour.
     let moved = 0;
     for (const subId of subIds) {
@@ -2601,9 +2602,9 @@ export const useData = create<DataStore>((set, get) => ({
     if (!session) return { ok: false };
 
     const ids = siblingIds(db, sessionId);
-    // LE PRIX D'UNE SÉANCE GARDE SES DÉCIMALES : un mois à 4 000 DA sur 3
+    // LE PRIX D'UNE SÉANCE GARDE SES DÉCIMALES : une carte à 4 000 DA sur 3
     // séances vaut 1 333,33 DA la séance, pas 1 333. Le même soin s'applique à
-    // la part de l'école et à celle de l'enseignant : arrondir chaque division
+    // la part du club et à celle de l'entraîneur : arrondir chaque division
     // à l'entier faisait dériver la paie de quelques dinars par séance.
     const clean = positiveMoney(price || 0);
     const { levelPrice, periodMonths } = opts ?? {};
@@ -2622,8 +2623,8 @@ export const useData = create<DataStore>((set, get) => ({
       monthlySeances && opts?.teacherPerSeance != null
         ? positiveMoney(opts.teacherPerSeance)
         : monthlySeances && monthlyPrice != null && schoolMonthShare != null
-          // Sans valeur explicite, la part enseignant d'une séance se déduit du
-          // reste du mois — décimales comprises.
+          // Sans valeur explicite, la part entraîneur d'une séance se déduit du
+          // reste de la carte — décimales comprises.
           ? positiveMoney((monthlyPrice - schoolMonthShare) / monthlySeances)
           : undefined;
     let created = 0;
@@ -2684,7 +2685,7 @@ export const useData = create<DataStore>((set, get) => ({
     if (doomedIds.size === 0) return { ok: true, deleted: 0 };
 
     const today = dateKey(new Date());
-    // Les élèves en sortent comme d'une désinscription : leur fiche garde le
+    // Les chevaliers en sortent comme d'une désinscription : leur fiche garde le
     // module, ses présences, ses paiements et son solde, datés du jour.
     for (const subId of doomedIds) {
       for (const st of db.students.filter((x) => x.subscriptionIds.includes(subId))) {
@@ -2900,10 +2901,10 @@ export const useData = create<DataStore>((set, get) => ({
      * UN RÈGLEMENT LAISSE TOUJOURS SA LIGNE DANS L'HISTORIQUE.
      *
      * Ce chemin-là ne posait qu'un mouvement de caisse : l'argent sortait, mais
-     * l'écran « Historique des règlements » de la fiche enseignant restait
+     * l'écran « Historique des règlements » de la fiche entraîneur restait
      * vide — le règlement venait d'être fait et ne s'affichait nulle part. Il
-     * écrit désormais son `teacher_payments`, exactement comme la paie mois par
-     * mois, avec ses présences, son brut et ce qui a été retenu.
+     * écrit désormais son `teacher_payments`, exactement comme la paie carte par
+     * carte, avec ses présences, son brut et ce qui a été retenu.
      */
     const paymentId = uid("tpy");
     const cashId = uid("csh");
@@ -3263,7 +3264,7 @@ export const useData = create<DataStore>((set, get) => ({
     // selection still works for anything that has not been migrated.
     const byId = Array.isArray(dueIds);
     // Les arriérés débloqués sont soldés par le MÊME règlement : ils suivent
-    // donc le même chemin que les dues du mois, tout en restant listés à part
+    // donc le même chemin que les dues de la carte, tout en restant listés à part
     // sur la fiche de paie et dans l'historique.
     const dueIdSet = new Set([...(dueIds ?? []), ...(arrearDueIds ?? [])]);
     const passagerIdSet = new Set(passagerIds ?? []);
@@ -3274,16 +3275,16 @@ export const useData = create<DataStore>((set, get) => ({
      * Quand l'écran de paie NOMME les parts (`dueIds` / `arrearDueIds`), elles
      * font foi : il a déjà décidé, séance par séance, laquelle est payable —
      * une part n'est retenue que si LA SÉANCE QUI L'A PRODUITE n'est pas payée
-     * sur CE mois de CET emploi du temps.
+     * sur CE carte de CET emploi du temps.
      *
-     * Y superposer un « l'élève doit-il quelque chose quelque part ? » global
+     * Y superposer un « le chevalier doit-il quelque chose quelque part ? » global
      * était le bug : un enfant à jour sur ce groupe mais devant encore des
-     * frais d'inscription — ou un arriéré rattrapé par un élève qui vit déjà
-     * son mois suivant — voyait sa part cochée, payée en caisse… et jamais
+     * frais d'inscription — ou un arriéré rattrapé par un chevalier qui vit déjà
+     * son carte suivante — voyait sa part cochée, payée en caisse… et jamais
      * marquée réglée. Elle revenait donc à chaque écran suivant, en double.
      *
      * L'ancienne sélection « par créneau » (`keys`) garde le garde-fou global :
-     * elle, ne sait rien des mois.
+     * elle, ne sait rien des cartes.
      */
     const settledDues = db.unpaidTeacher.filter(
       (u) =>
@@ -3351,7 +3352,7 @@ export const useData = create<DataStore>((set, get) => ({
     const expenseIdSet = new Set(clearedExpenses.map((e) => e.id));
     const acompteIdSet = new Set(clearedAcomptes.map((a) => a.id));
 
-    // Les scolarités déjà créditées aux enfants et portées sur ce salaire : ce
+    // Les cotisations déjà créditées aux enfants et portées sur ce salaire : ce
     // règlement les retient, et elles ne reviendront jamais sur le suivant.
     const clearedChildDebts = db.teacherChildDebts.filter(
       (d) => d.teacherId === teacherId && !d.paid && (childDebtIds ?? []).includes(d.id),
@@ -3359,7 +3360,7 @@ export const useData = create<DataStore>((set, get) => ({
     const childDebtSnapshot: TeacherPaymentDeduction[] = clearedChildDebts.map((d) => ({
       id: d.id,
       kind: "expense",
-      label: `Scolarité — ${d.label}`,
+      label: `Cotisation — ${d.label}`,
       description: [d.monthCode, d.subscriptionId ? undefined : "hors emploi du temps"]
         .filter(Boolean)
         .join(" · "),
@@ -3434,7 +3435,7 @@ export const useData = create<DataStore>((set, get) => ({
           amount: line.amount,
           monthCode: line.monthCode,
           source: "teacher_salary",
-          description: `Réglé sur le salaire de ${teacher.firstName} ${teacher.lastName} (${line.monthCode})`,
+          description: `Réglé sur le salaire de ${teacher.firstName} ${teacher.lastName} (${carteShort(line.monthCode)})`,
         });
       }
     }
@@ -3446,7 +3447,7 @@ export const useData = create<DataStore>((set, get) => ({
    * CORRIGER UN RÈGLEMENT — le net, la date, le libellé, et rien d'autre.
    *
    * Ce que le règlement a soldé n'est pas rejoué : rouvrir des présences à
-   * l'occasion d'une faute de frappe ferait réapparaître un mois déjà payé.
+   * l'occasion d'une faute de frappe ferait réapparaître une carte déjà payé.
    * Seul le mouvement de caisse suit le nouveau montant.
    */
   updateTeacherPayment: async (paymentId, fields) => {
@@ -3486,7 +3487,7 @@ export const useData = create<DataStore>((set, get) => ({
    * ANNULER UN RÈGLEMENT — tout ce qu'il avait soldé redevient dû.
    *
    * Les présences repassent en attente, les dépenses, les acomptes et les
-   * scolarités portées sur le père reviennent sur le prochain règlement, et le
+   * cotisations portées sur le père reviennent sur le prochain règlement, et le
    * mouvement de caisse qui l'avait payé s'en va avec lui.
    */
   deleteTeacherPayment: async (paymentId) => {
@@ -3809,7 +3810,7 @@ export const useData = create<DataStore>((set, get) => ({
       rest: 0,
       type: "debt_payment",
       date: now,
-      description: description?.trim() || `Règlement dette ${monthCode}`,
+      description: description?.trim() || `Règlement dette ${carteShort(monthCode)}`,
     };
 
     set((state) => ({
@@ -3825,7 +3826,7 @@ export const useData = create<DataStore>((set, get) => ({
           type: "student_payment" as const,
           amount: settled,
           date: now,
-          description: `Règlement dette ${monthCode} — ${student.firstName} ${student.lastName}`,
+          description: `Règlement dette ${carteShort(monthCode)} — ${student.firstName} ${student.lastName}`,
         },
       ],
     }));
@@ -4009,7 +4010,7 @@ export const useData = create<DataStore>((set, get) => ({
     return { ok: true, balance: (enrollment?.balance ?? 0) + delta };
   },
 
-  // ---- Séances libres de groupe --------------------------------------------
+  // ---- Sorties libres de groupe --------------------------------------------
   saveGroupSeance: async (input) => {
     const db = get();
     const teacher = db.teachers.find((t) => t.id === input.teacherId);
@@ -4018,7 +4019,7 @@ export const useData = create<DataStore>((set, get) => ({
     const existing = db.groupSeances.find((g) => g.id === input.id);
     const totals = groupSeanceTotals(input);
     const when = input.date.length === 10 ? `${input.date}T12:00:00.000Z` : input.date;
-    const label = input.title?.trim() || "Séance libre de groupe";
+    const label = input.title?.trim() || "Sortie libre de groupe";
 
     const cashInId = existing?.cashInId ?? uid("csh");
     const cashOutId = existing?.cashOutId ?? uid("csh");
@@ -4028,7 +4029,7 @@ export const useData = create<DataStore>((set, get) => ({
       type: "student_payment",
       amount: totals.total,
       date: when,
-      description: `Séance libre de groupe : ${label} — ${totals.students} élève(s) × ${formatDA(totals.pricePerStudent)}`,
+      description: `Sortie libre de groupe : ${label} — ${totals.students} chevalier(s) × ${formatDA(totals.pricePerStudent)}`,
     };
     const cashOut: CashTransaction = {
       ...authorStamp(),
@@ -4036,7 +4037,7 @@ export const useData = create<DataStore>((set, get) => ({
       type: "teacher_payment",
       amount: -totals.teacherTotal,
       date: when,
-      description: `Séance libre de groupe : ${label} — ${teacher.firstName} ${teacher.lastName}`,
+      description: `Sortie libre de groupe : ${label} — ${teacher.firstName} ${teacher.lastName}`,
     };
 
     const row: GroupSeance = {
@@ -4203,7 +4204,7 @@ export const useData = create<DataStore>((set, get) => ({
           s.parentId === id ? { ...s, parentId: undefined } : s,
         );
       }
-      // Un élève effacé emporte ses frais : c'est ce que fait la contrainte
+      // Un chevalier effacé emporte ses frais : c'est ce que fait la contrainte
       // `on delete cascade` en base, et le magasin doit dire la même chose.
       if (key === "students") {
         patch.studentCharges = state.studentCharges.filter((c) => c.studentId !== id);

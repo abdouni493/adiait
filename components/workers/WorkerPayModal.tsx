@@ -5,12 +5,12 @@
  *
  * L'écran pose la question dans l'ordre où elle se pose au comptoir :
  *
- *   1. QU'EST-CE QU'ON LUI DOIT ? Les mois non payés pour un mensuel, les
+ *   1. QU'EST-CE QU'ON LUI DOIT ? Les cartes non payés pour un par carte, les
  *      journées non payées pour un journalier ou un demi-journalier, les
  *      journées POINTÉES pour un horaire — avec leurs heures réelles. On coche.
  *   2. QU'EST-CE QU'ON LUI RETIENT ? Les acomptes déjà versés et les absences
  *      retenues qui n'ont pas encore été déduits d'un règlement. On coche aussi :
- *      l'école peut n'en retenir qu'une partie ce mois-ci.
+ *      le club peut n'en retenir qu'une partie cette carte-ci.
  *   3. COMBIEN ON VERSE ? Le net est calculé, et modifiable à la main.
  *
  * La date du versement se corrige (on encaisse parfois pour la veille) et la

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatDA } from "@/lib/utils";
 import {
+  carteShort,
   cycleSizeOf,
   formatDateFr,
   groupSeanceTotals,
@@ -26,38 +27,7 @@ import {
   teacherPerSeanceOf,
   totalRemainingSeances,
 } from "@/lib/helpers";
-import {
-  Calendar,
-  FileText,
-  ArrowUpRight,
-  ArrowDownLeft,
-  DollarSign,
-  Wallet,
-  FileSpreadsheet,
-  AlertCircle,
-  Users,
-  Search,
-  BookOpen,
-  Receipt,
-  X,
-  Layers,
-  GraduationCap,
-  Ticket,
-  Puzzle,
-  Banknote,
-  PiggyBank,
-  ChevronRight,
-  CircleDollarSign,
-  UserCog,
-  ClipboardList,
-  PieChart as PieIcon,
-  CalendarClock,
-  Filter,
-  HandCoins,
-  RotateCcw,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
+import { AlertCircle, ArrowDownLeft, ArrowUpRight, Banknote, BookOpen, Calendar, CalendarClock, ChevronRight, CircleDollarSign, ClipboardList, DollarSign, FileSpreadsheet, FileText, Filter, GraduationCap, HandCoins, Layers, PieChart as PieIcon, PiggyBank, Puzzle, Receipt, RotateCcw, Search, Sparkles, Ticket, TrendingUp, UserCog, Users, Wallet, X } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Types & small helpers                                               */
@@ -451,8 +421,8 @@ export function ReportsPage() {
    *
    * L'écran attendait un clic sur « Générer » avant d'afficger quoi que ce
    * soit : on arrivait sur une page vide alors que la question — « où en est
-   * l'école ce mois-ci ? » — a toujours la même réponse par défaut. Il s'ouvre
-   * donc sur le mois en cours, et les périodes se changent d'un clic.
+   * le club cette carte-ci ? » — a toujours la même réponse par défaut. Il s'ouvre
+   * donc sur la carte en cours, et les périodes se changent d'un clic.
    */
   const [isGenerated, setIsGenerated] = useState(true);
   const [reportRange, setReportRange] = useState<{ start: string; end: string } | null>(() => ({
@@ -465,8 +435,8 @@ export function ReportsPage() {
   /**
    * LES FILTRES TRANSVERSES — ils s'appliquent à TOUTES les sections.
    *
-   * Un bilan ne se lit presque jamais « en entier » : on veut le mois de la 4AP,
-   * ou ce qu'un enseignant a produit, ou ce qu'un module a rapporté. Ces quatre
+   * Un bilan ne se lit presque jamais « en entier » : on veut la carte de la 4AP,
+   * ou ce qu'un entraîneur a produit, ou ce qu'un module a rapporté. Ces quatre
    * filtres restreignent les ENSEMBLES DE BASE (présences, paiements, dues,
    * inscriptions), donc chaque carte, chaque panneau et chaque tableau de
    * l'écran parle du même périmètre — il n'y a pas un endroit qui filtre et un
@@ -477,11 +447,11 @@ export function ReportsPage() {
   const [moduleFilter, setModuleFilter] = useState("all");
   const [sessionFilter, setSessionFilter] = useState("all");
   /**
-   * LE MOIS D'EMPLOI DU TEMPS (M1 … M12).
+   * LE CARTE D'EMPLOI DU TEMPS (M1 … M12).
    *
-   * Les mois de l'école ne sont pas ceux du calendrier : chaque emploi du temps
+   * Les cartes du club ne sont pas ceux du calendrier : chaque emploi du temps
    * compte les siens. Ce filtre ne touche donc pas la PÉRIODE — il restreint la
-   * paie des enseignants au mois d'emploi du temps réglé, la seule façon de
+   * paie des entraîneurs à la carte d'emploi du temps réglé, la seule façon de
    * répondre à « le M3 de ce groupe, il a été payé combien ? ».
    */
   const [monthFilter, setMonthFilter] = useState("all");
@@ -605,10 +575,10 @@ export function ReportsPage() {
     /**
      * LE PÉRIMÈTRE DES FILTRES, résolu une fois.
      *
-     * Les quatre filtres portent sur des objets différents (une classe, un
-     * enseignant, un module, un emploi du temps) mais désignent tous, au fond,
+     * Les quatre filtres portent sur des objets différents (une catégorie, un
+     * entraîneur, un module, un emploi du temps) mais désignent tous, au fond,
      * un ENSEMBLE D'EMPLOIS DU TEMPS — et donc un ensemble d'abonnements et
-     * d'élèves. On les résout ici, une seule fois, et tout l'écran s'y range.
+     * de chevaliers. On les résout ici, une seule fois, et tout l'écran s'y range.
      */
     const scopeSessionIds: Set<string> | null = (() => {
       if (classFilter === "all" && teacherFilter === "all" && moduleFilter === "all" && sessionFilter === "all") {
@@ -633,7 +603,7 @@ export function ReportsPage() {
       ? new Set(subscriptions.filter((x) => scopeSessionIds.has(x.sessionId)).map((x) => x.id))
       : null;
 
-    /** Les élèves du périmètre — inscrits sur l'un de ses emplois du temps. */
+    /** Les chevaliers du périmètre — inscrits sur l'un de ses emplois du temps. */
     const scopeStudentIds: Set<string> | null = scopeSubIds
       ? new Set(
           students
@@ -642,7 +612,7 @@ export function ReportsPage() {
         )
       : null;
 
-    /** La recherche libre : un nom d'élève, un numéro d'inscription. */
+    /** La recherche libre : un nom de chevalier, un numéro d'inscription. */
     const q = entitySearch.trim().toLowerCase();
     const matchesStudent = (id?: string) => {
       if (!q) return true;
@@ -672,7 +642,7 @@ export function ReportsPage() {
     const fAbs = absences.filter((a) => inRange(a.date));
     const fInd = independent.filter((i) => inRange(i.date));
     // Les séances libres vendues à un GROUPE : leur recette, la part de
-    // l'école et la paie de l'enseignant, toutes trois déjà en caisse.
+    // le club et la paie de l'entraîneur, toutes trois déjà en caisse.
     const fGroup = groupSeances.filter((g) => inRange(g.date));
     const groupTotals = fGroup.map((g) => ({ g, t: groupSeanceTotals(g) }));
     const groupRevenue = groupTotals.reduce((n, r) => n + r.t.total, 0);
@@ -708,7 +678,7 @@ export function ReportsPage() {
     // What the school billed over the range (net of the remises granted).
     const billedNet = sum(purchases, (p) => p.netTotal);
     const seancesSold = sum(purchases, (p) => p.seancesPurchased);
-    /** Les élèves du PÉRIMÈTRE — ceux que les filtres du haut désignent. */
+    /** Les chevaliers du PÉRIMÈTRE — ceux que les filtres du haut désignent. */
     const scopedStudents = students.filter((st) => inScopeStudent(st.id));
     const seancesLeft = sum(scopedStudents, (st) => totalRemainingSeances(db, st.id));
     const totalDebts = sum(scopedStudents, (st) => studentDebt(db, st.id) + (st.registrationDue || 0));
@@ -725,18 +695,18 @@ export function ReportsPage() {
 
     const studentsSection: Section = {
       id: "students",
-      label: "Élèves",
+      label: "Chevaliers",
       icon: <Users className="h-4 w-4" />,
       cards: [
         {
-          label: "Encaissé auprès des élèves (période)",
+          label: "Encaissé auprès des chevaliers (période)",
           value: inflow(versements),
           tone: "success",
           icon: <ArrowUpRight className="h-5 w-5" />,
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
               { label: "Désignation", render: (r) => <span className="text-muted">{r.description ?? "—"}</span> },
               { label: "Séances", align: "right", render: (r) => <span className="text-muted">{r.seancesPurchased || "—"}</span> },
               { label: "Payé", align: "right", render: (r) => <strong className="text-success">{inflow(r.amountPaid)}</strong> },
@@ -757,7 +727,7 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
               { label: "Module", render: (r) => <span className="text-primary">{r.description ?? "—"}</span> },
               { label: "Séances", align: "right", render: (r) => <strong className="text-ink">{r.seancesPurchased}</strong> },
               { label: "Prix séance", align: "right", render: (r) => <span className="text-muted">{formatDA(r.unitPrice)}</span> },
@@ -778,7 +748,7 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
               { label: "Brut", align: "right", render: (r) => <span className="text-muted">{formatDA(r.grossTotal)}</span> },
               { label: "Net", align: "right", render: (r) => <span className="text-muted">{formatDA(r.netTotal)}</span> },
               {
@@ -803,7 +773,7 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
               { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.amountPaid)}</strong> },
             ],
             rows: fPay.filter((p) => p.type === "debt_payment"),
@@ -819,10 +789,10 @@ export function ReportsPage() {
           value: `${seancesLeft}`,
           tone: "neutral",
           icon: <Wallet className="h-5 w-5" />,
-          hint: "Prestations dues aux élèves",
+          hint: "Prestations dues aux chevaliers",
           detail: {
             columns: [
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
               { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
               { label: "Abon.", align: "right", render: (r) => <span className="text-muted">{r.subscriptionIds.length}</span> },
               {
@@ -866,7 +836,7 @@ export function ReportsPage() {
           icon: <AlertCircle className="h-5 w-5" />,
           detail: {
             columns: [
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
               { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
               { label: "Inscr.", align: "right", render: (r) => <span className="text-danger">{formatDA(r.registrationDue || 0)}</span> },
               { label: "Séances", align: "right", render: (r) => <span className="text-danger">{formatDA(studentDebt(db, r.id))}</span> },
@@ -889,14 +859,14 @@ export function ReportsPage() {
       ],
       panels: [
         {
-          title: "Synthèse des flux élèves",
+          title: "Synthèse des flux chevaliers",
           subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
           icon: <Users className="h-4 w-4 text-primary" />,
           lines: [
             { label: "Achats de séances (net facturé)", value: formatDA(billedNet), tone: "primary" },
             { label: "Règlements de dettes", value: inflow(debtPayments), tone: "success" },
             {
-              label: "Total encaissé auprès des élèves",
+              label: "Total encaissé auprès des chevaliers",
               value: inflow(versements),
               tone: "success",
               emphasis: true,
@@ -910,16 +880,16 @@ export function ReportsPage() {
           ],
         },
         {
-          title: "État des comptes élèves",
+          title: "État des comptes chevaliers",
           icon: <Wallet className="h-4 w-4 text-warning" />,
           lines: [
-            { label: "Élèves inscrits", value: `${scopedStudents.length}`, strong: true },
+            { label: "Chevaliers inscrits", value: `${scopedStudents.length}`, strong: true },
             { label: "Dont cas gratuits", value: `${freeCount}`, tone: "primary" },
-            { label: "Élèves avec un reste à payer", value: `${debtors.length}`, tone: "warning" },
+            { label: "Chevaliers avec un reste à payer", value: `${debtors.length}`, tone: "warning" },
             { label: "Séances restantes cumulées", value: `${seancesLeft}`, strong: true },
             { label: "Restes à payer cumulés", value: formatDA(totalDebts), tone: "warning", emphasis: true },
           ],
-          note: "Les séances restantes sont des prestations déjà payées que l'école doit encore assurer.",
+          note: "Les séances restantes sont des prestations déjà payées que le club doit encore assurer.",
         },
       ],
     };
@@ -951,7 +921,7 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Date & heure", render: (r) => dateTimeCell(r.timestamp) },
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
               {
                 label: "Séance",
                 render: (r) => (
@@ -972,24 +942,24 @@ export function ReportsPage() {
           },
         },
         {
-          label: "Séances profs NON payées (global)",
+          label: "Séances entraîneurs NON payées (global)",
           value: formatDA(unpaidGlobalTotal),
           tone: "warning",
           icon: <AlertCircle className="h-5 w-5" />,
-          hint: "Dû aux enseignants au %",
+          hint: "Dû aux entraîneurs au %",
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
-              { label: "Élève", render: (r) => <span className="text-muted">{sName(r.studentId)}</span> },
+              { label: "Entraîneur", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="text-muted">{sName(r.studentId)}</span> },
               { label: "Module", render: (r) => <span className="font-semibold text-primary">{modName(r.sessionId)}</span> },
               { label: "Montant", align: "right", render: (r) => <strong className="text-warning">{formatDA(r.amount)}</strong> },
             ],
             rows: unpaidGlobal,
-            totalLabel: "Dû aux profs",
+            totalLabel: "Dû aux entraîneurs",
             totalValue: formatDA(unpaidGlobalTotal),
             totalTone: "warning",
-            empty: "Toutes les séances enseignants sont réglées.",
+            empty: "Toutes les séances entraîneurs sont réglées.",
             searchable: (r) => `${tName(r.teacherId)} ${sName(r.studentId)} ${modName(r.sessionId)}`,
           },
         },
@@ -1002,7 +972,7 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Date & heure", render: (r) => dateTimeCell(r.timestamp) },
-              { label: "Élève", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="font-bold text-ink">{sName(r.studentId)}</span> },
               { label: "Séance", render: (r) => <span className="font-semibold text-primary">{modName(r.sessionId)}</span> },
               { label: "Statut", render: (r) => <Badge tone={r.status === "late" ? "warning" : "success"}>{r.status === "late" ? "Retard" : "Présent"}</Badge> },
             ],
@@ -1027,19 +997,19 @@ export function ReportsPage() {
           ],
         },
         {
-          title: "Charges enseignants sur séances",
+          title: "Charges entraîneurs sur séances",
           icon: <AlertCircle className="h-4 w-4 text-warning" />,
           lines: [
             { label: "Séances non payées (sur la période)", value: formatDA(unpaidRangeTotal), tone: "warning" },
             { label: "Séances non payées (cumul global)", value: formatDA(unpaidGlobalTotal), tone: "warning", emphasis: true },
             {
-              label: "Marge brute séances (recette − dû profs)",
+              label: "Marge brute séances (recette − dû entraîneurs)",
               value: signed(seanceRevenue - unpaidRangeTotal),
               tone: seanceRevenue - unpaidRangeTotal >= 0 ? "success" : "danger",
               strong: true,
             },
           ],
-          note: "Chaque scan RFID d'un élève enregistre une séance à régler à l'enseignant (paiement au pourcentage).",
+          note: "Chaque scan RFID d'un chevalier enregistre une séance à régler à l'entraîneur (paiement au pourcentage).",
         },
       ],
     };
@@ -1065,8 +1035,8 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Module", render: (r) => <span className="font-bold text-ink">{r.moduleName}</span> },
-              { label: "Classe", render: (r) => <span className="text-muted">{r.className || "—"}</span> },
-              { label: "Élèves", align: "right", render: (r) => <span className="font-semibold text-primary">{r.enrolled}</span> },
+              { label: "Catégorie", render: (r) => <span className="text-muted">{r.className || "—"}</span> },
+              { label: "Chevaliers", align: "right", render: (r) => <span className="font-semibold text-primary">{r.enrolled}</span> },
               { label: "Prix / séance", align: "right", render: (r) => <strong className="text-ink">{formatDA(r.pricePerSession)}</strong> },
               { label: "Potentiel", align: "right", render: (r) => <span className="text-success">{formatDA(r.pricePerSession * r.enrolled)}</span> },
             ],
@@ -1086,8 +1056,8 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Module", render: (r) => <span className="font-bold text-ink">{r.moduleName}</span> },
-              { label: "Classe", render: (r) => <span className="text-muted">{r.className || "—"}</span> },
-              { label: "Élèves inscrits", align: "right", render: (r) => <span className="text-primary">{r.enrolled}</span> },
+              { label: "Catégorie", render: (r) => <span className="text-muted">{r.className || "—"}</span> },
+              { label: "Chevaliers inscrits", align: "right", render: (r) => <span className="text-primary">{r.enrolled}</span> },
               { label: "Recette potentielle", align: "right", render: (r) => <strong className="text-success">{formatDA(r.pricePerSession * r.enrolled)}</strong> },
             ],
             rows: [...subRows].sort((a, b) => b.pricePerSession * b.enrolled - a.pricePerSession * a.enrolled),
@@ -1114,7 +1084,7 @@ export function ReportsPage() {
             { label: "Prix moyen par séance", value: formatDA(avgPrice) },
             { label: "Potentiel par séance complète", value: formatDA(potentialPerSession), tone: "success", emphasis: true },
           ],
-          note: "Le potentiel suppose la présence de tous les élèves inscrits à chaque abonnement.",
+          note: "Le potentiel suppose la présence de tous les chevaliers inscrits à chaque abonnement.",
         },
       ],
     };
@@ -1129,18 +1099,18 @@ export function ReportsPage() {
 
     const teachersSection: Section = {
       id: "teachers",
-      label: "Enseignants",
+      label: "Entraîneurs",
       icon: <GraduationCap className="h-4 w-4" />,
       cards: [
         {
-          label: "Acomptes versés (profs)",
+          label: "Acomptes versés (entraîneurs)",
           value: outflow(teacherAcoTotal),
           tone: "danger",
           icon: <ArrowDownLeft className="h-5 w-5" />,
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Entraîneur", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
               { label: "Motif", render: (r) => <span className="text-muted">{r.description}</span> },
               { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
             ],
@@ -1159,8 +1129,8 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
-              { label: "Élève", render: (r) => <span className="text-muted">{sName(r.studentId)}</span> },
+              { label: "Entraîneur", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Chevalier", render: (r) => <span className="text-muted">{sName(r.studentId)}</span> },
               { label: "Module", render: (r) => <span className="font-semibold text-primary">{modName(r.sessionId)}</span> },
               { label: "Montant", align: "right", render: (r) => <strong className="text-warning">{formatDA(r.amount)}</strong> },
             ],
@@ -1173,14 +1143,14 @@ export function ReportsPage() {
           },
         },
         {
-          label: "Retenues absences (profs)",
+          label: "Retenues absences (entraîneurs)",
           value: outflow(teacherAbsTotal),
           tone: "danger",
           icon: <AlertCircle className="h-5 w-5" />,
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
-              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
+              { label: "Entraîneur", render: (r) => <span className="font-bold text-ink">{tName(r.teacherId)}</span> },
               { label: "Motif", render: (r) => <span className="text-muted">{r.description}</span> },
               { label: "Retenue", align: "right", render: (r) => <strong className="text-danger">{outflow(r.cost)}</strong> },
             ],
@@ -1193,20 +1163,20 @@ export function ReportsPage() {
           },
         },
         {
-          label: "Enseignants actifs",
+          label: "Entraîneurs actifs",
           value: `${teachers.length}`,
           tone: "primary",
           icon: <GraduationCap className="h-5 w-5" />,
           detail: {
             columns: [
-              { label: "Enseignant", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
+              { label: "Entraîneur", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
               { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
               {
                 label: "Rémunération",
                 render: (r) => (
                   <Badge tone={r.paymentType === "monthly" ? "primary" : "warning"}>
                     {r.paymentType === "monthly"
-                      ? "Mensuel"
+                      ? "Par carte"
                       : r.paymentType === "per_group"
                         ? "Par groupe"
                         : "Pourcentage"}
@@ -1237,7 +1207,7 @@ export function ReportsPage() {
       ],
       panels: [
         {
-          title: "Charges enseignants de la période",
+          title: "Charges entraîneurs de la période",
           subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
           icon: <GraduationCap className="h-4 w-4 text-primary" />,
           lines: [
@@ -1245,7 +1215,7 @@ export function ReportsPage() {
             { label: "Retenues pour absences", value: outflow(teacherAbsTotal), tone: "danger" },
             { label: "Séances dues non réglées", value: formatDA(teacherUnpaidTotal), tone: "warning", emphasis: true },
             {
-              label: "Engagement total enseignants",
+              label: "Engagement total entraîneurs",
               value: formatDA(teacherAcoTotal + teacherUnpaidTotal),
               strong: true,
             },
@@ -1276,7 +1246,7 @@ export function ReportsPage() {
             columns: [
               { label: "Agent", render: (r) => <span className="font-bold text-ink">{r.firstName} {r.lastName}</span> },
               { label: "Téléphone", render: (r) => <span className="font-mono text-muted">{r.phone}</span> },
-              { label: "Type", render: (r) => <Badge tone={r.paymentType === "monthly" ? "primary" : "warning"}>{r.paymentType === "monthly" ? "Mensuel" : "Journalier"}</Badge> },
+              { label: "Type", render: (r) => <Badge tone={r.paymentType === "monthly" ? "primary" : "warning"}>{r.paymentType === "monthly" ? "Par carte" : "Journalier"}</Badge> },
               { label: "Salaire base", align: "right", render: (r) => <strong className="text-ink">{formatDA(r.salary)}</strong> },
             ],
             rows: reception,
@@ -1388,7 +1358,7 @@ export function ReportsPage() {
             columns: [
               { label: "Intitulé", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
               { label: "Type", render: (r) => <Badge tone={r.type === "single" ? "primary" : "neutral"}>{r.type === "single" ? "Jour unique" : "Période"}</Badge> },
-              { label: "Enseignant", render: (r) => <span className="text-muted">{tName(r.teacherId)}</span> },
+              { label: "Entraîneur", render: (r) => <span className="text-muted">{tName(r.teacherId)}</span> },
               { label: "Séances (pér.)", align: "right", render: (r) => <span className="text-primary">{r.dates.filter((d: string) => inRange(d)).length}/{r.dates.length}</span> },
               { label: "Prix / séance", align: "right", render: (r) => <span className="text-ink">{formatDA(r.pricePerSession)}</span> },
               { label: "Recette pér.", align: "right", render: (r) => <strong className="text-sky-500">{formatDA(r.pricePerSession * r.dates.filter((d: string) => inRange(d)).length)}</strong> },
@@ -1402,11 +1372,11 @@ export function ReportsPage() {
           },
         },
         {
-          label: "Séances libres de groupe",
+          label: "Sorties libres de groupe",
           value: inflow(groupRevenue),
           tone: "primary",
           icon: <Users className="h-5 w-5" />,
-          hint: `${fGroup.length} séance(s) · ${groupStudents} élève(s)`,
+          hint: `${fGroup.length} séance(s) · ${groupStudents} chevalier(s)`,
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.g.date) },
@@ -1422,18 +1392,18 @@ export function ReportsPage() {
                   </span>
                 ),
               },
-              { label: "Enseignant", render: (r) => <span className="text-muted">{tName(r.g.teacherId)}</span> },
-              { label: "Élèves", align: "right", render: (r) => <span className="font-mono">{r.t.students}</span> },
-              { label: "Prix / élève", align: "right", render: (r) => <span className="font-mono">{formatDA(r.t.pricePerStudent)}</span> },
+              { label: "Entraîneur", render: (r) => <span className="text-muted">{tName(r.g.teacherId)}</span> },
+              { label: "Chevaliers", align: "right", render: (r) => <span className="font-mono">{r.t.students}</span> },
+              { label: "Prix / chevalier", align: "right", render: (r) => <span className="font-mono">{formatDA(r.t.pricePerStudent)}</span> },
               { label: "Total", align: "right", render: (r) => <strong className="text-success">{formatDA(r.t.total)}</strong> },
-              { label: "École", align: "right", render: (r) => <span className="font-mono text-primary">{formatDA(r.t.schoolTotal)}</span> },
-              { label: "Enseignant", align: "right", render: (r) => <span className="font-mono text-warning">{formatDA(r.t.teacherTotal)}</span> },
+              { label: "Club", align: "right", render: (r) => <span className="font-mono text-primary">{formatDA(r.t.schoolTotal)}</span> },
+              { label: "Entraîneur", align: "right", render: (r) => <span className="font-mono text-warning">{formatDA(r.t.teacherTotal)}</span> },
             ],
             rows: [...groupTotals].sort((a, b) => (a.g.date < b.g.date ? 1 : -1)),
             totalLabel: "Recette séances de groupe",
             totalValue: inflow(groupRevenue),
             totalTone: "success",
-            empty: "Aucune séance libre de groupe sur la période.",
+            empty: "Aucune sortie libre de groupe sur la période.",
             searchable: (r) => `${r.g.title} ${r.g.description ?? ""} ${tName(r.g.teacherId)}`,
           },
         },
@@ -1454,11 +1424,11 @@ export function ReportsPage() {
             { label: "Recette séances libres", value: inflow(independentRevenue), tone: "success" },
             { label: "Stages actifs sur la période", value: `${courseworkInRange.length}` },
             { label: "Recette stages (période)", value: formatDA(courseworkRevenue), tone: "sky" },
-            { label: "Séances libres de groupe (nombre)", value: `${fGroup.length}` },
-            { label: "Élèves cumulés sur ces séances", value: `${groupStudents}` },
+            { label: "Sorties libres de groupe (nombre)", value: `${fGroup.length}` },
+            { label: "Chevaliers cumulés sur ces séances", value: `${groupStudents}` },
             { label: "Recette séances de groupe", value: inflow(groupRevenue), tone: "success" },
-            { label: "dont part de l'école", value: formatDA(groupSchool), tone: "primary" },
-            { label: "dont part des enseignants", value: outflow(groupTeacher), tone: "danger", formula: "élèves × (prix élève − part école)" },
+            { label: "dont part du club", value: formatDA(groupSchool), tone: "primary" },
+            { label: "dont part des entraîneurs", value: outflow(groupTeacher), tone: "danger", formula: "chevaliers × (prix chevalier − part club)" },
             { label: "Total activités indépendantes", value: inflow(independentRevenue + courseworkRevenue + groupRevenue), tone: "success", emphasis: true },
           ],
         },
@@ -1564,7 +1534,7 @@ export function ReportsPage() {
     const cashNet = cashIn - cashOut;
 
     const cashTypeLabel: Record<string, { label: string; tone: Tone }> = {
-      student_payment: { label: "Encaissement élève", tone: "success" },
+      student_payment: { label: "Encaissement chevalier", tone: "success" },
       deposit: { label: "Dépôt", tone: "success" },
       teacher_payment: { label: "Salaire / Staff", tone: "danger" },
       acompte: { label: "Acompte", tone: "warning" },
@@ -1578,7 +1548,7 @@ export function ReportsPage() {
       icon: <PiggyBank className="h-4 w-4" />,
       cards: [
         {
-          label: "Encaissements élèves (caisse)",
+          label: "Encaissements chevaliers (caisse)",
           value: inflow(cashStudent),
           tone: "success",
           icon: <ArrowUpRight className="h-5 w-5" />,
@@ -1680,7 +1650,7 @@ export function ReportsPage() {
           subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
           icon: <PiggyBank className="h-4 w-4 text-primary" />,
           lines: [
-            { label: "Encaissements élèves", value: inflow(cashStudent), tone: "success" },
+            { label: "Encaissements chevaliers", value: inflow(cashStudent), tone: "success" },
             { label: "Dépôts manuels", value: inflow(cashDeposit), tone: "success" },
             { label: "Total entrées", value: inflow(cashIn), tone: "success", emphasis: true },
             { label: "Salaires & acomptes", value: outflow(cashStaff), tone: "danger" },
@@ -1731,14 +1701,14 @@ export function ReportsPage() {
           detail: expensesSection.cards[0].detail,
         },
         {
-          label: "Dettes élèves (créances)",
+          label: "Dettes chevaliers (créances)",
           value: formatDA(totalDebts),
           tone: "warning",
           icon: <AlertCircle className="h-5 w-5" />,
           detail: studentsSection.cards[5].detail,
         },
         {
-          label: "Séances profs non payées",
+          label: "Séances entraîneurs non payées",
           value: formatDA(unpaidGlobalTotal),
           tone: "warning",
           icon: <Wallet className="h-5 w-5" />,
@@ -1759,7 +1729,7 @@ export function ReportsPage() {
           subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
           icon: <FileSpreadsheet className="h-4 w-4 text-primary" />,
           lines: [
-            { label: "Encaissements élèves", value: inflow(cashStudent), tone: "success" },
+            { label: "Encaissements chevaliers", value: inflow(cashStudent), tone: "success" },
             { label: "Dépôts manuels", value: inflow(cashDeposit), tone: "success" },
             { label: "Total des recettes", value: inflow(totalInflows), tone: "success", emphasis: true },
             { label: "Règlements personnel", value: outflow(cashStaff), tone: "danger" },
@@ -1772,11 +1742,11 @@ export function ReportsPage() {
           title: "Créances & engagements en cours",
           icon: <AlertCircle className="h-4 w-4 text-warning" />,
           lines: [
-            { label: "Créances clients (dettes élèves)", value: formatDA(totalDebts), tone: "warning" },
-            { label: "Séances enseignants à régler", value: formatDA(unpaidGlobalTotal), tone: "warning" },
+            { label: "Créances clients (dettes chevaliers)", value: formatDA(totalDebts), tone: "warning" },
+            { label: "Séances entraîneurs à régler", value: formatDA(unpaidGlobalTotal), tone: "warning" },
             { label: "Engagements totaux à venir", value: formatDA(totalDebts + unpaidGlobalTotal), strong: true, emphasis: true },
           ],
-          note: `Portée du bilan — ${students.length} élèves · ${teachers.length} enseignants · ${reception.length} agents · ${classes.length} classes · ${subscriptions.length} abonnements · ${parents.length} parents.`,
+          note: `Portée du bilan — ${students.length} chevaliers · ${teachers.length} entraîneurs · ${reception.length} agents · ${classes.length} catégories · ${subscriptions.length} abonnements · ${parents.length} parents.`,
         },
       ],
     };
@@ -1814,7 +1784,7 @@ export function ReportsPage() {
         hint: "Recettes − charges de la période",
       },
       {
-        label: "Paiements enseignants",
+        label: "Paiements entraîneurs",
         value: teacherPayout,
         color: "#7c3aed",
         hint: "Salaires, parts de séances et acomptes",
@@ -1865,7 +1835,7 @@ export function ReportsPage() {
           contract: t.isPassager
             ? "À la séance"
             : t.paymentType === "monthly"
-              ? "Mensuel"
+              ? "Par carte"
               : t.paymentType === "per_group"
                 ? "Par groupe"
                 : `${t.percentage ?? 0} %`,
@@ -1896,7 +1866,7 @@ export function ReportsPage() {
           hint: "Base de calcul des pourcentages",
         },
         {
-          label: "Part enseignants",
+          label: "Part entraîneurs",
           value: `${pctOf(teacherPayout).toFixed(1)} %`,
           tone: "primary",
           icon: <UserCog className="h-5 w-5" />,
@@ -1928,7 +1898,7 @@ export function ReportsPage() {
           value: signed(analysisProfit),
           tone: analysisProfit >= 0 ? "success" : "danger",
           icon: <FileSpreadsheet className="h-5 w-5" />,
-          hint: "Recettes − enseignants − travailleurs − dépenses",
+          hint: "Recettes − entraîneurs − travailleurs − dépenses",
           featured: true,
         },
       ],
@@ -1938,11 +1908,11 @@ export function ReportsPage() {
           subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
           icon: <Banknote className="h-4 w-4 text-primary" />,
           lines: [
-            { label: "Encaissements élèves", value: inflow(cashStudent), tone: "success" },
+            { label: "Encaissements chevaliers", value: inflow(cashStudent), tone: "success" },
             { label: "Dépôts manuels en caisse", value: inflow(cashDeposit), tone: "success" },
             { label: "TOTAL DES RECETTES", value: inflow(analysisRevenue), tone: "success", emphasis: true },
             {
-              label: "Paiements enseignants",
+              label: "Paiements entraîneurs",
               value: outflow(teacherPayout),
               tone: "primary",
               formula: `${pctOf(teacherPayout).toFixed(1)} % des recettes`,
@@ -1970,7 +1940,7 @@ export function ReportsPage() {
           ],
           note:
             unclassifiedPayout > 0
-              ? `${formatDA(unclassifiedPayout)} de règlements n'ont pas pu être rattachés à un enseignant ni à un travailleur (libellé de caisse non reconnu) et sont comptés avec les autres travailleurs.`
+              ? `${formatDA(unclassifiedPayout)} de règlements n'ont pas pu être rattachés à un entraîneur ni à un travailleur (libellé de caisse non reconnu) et sont comptés avec les autres travailleurs.`
               : undefined,
         },
       ],
@@ -2014,7 +1984,7 @@ export function ReportsPage() {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink">
-                    <UserCog className="h-4 w-4 text-primary" /> Analyse par enseignant
+                    <UserCog className="h-4 w-4 text-primary" /> Analyse par entraîneur
                   </h4>
                   <p className="text-[11px] text-muted">
                     Part de chaque enseignant dans les {formatDA(teacherGeneratedTotal)} générés par les séances.
@@ -2027,7 +1997,7 @@ export function ReportsPage() {
                     onChange={(e) => setTeacherAnalysisId(e.target.value)}
                     className="rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
                   >
-                    <option value="all">Tous les enseignants</option>
+                    <option value="all">Tous les entraîneurs</option>
                     {teacherStats.map((t) => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
@@ -2077,7 +2047,7 @@ export function ReportsPage() {
                               <span className="block text-[9px] text-muted">{payPct.toFixed(1)} % des parts</span>
                             </div>
                             <div className="rounded-xl border border-line/60 bg-surface p-2.5 text-center">
-                              <span className="block text-[9px] font-bold uppercase text-muted">Marge école</span>
+                              <span className="block text-[9px] font-bold uppercase text-muted">Marge club</span>
                               <strong className={`text-sm ${t.margin >= 0 ? "text-success" : "text-danger"}`}>
                                 {signed(t.margin)}
                               </strong>
@@ -2094,16 +2064,16 @@ export function ReportsPage() {
 
                   {teacherAnalysisId === "all" && (
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-primary/30 bg-primary-50/40 p-4 text-xs">
-                      <span className="font-bold uppercase tracking-wider text-muted">Total enseignants</span>
+                      <span className="font-bold uppercase tracking-wider text-muted">Total entraîneurs</span>
                       <span className="flex flex-wrap gap-4">
                         <span>
                           Généré : <strong className="text-success">{formatDA(teacherGeneratedTotal)}</strong>
                         </span>
                         <span>
-                          Parts enseignants : <strong className="text-primary">{formatDA(teacherEarnedTotal)}</strong>
+                          Parts entraîneurs : <strong className="text-primary">{formatDA(teacherEarnedTotal)}</strong>
                         </span>
                         <span>
-                          Marge école :{" "}
+                          Marge club :{" "}
                           <strong className={teacherGeneratedTotal - teacherEarnedTotal >= 0 ? "text-success" : "text-danger"}>
                             {signed(teacherGeneratedTotal - teacherEarnedTotal)}
                           </strong>
@@ -2124,9 +2094,9 @@ export function ReportsPage() {
     /**
      * CE QUE CHAQUE EMPLOI DU TEMPS COÛTE ET RAPPORTE.
      *
-     * Un emploi du temps est un produit : il a un prix (le mois), un nombre de
-     * séances, donc un prix à la séance — et ce prix se partage entre l'école
-     * et l'enseignant. Ces trois divisions ne tombent presque jamais juste
+     * Un emploi du temps est un produit : il a un prix (la carte), un nombre de
+     * séances, donc un prix à la séance — et ce prix se partage entre le club
+     * et l'entraîneur. Ces trois divisions ne tombent presque jamais juste
      * (4 000 DA sur 3 séances = 1 333,33 DA), alors elles sont affichées AVEC
      * LEURS DÉCIMALES, exactement comme elles sont facturées et payées.
      */
@@ -2189,10 +2159,10 @@ export function ReportsPage() {
           </span>
         ),
       },
-      { label: "Séances / mois", align: "right", render: (r) => <span className="font-mono">{r.size}</span> },
-      { label: "Prix du mois", align: "right", render: (r) => <span className="font-mono">{formatDA(r.monthPrice)}</span> },
+      { label: "Séances / carte", align: "right", render: (r) => <span className="font-mono">{r.size}</span> },
+      { label: "Prix de la carte", align: "right", render: (r) => <span className="font-mono">{formatDA(r.monthPrice)}</span> },
       {
-        label: "Séance élève",
+        label: "Séance chevalier",
         align: "right",
         render: (r) => (
           <span>
@@ -2204,7 +2174,7 @@ export function ReportsPage() {
         ),
       },
       {
-        label: "Part école / séance",
+        label: "Part club / séance",
         align: "right",
         render: (r) => (
           <span>
@@ -2233,7 +2203,7 @@ export function ReportsPage() {
       id: "planner",
       label: "Emplois du temps",
       subtitle:
-        "Le tarif de chaque créneau au centime près, ce qu'il a encaissé sur la période et ce qu'il doit à son enseignant.",
+        "Le tarif de chaque créneau au centime près, ce qu'il a encaissé sur la période et ce qu'il doit à son entraîneur.",
       icon: <CalendarClock className="h-4 w-4" />,
       cards: [
         {
@@ -2241,7 +2211,7 @@ export function ReportsPage() {
           value: `${plannerRows.length}`,
           tone: "primary",
           icon: <CalendarClock className="h-5 w-5" />,
-          hint: `${plannerPriced} avec un tarif mensuel`,
+          hint: `${plannerPriced} avec un tarif par carte`,
           detail: {
             columns: tariffColumns,
             rows: plannerRows,
@@ -2259,7 +2229,7 @@ export function ReportsPage() {
           detail: {
             columns: [
               { label: "Emploi du temps", render: (r) => <strong className="text-ink">{r.title}</strong> },
-              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacher}</span> },
+              { label: "Entraîneur", render: (r) => <span className="text-muted">{r.teacher}</span> },
               { label: "Séances tenues", align: "right", render: (r) => <span className="font-mono">{r.seances}</span> },
               { label: "Présences", align: "right", render: (r) => <span className="font-mono text-primary">{r.presents}</span> },
               { label: "Encaissé", align: "right", render: (r) => <strong className="text-success">{inflow(r.collected)}</strong> },
@@ -2272,38 +2242,38 @@ export function ReportsPage() {
           },
         },
         {
-          label: "Part enseignants générée",
+          label: "Part entraîneurs générée",
           value: outflow(plannerTeacher),
           tone: "warning",
           icon: <GraduationCap className="h-5 w-5" />,
-          hint: "Ce que les séances de la période doivent aux enseignants",
+          hint: "Ce que les séances de la période doivent aux entraîneurs",
           detail: {
             columns: [
               { label: "Emploi du temps", render: (r) => <strong className="text-ink">{r.title}</strong> },
-              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacher}</span> },
+              { label: "Entraîneur", render: (r) => <span className="text-muted">{r.teacher}</span> },
               { label: "Part / séance", align: "right", render: (r) => <span className="font-mono text-warning">{formatDA(r.teacherPerSeance)}</span> },
               { label: "Généré", align: "right", render: (r) => <span className="text-success">{inflow(r.collected)}</span> },
               { label: "Dû au prof", align: "right", render: (r) => <strong className="text-warning">{outflow(r.teacherDue)}</strong> },
-              { label: "Marge école", align: "right", render: (r) => <strong className={r.margin >= 0 ? "text-success" : "text-danger"}>{signed(r.margin)}</strong> },
+              { label: "Marge club", align: "right", render: (r) => <strong className={r.margin >= 0 ? "text-success" : "text-danger"}>{signed(r.margin)}</strong> },
             ],
             rows: plannerRows,
-            totalLabel: "Total dû aux enseignants",
+            totalLabel: "Total dû aux entraîneurs",
             totalValue: outflow(plannerTeacher),
             totalTone: "warning",
             searchable: (r) => `${r.title} ${r.teacher}`,
           },
         },
         {
-          label: "Potentiel mensuel du catalogue",
+          label: "Potentiel par carte du catalogue",
           value: formatDA(plannerPotential),
           tone: "sky",
           icon: <TrendingUp className="h-5 w-5" />,
-          hint: "Prix du mois × élèves inscrits, emploi par emploi",
+          hint: "Prix de la carte × chevaliers inscrits, emploi par emploi",
           detail: {
             columns: [
               { label: "Emploi du temps", render: (r) => <strong className="text-ink">{r.title}</strong> },
-              { label: "Élèves", align: "right", render: (r) => <span className="font-mono text-primary">{r.roster}</span> },
-              { label: "Prix du mois", align: "right", render: (r) => <span className="font-mono">{formatDA(r.monthPrice)}</span> },
+              { label: "Chevaliers", align: "right", render: (r) => <span className="font-mono text-primary">{r.roster}</span> },
+              { label: "Prix de la carte", align: "right", render: (r) => <span className="font-mono">{formatDA(r.monthPrice)}</span> },
               { label: "Potentiel", align: "right", render: (r) => <strong className="text-sky-500">{formatDA(r.potentialMonth)}</strong> },
             ],
             rows: [...plannerRows].sort((a, b) => b.potentialMonth - a.potentialMonth),
@@ -2328,28 +2298,28 @@ export function ReportsPage() {
               formula: "somme des montants débités sur les présences de la période",
             },
             {
-              label: "Part des enseignants",
+              label: "Part des entraîneurs",
               value: outflow(plannerTeacher),
               tone: "warning",
-              formula: "part enseignant du mois ÷ séances du mois, × présences",
+              formula: "part entraîneur de la carte ÷ séances de la carte, × présences",
             },
             {
-              label: "Marge de l'école",
+              label: "Marge du club",
               value: signed(plannerCollected - plannerTeacher),
               tone: plannerCollected - plannerTeacher >= 0 ? "success" : "danger",
               emphasis: true,
-              formula: "encaissé − part des enseignants",
+              formula: "encaissé − part des entraîneurs",
             },
           ],
           note:
-            "Prix d'une séance = prix du mois ÷ séances du mois. La part de l'école et celle de l'enseignant se divisent de la même façon, DÉCIMALES COMPRISES : arrondir chaque division au dinar faisait dériver la paie de plusieurs dinars par mois.",
+            "Prix d'une séance = prix de la carte ÷ séances de la carte. La part du club et celle de l'entraîneur se divisent de la même façon, DÉCIMALES COMPRISES : arrondir chaque division au dinar faisait dériver la paie de plusieurs dinars par carte.",
         },
       ],
       tables: [
         {
           title: "Tarif détaillé de chaque emploi du temps",
           icon: <Ticket className="h-3.5 w-3.5 text-primary" />,
-          note: "Chaque colonne montre sa division : ce que l'élève paie, ce que l'école garde, ce que l'enseignant touche.",
+          note: "Chaque colonne montre sa division : ce que le chevalier paie, ce que le club garde, ce que l'entraîneur touche.",
           spec: {
             columns: tariffColumns,
             rows: plannerRows,
@@ -2362,17 +2332,17 @@ export function ReportsPage() {
       ],
     };
 
-    /* =========================== PAIE ENSEIGNANTS ====================== */
+    /* =========================== PAIE ENTRAÎNEURS ====================== */
     /**
-     * LES RÈGLEMENTS D'ENSEIGNANTS, PIÈCE PAR PIÈCE.
+     * LES RÈGLEMENTS D'ENTRAÎNEURS, PIÈCE PAR PIÈCE.
      *
-     * Chaque règlement fige ce qu'il a payé : les MOIS d'emploi du temps
-     * soldés, ce qui a été retenu (dépenses, acomptes, scolarités d'enfants) et
-     * — depuis les arriérés — les parts d'un mois DÉJÀ payé qu'un élève a
+     * Chaque règlement fige ce qu'il a payé : les CARTE d'emploi du temps
+     * soldés, ce qui a été retenu (dépenses, acomptes, cotisations d'enfants) et
+     * — depuis les arriérés — les parts d'une carte DÉJÀ payé qu'un chevalier a
      * débloquées en réglant en retard. Les trois se lisent séparément, sinon un
-     * rattrapage se confond avec le mois courant.
+     * rattrapage se confond avec la carte courante.
      */
-    /** Les emplois du temps et les mois qu'un règlement a soldés. */
+    /** Les emplois du temps et les cartes qu'un règlement a soldés. */
     const paySessionsOf = (tp: (typeof teacherPayments)[number]) => [
       ...(tp.months ?? []).map((m) => m.sessionId),
       ...(tp.board ? [tp.board.sessionId] : []),
@@ -2385,7 +2355,7 @@ export function ReportsPage() {
     const payrollRows = teacherPayments
       .filter((tp) => inRange(tp.paidAt))
       .filter((tp) => teacherFilter === "all" || tp.teacherId === teacherFilter)
-      // Un règlement de mois nomme son emploi du temps : les deux filtres
+      // Un règlement de carte nomme son emploi du temps : les deux filtres
       // transverses s'appliquent donc à la paie comme au reste de l'écran.
       .filter((tp) => sessionFilter === "all" || paySessionsOf(tp).includes(sessionFilter))
       .filter((tp) => monthFilter === "all" || payMonthsOf(tp).includes(monthFilter))
@@ -2403,11 +2373,11 @@ export function ReportsPage() {
       .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
 
     /**
-     * CE QUE CHAQUE RÈGLEMENT A PAYÉ, ÉLÈVE PAR ÉLÈVE.
+     * CE QUE CHAQUE RÈGLEMENT A PAYÉ, CHEVALIER PAR CHEVALIER.
      *
-     * Les règlements de mois portent la photographie de leurs trois tables :
-     * on peut donc descendre jusqu'à la ligne — « cet élève, sur ce mois, a
-     * rapporté tant à cet enseignant » — sans rien recalculer, et sans que la
+     * Les règlements de carte portent la photographie de leurs trois tables :
+     * on peut donc descendre jusqu'à la ligne — « ce chevalier, sur cette carte, a
+     * rapporté tant à cet entraîneur » — sans rien recalculer, et sans que la
      * relecture puisse diverger de ce qui a été versé.
      */
     const payStudentLines = payrollRows.flatMap((r) =>
@@ -2442,21 +2412,21 @@ export function ReportsPage() {
 
     const payrollSection: Section = {
       id: "payroll",
-      label: "Paie enseignants",
+      label: "Paie entraîneurs",
       subtitle:
-        "Chaque règlement, ce qu'il a soldé mois par mois, ce qui en a été retenu et les arriérés qu'il a rattrapés.",
+        "Chaque règlement, ce qu'il a soldé carte par carte, ce qui en a été retenu et les arriérés qu'il a rattrapés.",
       icon: <HandCoins className="h-4 w-4" />,
       cards: [
         {
-          label: "Net versé aux enseignants",
+          label: "Net versé aux entraîneurs",
           value: outflow(payrollNet),
           tone: "danger",
           icon: <Banknote className="h-5 w-5" />,
           detail: {
             columns: [
               { label: "Date", render: (r) => dateTimeCell(r.paidAt) },
-              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
-              { label: "Mois soldés", render: (r) => <span className="text-muted">{r.monthsLabel || "—"}</span> },
+              { label: "Entraîneur", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Cartes soldées", render: (r) => <span className="text-muted">{r.monthsLabel || "—"}</span> },
               { label: "Brut", align: "right", render: (r) => <span className="font-mono">{formatDA(r.gross ?? r.amount)}</span> },
               { label: "Retenues", align: "right", render: (r) => <span className="text-danger">{r.deductions > 0 ? outflow(r.deductions) : "—"}</span> },
               { label: "Net", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
@@ -2473,11 +2443,11 @@ export function ReportsPage() {
           value: formatDA(payrollGross),
           tone: "primary",
           icon: <Receipt className="h-5 w-5" />,
-          hint: "Avant dépenses, acomptes et scolarités d'enfants",
+          hint: "Avant dépenses, acomptes et cotisations d'enfants",
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.paidAt) },
-              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Entraîneur", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
               { label: "Présences", align: "right", render: (r) => <span className="font-mono">{r.studentsCount}</span> },
               { label: "Créneaux", align: "right", render: (r) => <span className="font-mono">{r.sessionsCount}</span> },
               { label: "Brut", align: "right", render: (r) => <strong className="text-primary">{formatDA(r.gross ?? r.amount)}</strong> },
@@ -2494,14 +2464,14 @@ export function ReportsPage() {
           value: outflow(payrollDeducted),
           tone: "warning",
           icon: <ArrowDownLeft className="h-5 w-5" />,
-          hint: "Dépenses, acomptes et scolarités d'enfants",
+          hint: "Dépenses, acomptes et cotisations d'enfants",
           detail: {
             columns: [
               { label: "Date", render: (r) => dateCell(r.paidAt) },
-              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Entraîneur", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
               { label: "Dépenses", align: "right", render: (r) => <span className="text-muted">{(r.expenses ?? []).length}</span> },
               { label: "Acomptes", align: "right", render: (r) => <span className="text-muted">{(r.acomptes ?? []).length}</span> },
-              { label: "Scolarités", align: "right", render: (r) => <span className="text-muted">{(r.childDebts ?? []).length + (r.childCharges ?? []).length}</span> },
+              { label: "Cotisations", align: "right", render: (r) => <span className="text-muted">{(r.childDebts ?? []).length + (r.childCharges ?? []).length}</span> },
               { label: "Total retenu", align: "right", render: (r) => <strong className="text-warning">{outflow(r.deductions)}</strong> },
             ],
             rows: payrollRows.filter((r) => r.deductions > 0),
@@ -2516,14 +2486,14 @@ export function ReportsPage() {
           value: formatDA(payrollArrears),
           tone: "success",
           icon: <HandCoins className="h-5 w-5" />,
-          hint: `${arrearLines.length} élève-mois payés en retard`,
+          hint: `${arrearLines.length} chevalier-carte payées en retard`,
           detail: {
             columns: [
               { label: "Réglé le", render: (r) => dateCell(r.paidAt) },
-              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacherName}</span> },
-              { label: "Élève", render: (r) => <strong className="text-ink">{r.studentName}</strong> },
+              { label: "Entraîneur", render: (r) => <span className="text-muted">{r.teacherName}</span> },
+              { label: "Chevalier", render: (r) => <strong className="text-ink">{r.studentName}</strong> },
               { label: "Emploi du temps", render: (r) => <span className="text-muted">{r.emploi}</span> },
-              { label: "Mois d'origine", render: (r) => <Badge tone="primary" className="text-[9px]">{r.monthCode}</Badge> },
+              { label: "Carte d'origine", render: (r) => <Badge tone="primary" className="text-[9px]">{carteShort(r.monthCode)}</Badge> },
               { label: "Séances", align: "right", render: (r) => <span className="font-mono">{r.seances}</span> },
               { label: "Part rattrapée", align: "right", render: (r) => <strong className="text-success">{formatDA(r.amount)}</strong> },
             ],
@@ -2531,8 +2501,8 @@ export function ReportsPage() {
             totalLabel: "Total rattrapé",
             totalValue: formatDA(payrollArrears),
             totalTone: "success",
-            empty: "Aucun arriéré débloqué sur cette période — tous les élèves avaient payé à temps.",
-            searchable: (r) => `${r.studentName} ${r.emploi} ${r.monthCode} ${r.teacherName}`,
+            empty: "Aucun arriéré débloqué sur cette période — tous les chevaliers avaient payé à temps.",
+            searchable: (r) => `${r.studentName} ${r.emploi} ${carteShort(r.monthCode)} ${r.teacherName}`,
           },
         },
       ],
@@ -2544,12 +2514,12 @@ export function ReportsPage() {
           lines: [
             { label: "Règlements sur la période", value: `${payrollRows.length}`, strong: true },
             { label: "Brut des séances", value: formatDA(payrollGross), tone: "primary" },
-            { label: "Retenues (dépenses, acomptes, scolarités)", value: outflow(payrollDeducted), tone: "warning" },
-            { label: "Arriérés débloqués", value: formatDA(payrollArrears), tone: "success", formula: "parts d'un mois déjà réglé, libérées par un paiement tardif" },
+            { label: "Retenues (dépenses, acomptes, cotisations)", value: outflow(payrollDeducted), tone: "warning" },
+            { label: "Arriérés débloqués", value: formatDA(payrollArrears), tone: "success", formula: "parts d'une carte déjà réglé, libérées par un paiement tardif" },
             { label: "Net versé", value: outflow(payrollNet), tone: "danger", emphasis: true },
           ],
           note:
-            "Un mois déjà réglé peut encore devoir quelque chose : la part d'un élève qui n'avait pas payé est RETENUE, puis rattrapée dès qu'il s'acquitte. Elle est comptée avec son mois d'origine, jamais avec le mois courant.",
+            "Une carte déjà réglée peut encore devoir quelque chose : la part d'un chevalier qui n'avait pas payé est RETENUE, puis rattrapée dès qu'il s'acquitte. Elle est comptée avec son carte d'origine, jamais avec la carte courante.",
         },
       ],
       tables: [
@@ -2559,13 +2529,13 @@ export function ReportsPage() {
           spec: {
             columns: [
               { label: "Date", render: (r) => dateTimeCell(r.paidAt) },
-              { label: "Enseignant", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
+              { label: "Entraîneur", render: (r) => <strong className="text-ink">{r.teacherName}</strong> },
               { label: "Mode", render: (r) => (
                 <Badge tone="neutral" className="text-[9px]">
                   {r.method === "percent" ? `${r.percentage ?? 0} %` : r.method === "group" ? "par groupe" : "fixe"}
                 </Badge>
               ) },
-              { label: "Mois soldés", render: (r) => <span className="text-muted">{r.monthsLabel || "—"}</span> },
+              { label: "Cartes soldées", render: (r) => <span className="text-muted">{r.monthsLabel || "—"}</span> },
               { label: "Arriérés", align: "right", render: (r) => <span className="text-success">{r.arrearsTotal > 0 ? formatDA(r.arrearsTotal) : "—"}</span> },
               { label: "Retenues", align: "right", render: (r) => <span className="text-warning">{r.deductions > 0 ? outflow(r.deductions) : "—"}</span> },
               { label: "Net", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
@@ -2578,19 +2548,19 @@ export function ReportsPage() {
           },
         },
         {
-          title: "Table 1 — les élèves réglés, ligne par ligne",
+          title: "Table 1 — les chevaliers réglés, ligne par ligne",
           icon: <Users className="h-3.5 w-3.5 text-success" />,
           spec: {
             columns: [
               { label: "Réglé le", render: (r) => dateCell(r.paidAt) },
-              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacherName}</span> },
-              { label: "Emploi · mois", render: (r) => (
+              { label: "Entraîneur", render: (r) => <span className="text-muted">{r.teacherName}</span> },
+              { label: "Emploi · carte", render: (r) => (
                 <span className="text-muted">
                   <strong className="block text-ink">{r.emploi} · {r.groupName}</strong>
-                  {r.monthCode}
+                  {carteShort(r.monthCode)}
                 </span>
               ) },
-              { label: "Élève", render: (r) => (
+              { label: "Chevalier", render: (r) => (
                 <span>
                   <strong className="block text-ink">{r.name}</strong>
                   <span className="font-mono text-[9px] text-muted">{r.registrationNumber || "—"}</span>
@@ -2600,21 +2570,21 @@ export function ReportsPage() {
               { label: "Part / séance", align: "right", render: (r) => <span className="font-mono text-muted">{formatDA(r.perSeance)}</span> },
               { label: "Statut", render: (r) => (
                 r.schoolCovered ? (
-                  <Badge tone="danger" className="text-[9px]">avancé par l&apos;école</Badge>
+                  <Badge tone="danger" className="text-[9px]">avancé par l&apos;club</Badge>
                 ) : r.withheld ? (
                   <Badge tone="warning" className="text-[9px]">retenu</Badge>
                 ) : (
                   <Badge tone="success" className="text-[9px]">payé</Badge>
                 )
               ) },
-              { label: "Part enseignant", align: "right", render: (r) => <strong className="text-success">{formatDA(r.amount)}</strong> },
+              { label: "Part entraîneur", align: "right", render: (r) => <strong className="text-success">{formatDA(r.amount)}</strong> },
             ],
             rows: payStudentLines,
-            totalLabel: "Total des parts élèves",
+            totalLabel: "Total des parts chevaliers",
             totalValue: formatDA(payStudentsTotal),
             totalTone: "success",
-            empty: "Aucun règlement de mois sur cette période — les règlements plus anciens n'ont pas ce détail.",
-            searchable: (r) => `${r.name} ${r.registrationNumber ?? ""} ${r.emploi} ${r.monthCode} ${r.teacherName}`,
+            empty: "Aucun règlement de carte sur cette période — les règlements plus anciens n'ont pas ce détail.",
+            searchable: (r) => `${r.name} ${r.registrationNumber ?? ""} ${r.emploi} ${carteShort(r.monthCode)} ${r.teacherName}`,
           },
         },
         {
@@ -2623,11 +2593,11 @@ export function ReportsPage() {
           spec: {
             columns: [
               { label: "Réglé le", render: (r) => dateCell(r.paidAt) },
-              { label: "Enseignant", render: (r) => <span className="text-muted">{r.teacherName}</span> },
-              { label: "Emploi · mois", render: (r) => <span className="text-muted">{r.emploi} · {r.monthCode}</span> },
+              { label: "Entraîneur", render: (r) => <span className="text-muted">{r.teacherName}</span> },
+              { label: "Emploi · carte", render: (r) => <span className="text-muted">{r.emploi} · {carteShort(r.monthCode)}</span> },
               { label: "Nature", render: (r) => (
                 <Badge tone={r.kind === "acompte" ? "primary" : r.kind === "expense" ? "warning" : "danger"} className="text-[9px]">
-                  {r.kind === "expense" ? "Dépense" : r.kind === "acompte" ? "Acompte" : r.kind === "child" ? "Scolarité enfant" : "Scolarité avancée"}
+                  {r.kind === "expense" ? "Dépense" : r.kind === "acompte" ? "Acompte" : r.kind === "child" ? "Cotisation enfant" : "Cotisation avancée"}
                 </Badge>
               ) },
               { label: "Libellé", render: (r) => (
@@ -2643,7 +2613,7 @@ export function ReportsPage() {
             totalValue: outflow(payDeductionsTotal),
             totalTone: "warning",
             empty: "Aucune retenue détaillée sur cette période.",
-            searchable: (r) => `${r.label} ${r.description ?? ""} ${r.teacherName} ${r.emploi} ${r.monthCode}`,
+            searchable: (r) => `${r.label} ${r.description ?? ""} ${r.teacherName} ${r.emploi} ${carteShort(r.monthCode)}`,
           },
         },
       ],
@@ -2821,7 +2791,7 @@ export function ReportsPage() {
       (n, st) => n + studentDebt(db, st.id) + (st.registrationDue || 0),
       0,
     );
-    // Ce que les enseignants ont réellement touché sur la période : la ligne
+    // Ce que les entraîneurs ont réellement touché sur la période : la ligne
     // que la direction cherche en premier quand elle ouvre les rapports.
     const payroll = teacherPayments
       .filter((tp) => inRange(tp.paidAt))
@@ -2832,7 +2802,7 @@ export function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        emoji="💰"
+        icon={Wallet}
         title="Rapports Financiers"
         subtitle="Chaque interface de l'application, dans le détail : les chiffres, leur calcul, et la liste derrière chaque chiffre"
       />
@@ -2840,8 +2810,8 @@ export function ReportsPage() {
       {/* -----------------------------------------------------------------
           LA BARRE DE PÉRIODE ET DE FILTRES.
 
-          Un bilan ne se lit presque jamais « en entier » : on veut le mois de
-          la 4AP, ce qu'un enseignant a produit, ce qu'un module a rapporté. Ces
+          Un bilan ne se lit presque jamais « en entier » : on veut la carte de
+          la 4AP, ce qu'un entraîneur a produit, ce qu'un module a rapporté. Ces
           filtres restreignent les ENSEMBLES DE BASE, si bien que chaque carte,
           chaque calcul et chaque tableau de l'écran parlent du même périmètre.
           ----------------------------------------------------------------- */}
@@ -2854,8 +2824,8 @@ export function ReportsPage() {
             [
               { id: "today", label: "Aujourd'hui" },
               { id: "week", label: "7 jours" },
-              { id: "month", label: "Ce mois" },
-              { id: "quarter", label: "3 mois" },
+              { id: "month", label: "Cette carte" },
+              { id: "quarter", label: "3 carte" },
               { id: "year", label: "Cette année" },
               { id: "all", label: "Tout" },
             ] as const
@@ -2906,14 +2876,14 @@ export function ReportsPage() {
         <div className="grid grid-cols-1 gap-3 border-t border-line pt-3 sm:grid-cols-2 lg:grid-cols-6">
           <div>
             <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted">
-              <Filter className="h-3 w-3" /> Classe
+              <Filter className="h-3 w-3" /> Catégorie
             </label>
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
               className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
             >
-              <option value="all">Toutes les classes</option>
+              <option value="all">Toutes les catégories</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -2924,14 +2894,14 @@ export function ReportsPage() {
           </div>
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-              Enseignant
+              Entraîneur
             </label>
             <select
               value={teacherFilter}
               onChange={(e) => setTeacherFilter(e.target.value)}
               className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
             >
-              <option value="all">Tous les enseignants</option>
+              <option value="all">Tous les entraîneurs</option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.firstName} {t.lastName}
@@ -2973,11 +2943,11 @@ export function ReportsPage() {
               ))}
             </select>
           </div>
-          {/* LE MOIS D'EMPLOI DU TEMPS — pas un mois du calendrier.
+          {/* LE CARTE D'EMPLOI DU TEMPS — pas une carte du calendrier.
 
               Chaque emploi du temps compte les siens : M1 s'ouvre à la première
               présence et se ferme sur la séance qui complète le pack. Ce filtre
-              restreint la paie des enseignants à ce mois-là. */}
+              restreint la paie des entraîneurs à cette carte-là. */}
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
               Mois (paie)
@@ -2987,7 +2957,7 @@ export function ReportsPage() {
               onChange={(e) => setMonthFilter(e.target.value)}
               className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink outline-none focus:border-primary"
             >
-              <option value="all">Tous les mois</option>
+              <option value="all">Tous les cartes</option>
               {Array.from({ length: 12 }, (_, i) => `M${i + 1}`).map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -2997,7 +2967,7 @@ export function ReportsPage() {
           </div>
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-              Élève (nom, N°)
+              Chevalier (nom, N°)
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
@@ -3033,8 +3003,8 @@ export function ReportsPage() {
             { label: "Entrées de la période", value: `+${formatDA(headline.income)}`, tone: "success" as Tone, icon: <ArrowUpRight className="h-4 w-4" /> },
             { label: "Sorties de la période", value: `-${formatDA(headline.outgo)}`, tone: "danger" as Tone, icon: <ArrowDownLeft className="h-4 w-4" /> },
             { label: "Flux net", value: `${headline.net >= 0 ? "+" : "-"}${formatDA(Math.abs(headline.net))}`, tone: (headline.net >= 0 ? "success" : "danger") as Tone, icon: <Wallet className="h-4 w-4" /> },
-            { label: "Payé aux enseignants", value: `-${formatDA(headline.payroll)}`, tone: "primary" as Tone, icon: <HandCoins className="h-4 w-4" /> },
-            { label: "Dettes des élèves", value: formatDA(headline.debt), tone: "warning" as Tone, icon: <AlertCircle className="h-4 w-4" /> },
+            { label: "Payé aux entraîneurs", value: `-${formatDA(headline.payroll)}`, tone: "primary" as Tone, icon: <HandCoins className="h-4 w-4" /> },
+            { label: "Dettes des chevaliers", value: formatDA(headline.debt), tone: "warning" as Tone, icon: <AlertCircle className="h-4 w-4" /> },
           ].map((k) => (
             <div key={k.label} className="flex items-center justify-between gap-2 rounded-2xl border border-line bg-surface p-4 card-shadow">
               <div className="min-w-0">

@@ -50,7 +50,7 @@ function studentIdentityHtml(db: Database, student: Student): string {
   const caseLabel = studentCaseLabel(student);
   return `
     <div class="frame frame-info">
-      <h3>Informations de l'élève</h3>
+      <h3>Informations du chevalier</h3>
       <table>
         <tbody>
           <tr><th style="width:32%">N° d'inscription</th><td><strong style="font-family:monospace;font-size:1.15em">${esc(registrationNumberOf(db, student))}</strong></td></tr>
@@ -107,8 +107,8 @@ export function inscriptionVoucherHtml(
         <thead>
           <tr>
             <th>Emploi du temps</th>
-            <th class="ctr">Mois</th>
-            <th class="ctr">Séances / mois</th>
+            <th class="ctr">Carte</th>
+            <th class="ctr">Séances / carte</th>
             <th class="num">Prix séance</th>
             <th class="num">Solde versé</th>
           </tr>
@@ -122,14 +122,14 @@ export function inscriptionVoucherHtml(
       ${registrationFee > 0 ? `<div class="summary-line"><span>Frais d'inscription</span><strong>${da(registrationFee)}</strong></div>` : ""}
       <div class="net-pay-box"><span>Total versé</span><span>${da(total)}</span></div>
     </div>
-    ${signaturesHtml("La Direction", "Le Parent / L'Élève")}
+    ${signaturesHtml("La Direction", "Le Parent / L'Chevalier")}
     ${metaFooterHtml(db.school.name, language)}
   `;
   return printDocument({ title: "Bon d'inscription", lang: language, bodyHtml: body });
 }
 
 // ---------------------------------------------------------------------------
-// LE REÇU DE PAIEMENT DE L'ÉLÈVE — le petit ticket "وصل دفع" remis à la
+// LE REÇU DE PAIEMENT DE LE CHEVALIER — le petit ticket "وصل دفع" remis à la
 // famille à chaque encaissement (rechargement de solde, règlement de frais,
 // séance libre). Un seul générateur visuel (`brandedTicketHtml`) habille les
 // trois documents : même logo, mêmes couleurs, même reçu numéroté — seul le
@@ -144,10 +144,10 @@ const TICKET_LABELS = {
     group: "Emploi du temps :",
     date: "Date :",
     amount: "Montant :",
-    month: "Mois :",
+    month: "Carte :",
     note: "Remarque :",
     items: "Désignation",
-    itemsDate: "Mois / Date",
+    itemsDate: "Carte / Date",
     total: "Total",
     thanks: "Merci pour votre confiance",
     disclaimer: "Ce reçu ne constitue pas une pièce justificative de remboursement.",
@@ -243,7 +243,7 @@ export interface TicketSummaryLine {
 }
 
 /**
- * LE MODÈLE PAPIER DE L'ÉCOLE — le seul générateur visuel des reçus.
+ * LE MODÈLE PAPIER DE LE CLUB — le seul générateur visuel des reçus.
  *
  * Reçu de solde, reçu de frais, acompte d'un travailleur, fiche de paie d'un
  * travailleur : tous sortent d'ici, donc tous se ressemblent, et changer le
@@ -403,7 +403,7 @@ export function soldReceiptHtml(
 
 // ---------------------------------------------------------------------------
 // Reçu de règlement de FRAIS — un livre, une tenue, une sortie, ou la dette que
-// l'école avait avancée. Il se lit comme le reçu de solde, à ceci près que la
+// le club avait avancée. Il se lit comme le reçu de solde, à ceci près que la
 // dernière colonne ne dit pas un solde mais CE QUI RESTE DÛ sur ce frais-là :
 // la famille repart en sachant si elle a fini de payer.
 // ---------------------------------------------------------------------------
@@ -428,7 +428,7 @@ export function chargeReceiptHtml(
     language: Language;
     title?: string;
     note?: string;
-    /** ce que l'élève doit ENCORE sur TOUS ses frais, celui-ci compris */
+    /** ce que le chevalier doit ENCORE sur TOUS ses frais, celui-ci compris */
     restAfter?: number;
   },
 ): string {
@@ -468,10 +468,10 @@ export function chargeReceiptHtml(
  * LE REÇU D'UN PAIEMENT QU'ON RELIT.
  *
  * `soldReceiptHtml` sert au moment de l'encaissement : la réception SAIT ce
- * qu'elle vient de faire, et lui passe le libellé, le mois et le solde obtenu.
- * Ici on part du versement lui-même, des mois ou des années plus tard —
- * l'historique d'un élève, la cloche du tableau de bord — et tout se relit
- * depuis la ligne : sur quel emploi du temps il portait, quel mois il créditait,
+ * qu'elle vient de faire, et lui passe le libellé, la carte et le solde obtenu.
+ * Ici on part du versement lui-même, des cartes ou des années plus tard —
+ * l'historique d'un chevalier, la cloche du tableau de bord — et tout se relit
+ * depuis la ligne : sur quel emploi du temps il portait, quel carte il créditait,
  * et ce qu'il a laissé derrière lui.
  *
  * Un règlement de FRAIS (un livre, une tenue) sort sur son propre reçu : la
@@ -484,7 +484,7 @@ export function paymentReceiptHtml(
   const { payment, language } = opts;
   const student = db.students.find((s) => s.id === payment.studentId);
   if (!student) {
-    throw new Error("Le versement ne porte sur aucun élève connu.");
+    throw new Error("Le versement ne porte sur aucun chevalier connu.");
   }
 
   // Un règlement de frais : le reçu dit ce qu'il reste dû SUR CE FRAIS.
@@ -605,20 +605,20 @@ export function presenceSheetHtml(
       <h3>
         Séance du ${esc(formatDateFr(date))} · ${esc(session.startTime)}–${esc(session.endTime)}
         · Groupe : ${esc(groupName(db, session.groupId))}
-        · Salle : ${esc(salleName(db, session.salleId))}
-        · Enseignant : ${esc(teacherName(db, session.teacherId))}
+        · Arène : ${esc(salleName(db, session.salleId))}
+        · Entraîneur : ${esc(teacherName(db, session.teacherId))}
       </h3>
       <table>
         <thead>
           <tr>
-            <th class="ctr">N°</th><th>Élève</th><th>Téléphone</th>
+            <th class="ctr">N°</th><th>Chevalier</th><th>Téléphone</th>
             ${head}
             <th class="num">Solde ${esc(monthCode)}</th>
-            <th class="num">Mois préc.</th>
+            <th class="num">Carte préc.</th>
             <th class="num">Autres</th>
           </tr>
         </thead>
-        <tbody>${body || `<tr><td colspan="${slotCount + 6}" class="ctr">Aucun élève inscrit.</td></tr>`}</tbody>
+        <tbody>${body || `<tr><td colspan="${slotCount + 6}" class="ctr">Aucun chevalier inscrit.</td></tr>`}</tbody>
       </table>
       <p style="margin-top:10px;font-size:0.8em;color:#5c567a">
         Légende : <span class="badge badge-success">P</span> présent ·

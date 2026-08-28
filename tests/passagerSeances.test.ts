@@ -6,17 +6,17 @@ import { boardTotals, buildPayBoard, freezeBoard, monthTiles } from "@/lib/teach
 import { independentTotals, passagersOn } from "@/lib/helpers";
 
 /**
- * LES ÉLÈVES DE PASSAGE — une séance vendue à quelqu'un qui n'est pas inscrit.
+ * LES CHEVALIERS DE PASSAGE — une séance vendue à quelqu'un qui n'est pas inscrit.
  *
  * Ce que ces tests fixent, dans l'ordre où la réception le vit :
  *
  *  1. On en saisit PLUSIEURS d'un coup, et un nom vide reste valide : quelqu'un
  *     qui vient une fois n'a pas toujours de nom qu'on retienne.
- *  2. Le prix se partage : ce que l'école garde est écrit, le reste est la part
- *     de l'enseignant. Rien n'est deviné.
+ *  2. Le prix se partage : ce que le club garde est écrit, le reste est la part
+ *     de l'entraîneur. Rien n'est deviné.
  *  3. Ils apparaissent sur la feuille de CETTE séance-là et sur AUCUNE autre —
  *     la séance suivante repart sans eux.
- *  4. Leur part se règle avec le MOIS où la séance tombe, dans la table des
+ *  4. Leur part se règle avec le CARTE où la séance tombe, dans la table des
  *     retards de paiement et des séances libres, et une fois réglée elle ne
  *     revient jamais.
  */
@@ -90,7 +90,7 @@ const present = (studentId: string, date: string) =>
 const emploiOf = () => teacherEmplois(useData.getState(), TEACHER).find((e) => e.sessionId === SES)!;
 
 describe("le partage d'une séance libre", () => {
-  it("donne à l'enseignant ce que l'école ne garde pas", () => {
+  it("donne à l'entraîneur ce que le club ne garde pas", () => {
     expect(independentTotals({ price: 500, schoolShare: 200 })).toMatchObject({
       price: 500,
       school: 200,
@@ -98,14 +98,14 @@ describe("le partage d'une séance libre", () => {
     });
   });
 
-  it("borne la part de l'école au prix — elle ne peut pas manger plus que tout", () => {
+  it("borne la part du club au prix — elle ne peut pas manger plus que tout", () => {
     expect(independentTotals({ price: 500, schoolShare: 900 })).toMatchObject({
       school: 500,
       teacher: 0,
     });
   });
 
-  it("laisse tout à l'école quand la part n'a jamais été saisie", () => {
+  it("laisse tout au club quand la part n'a jamais été saisie", () => {
     // Une séance enregistrée avant ce découpage ne doit RIEN inventer : aucun
     // ancien total ne bouge derrière le dos de personne.
     const t = independentTotals({ price: 800 });
@@ -113,7 +113,7 @@ describe("le partage d'une séance libre", () => {
   });
 });
 
-describe("créer des élèves de passage sur une séance", () => {
+describe("créer des chevaliers de passage sur une séance", () => {
   beforeEach(board);
 
   it("en enregistre plusieurs d'un coup, nom vide compris", async () => {
@@ -131,7 +131,7 @@ describe("créer des élèves de passage sur une séance", () => {
 
     const rows = passagersOn(useData.getState(), SES, d1);
     expect(rows.map((r) => r.passagerName)).toEqual(["Sami", "Passager", "Nadia"]);
-    // Chacun paie 500, l'école garde 200, l'enseignant touche 300.
+    // Chacun paie 500, le club garde 200, l'entraîneur touche 300.
     expect(res.total).toBe(1500);
     expect(res.teacherTotal).toBe(900);
     expect(rows.every((r) => r.schoolShare === 200)).toBe(true);
@@ -163,10 +163,10 @@ describe("créer des élèves de passage sur une séance", () => {
   });
 });
 
-describe("la séance libre sur la paie de l'enseignant", () => {
+describe("la séance libre sur la paie de l'entraîneur", () => {
   beforeEach(board);
 
-  it("tombe dans le mois où elle a eu lieu, avec sa part", async () => {
+  it("tombe dans la carte où elle a eu lieu, avec sa part", async () => {
     const [d1, d2] = days(2);
     await useData.getState().addSold({ studentId: PAYER, subscriptionId: SUB, amount: 1000 });
     await present(PAYER, d1);
@@ -180,11 +180,11 @@ describe("la séance libre sur la paie de l'enseignant", () => {
     expect(m1.passagers).toHaveLength(2);
     expect(m1.passagerRevenue).toBe(1000);
     expect(m1.passagerPayable).toBe(600);
-    // Le mois doit désormais les 2 séances de l'élève (600) + les passagers.
+    // La carte doit désormais les 2 séances du chevalier (600) + les passagers.
     expect(m1.payable).toBe(600 + 600);
   });
 
-  it("apparaît dans la table 2 du mois, jamais dans celle des élèves", async () => {
+  it("apparaît dans la table 2 de la carte, jamais dans celle des chevaliers", async () => {
     const [d1, d2] = days(2);
     await useData.getState().addSold({ studentId: PAYER, subscriptionId: SUB, amount: 1000 });
     await present(PAYER, d1);
@@ -200,7 +200,7 @@ describe("la séance libre sur la paie de l'enseignant", () => {
     expect(b.passagers).toHaveLength(1);
     expect(b.passagersTotal).toBe(300);
     expect(b.passagersRevenue).toBe(500);
-    // Il n'est pas un élève du mois : il n'a ni solde, ni dette, ni ligne là-bas.
+    // Il n'est pas un chevalier de la carte : il n'a ni solde, ni dette, ni ligne là-bas.
     expect(b.students.some((r) => r.name === "Sami")).toBe(false);
 
     const totals = boardTotals(b, {
@@ -209,13 +209,13 @@ describe("la séance libre sur la paie de l'enseignant", () => {
       passagerIds: b.passagers.map((r) => r.id),
       deductionIds: [],
     });
-    // 2 séances × 300 pour l'élève, + 300 pour le passager.
+    // 2 séances × 300 pour le chevalier, + 300 pour le passager.
     expect(totals.students).toBe(600);
     expect(totals.passagers).toBe(300);
     expect(totals.gross).toBe(900);
   });
 
-  it("se règle avec le mois, et ne revient jamais ensuite", async () => {
+  it("se règle avec la carte, et ne revient jamais ensuite", async () => {
     const [d1, d2] = days(2);
     await useData.getState().addSold({ studentId: PAYER, subscriptionId: SUB, amount: 1000 });
     await present(PAYER, d1);
@@ -247,7 +247,7 @@ describe("la séance libre sur la paie de l'enseignant", () => {
     });
     expect(res.ok).toBe(true);
 
-    // La séance libre est marquée réglée : elle sort des mois à venir.
+    // La séance libre est marquée réglée : elle sort des cartes à venir.
     expect(useData.getState().independent.every((i) => i.teacherPaid)).toBe(true);
     const after = emploiOf();
     expect(after.months[0].passagers).toHaveLength(0);
@@ -284,8 +284,8 @@ describe("la séance libre sur la paie de l'enseignant", () => {
     expect(frozen.gross).toBe(frozen.studentsTotal + frozen.arrearsTotal + 300);
   });
 
-  it("rend le mois réglable même avant qu'il soit clos", async () => {
-    // Un passager paie d'avance : sa part n'attend pas la fin du mois.
+  it("rend la carte réglable même avant qu'il soit clos", async () => {
+    // Un passager paie d'avance : sa part n'attend pas la fin de la carte.
     const [d1] = days(1);
     await useData.getState().addSold({ studentId: PAYER, subscriptionId: SUB, amount: 1000 });
     await present(PAYER, d1);
@@ -296,7 +296,7 @@ describe("la séance libre sur la paie de l'enseignant", () => {
     const db = useData.getState();
     const tiles = monthTiles(db, emploiOf(), TEACHER);
     expect(tiles[0].passagerCount).toBe(1);
-    // L'école a tout gardé : la séance libre ne rapporte rien à l'enseignant.
+    // Le club a tout gardé : la séance libre ne rapporte rien à l'entraîneur.
     expect(tiles[0].passagers).toBe(0);
   });
 });

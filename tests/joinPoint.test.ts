@@ -15,18 +15,18 @@ import {
 import type { Student } from "@/lib/types";
 
 /**
- * Un élève n'entre pas sur un emploi du temps à sa séance 1 : il arrive LÀ OÙ
- * EN EST LE GROUPE. Inscrit pendant le 2e mois, sur la 3e séance, il est écrit
+ * Un chevalier n'entre pas sur un emploi du temps à sa séance 1 : il arrive LÀ OÙ
+ * EN EST LE GROUPE. Inscrit pendant le 2e carte, sur la 3e séance, il est écrit
  * sur M2 · séance 3 — les séances tenues avant lui ne sont pas les siennes et
- * les mois précédents ne le listent pas du tout.
+ * les cartes précédents ne le listent pas du tout.
  */
 
 const SUB = "sub-1";
 const SES = "ses-1";
-const OLD = "stu-1"; // l'élève qui suit le groupe depuis le début
+const OLD = "stu-1"; // le chevalier qui suit le groupe depuis le début
 const NEW = "stu-new"; // celui qui arrive en cours de route
 
-/** Un tableau propre : UN seul élève sur l'emploi, rien de pointé. */
+/** Un tableau propre : UN seul chevalier sur l'emploi, rien de pointé. */
 function board(monthSeances = 4) {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -85,7 +85,7 @@ async function groupOnM2Seance3(): Promise<string[]> {
   return days;
 }
 
-/** Le nouvel élève, tel que la fiche de création l'écrit. */
+/** Le nouvel chevalier, tel que la fiche de création l'écrit. */
 function registerNew(monthCode: string, slotIndex: number, day: string) {
   const student: Student = {
     id: NEW,
@@ -115,8 +115,8 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("l'élève entre là où en est le groupe", () => {
-  it("le point d'entrée est le mois vécu par le groupe et la séance du jour", async () => {
+describe("le chevalier entre là où en est le groupe", () => {
+  it("le point d'entrée est la carte vécu par le groupe et la séance du jour", async () => {
     board(4);
     const days = await groupOnM2Seance3();
 
@@ -145,7 +145,7 @@ describe("l'élève entre là où en est le groupe", () => {
     });
   });
 
-  it("la séance qui déborde du pack ouvre le mois suivant", async () => {
+  it("la séance qui déborde du pack ouvre la carte suivante", async () => {
     board(4);
     const days = scheduledDays(9);
     for (const day of days.slice(0, 8)) await present(OLD, day);
@@ -175,7 +175,7 @@ describe("l'élève entre là où en est le groupe", () => {
   });
 });
 
-describe("les mois et les séances d'avant ne sont pas les siens", () => {
+describe("les cartes et les séances d'avant ne sont pas les siens", () => {
   it("il n'est listé ni sur M1 ni sur les séances de M2 tenues avant lui", async () => {
     board(4);
     const days = await groupOnM2Seance3();
@@ -193,7 +193,7 @@ describe("les mois et les séances d'avant ne sont pas les siens", () => {
     expect(cycleSlots(db, NEW, SUB, "M1")).toEqual([]);
   });
 
-  it("sans avoir été pointé une seule fois, il vit déjà le mois du groupe", async () => {
+  it("sans avoir été pointé une seule fois, il vit déjà la carte du groupe", async () => {
     board(4);
     const days = await groupOnM2Seance3();
     registerNew("M2", 2, days[6]);
@@ -219,7 +219,7 @@ describe("les mois et les séances d'avant ne sont pas les siens", () => {
     expect(cycleSlots(useData.getState(), NEW, SUB, "M2")).toHaveLength(1);
   });
 
-  it("son mois se termine avec celui du groupe : 2 séances suffisent à le clore", async () => {
+  it("son carte se termine avec celui du groupe : 2 séances suffisent à le clore", async () => {
     board(4);
     const days = scheduledDays(9);
     for (const day of days.slice(0, 6)) await present(OLD, day);
@@ -239,12 +239,12 @@ describe("les mois et les séances d'avant ne sont pas les siens", () => {
     expect(cycleOf(useData.getState(), NEW, SUB, "M3").done).toBe(1);
   });
 
-  it("son solde est versé sur le mois de son entrée, pas sur M1", async () => {
+  it("son solde est versé sur la carte de son entrée, pas sur M1", async () => {
     const sub = board(4);
     const days = await groupOnM2Seance3();
     registerNew("M2", 2, days[6]);
 
-    // Le mois par défaut d'un versement est celui qu'il vit.
+    // La carte par défaut d'un versement est celui qu'il vit.
     await useData.getState().addSold({ studentId: NEW, subscriptionId: SUB, amount: 2400 });
     expect(cycleOf(useData.getState(), NEW, SUB, "M1").credited).toBe(0);
     expect(cycleOf(useData.getState(), NEW, SUB, "M2").credited).toBe(2400);
@@ -256,7 +256,7 @@ describe("les mois et les séances d'avant ne sont pas les siens", () => {
   });
 });
 
-describe("désinscrire un élève du groupe", () => {
+describe("désinscrire un chevalier du groupe", () => {
   it("il sort de la liste, son historique et son solde restent", async () => {
     const sub = board(4);
     const days = await groupOnM2Seance3();

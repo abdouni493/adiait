@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * LA PAIE DE LA DÉMONSTRATION — enseignants et travailleurs.
+ * LA PAIE DE LA DÉMONSTRATION — entraîneurs et travailleurs.
  *
  * Les règlements ne sont pas inventés : ils SOLDENT des lignes qui existent
- * déjà. Une part d'enseignant vient d'une présence réellement écrite, un mois de
+ * déjà. Une part d'entraîneur vient d'une présence réellement écrite, une carte de
  * travailleur vient de son contrat et de sa date d'embauche, et une retenue
  * vient d'un acompte ou d'une dépense qui a sa propre ligne. Ce qui a été réglé
  * est marqué `paid` et porte l'identifiant de son règlement, donc rien n'est
@@ -36,11 +36,11 @@ import type {
 import { choose, monthKeyOf, pick, shiftDays, stamp, stampOn } from "./dates";
 
 // ---------------------------------------------------------------------------
-//  Les enseignants
+//  Les entraîneurs
 // ---------------------------------------------------------------------------
 
 /** Le jour au-delà duquel les parts ne sont PAS encore réglées : c'est ce qui
- *  laisse à chaque enseignant un solde à verser quand on ouvre sa fiche. */
+ *  laisse à chaque entraîneur un solde à verser quand on ouvre sa fiche. */
 const TEACHER_CUTOFF_DAYS = -18;
 
 export interface TeacherPayrollInput {
@@ -94,10 +94,10 @@ function teacherLedgers(teachers: Teacher[]): {
       });
     }
 
-    // Une dépense que l'école a avancée pour lui.
+    // Une dépense que le club a avancée pour lui.
     if (pick(`${t.id}:exp`, 0, 2) > 0) {
       const item = choose(`${t.id}:expitem`, [
-        { name: "Photocopies de séries d'exercices", amount: 1800, hint: "3 séries · 40 élèves" },
+        { name: "Photocopies de séries d'exercices", amount: 1800, hint: "3 séries · 40 chevaliers" },
         { name: "Transport (examen blanc)", amount: 1200, hint: "Déplacement du samedi" },
         { name: "Matériel de laboratoire", amount: 3400, hint: "Réactifs et verrerie" },
         { name: "Manuels de référence", amount: 2600, hint: "Commande librairie" },
@@ -159,7 +159,7 @@ export function buildTeacherPayroll(input: TeacherPayrollInput): TeacherPayrollO
     const paymentId = `tpy-${teacher.id}`;
     const gross = money(rows.reduce((s, r) => s + r.amount, 0));
 
-    // Ce qui se retient : les acomptes, les dépenses et les scolarités
+    // Ce qui se retient : les acomptes, les dépenses et les cotisations
     // d'enfants ANTÉRIEURS au règlement. Le reste attend le suivant.
     const takenAcomptes = acomptes.filter(
       (a) => a.teacherId === teacher.id && !a.paid && a.date <= cutoff,
@@ -270,16 +270,16 @@ function buildDetails(
         endTime: session?.endTime ?? "",
         presents: list.length,
         passagers: 0,
-        // Ce que les élèves ont versé sur cette séance : la part remonte au brut
+        // Ce que les chevaliers ont versé sur cette séance : la part remonte au brut
         // par le pourcentage quand il y en a un, et vaut le brut sinon (la
-        // répartition du mois a déjà fait le partage).
+        // répartition de la carte a déjà fait le partage).
         gross: pct > 0 ? money((share * 100) / pct) : share,
         share,
       };
     });
 }
 
-/** Les mois d'emploi du temps que ce règlement a fermés. */
+/** Les cartes d'emploi du temps que ce règlement a fermés. */
 function buildMonths(
   rows: UnpaidTeacherSession[],
   sessionById: Map<string, ScheduleSession>,
@@ -307,7 +307,7 @@ function buildMonths(
   });
 }
 
-/** Un enseignant au forfait : trois mois réglés, le mois courant encore dû. */
+/** Un entraîneur au forfait : trois carte réglées, la carte courante encore dû. */
 function buildMonthlySettlements(
   teacher: Teacher,
   payments: TeacherPayment[],
@@ -335,7 +335,7 @@ function buildMonthlySettlements(
       method: "fixed",
       studentsCount: 0,
       sessionsCount: 0,
-      description: `Salaire mensuel — ${monthKeyOf(day)}`,
+      description: `Salaire par carte — ${monthKeyOf(day)}`,
       details: [],
       gross: salary,
       acomptes: taken.map(toDeduction("acompte")),
@@ -499,7 +499,7 @@ function buildHourly(
   }
 }
 
-/** Contrat mensuel : tous les mois révolus sont réglés, le mois courant non. */
+/** Contrat par carte : tous les cartes révolus sont réglés, la carte courante non. */
 function buildMonthlyWorker(
   worker: ReceptionStaff,
   hiredAgo: number,
@@ -514,7 +514,7 @@ function buildMonthlyWorker(
   const oldest = new Date();
   oldest.setDate(oldest.getDate() - Math.min(hiredAgo, 365));
 
-  // Du mois de l'embauche au mois PRÉCÉDENT : le mois en cours reste dû.
+  // De la carte de l'embauche à la carte PRÉCÉDENT : la carte en cours reste dû.
   const walker = new Date(oldest.getFullYear(), oldest.getMonth(), 1, 12);
   while (walker < cursor) {
     months.push(`${String(walker.getMonth() + 1).padStart(2, "0")}/${walker.getFullYear()}`);
@@ -522,7 +522,7 @@ function buildMonthlyWorker(
   }
   if (!months.length) return;
 
-  // Un règlement par mois : c'est ainsi que l'école les verse.
+  // Un règlement par carte : c'est ainsi que le club les verse.
   months.forEach((key, i) => {
     const paymentId = `wpy-${worker.id}-${key.replace("/", "-")}`;
     const monthsBack = months.length - i;
@@ -596,7 +596,7 @@ function settlePeriods(
   const date = when ?? shiftDays(-WORKER_OPEN_DAYS - 1);
   // On ne retient QUE ce qui existait déjà le jour du versement : une avance
   // demandée la semaine dernière ne peut pas avoir été déduite d'un salaire
-  // versé le mois d'avant. C'est ce qui laisse des retenues ouvertes sur
+  // versé la carte d'avant. C'est ce qui laisse des retenues ouvertes sur
   // l'écran de paie, comme au comptoir.
   const takenAcomptes = acomptes.filter(
     (a) => a.workerId === worker.id && !a.paid && a.date <= date,

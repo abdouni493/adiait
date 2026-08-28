@@ -7,7 +7,7 @@ import { sessionGroupIds, sessionGroupsLabel, sessionHasGroup } from "@/lib/help
  * UN EMPLOI DU TEMPS PEUT RÉUNIR PLUSIEURS GROUPES.
  *
  * Deux demi-groupes suivent souvent le même cours, à la même heure, dans la
- * même salle, avec le même enseignant : c'est UN emploi du temps, pas deux.
+ * même arène, avec le même entraîneur : c'est UN emploi du temps, pas deux.
  * `groupIds` porte la liste complète et `groupId` — la colonne historique —
  * garde le PREMIER, pour que le scan, la feuille de présence et la base
  * continuent de lire un groupe sans rien savoir de la nouveauté.

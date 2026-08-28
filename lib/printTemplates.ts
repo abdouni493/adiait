@@ -151,7 +151,7 @@ export function metaFooterHtml(schoolName: string, lang: Language): string {
   const text =
     lang === "ar"
       ? `وثيقة صادرة إلكترونيًا عن نظام تسيير مدرسة ${escapeHtml(schoolName)} بتاريخ ${stamp}`
-      : `Document généré électroniquement par le système de gestion de l'école ${escapeHtml(schoolName)} le ${stamp}`;
+      : `Document généré électroniquement par le système de gestion du club ${escapeHtml(schoolName)} le ${stamp}`;
   return `<div class="meta-text">${text}</div>`;
 }
 

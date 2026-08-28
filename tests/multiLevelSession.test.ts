@@ -16,9 +16,9 @@ import type { ScheduleSession } from "@/lib/types";
  * UN EMPLOI DU TEMPS SUR PLUSIEURS NIVEAUX.
  *
  * Le même créneau réunit la 4e année moyenne et la 3e année secondaire — même
- * heure, même salle, même enseignant — mais chaque niveau amène SES groupes.
+ * heure, même arène, même entraîneur — mais chaque niveau amène SES groupes.
  * Ce que ces tests vérifient, c'est que la nouveauté reste INVISIBLE pour tout
- * le reste : `classId` garde la première classe, `groupIds` l'union de tous les
+ * le reste : `classId` garde la première catégorie, `groupIds` l'union de tous les
  * groupes, et les écrans qui ne connaissent qu'un groupe continuent de lire ce
  * qu'ils lisaient.
  */
@@ -48,11 +48,11 @@ function multiLevel(): ScheduleSession {
 }
 
 describe("les niveaux d'un emploi du temps", () => {
-  it("un emploi ordinaire n'a qu'un niveau, et ce niveau est sa classe", () => {
+  it("un emploi ordinaire n'a qu'un niveau, et ce niveau est sa catégorie", () => {
     const s = useData.getState().sessions.find((x) => x.id === "ses-1")!;
     expect(sessionClassIds(s)).toEqual([s.classId]);
     expect(isMultiLevelSession(s)).toBe(false);
-    // Sans découpage par classe, « les groupes de cette classe » sont
+    // Sans découpage par catégorie, « les groupes de cette catégorie » sont
     // simplement tous les groupes du créneau.
     expect(sessionGroupsOfClass(s, s.classId)).toEqual(sessionGroupIds(s));
   });
@@ -91,7 +91,7 @@ describe("les niveaux d'un emploi du temps", () => {
   });
 });
 
-describe("le deuxième numéro de téléphone d'un élève", () => {
+describe("le deuxième numéro de téléphone d'un chevalier", () => {
   it("se cherche exactement comme le premier", () => {
     const db = useData.getState();
     const student = { ...db.students[0], phone: "0555111222", phone2: "0661998877" };

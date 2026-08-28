@@ -14,20 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  Trash2,
-  Edit,
-  Eye,
-  Plus,
-  MoreVertical,
-  CalendarClock,
-  DollarSign,
-  Printer,
-  Receipt,
-  Search,
-  Clock,
-  X,
-} from "lucide-react";
+import { Award, CalendarClock, Clock, DollarSign, Edit, Eye, MoreVertical, Plus, Printer, Receipt, Search, Trash2, X } from "lucide-react";
 import type { Teacher, TeacherPayment, TeacherPaymentType } from "@/lib/types";
 import { printHtmlDocument } from "@/lib/print";
 import { formatDA, positiveMoney } from "@/lib/utils";
@@ -40,16 +27,17 @@ import { buildTeacherMonthPayslip } from "@/lib/reports/teacherMonthPayslip";
 import { TeacherMonthsModal } from "@/components/teachers/TeacherMonthsModal";
 import { teacherEmplois, unpaidStudents } from "@/lib/teacherMonths";
 import {
+  carteShort,
   cycleSizeOf,
-  groupSeanceTotals,
-  teacherGroupSeances,
-  monthlyPriceOf,
-  schoolMonthShareOf,
-  teacherMonthShareOf,
-  teacherPerSeanceOf,
   formatDateFr,
   formatDays,
+  groupSeanceTotals,
+  monthlyPriceOf,
   salleName,
+  schoolMonthShareOf,
+  teacherGroupSeances,
+  teacherMonthShareOf,
+  teacherPerSeanceOf,
   todayIso,
 } from "@/lib/helpers";
 import { useSettings } from "@/lib/store/settings";
@@ -95,7 +83,7 @@ export function TeachersPage() {
   /**
    * L'HISTORIQUE DES RÈGLEMENTS — voir, corriger, annuler.
    *
-   * Un règlement enregistré doit pouvoir être relu dans le détail (les mois
+   * Un règlement enregistré doit pouvoir être relu dans le détail (les cartes
    * soldés, les présences, les retenues, les arriérés rattrapés), corrigé quand
    * le montant a été mal saisi, et ANNULÉ quand il n'aurait pas dû exister —
    * auquel cas tout ce qu'il avait soldé redevient dû.
@@ -104,7 +92,7 @@ export function TeachersPage() {
   /**
    * LES FILTRES DE L'HISTORIQUE DES RÈGLEMENTS.
    *
-   * Un enseignant qui donne quatre cours accumule vite quarante règlements. La
+   * Un entraîneur qui donne quatre cours accumule vite quarante règlements. La
    * question qu'on se pose n'est jamais « montre-moi tout » : c'est « qu'a-t-il
    * touché sur CE groupe ? » ou « le M3 a-t-il été payé ? ». Les deux listes
    * déroulantes répondent exactement à cela, et se combinent.
@@ -155,7 +143,7 @@ export function TeachersPage() {
       !confirm(
         `Annuler ce règlement de ${formatDA(pay.amount)} ?\n\n` +
           "Tout ce qu'il avait soldé REDEVIENT DÛ : les présences repassent en attente, " +
-          "les dépenses, les acomptes et les scolarités portées sur cet enseignant " +
+          "les dépenses, les acomptes et les cotisations portées sur cet entraîneur " +
           "reviendront sur son prochain règlement. Le mouvement de caisse est supprimé.",
       )
     ) {
@@ -187,7 +175,7 @@ export function TeachersPage() {
   const [description, setDescription] = useState("");
   const [actionDate, setActionDate] = useState(new Date().toISOString().split("T")[0]);
 
-  // Form: dépense de l'enseignant — nom, montant, description (optionnelle), date
+  // Form: dépense de l'entraîneur — nom, montant, description (optionnelle), date
   const [expenseName, setExpenseName] = useState("");
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
   const [expenseDesc, setExpenseDesc] = useState("");
@@ -205,15 +193,15 @@ export function TeachersPage() {
   const [teacherSearch, setTeacherSearch] = useState("");
   const [teacherKind, setTeacherKind] = useState<"all" | "staff" | "passager">("all");
 
-  // ---- Règlement (écran « mois par mois ») et lecture des mois -------------
+  // ---- Règlement (écran « carte par carte ») et lecture des cartes -------------
   const [isTimingPayOpen, setIsTimingPayOpen] = useState(false);
   const [isMonthsOpen, setIsMonthsOpen] = useState(false);
   // Passager teacher created straight from this page
   const [isPassagerCreateOpen, setIsPassagerCreateOpen] = useState(false);
 
   /**
-   * Ce que la fiche de chaque enseignant affiche : ses mois d'emploi du temps,
-   * ce qui lui est réellement payable et ce qui reste retenu parce qu'un élève
+   * Ce que la fiche de chaque entraîneur affiche : ses carte d'emploi du temps,
+   * ce qui lui est réellement payable et ce qui reste retenu parce qu'un chevalier
    * n'a pas payé. Mémoïsé une fois pour toute la grille — chaque carte lisait
    * l'historique complet à chaque rendu.
    */
@@ -240,7 +228,7 @@ export function TeachersPage() {
   }, [teachers, sessions, subscriptions, students, attendance, unpaidTeacher, payments, db.enrollments, independent]);
 
   /**
-   * LES ENSEIGNANTS, DU DERNIER ARRIVÉ AU PLUS ANCIEN.
+   * LES ENTRAÎNEURS, DU DERNIER ARRIVÉ AU PLUS ANCIEN.
    *
    * La fiche créée aujourd'hui doit être la première lue : c'est celle qu'on
    * vient chercher. `createdAt` porte la date de création, et rien d'autre ne
@@ -288,9 +276,9 @@ export function TeachersPage() {
   // ---------------------------------------------------------------------------
   // Rémunération "par groupe"
   //
-  // Le tarif de l'enseignant n'est PAS sur sa fiche : il est fixé emploi du
-  // temps par emploi du temps, sur l'abonnement (prix du mois -> part de
-  // l'école -> le reste pour l'enseignant, divisé par le nombre de séances).
+  // Le tarif de l'entraîneur n'est PAS sur sa fiche : il est fixé emploi du
+  // temps par emploi du temps, sur l'abonnement (prix de la carte -> part de
+  // le club -> le reste pour l'entraîneur, divisé par le nombre de séances).
   // Cette liste est ce que sa fiche affiche : un groupe non tarifé se voit
   // tout de suite, avant qu'une séance ne lui rapporte 0 DA.
   // ---------------------------------------------------------------------------
@@ -303,7 +291,7 @@ export function TeachersPage() {
     schoolShare: number;
     teacherShare: number;
     perSeance: number;
-    /** l'abonnement porte bien un partage école / enseignant */
+    /** l'abonnement porte bien un partage club / entraîneur */
     configured: boolean;
   }
 
@@ -350,17 +338,17 @@ export function TeachersPage() {
           )}
         </div>
         <p className="text-[11px] leading-relaxed text-muted">
-          Avec cette formule l&apos;enseignant n&apos;a pas de taux sur sa fiche : chaque emploi du
+          Avec cette formule l&apos;entraîneur n&apos;a pas de taux sur sa fiche : chaque emploi du
           temps le rémunère au tarif défini dans son <strong className="text-ink">abonnement</strong>{" "}
-          (prix du mois → part de l&apos;école → le reste revient à l&apos;enseignant, divisé par le
+          (prix du mois → part de l&apos;club → le reste revient à l&apos;enseignant, divisé par le
           nombre de séances). Une séance lui rapporte exactement ce tarif, quel que soit le nombre
-          d&apos;élèves présents.
+          d&apos;chevaliers présents.
         </p>
 
         {!tid ? (
           <p className="text-[11px] leading-relaxed text-muted bg-surface border border-line rounded-xl p-3">
             Créez d&apos;abord l&apos;enseignant, affectez-le à ses emplois du temps, puis réglez la
-            part école / enseignant depuis <strong className="text-ink">Emploi du temps</strong> ou{" "}
+            part club / enseignant depuis <strong className="text-ink">Emploi du temps</strong> ou{" "}
             <strong className="text-ink">Abonnements</strong>. Ses tarifs apparaîtront ici.
           </p>
         ) : rows.length === 0 ? (
@@ -374,9 +362,9 @@ export function TeachersPage() {
                 <tr className="text-[10px] uppercase text-muted font-bold text-left">
                   <th className="py-2 px-2">Emploi du temps</th>
                   <th className="py-2 px-2">Groupe</th>
-                  <th className="py-2 px-2 text-right">Prix du mois</th>
-                  <th className="py-2 px-2 text-right">Part école</th>
-                  <th className="py-2 px-2 text-right">Part enseignant</th>
+                  <th className="py-2 px-2 text-right">Prix de la carte</th>
+                  <th className="py-2 px-2 text-right">Part club</th>
+                  <th className="py-2 px-2 text-right">Part entraîneur</th>
                   <th className="py-2 px-2 text-right">Par séance</th>
                 </tr>
               </thead>
@@ -411,14 +399,14 @@ export function TeachersPage() {
   };
 
 
-  /** Ouvre le règlement : il s'occupe lui-même de cocher les mois CLOS dus. */
+  /** Ouvre le règlement : il s'occupe lui-même de cocher les cartes CLOS dus. */
   const openTimingPay = (t: Teacher) => {
     setSelectedTeacher(t);
     setIsTimingPayOpen(true);
     setActiveMenuId(null);
   };
 
-  /** Ouvre la lecture des mois : où en est chaque emploi du temps, qui a payé. */
+  /** Ouvre la lecture des cartes : où en est chaque emploi du temps, qui a payé. */
   const openMonths = (t: Teacher) => {
     setSelectedTeacher(t);
     setIsMonthsOpen(true);
@@ -469,7 +457,7 @@ export function TeachersPage() {
    *
    * Trois générations de règlements coexistent, et chacune se réimprime avec la
    * fiche qui la décrit vraiment :
-   *  - les règlements de MOIS portent la photographie de leurs trois tables
+   *  - les règlements de CARTE portent la photographie de leurs trois tables
    *    (`board`) : c'est la fiche détaillée, colonne pour colonne ;
    *  - ceux d'avant portent un instantané par emploi du temps : l'ancienne
    *    fiche de paie ;
@@ -540,13 +528,13 @@ export function TeachersPage() {
           method: pay.method,
           percentage: pay.percentage,
           emplois: [...byEmploi.values()],
-          // Les scolarités déjà réglées au guichet et portées sur ce salaire se
-          // réimpriment comme les autres retenues avancées par l'école.
+          // Les cotisations déjà réglées au guichet et portées sur ce salaire se
+          // réimpriment comme les autres retenues avancées par le club.
           expenses: [...(pay.expenses ?? []), ...(pay.childDebts ?? [])],
           acomptes: pay.acomptes ?? [],
           childCharges: pay.childCharges ?? [],
           // Les arriérés rattrapés se réimpriment dans leur propre tableau,
-          // avec leur mois d'origine : c'est ce qui les distingue du mois payé.
+          // avec leur carte d'origine : c'est ce qui les distingue de la carte payée.
           arrears: (pay.arrears ?? []).map((a) => ({
             studentName: a.studentName,
             registrationNumber: a.registrationNumber,
@@ -577,10 +565,10 @@ export function TeachersPage() {
     );
   };
 
-  /** Creates a login-less "enseignant passager" straight from this page. */
+  /** Creates a login-less "entraîneur passager" straight from this page. */
   const handleCreatePassager = async () => {
     if (!firstName.trim()) {
-      alert("Le nom de l'enseignant passager est obligatoire.");
+      alert("Le nom de l'entraîneur passager est obligatoire.");
       return;
     }
     const newTeacher: Teacher = {
@@ -610,7 +598,7 @@ export function TeachersPage() {
         : {};
 
   /**
-   * Only a name is required. Everything else is optional: an enseignant typed
+   * Only a name is required. Everything else is optional: an entraîneur typed
    * without email / mot de passe is simply created WITHOUT a login — exactly
    * like a travailleur — and the desk can add his credentials later from
    * "Modifier".
@@ -626,7 +614,7 @@ export function TeachersPage() {
     const wantsAccount = email.trim() !== "" || password !== "";
     if (wantsAccount) {
       if (!email.trim()) {
-        alert("Saisissez un email de connexion, ou laissez email et mot de passe vides pour créer l'enseignant sans compte.");
+        alert("Saisissez un email de connexion, ou laissez email et mot de passe vides pour créer l'entraîneur sans compte.");
         return;
       }
       if (password.length < 6) {
@@ -646,7 +634,7 @@ export function TeachersPage() {
     };
 
     if (!wantsAccount) {
-      // No login: the row is simply added, like an enseignant passager.
+      // No login: the row is simply added, like an entraîneur passager.
       push("teachers", { id: uid("tch"), ...base } as Teacher);
       setIsCreateOpen(false);
       resetForm();
@@ -711,7 +699,7 @@ export function TeachersPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cet enseignant ?")) {
+    if (confirm("Êtes-vous sûr de vouloir supprimer cet entraîneur ?")) {
       deleteFrom("teachers", id);
       void deleteRoleUser(id);
       setActiveMenuId(null);
@@ -844,7 +832,7 @@ export function TeachersPage() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <PageHeader emoji="👨‍🏫" title="Enseignants" subtitle="Gérer le corps enseignant et leurs salaires" />
+        <PageHeader icon={Award} title="Entraîneurs" subtitle="Gérer les entraîneurs, leurs parts et leur paie" />
         <div className="flex flex-wrap items-center gap-2">
           {can("create_passager") && (
             <Button
@@ -852,12 +840,12 @@ export function TeachersPage() {
               onClick={() => { resetForm(); setIsPassagerCreateOpen(true); }}
               className="flex items-center gap-2 border-warning/30 text-warning hover:bg-warning/10"
             >
-              <Plus className="h-4 w-4" /> Enseignant Passager
+              <Plus className="h-4 w-4" /> Entraîneur Passager
             </Button>
           )}
           {can("create") && (
             <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Nouvel Enseignant
+              <Plus className="h-4 w-4" /> Nouvel Entraîneur
             </Button>
           )}
         </div>
@@ -870,14 +858,14 @@ export function TeachersPage() {
           <Input
             value={teacherSearch}
             onChange={(e) => setTeacherSearch(e.target.value)}
-            placeholder="Rechercher un enseignant (nom, téléphone, email)..."
+            placeholder="Rechercher un entraîneur (nom, téléphone, email)..."
             className="pl-9"
           />
         </div>
         <div className="flex gap-1.5">
           {([
             { key: "all", label: `Tous (${teachers.length})` },
-            { key: "staff", label: `École (${teachers.filter((t) => !t.isPassager).length})` },
+            { key: "staff", label: `Club (${teachers.filter((t) => !t.isPassager).length})` },
             { key: "passager", label: `Passagers (${teachers.filter((t) => t.isPassager).length})` },
           ] as const).map((k) => (
             <button
@@ -962,7 +950,7 @@ export function TeachersPage() {
                         onClick={() => openMonths(t)}
                         className="col-span-2 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors"
                       >
-                        <CalendarClock className="h-3.5 w-3.5" /> Mois & emplois du temps
+                        <CalendarClock className="h-3.5 w-3.5" /> Carte & emplois du temps
                       </button>
                       {!t.isPassager && (
                         <>
@@ -1056,7 +1044,7 @@ export function TeachersPage() {
                           {t.isPassager
                             ? "À la séance"
                             : t.paymentType === "monthly"
-                              ? "Fixe Mensuel"
+                              ? "Fixe Par carte"
                               : t.paymentType === "per_group"
                                 ? "Par groupe"
                                 : "Pourcentage"}
@@ -1071,7 +1059,7 @@ export function TeachersPage() {
                               ? `${formatDA(t.monthlyAmount ?? 0)}/m`
                               : t.paymentType === "per_group"
                                 ? "Tarif emploi du temps"
-                                : `${t.percentage}% / élève`}
+                                : `${t.percentage}% / chevalier`}
                         </span>
                       </div>
                     </div>
@@ -1079,7 +1067,7 @@ export function TeachersPage() {
                     {t.isPassager ? (
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <div className="bg-canvas/20 border border-line/50 p-2 rounded-xl flex flex-col justify-between">
-                          <span className="text-muted block text-[9px] uppercase">Mois clos à régler</span>
+                          <span className="text-muted block text-[9px] uppercase">Carte close à régler</span>
                           <strong className="text-warning mt-0.5">{pay.closed}</strong>
                         </div>
                         <div className="bg-canvas/20 border border-line/50 p-2 rounded-xl flex flex-col justify-between">
@@ -1118,11 +1106,11 @@ export function TeachersPage() {
                       <span className="text-[10px] text-muted flex items-center gap-1.5">
                         <span className={`h-1.5 w-1.5 rounded-full ${owing ? "bg-warning animate-pulse" : "bg-success"}`} />
                         {pay.closed} mois clos à régler · {unpaidSess.length} présence(s)
-                        {pay.debtors > 0 && ` · ${pay.debtors} impayé(s) élève`}
+                        {pay.debtors > 0 && ` · ${pay.debtors} impayé(s) chevalier`}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {pay.withheld > 0 && (
-                          <Badge tone="warning" className="font-mono font-bold text-[10px]" title="Part retenue : élèves en dette">
+                          <Badge tone="warning" className="font-mono font-bold text-[10px]" title="Part retenue : chevaliers en dette">
                             ⏳ {formatDA(pay.withheld)}
                           </Badge>
                         )}
@@ -1145,7 +1133,7 @@ export function TeachersPage() {
       </div>
 
       {/* Creation Modal */}
-      <Modal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Créer un enseignant" wide>
+      <Modal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Créer un entraîneur" wide>
         <p className="text-[11px] leading-relaxed text-muted bg-canvas border border-line rounded-xl p-3 mb-4">
           Seul le <strong className="text-ink">nom</strong> est demandé. Le téléphone, l&apos;email et
           le mot de passe sont facultatifs : laissez l&apos;email et le mot de passe vides pour créer
@@ -1185,8 +1173,8 @@ export function TeachersPage() {
               onChange={(e) => setPaymentType(e.target.value as TeacherPaymentType)}
               className="w-full"
             >
-              <option value="percentage">Pourcentage par élève/présence</option>
-              <option value="monthly">Fixe mensuel</option>
+              <option value="percentage">Pourcentage par chevalier/présence</option>
+              <option value="monthly">Fixe par carte</option>
               <option value="per_group">Par groupe — tarif de l&apos;emploi du temps</option>
             </Select>
           </div>
@@ -1232,7 +1220,7 @@ export function TeachersPage() {
       </Modal>
 
       {/* Edit Modal */}
-      <Modal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier l'enseignant" wide>
+      <Modal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier l'entraîneur" wide>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-muted mb-1">Prénom</label>
@@ -1262,7 +1250,7 @@ export function TeachersPage() {
               className="w-full"
             >
               <option value="percentage">Pourcentage</option>
-              <option value="monthly">Fixe mensuel</option>
+              <option value="monthly">Fixe par carte</option>
               <option value="per_group">Par groupe — tarif de l&apos;emploi du temps</option>
             </Select>
           </div>
@@ -1304,7 +1292,7 @@ export function TeachersPage() {
       </Modal>
 
       {/* Details Modal */}
-      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Détails de l'Enseignant" wide>
+      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Détails de l'Entraîneur" wide>
         {selectedTeacher && (
           <div className="space-y-5">
             {/* Header info */}
@@ -1320,7 +1308,7 @@ export function TeachersPage() {
               </div>
               <div className="flex items-center gap-2">
                 {selectedTeacher.isPassager && (
-                  <Badge tone="warning" className="text-xs px-3 py-1 font-bold">Enseignant passager</Badge>
+                  <Badge tone="warning" className="text-xs px-3 py-1 font-bold">Entraîneur passager</Badge>
                 )}
                 <Badge tone="primary" className="text-xs px-3 py-1 font-bold">
                   {selectedTeacher.isPassager
@@ -1351,11 +1339,11 @@ export function TeachersPage() {
                         <tr className="border-b border-line text-[10px] font-bold uppercase text-muted">
                           <th className="py-1.5">Emploi du temps</th>
                           <th className="py-1.5 text-center">Séances / mois</th>
-                          <th className="py-1.5 text-right">Prix du mois</th>
+                          <th className="py-1.5 text-right">Prix de la carte</th>
                           <th className="py-1.5 text-right">Prix séance</th>
-                          <th className="py-1.5 text-right">Part école</th>
-                          <th className="py-1.5 text-right">Part enseignant</th>
-                          <th className="py-1.5 text-right">Séance enseignant</th>
+                          <th className="py-1.5 text-right">Part club</th>
+                          <th className="py-1.5 text-right">Part entraîneur</th>
+                          <th className="py-1.5 text-right">Séance entraîneur</th>
                           <th className="py-1.5 text-center">Inscrits</th>
                         </tr>
                       </thead>
@@ -1467,7 +1455,7 @@ export function TeachersPage() {
                       <strong className="text-ink text-base font-mono">{myTimings.length}</strong>
                     </div>
                     <div className="bg-canvas border border-line p-3 rounded-xl text-center">
-                      <span className="text-muted text-[10px] uppercase block font-semibold">Élèves suivis</span>
+                      <span className="text-muted text-[10px] uppercase block font-semibold">Chevaliers suivis</span>
                       <strong className="text-primary text-base font-mono">{distinctStudents}</strong>
                       <span className="text-[9px] text-muted block">+ {myPassagerAttendees.length} passager(s)</span>
                     </div>
@@ -1753,13 +1741,13 @@ export function TeachersPage() {
                 color: "text-danger bg-danger/5 border-danger/20",
               }));
 
-              // Les VRAIS règlements de cet enseignant — plus aucune devinette
+              // Les VRAIS règlements de cet entraîneur — plus aucune devinette
               // sur le libellé des mouvements de caisse.
               const allSettlements = teacherPayments
                 .filter((p) => p.teacherId === selectedTeacher.id)
                 .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
 
-              /** Les emplois du temps et les mois que ces règlements couvrent —
+              /** Les emplois du temps et les cartes que ces règlements couvrent —
                *  les seules valeurs que les filtres ont besoin de proposer. */
               const payEmploiOptions = [
                 ...new Map(
@@ -1812,10 +1800,10 @@ export function TeachersPage() {
               const groupLogs = groupRows.map((g) => ({
                 id: g.id,
                 type: "group" as const,
-                title: `Séance libre de groupe — ${g.title}`,
+                title: `Sortie libre de groupe — ${g.title}`,
                 amount: groupSeanceTotals(g).teacherTotal,
                 date: g.date,
-                description: `${groupSeanceTotals(g).students} élève(s) · ${g.startTime} → ${g.endTime}`,
+                description: `${groupSeanceTotals(g).students} chevalier(s) · ${g.startTime} → ${g.endTime}`,
                 color: "text-primary bg-primary/5 border-primary/20",
               }));
 
@@ -1864,7 +1852,7 @@ export function TeachersPage() {
                     </div>
                   </div>
 
-                  {/* Historique des règlements — avec les mois soldés et la
+                  {/* Historique des règlements — avec les cartes soldées et la
                       réimpression de la fiche de paie. */}
                   <div className="rounded-2xl border border-line bg-surface p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1875,7 +1863,7 @@ export function TeachersPage() {
                           : ""}
                         )
                       </h4>
-                      {/* Filtrer par emploi du temps et par mois — la seule
+                      {/* Filtrer par emploi du temps et par carte — la seule
                           façon de retrouver « ce qu'il a touché sur ce groupe
                           au M3 » dans quarante lignes. */}
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -1896,7 +1884,7 @@ export function TeachersPage() {
                           onChange={(e) => setPayMonthFilter(e.target.value)}
                           className="h-8 w-32 text-[11px]"
                         >
-                          <option value="all">Tous les mois</option>
+                          <option value="all">Tous les cartes</option>
                           {payMonthOptions.map((c) => (
                             <option key={c} value={c}>
                               {c}
@@ -1920,7 +1908,7 @@ export function TeachersPage() {
                     {settlements.length === 0 ? (
                       <p className="py-6 text-center text-xs italic text-muted">
                         {allSettlements.length === 0
-                          ? "Aucun règlement enregistré pour cet enseignant."
+                          ? "Aucun règlement enregistré pour cet entraîneur."
                           : "Aucun règlement ne correspond à ces filtres."}
                       </p>
                     ) : (
@@ -1953,7 +1941,7 @@ export function TeachersPage() {
                                 {(pay.expenses?.length ?? 0) + (pay.acomptes?.length ?? 0) > 0 &&
                                   ` · ${(pay.expenses?.length ?? 0)} dépense(s), ${(pay.acomptes?.length ?? 0)} acompte(s) retenus`}
                                 {(pay.childDebts?.length ?? 0) > 0 &&
-                                  ` · ${pay.childDebts!.length} scolarité(s) d'enfant retenue(s)`}
+                                  ` · ${pay.childDebts!.length} cotisation(s) d'enfant retenue(s)`}
                                 {(pay.arrears?.length ?? 0) > 0 &&
                                   ` · ${pay.arrears!.length} arriéré(s) débloqué(s)`}
                               </span>
@@ -1971,11 +1959,11 @@ export function TeachersPage() {
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {(pay.arrears ?? []).map((a, i) => (
                                     <Badge
-                                      key={`${a.studentId}-${a.monthCode}-${i}`}
+                                      key={`${a.studentId}-${carteShort(a.monthCode)}-${i}`}
                                       tone="success"
                                       className="text-[9px]"
                                     >
-                                      ⏱ {a.studentName} · {a.emploi} {a.monthCode} ·{" "}
+                                      ⏱ {a.studentName} · {a.emploi} {carteShort(a.monthCode)} ·{" "}
                                       {formatDA(a.amount)}
                                     </Badge>
                                   ))}
@@ -2020,11 +2008,11 @@ export function TeachersPage() {
                     )}
                   </div>
 
-                  {/* Séances libres de groupe animées par cet enseignant */}
+                  {/* Sorties libres de groupe animées par cet entraîneur */}
                   {groupRows.length > 0 && (
                     <div className="rounded-2xl border border-line bg-surface p-4">
                       <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">
-                        👥 Séances libres de groupe ({groupRows.length})
+                        👥 Sorties libres de groupe ({groupRows.length})
                       </h4>
                       <div className="max-h-52 overflow-y-auto">
                         <table className="w-full text-xs">
@@ -2032,7 +2020,7 @@ export function TeachersPage() {
                             <tr className="border-b border-line text-left text-[10px] font-bold uppercase text-muted">
                               <th className="py-1.5">Date</th>
                               <th className="py-1.5">Séance</th>
-                              <th className="py-1.5 text-center">Élèves</th>
+                              <th className="py-1.5 text-center">Chevaliers</th>
                               <th className="py-1.5 text-right">Sa part</th>
                             </tr>
                           </thead>
@@ -2277,11 +2265,11 @@ export function TeachersPage() {
         )}
       </Modal>
 
-      {/* Dépense de l'enseignant — retenue sur son prochain règlement */}
+      {/* Dépense de l'entraîneur — retenue sur son prochain règlement */}
       <Modal
         open={isExpenseOpen}
         onClose={() => setIsExpenseOpen(false)}
-        title="Enregistrer une dépense de l'enseignant"
+        title="Enregistrer une dépense de l'entraîneur"
       >
         <div className="space-y-4">
           {selectedTeacher && (
@@ -2403,12 +2391,12 @@ export function TeachersPage() {
       </Modal>
 
       {/* ---------------------------------------------------------------- */}
-      {/* Create an "enseignant passager" (no login, paid per timing)       */}
+      {/* Create an "entraîneur passager" (no login, paid per timing)       */}
       {/* ---------------------------------------------------------------- */}
-      <Modal open={isPassagerCreateOpen} onClose={() => setIsPassagerCreateOpen(false)} title="Nouvel enseignant passager">
+      <Modal open={isPassagerCreateOpen} onClose={() => setIsPassagerCreateOpen(false)} title="Nouvel entraîneur passager">
         <div className="space-y-4">
           <div className="bg-warning/10 border border-warning/20 rounded-xl p-3 text-[11px] text-muted leading-relaxed">
-            Un <strong className="text-warning">enseignant passager</strong> intervient ponctuellement sur des
+            Un <strong className="text-warning">entraîneur passager</strong> intervient ponctuellement sur des
             séances libres. Il n&apos;a <strong>pas de compte de connexion</strong> et n&apos;apparaît qu&apos;avec
             les actions <strong>Payer</strong> et <strong>Détails</strong>.
           </div>
@@ -2433,14 +2421,14 @@ export function TeachersPage() {
         </div>
       </Modal>
 
-      {/* Règlement — un emploi du temps, un mois, trois tables et un net. */}
+      {/* Règlement — un emploi du temps, une carte, trois tables et un net. */}
       <TeacherPayCenter
         open={isTimingPayOpen}
         teacher={selectedTeacher}
         onClose={() => setIsTimingPayOpen(false)}
       />
 
-      {/* Lecture des mois : où en est chaque emploi du temps, qui a payé */}
+      {/* Lecture des cartes : où en est chaque emploi du temps, qui a payé */}
       <TeacherMonthsModal
         open={isMonthsOpen}
         teacher={selectedTeacher}
@@ -2477,10 +2465,10 @@ export function TeachersPage() {
       {/* -----------------------------------------------------------------
           VOIR UN RÈGLEMENT — tout ce qu'il a soldé, en toutes lettres.
 
-          Un règlement n'est pas qu'un montant : ce sont des mois d'emplois du
-          temps, des présences, des retenues (dépenses, acomptes, scolarités
+          Un règlement n'est pas qu'un montant : ce sont des cartes d'emplois du
+          temps, des présences, des retenues (dépenses, acomptes, cotisations
           d'enfants) et, depuis peu, des arriérés rattrapés. Le détail est FIGÉ
-          au moment du paiement, donc il se relit à l'identique des mois plus
+          au moment du paiement, donc il se relit à l'identique des cartes plus
           tard, même si les emplois du temps ont changé depuis.
           ----------------------------------------------------------------- */}
       <Modal
@@ -2551,13 +2539,13 @@ export function TeachersPage() {
 
             {/* LE DÉTAIL EXACT DE L'ÉCRAN DE RÈGLEMENT.
 
-                Les règlements écrits par l'écran « un mois à la fois » portent
+                Les règlements écrits par l'écran « une carte à la fois » portent
                 la photographie de leurs trois tables : elle est réaffichée ici
                 telle quelle, colonne pour colonne. Les règlements plus anciens
                 n'en ont pas — les récapitulatifs qui suivent les décrivent. */}
             {viewedPayment.board && <PayBoardView board={viewedPayment.board} />}
 
-            {/* Les mois soldés */}
+            {/* Les cartes soldées */}
             <div className="rounded-xl border border-line bg-surface p-3">
               <h4 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted">
                 📅 Mois d&apos;emploi du temps soldés ({(viewedPayment.months ?? []).length})
@@ -2573,10 +2561,10 @@ export function TeachersPage() {
                       <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                         <th className="px-2 py-1.5">Emploi du temps</th>
                         <th className="px-2 py-1.5">Groupe</th>
-                        <th className="px-2 py-1.5 text-center">Mois</th>
+                        <th className="px-2 py-1.5 text-center">Carte</th>
                         <th className="px-2 py-1.5 text-center">Séances</th>
-                        <th className="px-2 py-1.5 text-center">Élèves</th>
-                        <th className="px-2 py-1.5 text-right">Part enseignant</th>
+                        <th className="px-2 py-1.5 text-center">Chevaliers</th>
+                        <th className="px-2 py-1.5 text-right">Part entraîneur</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2604,7 +2592,7 @@ export function TeachersPage() {
             {(viewedPayment.arrears ?? []).length > 0 && (
               <div className="rounded-xl border border-success/30 bg-success/5 p-3">
                 <h4 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-success">
-                  ⏱ Arriérés débloqués — élèves ayant payé en retard (
+                  ⏱ Arriérés débloqués — chevaliers ayant payé en retard (
                   {viewedPayment.arrears!.length})
                 </h4>
                 <div className="overflow-x-auto">
@@ -2612,23 +2600,23 @@ export function TeachersPage() {
                     <thead className="bg-canvas/60">
                       <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                         <th className="px-2 py-1.5">N°</th>
-                        <th className="px-2 py-1.5">Élève</th>
+                        <th className="px-2 py-1.5">Chevalier</th>
                         <th className="px-2 py-1.5">Emploi du temps</th>
-                        <th className="px-2 py-1.5 text-center">Mois d&apos;origine</th>
+                        <th className="px-2 py-1.5 text-center">Carte d&apos;origine</th>
                         <th className="px-2 py-1.5 text-center">Séances</th>
                         <th className="px-2 py-1.5 text-right">Part rattrapée</th>
                       </tr>
                     </thead>
                     <tbody>
                       {viewedPayment.arrears!.map((a, i) => (
-                        <tr key={`${a.studentId}-${a.monthCode}-${i}`} className="border-t border-line/50">
+                        <tr key={`${a.studentId}-${carteShort(a.monthCode)}-${i}`} className="border-t border-line/50">
                           <td className="px-2 py-1.5 font-mono text-[10px] text-muted">
                             {a.registrationNumber ?? "—"}
                           </td>
                           <td className="px-2 py-1.5 font-semibold text-ink">{a.studentName}</td>
                           <td className="px-2 py-1.5 text-muted">{a.emploi}</td>
                           <td className="px-2 py-1.5 text-center">
-                            <Badge tone="primary" className="text-[9px]">{a.monthCode}</Badge>
+                            <Badge tone="primary" className="text-[9px]">{carteShort(a.monthCode)}</Badge>
                           </td>
                           <td className="px-2 py-1.5 text-center font-mono">{a.seances}</td>
                           <td className="px-2 py-1.5 text-right font-mono font-bold text-success">
@@ -2647,7 +2635,7 @@ export function TeachersPage() {
               { title: "🧾 Dépenses retenues", rows: viewedPayment.expenses ?? [] },
               { title: "💵 Acomptes retenus", rows: viewedPayment.acomptes ?? [] },
               {
-                title: "🎓 Scolarités d'enfants portées sur ce salaire",
+                title: "🎓 Cotisations d'enfants portées sur ce salaire",
                 rows: viewedPayment.childDebts ?? [],
               },
             ]
@@ -2730,7 +2718,7 @@ export function TeachersPage() {
           CORRIGER UN RÈGLEMENT — le net, la date, le libellé.
 
           Ce que le règlement a SOLDÉ n'est pas rejoué : rouvrir des présences
-          pour une faute de frappe ferait réapparaître un mois déjà payé. Pour
+          pour une faute de frappe ferait réapparaître une carte déjà payé. Pour
           revenir vraiment en arrière, il faut l'annuler.
           ----------------------------------------------------------------- */}
       <Modal

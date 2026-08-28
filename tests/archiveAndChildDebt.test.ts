@@ -18,9 +18,9 @@ import { teacherChildRows, teacherEmplois } from "@/lib/teacherMonths";
  *
  *  1. SUPPRIMER UN EMPLOI DU TEMPS N'EFFACE RIEN. La ligne est archivée : elle
  *     quitte les écrans de travail, mais ses présences, ses paiements et les
- *     parts qu'elle doit à l'enseignant restent lisibles et nommés.
+ *     parts qu'elle doit à l'entraîneur restent lisibles et nommés.
  *
- *  2. UN FILS D'ENSEIGNANT PEUT ÊTRE MIS EN RÈGLE AU GUICHET, sans ouvrir la
+ *  2. UN FILS D'ENTRAÎNEUR PEUT ÊTRE MIS EN RÈGLE AU GUICHET, sans ouvrir la
  *     moindre paie, de deux façons qui ne font PAS la même chose au salaire de
  *     son père : la famille paie (rien n'est retenu) ou le montant est porté sur
  *     le père (retenu une fois, à sa prochaine paie).
@@ -28,8 +28,8 @@ import { teacherChildRows, teacherEmplois } from "@/lib/teacherMonths";
  *  3. RETIRER UN POINTAGE REND CE QU'IL AVAIT PRIS, au dinar près, y compris
  *     celui d'un autre jour que celui affiché.
  *
- *  4. L'ÉCOLE CHOISIT CE QU'ELLE AVANCE : mois par mois, montant par montant —
- *     et un règlement partiel ne débloque pas la part de l'enseignant.
+ *  4. LE CLUB CHOISIT CE QU'ELLE AVANCE : carte par carte, montant par montant —
+ *     et un règlement partiel ne débloque pas la part de l'entraîneur.
  */
 
 const SUB = "sub-1";
@@ -39,7 +39,7 @@ const TEACHER = "tea-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un mois de 4 séances à 2000 DA dont l'école garde 800 : séance = 500. */
+/** Une carte de 4 séances à 2000 DA dont le club garde 800 : séance = 500. */
 function board() {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -123,7 +123,7 @@ describe("supprimer un emploi du temps l'archive, sans rien perdre", () => {
     expect(isArchivedSub(db, SUB)).toBe(true);
   });
 
-  it("les présences, les paiements et le solde de l'élève survivent à la suppression", async () => {
+  it("les présences, les paiements et le solde du chevalier survivent à la suppression", async () => {
     board();
     const [day] = scheduledDays(1);
     await attend(day);
@@ -138,14 +138,14 @@ describe("supprimer un emploi du temps l'archive, sans rien perdre", () => {
     expect(db.attendance.filter((a) => a.sessionId === SES && a.studentId === STU)).toHaveLength(1);
     expect(db.payments.filter((p) => p.studentId === STU && p.subscriptionId === SUB)).toHaveLength(1);
     expect(soldFor(db, STU, SUB)).toBe(soldBefore);
-    // L'élève en est sorti — comme d'une désinscription — mais sa fiche garde
+    // Le chevalier en est sorti — comme d'une désinscription — mais sa fiche garde
     // le module, daté de la sortie.
     const student = db.students.find((s) => s.id === STU)!;
     expect(student.subscriptionIds).not.toContain(SUB);
     expect(student.subscriptionDates?.[SUB]?.unsubscribedAt).toBeTruthy();
   });
 
-  it("ce que l'emploi supprimé doit encore à l'enseignant reste réglable, et se dit", async () => {
+  it("ce que l'emploi supprimé doit encore à l'entraîneur reste réglable, et se dit", async () => {
     board();
     await attend(scheduledDays(1)[0]);
     await useData
@@ -177,8 +177,8 @@ describe("supprimer un emploi du temps l'archive, sans rien perdre", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("la scolarité d'un fils d'enseignant, réglée au guichet", () => {
-  /** Un fils d'enseignant qui a consommé un mois entier et n'a rien versé. */
+describe("la cotisation d'un fils d'entraîneur, réglée au guichet", () => {
+  /** Un fils d'entraîneur qui a consommé une carte entière et n'a rien versé. */
   async function childInDebt() {
     board();
     patch(STU, { studentCase: "teacher_child", teacherFatherId: TEACHER });
@@ -221,10 +221,10 @@ describe("la scolarité d'un fils d'enseignant, réglée au guichet", () => {
     expect(res.ok).toBe(true);
 
     const db = useData.getState();
-    // L'enfant est en règle : sa dette ne retient plus la part de l'enseignant.
+    // L'enfant est en règle : sa dette ne retient plus la part de l'entraîneur.
     expect(soldFor(db, STU, SUB)).toBe(0);
     expect(studentHasDebt(db, STU)).toBe(false);
-    // Aucun argent n'a traversé la caisse : l'école sera payée le jour de la paie.
+    // Aucun argent n'a traversé la caisse : le club sera payée le jour de la paie.
     expect(db.cash.filter((c) => c.type === "student_payment")).toHaveLength(0);
     expect(cycleCredits(db, STU, SUB, "M1").charged).toBe(due);
     // …et la retenue attend, nommée, sur la fiche du père.
@@ -312,7 +312,7 @@ describe("retirer un pointage rend exactement ce qu'il avait pris", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("l'école choisit ce qu'elle avance", () => {
+describe("le club choisit ce qu'elle avance", () => {
   it("un montant explicite ne règle que ce qu'on a saisi, et ne débloque pas la part", async () => {
     board();
     for (const day of scheduledDays(4)) await attend(day);
@@ -327,11 +327,11 @@ describe("l'école choisit ce qu'elle avance", () => {
     expect(res.ok).toBe(true);
     expect(res.amount).toBe(500);
     expect(soldFor(useData.getState(), STU, SUB)).toBe(-1500);
-    // La dette n'est pas à zéro : la part de l'enseignant reste retenue.
+    // La dette n'est pas à zéro : la part de l'entraîneur reste retenue.
     expect(studentHasDebt(useData.getState(), STU)).toBe(true);
   });
 
-  it("avancer plus que le mois ne doit est plafonné au dû", async () => {
+  it("avancer plus que la carte ne doit est plafonné au dû", async () => {
     board();
     for (const day of scheduledDays(4)) await attend(day);
 
@@ -340,7 +340,7 @@ describe("l'école choisit ce qu'elle avance", () => {
       lines: [{ subscriptionId: SUB, monthCode: "M1", amount: 99999 }],
     });
 
-    // Le solde tombe à zéro, jamais au-dessus : l'école n'offre pas d'avance.
+    // Le solde tombe à zéro, jamais au-dessus : le club n'offre pas d'avance.
     expect(soldFor(useData.getState(), STU, SUB)).toBe(0);
     expect(studentHasDebt(useData.getState(), STU)).toBe(false);
   });
@@ -353,7 +353,7 @@ describe("l'école choisit ce qu'elle avance", () => {
 
     expect(soldFor(useData.getState(), STU, SUB)).toBe(0);
     expect(studentHasDebt(useData.getState(), STU)).toBe(false);
-    // Deux mouvements qui s'annulent : l'entrée portée à l'élève, la sortie
+    // Deux mouvements qui s'annulent : l'entrée portée au chevalier, la sortie
     // qui l'a financée.
     const cash = useData.getState().cash;
     expect(cash.filter((c) => c.type === "student_payment")).toHaveLength(1);
@@ -363,8 +363,8 @@ describe("l'école choisit ce qu'elle avance", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("les inscriptions d'un élève, lues en toutes lettres", () => {
-  it("chaque ligne porte sa classe, son année et son emploi du temps", () => {
+describe("les inscriptions d'un chevalier, lues en toutes lettres", () => {
+  it("chaque ligne porte sa catégorie, son année et son emploi du temps", () => {
     board();
     const db = useData.getState();
     const rows = studentInscriptionRows(db, db.students.find((s) => s.id === STU)!);

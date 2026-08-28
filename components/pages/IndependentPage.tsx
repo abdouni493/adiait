@@ -8,24 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  Trash2,
-  Edit,
-  Eye,
-  Plus,
-  Calendar,
-  Search,
-  MoreVertical,
-  Printer,
-  X,
-  Clock,
-  Filter,
-  LayoutGrid,
-  Table as TableIcon,
-  User,
-  MapPin,
-  Users,
-} from "lucide-react";
+import { Calendar, Clock, Edit, Eye, Filter, LayoutGrid, MapPin, MoreVertical, Plus, Printer, Search, Swords, Table as TableIcon, Trash2, User, Users, X } from "lucide-react";
 import type { IndependentSession, Student } from "@/lib/types";
 import { printHtmlDocument } from "@/lib/print";
 import {
@@ -125,13 +108,13 @@ export function IndependentPage() {
   const [casualDate, setCasualDate] = useState(new Date().toISOString().split("T")[0]);
   const [customPrice, setCustomPrice] = useState<number | null>(null);
   /**
-   * CE QUE L'ÉCOLE GARDE sur le prix. Le reste va à l'enseignant, et se règle
-   * avec le mois de l'emploi du temps où la date tombe. `null` = pas encore
-   * saisi : on prend alors le prix entier (l'école garde tout), qui est
+   * CE QUE LE CLUB GARDE sur le prix. Le reste va à l'entraîneur, et se règle
+   * avec la carte de l'emploi du temps où la date tombe. `null` = pas encore
+   * saisi : on prend alors le prix entier (le club garde tout), qui est
    * exactement ce que faisaient les séances libres avant ce partage.
    */
   const [schoolShare, setSchoolShare] = useState<number | null>(null);
-  /** Les élèves de passage saisis d'un coup — un nom par ligne, vide permis. */
+  /** Les chevaliers de passage saisis d'un coup — un nom par ligne, vide permis. */
   const [passagerNames, setPassagerNames] = useState<string[]>([""]);
 
   // Once a séance libre is created, immediately offer to print its receipt.
@@ -223,13 +206,13 @@ export function IndependentPage() {
   }, [students, studentSearchQuery]);
 
   const effectivePrice = customPrice ?? selectedItem?.price ?? 0;
-  /** La part de l'école, bornée au prix : elle ne peut pas manger plus que tout. */
+  /** La part du club, bornée au prix : elle ne peut pas manger plus que tout. */
   const effectiveSchoolShare = Math.min(
     Math.max(0, schoolShare ?? effectivePrice),
     Math.max(0, effectivePrice),
   );
   const unitTeacherShare = money(Math.max(0, effectivePrice) - effectiveSchoolShare);
-  /** Combien de personnes cette création enregistre : un élève nommé, ou N passagers. */
+  /** Combien de personnes cette création enregistre : un chevalier nommé, ou N passagers. */
   const attendeeCount = selectedStudent || selectedCasual ? 1 : Math.max(1, passagerNames.length);
   const seanceTotals = {
     total: money(Math.max(0, effectivePrice) * attendeeCount),
@@ -351,9 +334,9 @@ export function IndependentPage() {
       return;
     }
 
-    // ---- CRÉER : un élève nommé, ou autant de passagers qu'il en est venu ---
+    // ---- CRÉER : un chevalier nommé, ou autant de passagers qu'il en est venu ---
     // Les deux passent par la même écriture : la séance entre en caisse, la
-    // part de l'enseignant part avec le mois où la date tombe.
+    // part de l'entraîneur part avec la carte où la date tombe.
     const names = selectedStudent
       ? [`${selectedStudent.firstName} ${selectedStudent.lastName}`]
       : passagerNames.map((n) => n.trim());
@@ -452,9 +435,9 @@ export function IndependentPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <PageHeader
-          emoji="🎓"
+          icon={Swords}
           title="Séances Libres"
-          subtitle="Enregistrer les séances ponctuelles des élèves inscrits et des passagers"
+          subtitle="Enregistrer les séances ponctuelles des chevaliers inscrits et des passagers"
         />
         {can("create") && (
 <Button onClick={openCreate} className="flex items-center gap-2 self-start sm:self-center">
@@ -464,7 +447,7 @@ export function IndependentPage() {
       </div>
 
       {/* Séances libres vendues à un GROUPE entier — on saisit le nombre
-          d'élèves, jamais leurs noms. */}
+          de chevaliers, jamais leurs noms. */}
       <GroupSeanceSection />
 
       {/* Filters toolbar */}
@@ -509,7 +492,7 @@ export function IndependentPage() {
                 <Input
                   value={listSearch}
                   onChange={(e) => setListSearch(e.target.value)}
-                  placeholder="Nom de l'élève, passager ou séance..."
+                  placeholder="Nom du chevalier, passager ou séance..."
                   className="pl-9"
                 />
               </div>
@@ -518,7 +501,7 @@ export function IndependentPage() {
               <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Type de payeur</label>
               <Select value={payerFilter} onChange={(e) => setPayerFilter(e.target.value as typeof payerFilter)} className="w-full">
                 <option value="all">Tous</option>
-                <option value="student">Élèves inscrits</option>
+                <option value="student">Chevaliers inscrits</option>
                 <option value="passager">Passagers</option>
               </Select>
             </div>
@@ -636,7 +619,7 @@ export function IndependentPage() {
                             {ind.studentId ? getStudentName(ind.studentId) : ind.passagerName}
                           </h4>
                           <span className="text-[10px] text-muted block font-mono truncate">
-                            {ind.studentId ? "Élève Inscrit" : "Passager Occasionnel"}
+                            {ind.studentId ? "Chevalier Inscrit" : "Passager Occasionnel"}
                           </span>
                         </div>
                       </div>
@@ -701,14 +684,14 @@ export function IndependentPage() {
             <table className="w-full text-xs text-left border-collapse min-w-[860px]">
               <thead>
                 <tr className="bg-canvas border-b border-line text-[10px] text-muted uppercase font-bold tracking-wider">
-                  <th className="p-3">Élève / Passager</th>
+                  <th className="p-3">Chevalier / Passager</th>
                   <th className="p-3">Séance</th>
-                  <th className="p-3">Enseignant</th>
+                  <th className="p-3">Entraîneur</th>
                   <th className="p-3">Date & horaire</th>
                   <th className="p-3">Créée le</th>
                   <th className="p-3 text-right">Tarif</th>
-                  <th className="p-3 text-right">Part école</th>
-                  <th className="p-3 text-right">Part enseignant</th>
+                  <th className="p-3 text-right">Part club</th>
+                  <th className="p-3 text-right">Part entraîneur</th>
                   <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -797,10 +780,10 @@ export function IndependentPage() {
       {/* Créer / modifier une séance libre                                   */}
       {/*                                                                     */}
       {/* Le même geste qu'à la feuille de présence, en plus large : on        */}
-      {/* cherche l'emploi du temps, on dit QUI est venu — un élève inscrit,   */}
+      {/* cherche l'emploi du temps, on dit QUI est venu — un chevalier inscrit,   */}
       {/* ou un ou plusieurs passagers dont le nom est facultatif — puis on    */}
-      {/* tape le prix total et la part de l'école. Le reste va à             */}
-      {/* l'enseignant, et s'affiche pendant la saisie.                       */}
+      {/* tape le prix total et la part du club. Le reste va à             */}
+      {/* l'entraîneur, et s'affiche pendant la saisie.                       */}
       {/* ------------------------------------------------------------------ */}
       <Modal
         open={isFormOpen}
@@ -813,7 +796,7 @@ export function IndependentPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-muted mb-1 font-sans">
-                Élève inscrit (facultatif) — nom, n° d&apos;inscription ou n° de carte
+                Chevalier inscrit (facultatif) — nom, n° d&apos;inscription ou n° de carte
               </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
@@ -862,7 +845,7 @@ export function IndependentPage() {
                   ))}
                   {matchedStudents.length === 0 && (
                     <div className="p-3 text-center text-xs text-muted bg-surface rounded-xl border border-line">
-                      Aucun élève inscrit sous ce nom — la séance sera enregistrée pour le passager{" "}
+                      Aucun chevalier inscrit sous ce nom — la séance sera enregistrée pour le passager{" "}
                       <strong>&laquo;&nbsp;{studentSearchQuery}&nbsp;&raquo;</strong>
                     </div>
                   )}
@@ -875,7 +858,7 @@ export function IndependentPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <span className="text-[10px] text-muted block uppercase font-bold">
-                      Élève sélectionné
+                      Chevalier sélectionné
                     </span>
                     <strong className="text-ink block mt-0.5">
                       {selectedStudent.firstName} {selectedStudent.lastName}
@@ -884,7 +867,7 @@ export function IndependentPage() {
                       N° {registrationNumberOf(db, selectedStudent)} — une séance libre se règle en
                       espèces et ne touche <strong className="text-ink">aucun</strong> de ses
                       soldes.
-                      {selectedStudent.isFree && " (élève gratuit)"}
+                      {selectedStudent.isFree && " (chevalier gratuit)"}
                     </span>
                   </div>
                   <button
@@ -907,7 +890,7 @@ export function IndependentPage() {
               <div className="space-y-2 rounded-xl border border-line bg-canvas/30 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                    👥 Élèves de passage ({passagerNames.length})
+                    👥 Chevaliers de passage ({passagerNames.length})
                   </span>
                   <div className="flex items-center gap-1 rounded-lg border border-line bg-surface p-1">
                     <button
@@ -1008,7 +991,7 @@ export function IndependentPage() {
                 <Input
                   value={itemSearchQuery}
                   onChange={(e) => setItemSearchQuery(e.target.value)}
-                  placeholder="Nom de l'emploi du temps, classe, groupe, salle ou enseignant…"
+                  placeholder="Nom de l'emploi du temps, catégorie, groupe, arène ou entraîneur…"
                   className="pl-9"
                 />
               </div>
@@ -1024,7 +1007,7 @@ export function IndependentPage() {
                         onClick={() => {
                           setSelectedItem(opt);
                           setCustomPrice(opt.price);
-                          // Par défaut, l'école garde tout : c'est le
+                          // Par défaut, le club garde tout : c'est le
                           // comportement d'avant le partage, et il se corrige
                           // d'un chiffre juste en dessous.
                           setSchoolShare(opt.price);
@@ -1067,7 +1050,7 @@ export function IndependentPage() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
                     <label className="block text-xs font-semibold text-muted mb-1">
-                      Prix total / élève *
+                      Prix total / chevalier *
                     </label>
                     <Input
                       type="number"
@@ -1078,7 +1061,7 @@ export function IndependentPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-muted mb-1">
-                      Part de l&apos;école / élève *
+                      Part de l&apos;club / chevalier *
                     </label>
                     <Input
                       type="number"
@@ -1089,13 +1072,13 @@ export function IndependentPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-muted mb-1">
-                      Part de l&apos;enseignant / élève
+                      Part de l&apos;enseignant / chevalier
                     </label>
                     <div className="flex h-9 items-center rounded-xl border border-primary/40 bg-surface px-3 font-mono text-sm font-black text-primary">
                       {formatDA(unitTeacherShare)}
                     </div>
                     <span className="mt-0.5 block text-[9px] text-muted">
-                      calculée : prix − part école
+                      calculée : prix − part club
                     </span>
                   </div>
                 </div>
@@ -1105,14 +1088,14 @@ export function IndependentPage() {
                   {selectedItem.kind === "timing" ? "le créneau" : "l'abonnement"} :{" "}
                   <strong>{formatDA(selectedItem.price)}</strong>. Modifiable pour cette séance
                   uniquement. La part de l&apos;enseignant se réglera avec le{" "}
-                  <strong>mois de cet emploi du temps</strong> où la date tombe, dans sa table
+                  <strong>carte de cet emploi du temps</strong> où la date tombe, dans sa table
                   « Retards de paiement &amp; séances libres ».
                 </p>
 
                 <div className="grid grid-cols-3 gap-2">
                   <FormTotal label="Total encaissé" value={formatDA(seanceTotals.total)} tone="text-success" />
-                  <FormTotal label="Total école" value={formatDA(seanceTotals.school)} tone="text-ink" />
-                  <FormTotal label="Total enseignant" value={formatDA(seanceTotals.teacher)} tone="text-primary" />
+                  <FormTotal label="Total club" value={formatDA(seanceTotals.school)} tone="text-ink" />
+                  <FormTotal label="Total entraîneur" value={formatDA(seanceTotals.teacher)} tone="text-primary" />
                 </div>
 
                 <div className="rounded-xl border border-success/25 bg-success/10 p-3 text-xs">
@@ -1123,7 +1106,7 @@ export function IndependentPage() {
                         ? `${selectedStudent.firstName} ${selectedStudent.lastName}`
                         : selectedCasual
                           ? studentSearchQuery.trim() || "Passager"
-                          : `${attendeeCount} élève(s) de passage`}
+                          : `${attendeeCount} chevalier(s) de passage`}
                     </strong>
                   </div>
                   <div className="mt-1.5 flex items-center justify-between border-t border-success/25 pt-2">
@@ -1136,7 +1119,7 @@ export function IndependentPage() {
 
                 {effectivePrice > 0 && unitTeacherShare === 0 && (
                   <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-                    L&apos;école garde tout : cette séance ne rapportera rien à l&apos;enseignant.
+                    L&apos;club garde tout : cette séance ne rapportera rien à l&apos;enseignant.
                   </p>
                 )}
               </div>
@@ -1167,12 +1150,12 @@ export function IndependentPage() {
             <div className="space-y-5 text-xs">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-primary-50/50 rounded-xl p-4 border border-line">
                 <div>
-                  <span className="text-[10px] text-muted block uppercase">Élève / Passager</span>
+                  <span className="text-[10px] text-muted block uppercase">Chevalier / Passager</span>
                   <strong className="text-ink block">
                     {student ? `${student.firstName} ${student.lastName}` : selectedCasual.passagerName}
                   </strong>
                   <Badge tone={student ? "primary" : "warning"} className="text-[9px] mt-1">
-                    {student ? "Élève inscrit" : "Passager"}
+                    {student ? "Chevalier inscrit" : "Passager"}
                   </Badge>
                 </div>
                 <div>
@@ -1203,10 +1186,10 @@ export function IndependentPage() {
                   </h4>
                   {[
                     ["Module", opt?.moduleName],
-                    ["Classe / Niveau", opt?.classLabel],
+                    ["Catégorie / Niveau", opt?.classLabel],
                     ["Groupe(s)", opt?.groupLabel],
-                    ["Salle(s)", opt?.salleLabel],
-                    ["Enseignant", opt ? `${opt.teacherName}${opt.teacherIsPassager ? " (passager)" : ""}` : undefined],
+                    ["Arène(s)", opt?.salleLabel],
+                    ["Entraîneur", opt ? `${opt.teacherName}${opt.teacherIsPassager ? " (passager)" : ""}` : undefined],
                     ["Jours", opt?.daysLabel],
                     ["Période", opt?.periodLabel],
                   ].map(([label, value]) =>
@@ -1224,8 +1207,8 @@ export function IndependentPage() {
                     💰 Règlement
                   </h4>
                   {(() => {
-                    // Le partage tel qu'il a été saisi : ce que l'école garde,
-                    // et ce qui reste dû à l'enseignant sur cette séance-là.
+                    // Le partage tel qu'il a été saisi : ce que le club garde,
+                    // et ce qui reste dû à l'entraîneur sur cette séance-là.
                     const split = independentTotals(selectedCasual);
                     return (
                       <>
@@ -1234,11 +1217,11 @@ export function IndependentPage() {
                           <strong className="text-success">{formatDA(split.price)}</strong>
                         </div>
                         <div className="flex justify-between border-b border-line/50 pb-1.5">
-                          <span className="text-muted">Part de l&apos;école :</span>
+                          <span className="text-muted">Part de l&apos;club :</span>
                           <strong className="text-ink">{formatDA(split.school)}</strong>
                         </div>
                         <div className="flex justify-between border-b border-line/50 pb-1.5">
-                          <span className="text-muted">Part de l&apos;enseignant :</span>
+                          <span className="text-muted">Part de l&apos;entraîneur :</span>
                           <strong className="text-primary">
                             {formatDA(split.teacher)}
                             {split.unsplit && (
@@ -1253,7 +1236,7 @@ export function IndependentPage() {
                           <Badge tone={selectedCasual.teacherPaid ? "success" : "warning"} className="text-[9px]">
                             {selectedCasual.teacherPaid
                               ? "déjà réglée"
-                              : "à régler avec le mois de cet emploi"}
+                              : "à régler avec la carte de cet emploi"}
                           </Badge>
                         </div>
                       </>

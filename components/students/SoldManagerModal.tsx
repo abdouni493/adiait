@@ -44,20 +44,21 @@ import {
 } from "lucide-react";
 import type { Student } from "@/lib/types";
 import {
+  carteShort,
+  currentCycleIndex,
   cycleOf,
   cycleSizeOf,
-  currentCycleIndex,
   enrollmentCycles,
   formatDays,
   groupName,
   isFreeSub,
-  monthCodeLabel,
   moduleName as moduleNameOf,
+  monthCodeLabel,
   registrationNumberOf,
   salleName,
   soldFor,
-  studentChargeDebt,
   soldStatus,
+  studentChargeDebt,
   studentListPrice,
   studentMonthPrice,
   studentName,
@@ -117,7 +118,7 @@ export function SoldManagerModal({
         const curIdx = currentCycleIndex(db, student.id, subId);
         const code = monthFilter === "current" ? `M${curIdx + 1}` : monthFilter;
         const cycle = cycleOf(db, student.id, subId, code);
-        // Son tarif à LUI : « école seule » ne paie que la part de l'école.
+        // Son tarif à LUI : « club seule » ne paie que la part du club.
         const unit = studentListPrice(student, sub);
         const monthPrice = studentMonthPrice(student, sub);
         // Un emploi du temps OFFERT n'a rien à recharger : son solde est « à
@@ -153,7 +154,7 @@ export function SoldManagerModal({
 
   const totalSold = rows.reduce((s, r) => s + r.sold, 0);
   const totalDebt = rows.reduce((s, r) => s + Math.max(0, -r.sold), 0);
-  /** ce qu'il doit HORS scolarité : livres, tenues, avances de l'école… */
+  /** ce qu'il doit HORS cotisation : livres, tenues, avances du club… */
   const chargeDebt = studentChargeDebt(db, student.id);
 
   const submit = async () => {
@@ -230,14 +231,14 @@ export function SoldManagerModal({
           {/* Month filter — the emploi's own months */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-              Mois affiché
+              Carte affiché
             </span>
             <Select
               value={monthFilter}
               onChange={(e) => setMonthFilter(e.target.value)}
               className="min-w-[170px]"
             >
-              <option value="current">Mois en cours</option>
+              <option value="current">Carte en cours</option>
               {Array.from({ length: Math.max(6, maxMonth + 2) }, (_, i) => `M${i + 1}`).map((c) => (
                 <option key={c} value={c}>
                   {monthCodeLabel(c)}
@@ -245,7 +246,7 @@ export function SoldManagerModal({
               ))}
             </Select>
             <span className="text-[10px] text-muted">
-              Chaque emploi du temps compte ses propres mois : M1 s&apos;ouvre à la 1<sup>re</sup>{" "}
+              Chaque emploi du temps compte ses propres carte : M1 s&apos;ouvre à la 1<sup>re</sup>{" "}
               présence et se ferme à la dernière séance du pack.
             </span>
           </div>
@@ -253,7 +254,7 @@ export function SoldManagerModal({
           {/* One card per emploi du temps */}
           {rows.length === 0 ? (
             <p className="rounded-xl border border-line bg-canvas/40 p-6 text-center text-xs italic text-muted">
-              Cet élève n&apos;est inscrit sur aucun emploi du temps.
+              Ce chevalier n&apos;est inscrit sur aucun emploi du temps.
             </p>
           ) : (
             <div className="space-y-2">
@@ -281,7 +282,7 @@ export function SoldManagerModal({
                           ) : (
                             <>
                               séance à {formatDA(r.unit)}
-                              {r.monthPrice > 0 ? ` · mois à ${formatDA(r.monthPrice)}` : ""}
+                              {r.monthPrice > 0 ? ` · carte à ${formatDA(r.monthPrice)}` : ""}
                             </>
                           )}
                         </span>
@@ -296,7 +297,7 @@ export function SoldManagerModal({
                       <Tile
                         label={`Avancement ${r.code}`}
                         value={`${r.cycle.done}/${r.cycle.size}`}
-                        hint={r.cycle.complete ? "mois clos" : "séances faites"}
+                        hint={r.cycle.complete ? "carte close" : "séances faites"}
                       />
                       <Tile
                         label={`Versé sur ${r.code}`}
@@ -313,7 +314,7 @@ export function SoldManagerModal({
                     {r.monthsInDebt.length > 0 && (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-danger/30 bg-danger/5 p-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-danger">
-                          Mois en dette
+                          Carte en dette
                         </span>
                         {r.monthsInDebt.map((c) => (
                           <button
@@ -363,8 +364,8 @@ export function SoldManagerModal({
           )}
 
           {/* ---- LES FRAIS : LA DETTE QUI N'EST PAS DE LA SCOLARITÉ -------
-              Un livre, une tenue, une sortie, ou ce que l'école a avancé de sa
-              caisse pour débloquer la part d'un enseignant. Ça se réclame au
+              Un livre, une tenue, une sortie, ou ce que le club a avancé de sa
+              caisse pour débloquer la part d'un entraîneur. Ça se réclame au
               même guichet, à la même famille, dans la même minute — donc ça se
               règle ICI, sur l'écran où l'argent rentre, et non sur un autre.
 
@@ -427,7 +428,7 @@ export function SoldManagerModal({
                           addToast({
                             type: "success",
                             title: "Inscrit sur l'emploi du temps",
-                            message: `Il entre en ${res.monthCode} · séance ${
+                            message: `Il entre en ${carteShort(res.monthCode ?? "")} · séance ${
                               (res.slotIndex ?? 0) + 1
                             } — là où en est le groupe.`,
                             studentName: studentName(student),
@@ -439,7 +440,7 @@ export function SoldManagerModal({
                   showTotal={false}
                 />
                 <p className="text-[10px] text-muted">
-                  Le tableau du haut rappelle sa <strong>classe</strong>, son{" "}
+                  Le tableau du haut rappelle sa <strong>catégorie</strong>, son{" "}
                   <strong>année</strong> et les <strong>emplois du temps qu&apos;il suit</strong>{" "}
                   aujourd&apos;hui ; la liste du dessous en propose d&apos;autres. Cochez un
                   créneau pour l&apos;ajouter à sa fiche : il entre LÀ OÙ EN EST LE GROUPE (mois et
@@ -471,7 +472,7 @@ export function SoldManagerModal({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                  Mois crédité
+                  Carte crédité
                 </label>
                 <Select
                   value={target.monthCode}

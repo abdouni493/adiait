@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { MotionConfig } from "framer-motion";
 import { useSession } from "@/lib/store/session";
 import { setCurrentActor, useData } from "@/lib/store/data";
 import {
@@ -109,5 +110,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, user?.id]);
 
-  return <>{children}</>;
+  /**
+   * LE MOUVEMENT, RÉGLÉ UNE FOIS POUR TOUTE L'APPLICATION.
+   *
+   * `reducedMotion="user"` fait lire à Framer Motion la préférence système :
+   * les déplacements et les changements d'échelle sont alors neutralisés,
+   * l'opacité et la couleur continuent d'animer. Les animations CSS sont
+   * couvertes en parallèle par la règle globale de `globals.css` — les deux
+   * ensemble couvrent tout ce qui bouge, y compris ce qui sera écrit plus tard.
+   */
+  return (
+    <MotionConfig reducedMotion="user" transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}>
+      {children}
+    </MotionConfig>
+  );
 }

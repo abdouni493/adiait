@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * LE CATALOGUE DE L'ÉCOLE DE DÉMONSTRATION.
+ * LE CATALOGUE DE LE CLUB DE DÉMONSTRATION.
  *
- * Tout ce qui ne dépend d'aucun élève : l'établissement, les matières, les
- * groupes, les salles, les classes, les enseignants, les travailleurs, les
+ * Tout ce qui ne dépend d'aucun chevalier : l'établissement, les matières, les
+ * groupes, les arènes, les catégories, les entraîneurs, les travailleurs, les
  * emplois du temps et leurs tarifs.
  *
  * Les identifiants sont des chaînes lisibles (`tea-3`, `ses-12`, `sub-12`) pour
@@ -35,7 +35,7 @@ import { TODAY, shiftDays, stamp, weekday } from "./dates";
 export const SCHOOL: School = {
   id: "school",
   name: "ALTECH SCHOOL",
-  description: "École privée — cours de soutien, formations et préscolaire",
+  description: "Club privée — cours de soutien, formations et prédu club",
   phone: "0550 12 34 56",
   email: "contact@altech-school.dz",
   address: "12 Rue des Frères Bouadou, Birkhadem, Alger",
@@ -53,7 +53,7 @@ export const SCHOOL: School = {
 };
 
 // ---------------------------------------------------------------------------
-// Matières, groupes, salles, classes
+// Matières, groupes, arènes, catégories
 // ---------------------------------------------------------------------------
 
 export const CLASS_CATEGORIES: ClassCategory[] = [
@@ -72,7 +72,7 @@ export const MODULES: Module[] = [
   { id: "mod-7", name: "Histoire-Géographie" },
   { id: "mod-8", name: "Philosophie" },
   { id: "mod-9", name: "Informatique" },
-  { id: "mod-10", name: "Éveil & Préscolaire" },
+  { id: "mod-10", name: "Éveil & Prédu club" },
 ];
 
 export const GROUPS: Group[] = [
@@ -87,14 +87,14 @@ export const GROUPS: Group[] = [
 ];
 
 export const SALLES: Salle[] = [
-  { id: "sal-1", name: "Salle 1" },
-  { id: "sal-2", name: "Salle 2" },
-  { id: "sal-3", name: "Salle 3" },
-  { id: "sal-4", name: "Salle 4" },
-  { id: "sal-5", name: "Salle 5" },
-  { id: "sal-6", name: "Salle 6" },
+  { id: "sal-1", name: "Arène 1" },
+  { id: "sal-2", name: "Arène 2" },
+  { id: "sal-3", name: "Arène 3" },
+  { id: "sal-4", name: "Arène 4" },
+  { id: "sal-5", name: "Arène 5" },
+  { id: "sal-6", name: "Arène 6" },
   { id: "sal-7", name: "Laboratoire" },
-  { id: "sal-8", name: "Salle Informatique" },
+  { id: "sal-8", name: "Arène Informatique" },
 ];
 
 export const CLASSES: SchoolClass[] = [
@@ -126,7 +126,7 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Les enseignants — les trois modes de paie sont représentés, plus deux
+// Les entraîneurs — les trois modes de paie sont représentés, plus deux
 // intervenants de passage, qui n'ont pas de compte de connexion.
 // ---------------------------------------------------------------------------
 
@@ -146,8 +146,8 @@ export const TEACHERS: Teacher[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Les travailleurs — les quatre contrats (mois, journée, demi-journée, heures)
-// et des métiers que l'école a nommés elle-même.
+// Les travailleurs — les quatre contrats (carte, journée, demi-journée, heures)
+// et des métiers que le club a nommés elle-même.
 // ---------------------------------------------------------------------------
 
 export const WORKER_ROLES: WorkerJobRole[] = [
@@ -232,7 +232,7 @@ export const WORKERS: ReceptionStaff[] = [
 //
 // Plusieurs tombent AUJOURD'HUI, pour que le tableau de bord, la feuille de
 // présence et le scan aient toujours de quoi travailler. On y trouve aussi les
-// variantes que l'application sait gérer : horaires et salles qui changent d'un
+// variantes que l'application sait gérer : horaires et arènes qui changent d'un
 // jour à l'autre, emploi à cheval sur deux niveaux, séances libres, et un
 // emploi ARCHIVÉ dont l'historique reste lisible.
 // ---------------------------------------------------------------------------
@@ -242,7 +242,7 @@ export const SESSIONS: ScheduleSession[] = [
     id: "ses-1", classId: "cls-1", moduleId: "mod-1", groupId: "grp-1", salleId: "sal-1",
     teacherId: "tea-1", days: [TODAY, weekday(2), weekday(4)],
     startTime: "08:00", endTime: "10:00",
-    // La salle change le jour du milieu : la 1 est prise par le laboratoire.
+    // L'arène change le jour du milieu : la 1 est prise par le laboratoire.
     daySalles: { [weekday(2)]: "sal-7" },
   },
   {
@@ -277,7 +277,7 @@ export const SESSIONS: ScheduleSession[] = [
   {
     id: "ses-8", classId: "cls-3", moduleId: "mod-6", groupId: "grp-2", salleId: "sal-5",
     teacherId: "tea-6", days: [TODAY, weekday(2)], startTime: "10:00", endTime: "11:30",
-    // Le samedi commence plus tôt : l'école ouvre à 8h ce jour-là.
+    // Le samedi commence plus tôt : le club ouvre à 8h ce jour-là.
     dayTimes: { [weekday(2)]: { startTime: "08:30", endTime: "10:00" } },
   },
   {
@@ -322,7 +322,7 @@ export const SESSIONS: ScheduleSession[] = [
   {
     id: "ses-17", classId: "cls-7", moduleId: "mod-5", groupId: "grp-4", salleId: "sal-3",
     teacherId: "tea-5", days: [TODAY, weekday(4)], startTime: "09:00", endTime: "10:30",
-    // Archivé le mois dernier : il disparaît de la grille mais son historique
+    // Archivé la carte dernier : il disparaît de la grille mais son historique
     // (présences, soldes, parts dues) reste lisible partout où il apparaît.
     archivedAt: shiftDays(-25),
   },
@@ -343,13 +343,13 @@ export const SESSIONS: ScheduleSession[] = [
 // ---------------------------------------------------------------------------
 // Les tarifs
 //
-// Le prix est TOUJOURS celui d'une séance ; un cours se vend en plus au MOIS
+// Le prix est TOUJOURS celui d'une séance ; un cours se vend en plus au CARTE
 // (un pack de séances à prix fixe, souvent moins cher que les mêmes séances
-// achetées à l'unité). `schoolMonthShare` dit ce que l'école garde du mois : le
-// reste est la part de l'enseignant, et c'est elle que sa paie lui règle.
+// achetées à l'unité). `schoolMonthShare` dit ce que le club garde de la carte : le
+// reste est la part de l'entraîneur, et c'est elle que sa paie lui règle.
 // ---------------------------------------------------------------------------
 
-/** Fabrique un tarif mensuel cohérent : prix du mois, part école, part séance. */
+/** Fabrique un tarif par carte cohérent : prix de la carte, part club, part séance. */
 function monthly(
   id: string,
   sessionId: string,

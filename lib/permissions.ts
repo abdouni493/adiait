@@ -58,9 +58,9 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     actions: [
       { id: "open_presence", label: "Ouvrir une feuille de présence", hint: "Cliquer un créneau du jour pour l'ouvrir." },
       { id: "mark_presence", label: "Pointer les présences", hint: "Présent / absent / annulé, et corriger un pointage." },
-      { id: "collect_payment", label: "Encaisser un paiement d'élève", hint: "Recharger un solde depuis la feuille de présence." },
-      { id: "create_student", label: "Créer un élève", hint: "Le bouton « Nouvel élève »." },
-      { id: "student_situation", label: "Situation d'un élève", hint: "Le tableau récapitulatif d'un élève." },
+      { id: "collect_payment", label: "Encaisser un paiement de chevalier", hint: "Recharger un solde depuis la feuille de présence." },
+      { id: "create_student", label: "Créer un chevalier", hint: "Le bouton « Nouvel chevalier »." },
+      { id: "student_situation", label: "Situation d'un chevalier", hint: "Le tableau récapitulatif d'un chevalier." },
       { id: "cash_deposit", label: "Dépôt en caisse" },
       { id: "cash_expense", label: "Saisir une dépense" },
       { id: "cash_withdraw", label: "Retrait de caisse" },
@@ -69,14 +69,14 @@ export const PERMISSION_PAGES: PermissionPage[] = [
   {
     key: "classes",
     emoji: "🏫",
-    label: "Classes",
+    label: "Catégories",
     href: "/classes",
-    hint: "Les niveaux, les classes et leurs catégories.",
+    hint: "Les niveaux, les catégories et leurs catégories.",
     actions: [
-      { id: "create", label: "Créer une classe" },
-      { id: "view", label: "Voir le détail d'une classe" },
-      { id: "edit", label: "Modifier une classe" },
-      { id: "delete", label: "Supprimer une classe" },
+      { id: "create", label: "Créer une catégorie" },
+      { id: "view", label: "Voir le détail d'une catégorie" },
+      { id: "edit", label: "Modifier une catégorie" },
+      { id: "delete", label: "Supprimer une catégorie" },
     ],
   },
   {
@@ -84,7 +84,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     emoji: "📅",
     label: "Emplois du temps",
     href: "/planner",
-    hint: "La grille des créneaux, les séances libres et les salles.",
+    hint: "La grille des créneaux, les séances libres et les arènes.",
     actions: [
       { id: "create", label: "Créer un emploi du temps" },
       { id: "create_open", label: "Créer un créneau de séance libre" },
@@ -99,7 +99,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     emoji: "🎫",
     label: "Tarifs & abonnements",
     href: "/subscriptions",
-    hint: "Le prix de la séance et du mois, emploi du temps par emploi du temps.",
+    hint: "Le prix de la séance et de la carte, emploi du temps par emploi du temps.",
     actions: [
       { id: "view", label: "Voir le détail d'un abonnement" },
       { id: "edit_price", label: "Créer / modifier un tarif" },
@@ -109,23 +109,23 @@ export const PERMISSION_PAGES: PermissionPage[] = [
   {
     key: "students",
     emoji: "🎓",
-    label: "Élèves",
+    label: "Chevaliers",
     href: "/students",
-    hint: "Les fiches des élèves, leurs inscriptions, leurs paiements et leurs dettes.",
+    hint: "Les fiches des chevaliers, leurs inscriptions, leurs paiements et leurs dettes.",
     actions: [
-      { id: "create", label: "Créer un élève" },
-      { id: "view", label: "Voir la fiche d'un élève" },
-      { id: "edit", label: "Modifier un élève" },
-      { id: "delete", label: "Supprimer un élève" },
+      { id: "create", label: "Créer un chevalier" },
+      { id: "view", label: "Voir la fiche d'un chevalier" },
+      { id: "edit", label: "Modifier un chevalier" },
+      { id: "delete", label: "Supprimer un chevalier" },
       { id: "pay", label: "Payer & recharger les soldes" },
       { id: "charges", label: "Frais & dettes (créer, encaisser)" },
       { id: "edit_payment", label: "Corriger un paiement" },
       { id: "delete_payment", label: "Supprimer un paiement" },
       { id: "print_receipt", label: "Réimprimer le reçu d'un paiement" },
-      { id: "print_file", label: "Imprimer la fiche de l'élève" },
+      { id: "print_file", label: "Imprimer la fiche du chevalier" },
       { id: "print_payments", label: "Imprimer le relevé des paiements" },
       { id: "scan", label: "Scanner une carte RFID" },
-      { id: "situation", label: "Situation d'un élève" },
+      { id: "situation", label: "Situation d'un chevalier" },
       { id: "whatsapp", label: "Envoyer un message WhatsApp" },
     ],
   },
@@ -137,21 +137,21 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     hint: "Les feuilles de présence et l'historique des pointages.",
     actions: [
       { id: "mark", label: "Pointer les présences", hint: "Sans ce droit, l'écran se consulte sans s'écrire." },
-      { id: "collect_payment", label: "Encaisser un paiement d'élève", hint: "Recharger un solde depuis la feuille de présence." },
+      { id: "collect_payment", label: "Encaisser un paiement de chevalier", hint: "Recharger un solde depuis la feuille de présence." },
     ],
   },
   {
     key: "teachers",
     emoji: "👨‍🏫",
-    label: "Enseignants",
+    label: "Entraîneurs",
     href: "/teachers",
-    hint: "Les fiches des enseignants, leurs parts et leur paie.",
+    hint: "Les fiches des entraîneurs, leurs parts et leur paie.",
     actions: [
-      { id: "create", label: "Créer un enseignant" },
-      { id: "create_passager", label: "Créer un enseignant de passage" },
-      { id: "view", label: "Voir la fiche d'un enseignant" },
-      { id: "edit", label: "Modifier un enseignant" },
-      { id: "delete", label: "Supprimer un enseignant" },
+      { id: "create", label: "Créer un entraîneur" },
+      { id: "create_passager", label: "Créer un entraîneur de passage" },
+      { id: "view", label: "Voir la fiche d'un entraîneur" },
+      { id: "edit", label: "Modifier un entraîneur" },
+      { id: "delete", label: "Supprimer un entraîneur" },
       { id: "pay", label: "Régler la paie" },
       { id: "acompte", label: "Verser un acompte" },
       { id: "absence", label: "Enregistrer une absence" },
@@ -164,7 +164,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     emoji: "📄",
     label: "Matières & cours",
     href: "/subjects",
-    hint: "Les supports de cours publiés aux élèves.",
+    hint: "Les supports de cours publiés aux chevaliers.",
     actions: [
       { id: "create", label: "Publier un support" },
       { id: "view", label: "Voir un support" },
@@ -227,7 +227,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     emoji: "📢",
     label: "Annonces",
     href: "/announcements",
-    hint: "Les annonces publiées aux élèves et aux parents.",
+    hint: "Les annonces publiées aux chevaliers et aux parents.",
     actions: [
       { id: "create", label: "Publier une annonce" },
       { id: "edit", label: "Modifier une annonce" },
@@ -239,7 +239,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     emoji: "🧾",
     label: "Dépenses",
     href: "/expenses",
-    hint: "Les dépenses de l'école et leurs catégories.",
+    hint: "Les dépenses du club et leurs catégories.",
     actions: [
       { id: "create", label: "Saisir une dépense" },
       { id: "edit", label: "Modifier une dépense" },
@@ -251,7 +251,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     emoji: "📈",
     label: "Statistiques",
     href: "/analytics",
-    hint: "L'affluence des élèves par classe et par enseignant.",
+    hint: "L'affluence des chevaliers par catégorie et par entraîneur.",
     actions: [{ id: "print", label: "Imprimer la vue" }],
   },
   {
@@ -272,7 +272,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     emoji: "💰",
     label: "Rapports",
     href: "/reports",
-    hint: "Le bilan de l'école sur une période. Cet écran se consulte ; il n'écrit rien.",
+    hint: "Le bilan du club sur une période. Cet écran se consulte ; il n'écrit rien.",
     actions: [],
   },
   {
@@ -327,7 +327,7 @@ const LEGACY_RECEPTION_PAGES = [
 ];
 
 export interface AccessRights {
-  /** `true` quand rien n'est filtré (administration, enseignant, élève, parent) */
+  /** `true` quand rien n'est filtré (administration, entraîneur, chevalier, parent) */
   unrestricted: boolean;
   /** les écrans autorisés, quand il y a un filtre */
   pages: string[];

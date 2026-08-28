@@ -32,7 +32,7 @@ describe("le jeu de démonstration", () => {
     }
   });
 
-  it("donne du volume : une vraie école, pas trois fiches", () => {
+  it("donne du volume : une vraie club, pas trois fiches", () => {
     expect(db.students.length).toBeGreaterThanOrEqual(60);
     expect(db.attendance.length).toBeGreaterThan(500);
   });
@@ -90,7 +90,7 @@ describe("le jeu de démonstration", () => {
     }
   });
 
-  it("facture chaque séance au tarif du cas de l'élève", () => {
+  it("facture chaque séance au tarif du cas du chevalier", () => {
     const studentById = new Map(db.students.map((s) => [s.id, s]));
     const subBySession = new Map(db.subscriptions.map((s) => [s.sessionId, s]));
 
@@ -106,7 +106,7 @@ describe("le jeu de démonstration", () => {
     }
   });
 
-  it("n'accorde jamais de part sur un élève gratuit", () => {
+  it("n'accorde jamais de part sur un chevalier gratuit", () => {
     const studentById = new Map(db.students.map((s) => [s.id, s]));
     const subBySession = new Map(db.subscriptions.map((s) => [s.sessionId, s]));
 
@@ -149,7 +149,7 @@ describe("le jeu de démonstration", () => {
     expect(db.workerShifts.some((s) => !s.paid && !s.frozen)).toBe(true);
   });
 
-  it("couvre tous les cas de facturation des élèves", () => {
+  it("couvre tous les cas de facturation des chevaliers", () => {
     const cases = new Set(db.students.map((s) => s.studentCase ?? "normal"));
     for (const c of ["normal", "special", "teacher_child", "reduction", "school_only"]) {
       expect(cases.has(c), c).toBe(true);
@@ -171,7 +171,7 @@ describe("le jeu de démonstration", () => {
     expect(db.studentCharges.some((c) => (c.paidAmount ?? 0) > 0)).toBe(true);
   });
 
-  it("couvre les trois paies d'enseignant et les quatre contrats de travailleur", () => {
+  it("couvre les trois paies d'entraîneur et les quatre contrats de travailleur", () => {
     const modes = new Set(db.teachers.map((t) => t.paymentType));
     expect(modes).toEqual(new Set(["percentage", "monthly", "per_group"]));
     expect(db.teachers.some((t) => t.isPassager)).toBe(true);
@@ -207,7 +207,7 @@ describe("le jeu de démonstration", () => {
     }
   });
 
-  it("rend un objet neuf à chaque appel, et toujours la même école", () => {
+  it("rend un objet neuf à chaque appel, et toujours la même club", () => {
     const other = buildDemoDatabase();
     expect(other.students).not.toBe(db.students);
     expect(other.students.length).toBe(db.students.length);
@@ -215,7 +215,7 @@ describe("le jeu de démonstration", () => {
     expect(other.attendance[0].amountDeducted).toBe(db.attendance[0].amountDeducted);
   });
 
-  it("donne une taille de mois à chaque abonnement", () => {
+  it("donne une taille de carte à chaque abonnement", () => {
     for (const sub of db.subscriptions) {
       expect(cycleSizeOf(sub)).toBeGreaterThan(0);
     }

@@ -3,7 +3,7 @@
 /**
  * LA GESTION DES COMPTES.
  *
- * Créer un enseignant, ouvrir un accès à un travailleur, réinitialiser un mot
+ * Créer un entraîneur, ouvrir un accès à un travailleur, réinitialiser un mot
  * de passe, supprimer un compte : tout se joue dans `auth.users`, la vraie
  * table d'authentification de Supabase. Un compte créé ici se connecte donc par
  * la porte normale — email (ou nom d'utilisateur) et mot de passe.

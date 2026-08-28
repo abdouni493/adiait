@@ -7,13 +7,13 @@ import { cycleOf, studentHasDebt, schoolAdvancedRows } from "@/lib/helpers";
 import type { Teacher } from "@/lib/types";
 
 /**
- * CE QUI RETIENT LA PART DE L'ENSEIGNANT.
+ * CE QUI RETIENT LA PART DE L'ENTRAÎNEUR.
  *
- * La règle a changé : ce n'est plus « l'élève doit quelque chose, quelque part »
- * — ce qui gelait la paie d'un enseignant pour un élève pourtant à jour chez
+ * La règle a changé : ce n'est plus « le chevalier doit quelque chose, quelque part »
+ * — ce qui gelait la paie d'un entraîneur pour un chevalier pourtant à jour chez
  * lui, sur la foi de frais d'inscription ou d'un autre groupe. C'est désormais
  * LA SÉANCE : tant que la séance qui a produit la part n'est pas payée sur ce
- * mois de cet emploi du temps, la part attend ; dès qu'elle l'est, elle se
+ * carte de cet emploi du temps, la part attend ; dès qu'elle l'est, elle se
  * règle.
  */
 
@@ -24,7 +24,7 @@ const STU = "stu-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un emploi du temps à 4 séances : 2 000 DA le mois, 1 200 pour l'enseignant. */
+/** Un emploi du temps à 4 séances : 2 000 DA la carte, 1 200 pour l'entraîneur. */
 function board(studentIds: string[] = [STU]) {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -95,8 +95,8 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("un élève à jour sur son mois débloque la part, même s'il doit ailleurs", () => {
-  it("des frais d'inscription impayés ne retiennent plus l'enseignant", async () => {
+describe("un chevalier à jour sur son carte débloque la part, même s'il doit ailleurs", () => {
+  it("des frais d'inscription impayés ne retiennent plus l'entraîneur", async () => {
     board();
     const days = scheduledDays(4);
     await useData
@@ -142,7 +142,7 @@ describe("un élève à jour sur son mois débloque la part, même s'il doit ail
     expect(studentHasDebt(useData.getState(), STU)).toBe(true);
 
     const row = openBoard("M1").students.find((r) => r.studentId === STU)!;
-    // Son mois est soldé ICI : la part se règle, la dette de l'autre groupe
+    // Son carte est soldé ICI : la part se règle, la dette de l'autre groupe
     // reste à réclamer au guichet.
     expect(row.debt).toBe(0);
     expect(row.emploiDebt).toBe(0);
@@ -168,7 +168,7 @@ describe("la part suit la séance, pas le pointage", () => {
     expect(emploi().months[0].payable).toBe(2 * 300);
     expect(emploi().months[0].withheld).toBe(2 * 300);
 
-    // Puis le reste : tout le mois devient réglable.
+    // Puis le reste : tout la carte devient réglable.
     await useData
       .getState()
       .addSold({ studentId: STU, subscriptionId: SUB, amount: 1000, monthCode: "M1" });
@@ -176,7 +176,7 @@ describe("la part suit la séance, pas le pointage", () => {
     expect(emploi().months[0].withheld).toBe(0);
   });
 
-  it("le trop-versé d'un mois paie les séances du mois suivant", async () => {
+  it("le trop-versé d'une carte paie les séances de la carte suivante", async () => {
     board();
     const days = scheduledDays(6);
     // Six séances payées d'avance, toutes portées sur M1.
@@ -192,7 +192,7 @@ describe("la part suit la séance, pas le pointage", () => {
   });
 });
 
-describe("l'école n'avance que ce qui retient la paie", () => {
+describe("le club n'avance que ce qui retient la paie", () => {
   it("l'avance cible l'emploi du temps et laisse le reste à la famille", async () => {
     board();
     for (const day of scheduledDays(4)) await attend(day);
@@ -218,7 +218,7 @@ describe("l'école n'avance que ce qui retient la paie", () => {
     expect(useData.getState().students.find((s) => s.id === STU)!.registrationDue).toBe(700);
   });
 
-  it("l'avance se relit sur l'écran des étudiants, montant et mois compris", async () => {
+  it("l'avance se relit sur l'écran des chevaliers, montant et carte compris", async () => {
     board();
     for (const day of scheduledDays(4)) await attend(day);
     await useData.getState().coverStudentDebt({ studentId: STU, subscriptionId: SUB });
@@ -231,7 +231,7 @@ describe("l'école n'avance que ce qui retient la paie", () => {
     expect(rows[0].stillOwed).toBe(0);
   });
 
-  it("rien n'a été avancé : l'écran des étudiants n'affiche aucune alerte", async () => {
+  it("rien n'a été avancé : l'écran des chevaliers n'affiche aucune alerte", async () => {
     board();
     await useData
       .getState()

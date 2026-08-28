@@ -3,7 +3,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type Theme = "purple" | "dark-red";
+export type Theme = "light" | "dark";
+
+/**
+ * LES ANCIENS NOMS DE THÈME.
+ *
+ * L'application s'appelait « club » et ses thèmes « purple » / « dark-red ».
+ * Un navigateur qui a gardé l'un de ces deux noms ne doit pas se réveiller
+ * sans thème du tout : on le traduit au vol, ici et dans le script anti-flash
+ * de app/layout.tsx, qui lit exactement la même clé.
+ */
+export function normalizeTheme(value: unknown): Theme {
+  return value === "dark" || value === "dark-red" ? "dark" : "light";
+}
 export type Language = "fr" | "ar";
 
 interface SettingsState {
@@ -34,9 +46,9 @@ function applyToDocument(theme: Theme, language: Language) {
 export const useSettings = create<SettingsState>()(
   persist(
     (set, get) => ({
-      // Le thème clair (purple) est celui servi par défaut : il doit rester
-      // aligné avec le script anti-flash de app/layout.tsx.
-      theme: "purple",
+      // Le thème clair est celui servi par défaut : il doit rester aligné
+      // avec le script anti-flash de app/layout.tsx.
+      theme: "light",
       language: "fr",
       hydrated: false,
       autoSendWhatsapp: true,
@@ -46,7 +58,7 @@ export const useSettings = create<SettingsState>()(
         set({ theme });
       },
       toggleTheme: () => {
-        const theme = get().theme === "purple" ? "dark-red" : "purple";
+        const theme = get().theme === "light" ? "dark" : "light";
         applyToDocument(theme, get().language);
         set({ theme });
       },
@@ -71,9 +83,22 @@ export const useSettings = create<SettingsState>()(
         autoSendWhatsapp: s.autoSendWhatsapp,
         autoSendEmail: s.autoSendEmail,
       }),
+      version: 1,
+      // Une préférence enregistrée sous l'ancien nom est relue, pas jetée.
+      migrate: (persisted) => {
+        const s = (persisted ?? {}) as Partial<SettingsState>;
+        return {
+          theme: normalizeTheme(s.theme),
+          language: s.language ?? "fr",
+          autoSendWhatsapp: s.autoSendWhatsapp ?? true,
+          autoSendEmail: s.autoSendEmail ?? true,
+        };
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
-          applyToDocument(state.theme, state.language);
+          const theme = normalizeTheme(state.theme);
+          if (theme !== state.theme) state.setTheme(theme);
+          else applyToDocument(theme, state.language);
           state.setHydrated();
         }
       },

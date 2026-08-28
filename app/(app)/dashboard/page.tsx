@@ -10,16 +10,16 @@
  *     n'importe quelle date, donc une séance oubliée se pointe encore et le
  *     lendemain se prépare la veille.
  *  2. **Quel groupe j'ouvre ?** — la grille de la journée se lit comme un vrai
- *     emploi du temps : une ligne par créneau horaire, une colonne par salle,
+ *     emploi du temps : une ligne par créneau horaire, une colonne par arène,
  *     et chaque emploi du temps porte SA couleur. Un clic ouvre sa feuille de
- *     présence. La recherche et les filtres (classe, année, module,
- *     enseignant) balaient TOUS les emplois du temps, pas seulement ceux du
+ *     présence. La recherche et les filtres (catégorie, année, module,
+ *     entraîneur) balaient TOUS les emplois du temps, pas seulement ceux du
  *     jour, et le premier résultat est mis en avant pour être ouvert d'un clic.
  *  3. **Et la caisse ?** — dépôt, dépense et retrait se saisissent ici, sans
  *     quitter l'écran, exactement comme sur la page Caisse.
  *
- * Un élève créé depuis cette page entre LÀ OÙ EN EST LE GROUPE à la date
- * affichée : le mois qu'il vit et la séance tenue ce jour-là, jamais la
+ * Un chevalier créé depuis cette page entre LÀ OÙ EN EST LE GROUPE à la date
+ * affichée : la carte qu'il vit et la séance tenue ce jour-là, jamais la
  * séance 1 de l'emploi.
  */
 
@@ -66,25 +66,7 @@ import {
   sessionTimesOn,
   teacherName,
 } from "@/lib/helpers";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Calendar,
-  CalendarCheck,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Filter,
-  Hourglass,
-  Receipt,
-  Search,
-  UserPlus,
-  UserSearch,
-  Users,
-  Wallet,
-  X,
-} from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, Clock, Filter, Home, Hourglass, Receipt, Search, UserPlus, UserSearch, Users, Wallet, X } from "lucide-react";
 import type { Day, ScheduleSession } from "@/lib/types";
 
 const JS_DAYS: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -137,7 +119,7 @@ function AdminDashboard() {
   const [openDate, setOpenDate] = useState<string>(todayIso);
   const [month, setMonth] = useState<string>("M1");
   const [createOpen, setCreateOpen] = useState(false);
-  /** « Situation d'un élève » : le tableau de tous ses emplois du temps. */
+  /** « Situation d'un chevalier » : le tableau de tous ses emplois du temps. */
   const [situationOpen, setSituationOpen] = useState(false);
   /** the emploi the create screen arrives pre-ticked on */
   const [createSubIds, setCreateSubIds] = useState<string[]>([]);
@@ -240,19 +222,19 @@ function AdminDashboard() {
    * LE TARIF DE CHAQUE EMPLOI DU TEMPS DU JOUR, DANS LE DÉTAIL.
    *
    * La question que la réception se pose vingt fois par jour : « ce créneau,
-   * il coûte combien à l'élève, il rapporte combien à l'école, et combien à
-   * l'enseignant ? » Les trois nombres sortent d'une seule division — le prix
-   * du mois par le nombre de séances du mois — et cette division ne tombe
+   * il coûte combien au chevalier, il rapporte combien au club, et combien à
+   * l'entraîneur ? » Les trois nombres sortent d'une seule division — le prix
+   * de la carte par le nombre de séances de la carte — et cette division ne tombe
    * presque jamais juste : 4 000 DA sur 3 séances font 1 333,33 DA, pas 1 333.
    * Les montants sont donc affichés AVEC LEUR VIRGULE, exactement comme ils
-   * sont facturés à l'élève et payés à l'enseignant.
+   * sont facturés au chevalier et payés à l'entraîneur.
    */
   /**
    * CE QUE CHAQUE EMPLOI DU TEMPS A ENCAISSÉ, DEPUIS LE PREMIER JOUR.
    *
-   * La question que la direction pose en fin de mois : « ce groupe, il a
+   * La question que la direction pose en fin de carte : « ce groupe, il a
    * rapporté combien ? » Ce n'est pas la recette du jour — c'est la somme de
-   * TOUT ce que ses élèves ont versé dessus, mois après mois, quelle qu'en soit
+   * TOUT ce que ses chevaliers ont versé dessus, carte après carte, quelle qu'en soit
    * la provenance. Le calcul se fait en une passe sur les paiements, indexée
    * par abonnement, puis rapportée à l'emploi du temps qui le porte.
    */
@@ -410,7 +392,7 @@ function AdminDashboard() {
     setTeacherFilter("all");
   };
 
-  /** The day's grid: one row per créneau horaire, one column per salle. */
+  /** The day's grid: one row per créneau horaire, one column per arène. */
   const grid = useMemo(() => {
     const slotKeys = new Map<string, { start: string; end: string }>();
     const salleIds: string[] = [];
@@ -420,8 +402,8 @@ function AdminDashboard() {
       const { startTime, endTime } = sessionTimesOn(s, dow);
       const slot = `${startTime}|${endTime}`;
       if (!slotKeys.has(slot)) slotKeys.set(slot, { start: startTime, end: endTime });
-      // La salle DU JOUR : un emploi qui tourne samedi en Salle A et mardi en
-      // Salle B se range dans la bonne colonne chaque jour.
+      // L'arène DU JOUR : un emploi qui tourne samedi en Arène A et mardi en
+      // Arène B se range dans la bonne colonne chaque jour.
       const salleId = sessionSalleOn(s, dow) || "__none__";
       if (!salleIds.includes(salleId)) salleIds.push(salleId);
       const key = `${slot}::${salleId}`;
@@ -434,7 +416,7 @@ function AdminDashboard() {
       .map(([key, v]) => ({ key, ...v }))
       .sort((a, b) => minutesOf(a.start) - minutesOf(b.start));
 
-    const salleLabel = (id: string) => (id === "__none__" ? "Sans salle" : salleName(db, id));
+    const salleLabel = (id: string) => (id === "__none__" ? "Sans arène" : salleName(db, id));
     const columns = salleIds
       .map((id) => ({ id, label: salleLabel(id) }))
       .sort((a, b) => (a.id === "__none__" ? 1 : b.id === "__none__" ? -1 : a.label.localeCompare(b.label)));
@@ -462,7 +444,7 @@ function AdminDashboard() {
       return;
     }
     if (cashKind === "expense") {
-      // Une dépense est d'abord une dépense de l'école : elle est écrite dans
+      // Une dépense est d'abord une dépense du club : elle est écrite dans
       // le registre des dépenses ET sortie de la caisse, exactement comme sur
       // l'écran Dépenses.
       push("expenses", {
@@ -499,7 +481,7 @@ function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <PageHeader
-          emoji="🏠"
+          icon={Home}
           title="Tableau de Bord"
           subtitle="Emplois du temps du jour, fiches de présence et caisse"
         />
@@ -507,14 +489,14 @@ function AdminDashboard() {
           {isAdmin && <WorkerPaymentsAlert />}
           {can("create_student") && (
             <Button onClick={() => openCreateFor([])} className="gap-2">
-              <UserPlus className="h-4 w-4" /> Nouvel élève
+              <UserPlus className="h-4 w-4" /> Nouvel chevalier
             </Button>
           )}
           {/* « Il en est où ? » — la question du parent au comptoir, tous ses
               emplois du temps dans un seul tableau, encaissement compris. */}
           {can("student_situation") && (
             <Button variant="outline" onClick={() => setSituationOpen(true)} className="gap-2">
-              <UserSearch className="h-4 w-4 text-primary" /> Situation d&apos;un élève
+              <UserSearch className="h-4 w-4 text-primary" /> Situation d&apos;un chevalier
             </Button>
           )}
           {can("cash_deposit") && (
@@ -544,12 +526,12 @@ function AdminDashboard() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher un emploi du temps — module, groupe, salle, enseignant…"
+                placeholder="Rechercher un emploi du temps — module, groupe, arène, entraîneur…"
                 className="pl-9"
               />
             </div>
             <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="min-w-[150px]">
-              <option value="all">Toutes les classes</option>
+              <option value="all">Toutes les catégories</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {classLabel(db, c)}
@@ -573,7 +555,7 @@ function AdminDashboard() {
               ))}
             </Select>
             <Select value={teacherFilter} onChange={(e) => setTeacherFilter(e.target.value)} className="min-w-[160px]">
-              <option value="all">Tous les enseignants</option>
+              <option value="all">Tous les entraîneurs</option>
               {db.teachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.firstName} {t.lastName}
@@ -723,7 +705,7 @@ function AdminDashboard() {
               icon={<Users className="h-4 w-4" />}
               label="Pointages écrits"
               value={String(dayMarks)}
-              hint="élèves pointés ce jour-là"
+              hint="chevaliers pointés ce jour-là"
               tone="text-primary"
             />
           </div>
@@ -810,7 +792,7 @@ function AdminDashboard() {
                                       </span>
                                       {/* Ce que ce groupe a rapporté depuis le
                                           premier jour : la question qui se pose
-                                          en fin de mois, lisible sans ouvrir
+                                          en fin de carte, lisible sans ouvrir
                                           quoi que ce soit. */}
                                       <span className="block truncate font-mono text-[10px] font-bold text-success">
                                         {formatDA(collectedBySession.get(s.id)?.total ?? 0)} encaissés
@@ -857,12 +839,12 @@ function AdminDashboard() {
           {/* -------------------------------------------------------------
               LE COÛT D'UNE SÉANCE, EMPLOI PAR EMPLOI.
 
-              Trois nombres sortent d'une seule division — le prix du mois par
-              le nombre de séances qu'il contient : ce que l'élève paie, ce que
-              l'école garde, ce qui revient à l'enseignant. Cette division ne
+              Trois nombres sortent d'une seule division — le prix de la carte par
+              le nombre de séances qu'il contient : ce que le chevalier paie, ce que
+              le club garde, ce qui revient à l'entraîneur. Cette division ne
               tombe presque jamais juste (4 000 DA sur 3 séances = 1 333,33 DA),
               alors les montants gardent leur virgule : arrondis au dinar, ils
-              faisaient dériver la paie de l'enseignant d'un mois sur l'autre.
+              faisaient dériver la paie de l'entraîneur d'une carte sur l'autre.
               ------------------------------------------------------------- */}
           {dayTariffs.length > 0 && (
             <div className="space-y-2 rounded-2xl border border-primary/25 bg-primary-50/20 p-3">
@@ -875,7 +857,7 @@ function AdminDashboard() {
                     Encaissé aujourd&apos;hui {formatDA(dayTotals.revenue)}
                   </Badge>
                   <Badge tone="primary" className="font-mono text-[10px]">
-                    Part école {formatDA(dayTotals.school)}
+                    Part club {formatDA(dayTotals.school)}
                   </Badge>
                   <Badge tone="warning" className="font-mono text-[10px]">
                     Part enseignants {formatDA(dayTotals.teacher)}
@@ -892,10 +874,10 @@ function AdminDashboard() {
                     <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                       <th className="px-2 py-1.5">Emploi du temps</th>
                       <th className="px-2 py-1.5">Groupe(s)</th>
-                      <th className="px-2 py-1.5 text-center">Mois</th>
-                      <th className="px-2 py-1.5 text-right">Prix du mois</th>
-                      <th className="px-2 py-1.5 text-right">Séance élève</th>
-                      <th className="px-2 py-1.5 text-right">Part école / séance</th>
+                      <th className="px-2 py-1.5 text-center">Carte</th>
+                      <th className="px-2 py-1.5 text-right">Prix de la carte</th>
+                      <th className="px-2 py-1.5 text-right">Séance chevalier</th>
+                      <th className="px-2 py-1.5 text-right">Part club / séance</th>
                       <th className="px-2 py-1.5 text-right">Part prof / séance</th>
                       <th className="px-2 py-1.5 text-center">Pointés</th>
                       <th className="px-2 py-1.5 text-right">Généré ce jour</th>
@@ -909,7 +891,7 @@ function AdminDashboard() {
                           <strong className="text-ink">{sessionTitle(r.session)}</strong>
                           {!r.priced && (
                             <Badge tone="warning" className="ml-1.5 text-[8px]">
-                              sans tarif mensuel
+                              sans tarif par carte
                             </Badge>
                           )}
                           <span className="block text-[9px] text-muted">
@@ -953,7 +935,7 @@ function AdminDashboard() {
                           </span>
                         </td>
                         {/* CE QUE CE GROUPE A RAPPORTÉ DEPUIS LE PREMIER JOUR —
-                            tous mois confondus, tous versements confondus. */}
+                            tous carte confondus, tous versements confondus. */}
                         <td className="px-2 py-1.5 text-right font-mono font-black text-primary">
                           {formatDA(r.collected)}
                           <span className="block text-[8px] font-normal text-muted">
@@ -982,13 +964,13 @@ function AdminDashboard() {
               <p className="text-[10px] leading-relaxed text-muted">
                 <strong className="text-ink">« Total encaissé »</strong> est ce que cet emploi
                 du temps a rapporté DEPUIS LE PREMIER JOUR : la somme de tous les versements de
-                ses élèves, tous mois confondus — à ne pas confondre avec la recette du jour, qui
+                ses chevaliers, tous mois confondus — à ne pas confondre avec la recette du jour, qui
                 ne compte que les séances pointées aujourd&apos;hui.
                 <br />
-                Prix d&apos;une séance = <strong className="text-ink">prix du mois ÷ séances du
-                mois</strong>, décimales comprises. La part de l&apos;école et celle de
+                Prix d&apos;une séance = <strong className="text-ink">prix de la carte ÷ séances du
+                carte</strong>, décimales comprises. La part de l&apos;club et celle de
                 l&apos;enseignant se divisent de la même façon : c&apos;est exactement ce que
-                l&apos;élève paie et ce que l&apos;enseignant touche sur son écran de règlement.
+                l&apos;chevalier paie et ce que l&apos;enseignant touche sur son écran de règlement.
               </p>
             </div>
           )}
@@ -1027,7 +1009,7 @@ function AdminDashboard() {
         </Modal>
       )}
 
-      {/* Situation d'un élève : tous ses emplois du temps, mois par mois, avec
+      {/* Situation d'un chevalier : tous ses emplois du temps, carte par carte, avec
           l'encaissement sur place */}
       {situationOpen && <StudentSituationModal onClose={() => setSituationOpen(false)} />}
 

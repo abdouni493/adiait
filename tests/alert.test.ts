@@ -49,21 +49,21 @@ describe("buildBalanceAlert — résolution du destinataire", () => {
     if (out!.message.kind === "template") {
       expect(out!.message.templateId).toBe("debt");
       expect(out!.message.language).toBe("fr");
-      // {{1}} = nom élève, {{2}} = montant dû, {{3}} = école
+      // {{1}} = nom chevalier, {{2}} = montant dû, {{3}} = club
       expect(out!.message.variables[0]).toBe("Yacine Meziane");
       expect(out!.message.variables[1]).toContain("200");
       expect(out!.message.variables[2]).toBe("ALTECH SCHOOL");
     }
   });
 
-  it("bascule sur l'élève si le parent n'a pas de numéro exploitable", () => {
+  it("bascule sur le chevalier si le parent n'a pas de numéro exploitable", () => {
     const parent = { firstName: "Karim", lastName: "Meziane", phone: "" };
     const out = buildBalanceAlert({ student, parent, school, lang: "fr", low: false });
     expect(out!.phone).toBe("0555111222");
     expect(out!.name).toBe("Yacine Meziane");
   });
 
-  it("renvoie null si ni parent ni élève ne sont joignables", () => {
+  it("renvoie null si ni parent ni chevalier ne sont joignables", () => {
     const noPhone = { ...student, phone: "" };
     const parent = { firstName: "Karim", lastName: "Meziane", phone: "xxx" };
     expect(buildBalanceAlert({ student: noPhone, parent, school, lang: "fr" })).toBeNull();
@@ -90,7 +90,7 @@ describe("buildBalanceAlert — modèle et aperçu", () => {
     expect(out!.previewText).toContain("Sara Bakhti");
   });
 
-  it("dette → l'aperçu mentionne le montant dû et le nom de l'école", () => {
+  it("dette → l'aperçu mentionne le montant dû et le nom du club", () => {
     const out = buildBalanceAlert({
       student: {
         firstName: "Sara",

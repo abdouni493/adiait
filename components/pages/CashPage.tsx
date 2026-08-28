@@ -7,27 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  ArrowUpRight,
-  ArrowDownLeft,
-  Plus,
-  DollarSign,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  Trash2,
-  Edit,
-  Search,
-  Filter,
-  ArrowUpDown,
-  BookOpen,
-  UserCheck,
-  Receipt,
-  AlertTriangle,
-  X
-} from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpDown, ArrowUpRight, BookOpen, Calendar, DollarSign, Edit, Filter, Landmark, Plus, Receipt, Search, Trash2, TrendingDown, TrendingUp, UserCheck, X } from "lucide-react";
 import type { CashTransaction, CashTxType, PaymentSource } from "@/lib/types";
 import {
+  carteShort,
   formatDateFr,
   formatDays,
   groupName,
@@ -107,7 +90,7 @@ export function CashPage() {
 
   /**
    * Les bornes de la période affichée, calculées UNE fois : le journal de caisse
-   * les applique aux mouvements, et l'historique des paiements des élèves aux
+   * les applique aux mouvements, et l'historique des paiements des chevaliers aux
    * versements eux-mêmes. Les deux tableaux parlent donc toujours des mêmes
    * jours, ce qui est la moindre des choses quand on les lit l'un sous l'autre.
    */
@@ -202,14 +185,14 @@ export function CashPage() {
   const periodNetFlow = periodInflows - periodOutflows;
 
   // 3. Specific breakdowns for filtered period
-  // Ce que les élèves ont réellement versé : une dette avancée par l'école
-  // s'annule d'elle-même (l'entrée portée à l'élève, la sortie qui l'a payée),
+  // Ce que les chevaliers ont réellement versé : une dette avancée par le club
+  // s'annule d'elle-même (l'entrée portée au chevalier, la sortie qui l'a payée),
   // et n'a donc jamais enrichi la caisse.
   const studentPaymentsPeriod = filteredTx
     .filter((t) => t.type === "student_payment" || t.type === "student_debt")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  /** Ce que l'école a avancé pour ses élèves sur la période (un positif). */
+  /** Ce que le club a avancé pour ses chevaliers sur la période (un positif). */
   const coveredDebtsPeriod = filteredTx
     .filter((t) => t.type === "student_debt")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -226,9 +209,9 @@ export function CashPage() {
   const getTabFilteredTransactions = () => {
     switch (activeTab) {
       case "students":
-        // Une dette avancée par l'école écrit DEUX mouvements : le paiement
-        // porté au crédit de l'élève et la sortie qui l'a financé. Les deux
-        // appartiennent à l'élève, donc les deux se lisent ici.
+        // Une dette avancée par le club écrit DEUX mouvements : le paiement
+        // porté au crédit du chevalier et la sortie qui l'a financé. Les deux
+        // appartiennent au chevalier, donc les deux se lisent ici.
         return filteredTx.filter(
           (t) => t.type === "student_payment" || t.type === "student_debt",
         );
@@ -329,7 +312,7 @@ export function CashPage() {
   /**
    * Les séances libres de GROUPE de la période affichée. Leurs deux mouvements
    * sont déjà dans le journal ci-dessous ; ce bloc en donne le détail complet —
-   * élèves, prix par élève, part de l'école et part de l'enseignant.
+   * chevaliers, prix par chevalier, part du club et part de l'entraîneur.
    */
   const periodGroupSeances = (() => {
     // La fenêtre est celle du filtre — pas celle que les mouvements affichés
@@ -341,12 +324,12 @@ export function CashPage() {
   })();
 
   /**
-   * LES RÈGLEMENTS D'ENSEIGNANTS DE LA PÉRIODE, DÉPLIÉS.
+   * LES RÈGLEMENTS D'ENTRAÎNEURS DE LA PÉRIODE, DÉPLIÉS.
    *
    * Un mouvement de caisse ne dit qu'un montant. Ce que la direction veut lire,
-   * c'est ce qu'il A PAYÉ : quel emploi du temps, quel mois, combien d'élèves,
+   * c'est ce qu'il A PAYÉ : quel emploi du temps, quel carte, combien de chevaliers,
    * ce que les arriérés ont rattrapé et ce que les retenues ont repris. Chaque
-   * règlement de mois porte cette photographie, donc il suffit de la relire.
+   * règlement de carte porte cette photographie, donc il suffit de la relire.
    */
   const periodSettlements = (() => {
     const { from, to } = periodRange;
@@ -359,8 +342,8 @@ export function CashPage() {
    * LE DÉTAIL DERRIÈRE CHAQUE MOUVEMENT DE CAISSE.
    *
    * Une ligne de caisse ne dit que « Règlement séances Untel (3 créneaux) ».
-   * Ce qu'on veut lire, c'est CE QU'ELLE PAIE : quel élève, quel emploi du
-   * temps, quel mois, quelle dépense, quel règlement d'enseignant. Chaque
+   * Ce qu'on veut lire, c'est CE QU'ELLE PAIE : quel chevalier, quel emploi du
+   * temps, quel carte, quelle dépense, quel règlement d'entraîneur. Chaque
    * mouvement est donc relié à la pièce qui l'a produit.
    */
   const detailOf = (tx: CashTransaction) => {
@@ -368,16 +351,16 @@ export function CashPage() {
       const pay = teacherPayments.find((p) => p.cashId === tx.id);
       if (pay) {
         const t = teachers.find((x) => x.id === pay.teacherId);
-        // Un règlement de MOIS porte sa photographie : on peut donc dire
-        // exactement ce qu'il a payé — quel groupe, quel mois, combien
-        // d'élèves, combien d'arriérés et combien de retenues — au lieu de
+        // Un règlement de CARTE porte sa photographie : on peut donc dire
+        // exactement ce qu'il a payé — quel groupe, quel carte, combien
+        // de chevaliers, combien d'arriérés et combien de retenues — au lieu de
         // « 3 créneaux ».
         const b = pay.board;
         if (b) {
           return [
-            t ? `${t.firstName} ${t.lastName}` : "Enseignant",
-            `${b.emploi} · ${b.groupName} · ${b.monthCode}`,
-            `${b.students.length} élève(s) · ${b.held}/${b.size} séances`,
+            t ? `${t.firstName} ${t.lastName}` : "Entraîneur",
+            `${b.emploi} · ${b.groupName} · ${carteShort(b.monthCode)}`,
+            `${b.students.length} chevalier(s) · ${b.held}/${b.size} séances`,
             `brut ${formatDA(b.gross)}`,
             b.arrears.length > 0 ? `${b.arrears.length} arriéré(s) rattrapé(s)` : "",
             b.deductionsTotal > 0 ? `${formatDA(b.deductionsTotal)} de retenues` : "",
@@ -388,7 +371,7 @@ export function CashPage() {
         const months = (pay.months ?? []).map((m) => `${m.title} ${m.monthCode}`).join(" · ");
         const arrears = (pay.arrears ?? []).length;
         return [
-          t ? `${t.firstName} ${t.lastName}` : "Enseignant",
+          t ? `${t.firstName} ${t.lastName}` : "Entraîneur",
           months || `${pay.sessionsCount} créneau(x)`,
           pay.gross != null ? `brut ${formatDA(pay.gross)}` : "",
           arrears > 0 ? `${arrears} arriéré(s) débloqué(s)` : "",
@@ -398,14 +381,14 @@ export function CashPage() {
       }
     }
     if (tx.type === "student_payment" || tx.type === "student_debt") {
-      // Le versement de l'élève écrit dans la même seconde que le mouvement.
+      // Le versement du chevalier écrit dans la même seconde que le mouvement.
       const near = payments.find(
         (pmt) => Math.abs(new Date(pmt.date).getTime() - new Date(tx.date).getTime()) < 2000,
       );
       if (near) {
         const stu = students.find((x) => x.id === near.studentId);
         return [
-          stu ? `${stu.firstName} ${stu.lastName}` : "Élève",
+          stu ? `${stu.firstName} ${stu.lastName}` : "Chevalier",
           near.monthCode ? monthCodeLabel(near.monthCode) : "",
           near.rest > 0 ? `reste ${formatDA(near.rest)}` : "soldé",
         ]
@@ -431,11 +414,11 @@ export function CashPage() {
     const labels: Record<string, { label: string; style: string }> = {
       deposit: { label: "Dépôt manuel", style: "bg-success/15 text-success border border-success/30" },
       withdraw: { label: "Retrait manuel", style: "bg-danger/15 text-danger border border-danger/30" },
-      expense: { label: "Dépense école", style: "bg-rose-500/15 text-rose-600 border border-rose-500/30" },
-      student_payment: { label: "Paiement élève", style: "bg-primary-50 text-primary border border-primary/20" },
+      expense: { label: "Dépense club", style: "bg-rose-500/15 text-rose-600 border border-rose-500/30" },
+      student_payment: { label: "Paiement chevalier", style: "bg-primary-50 text-primary border border-primary/20" },
       teacher_payment: { label: "Règlement prof / staff", style: "bg-warning/15 text-warning border border-warning/30" },
       acompte: { label: "Acompte", style: "bg-warning/15 text-warning border border-warning/30" },
-      student_debt: { label: "Dette élève avancée", style: "bg-danger/15 text-danger border border-danger/30" },
+      student_debt: { label: "Dette chevalier avancée", style: "bg-danger/15 text-danger border border-danger/30" },
       registration: { label: "Inscription", style: "bg-success/15 text-success border border-success/30" },
     };
     const info = labels[type] ?? { label: type, style: "bg-canvas text-ink border border-line" };
@@ -446,7 +429,7 @@ export function CashPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader emoji="🏦" title="Caisse" subtitle="Suivi des flux de trésorerie en temps réel" />
+        <PageHeader icon={Landmark} title="Caisse" subtitle="Suivi des flux de trésorerie en temps réel" />
 
         <div className="flex items-center gap-2">
           {can("deposit") && (
@@ -481,7 +464,7 @@ export function CashPage() {
                 : filterPeriod === "week"
                   ? "7 derniers jours"
                   : filterPeriod === "month"
-                    ? "Ce mois-ci"
+                    ? "Cette carte-ci"
                     : "Personnalisé"}
             )
           </span>
@@ -503,13 +486,13 @@ export function CashPage() {
             <Card className="border border-line bg-surface card-shadow hover:translate-y-[-2px] transition-transform duration-300">
               <CardBody className="flex justify-between items-center p-5">
                 <div>
-                  <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Paiements Élèves</span>
+                  <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Paiements Chevaliers</span>
                   <strong className="text-2xl font-black text-primary block mt-1.5">
                     {formatDA(studentPaymentsPeriod)}
                   </strong>
                   {coveredDebtsPeriod > 0 && (
                     <span className="text-[10px] text-danger font-bold block mt-0.5">
-                      dont {formatDA(coveredDebtsPeriod)} de dettes avancées par l&apos;école
+                      dont {formatDA(coveredDebtsPeriod)} de dettes avancées par l&apos;club
                     </span>
                   )}
                 </div>
@@ -522,7 +505,7 @@ export function CashPage() {
             <Card className="border border-line bg-surface card-shadow hover:translate-y-[-2px] transition-transform duration-300">
               <CardBody className="flex justify-between items-center p-5">
                 <div>
-                  <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Règlements Profs</span>
+                  <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Règlements Entraîneurs</span>
                   <strong className="text-2xl font-black text-warning block mt-1.5">
                     -{formatDA(teacherPaymentsPeriod)}
                   </strong>
@@ -696,9 +679,9 @@ export function CashPage() {
         <div className="flex border-b border-line bg-canvas/30 px-4 pt-3 gap-1 scrollbar-none overflow-x-auto">
           {[
             { id: "all", label: "Toutes les Transactions", count: filteredTx.length },
-            { id: "students", label: "Paiements Élèves", count: filteredTx.filter((t) => t.type === "student_payment" || t.type === "student_debt").length },
-            { id: "teachers", label: "Règlements Profs/Staff", count: filteredTx.filter((t) => t.type === "teacher_payment" || t.type === "acompte").length },
-            { id: "school_expenses", label: "Dépenses École", count: filteredTx.filter((t) => t.type === "expense").length },
+            { id: "students", label: "Paiements Chevaliers", count: filteredTx.filter((t) => t.type === "student_payment" || t.type === "student_debt").length },
+            { id: "teachers", label: "Règlements Entraîneurs/Staff", count: filteredTx.filter((t) => t.type === "teacher_payment" || t.type === "acompte").length },
+            { id: "school_expenses", label: "Dépenses Club", count: filteredTx.filter((t) => t.type === "expense").length },
             { id: "manual", label: "Dépôts & Retraits", count: filteredTx.filter((t) => t.type === "deposit" || t.type === "withdraw").length },
           ].map((tab) => (
             <button
@@ -720,7 +703,7 @@ export function CashPage() {
           ))}
         </div>
 
-        {/* Le détail des versements d'élèves — qui, quel emploi, quel mois. */}
+        {/* Le détail des versements de chevaliers — qui, quel emploi, quel carte. */}
         {(activeTab === "all" || activeTab === "students") && (
           <StudentPaymentsHistory
             from={periodRange.from}
@@ -729,7 +712,7 @@ export function CashPage() {
           />
         )}
 
-        {/* Règlements d'enseignants — ce que chaque versement a réellement payé */}
+        {/* Règlements d'entraîneurs — ce que chaque versement a réellement payé */}
         {(activeTab === "all" || activeTab === "teachers") && periodSettlements.length > 0 && (
           <div className="border-b border-line p-4">
             <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
@@ -741,10 +724,10 @@ export function CashPage() {
                 <thead className="bg-canvas/50">
                   <tr className="text-[9px] font-bold uppercase tracking-wider text-muted">
                     <th className="p-2.5">Date</th>
-                    <th className="p-2.5">Enseignant</th>
-                    <th className="p-2.5">Emploi du temps · mois</th>
-                    <th className="p-2.5 text-center">Élèves</th>
-                    <th className="p-2.5 text-right">Table 1 — élèves</th>
+                    <th className="p-2.5">Entraîneur</th>
+                    <th className="p-2.5">Emploi du temps · carte</th>
+                    <th className="p-2.5 text-center">Chevaliers</th>
+                    <th className="p-2.5 text-right">Table 1 — chevaliers</th>
                     <th className="p-2.5 text-right">Table 2 — arriérés</th>
                     <th className="p-2.5 text-right">Table 3 — retenues</th>
                     <th className="p-2.5 text-right">Net versé</th>
@@ -768,7 +751,7 @@ export function CashPage() {
                                 {b.emploi} · {b.groupName}
                               </strong>
                               <span className="block text-[9px]">
-                                {b.monthCode} · {b.held}/{b.size} séances
+                                {carteShort(b.monthCode)} · {b.held}/{b.size} séances
                               </span>
                             </>
                           ) : (
@@ -808,19 +791,19 @@ export function CashPage() {
               </table>
             </div>
             <p className="mt-1.5 text-[10px] leading-relaxed text-muted">
-              Un règlement se lit en trois tables : les <strong>élèves du mois</strong>, les{" "}
+              Un règlement se lit en trois tables : les <strong>chevaliers de la carte</strong>, les{" "}
               <strong>arriérés rattrapés</strong> (des parts d&apos;un mois déjà réglé, libérées par
-              un paiement tardif) et les <strong>retenues</strong> (dépenses, acomptes, scolarité
+              un paiement tardif) et les <strong>retenues</strong> (dépenses, acomptes, cotisation
               des enfants). Le net versé est la somme des deux premières moins la troisième.
             </p>
           </div>
         )}
 
-        {/* Séances libres de groupe — le détail derrière les deux mouvements */}
+        {/* Sorties libres de groupe — le détail derrière les deux mouvements */}
         {periodGroupSeances.length > 0 && (
           <div className="border-b border-line p-4">
             <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
-              <UserCheck className="h-3.5 w-3.5 text-primary" /> Séances libres de groupe (
+              <UserCheck className="h-3.5 w-3.5 text-primary" /> Sorties libres de groupe (
               {periodGroupSeances.length})
             </h4>
             <div className="overflow-x-auto rounded-xl border border-line">
@@ -829,12 +812,12 @@ export function CashPage() {
                   <tr className="text-[9px] font-bold uppercase tracking-wider text-muted">
                     <th className="p-2.5">Date</th>
                     <th className="p-2.5">Séance</th>
-                    <th className="p-2.5">Enseignant</th>
-                    <th className="p-2.5 text-center">Élèves</th>
-                    <th className="p-2.5 text-right">Prix / élève</th>
+                    <th className="p-2.5">Entraîneur</th>
+                    <th className="p-2.5 text-center">Chevaliers</th>
+                    <th className="p-2.5 text-right">Prix / chevalier</th>
                     <th className="p-2.5 text-right">Encaissé</th>
-                    <th className="p-2.5 text-right">École</th>
-                    <th className="p-2.5 text-right">Enseignant</th>
+                    <th className="p-2.5 text-right">Club</th>
+                    <th className="p-2.5 text-right">Entraîneur</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -1048,11 +1031,11 @@ export function CashPage() {
             >
               <option value="deposit">Dépôt manuel</option>
               <option value="withdraw">Retrait manuel</option>
-              <option value="expense">Dépense école</option>
-              <option value="student_payment">Paiement élève</option>
+              <option value="expense">Dépense club</option>
+              <option value="student_payment">Paiement chevalier</option>
               <option value="teacher_payment">Règlement prof / staff</option>
               <option value="acompte">Acompte prof</option>
-              <option value="student_debt">Dette élève avancée par l’école</option>
+              <option value="student_debt">Dette chevalier avancée par l’club</option>
             </Select>
           </div>
           <div>
@@ -1096,21 +1079,21 @@ export function CashPage() {
 }
 
 /**
- * L'HISTORIQUE DES PAIEMENTS DES ÉLÈVES — le détail derrière la ligne de caisse.
+ * L'HISTORIQUE DES PAIEMENTS DES CHEVALIERS — le détail derrière la ligne de caisse.
  *
  * Le journal de caisse ne dit qu'une chose : « + 4 000 DA, Solde M2 — Amine
  * Benali ». C'est assez pour compter l'argent, jamais pour répondre à la
- * question qu'on pose vraiment six mois plus tard : QUI a payé, POUR QUEL
- * EMPLOI DU TEMPS, SUR QUEL MOIS, et QUAND exactement.
+ * question qu'on pose vraiment six carte plus tard : QUI a payé, POUR QUEL
+ * EMPLOI DU TEMPS, SUR QUEL CARTE, et QUAND exactement.
  *
  * Ce tableau lit donc les versements eux-mêmes (`payments`) plutôt que leur
- * reflet en caisse, et donne pour chacun l'élève et son numéro d'inscription,
- * le montant, la date ET l'heure, le mois de l'emploi du temps crédité, et
+ * reflet en caisse, et donne pour chacun le chevalier et son numéro d'inscription,
+ * le montant, la date ET l'heure, la carte de l'emploi du temps crédité, et
  * l'emploi du temps lui-même — avec son groupe, ses jours et ses heures.
  *
  * La provenance est dite en clair, car trois d'entre elles ne font PAS entrer
- * d'argent dans le tiroir : une scolarité retenue sur le salaire d'un père, une
- * scolarité portée en dette sur lui, et une dette avancée par l'école (dont la
+ * d'argent dans le tiroir : une cotisation retenue sur le salaire d'un père, une
+ * cotisation portée en dette sur lui, et une dette avancée par le club (dont la
  * sortie qui la finance est, elle, dans le journal).
  */
 function StudentPaymentsHistory({
@@ -1135,17 +1118,17 @@ function StudentPaymentsHistory({
     teacher_salary: {
       label: "Retenu sur un salaire",
       style: "bg-primary-50 text-primary border border-primary/20",
-      hint: "Scolarité d'un fils d'enseignant prise sur la paie de son père : aucun mouvement de caisse.",
+      hint: "Cotisation d'un fils d'entraîneur prise sur la paie de son père : aucun mouvement de caisse.",
     },
     teacher_debt: {
       label: "Porté sur un salaire",
       style: "bg-warning/15 text-warning border border-warning/30",
-      hint: "Scolarité soldée d'avance au guichet et portée sur le salaire du père : elle sera retenue sur son prochain règlement.",
+      hint: "Cotisation soldée d'avance au guichet et portée sur le salaire du père : elle sera retenue sur son prochain règlement.",
     },
     school_cash: {
-      label: "Avancé par l'école",
+      label: "Avancé par le club",
       style: "bg-danger/15 text-danger border border-danger/30",
-      hint: "L'école a couvert la dette sur sa propre caisse ; la sortie qui l'a financée est dans le journal.",
+      hint: "Le club a couvert la dette sur sa propre caisse ; la sortie qui l'a financée est dans le journal.",
     },
   };
 
@@ -1186,7 +1169,7 @@ function StudentPaymentsHistory({
     <div className="border-b border-line p-4">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h4 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
-          <Receipt className="h-3.5 w-3.5 text-primary" /> Historique des paiements des élèves (
+          <Receipt className="h-3.5 w-3.5 text-primary" /> Historique des paiements des chevaliers (
           {rows.length})
         </h4>
         <div className="flex flex-wrap items-center gap-2">
@@ -1199,14 +1182,14 @@ function StudentPaymentsHistory({
             <option value="cash">Famille (caisse)</option>
             <option value="teacher_salary">Retenu sur un salaire</option>
             <option value="teacher_debt">Porté sur un salaire</option>
-            <option value="school_cash">Avancé par l&apos;école</option>
+            <option value="school_cash">Avancé par l&apos;club</option>
           </Select>
           <span className="rounded-xl border border-success/30 bg-success/10 px-2.5 py-1 text-[10px] font-bold text-success">
             {formatDA(cashedIn)} encaissés
           </span>
           {total !== cashedIn && (
             <span className="rounded-xl border border-line bg-canvas px-2.5 py-1 text-[10px] font-bold text-muted">
-              {formatDA(total)} portés aux élèves
+              {formatDA(total)} portés aux chevaliers
             </span>
           )}
         </div>
@@ -1217,9 +1200,9 @@ function StudentPaymentsHistory({
           <thead className="bg-canvas/50">
             <tr className="text-[9px] font-bold uppercase tracking-wider text-muted">
               <th className="p-2.5">Date &amp; heure</th>
-              <th className="p-2.5">Élève</th>
+              <th className="p-2.5">Chevalier</th>
               <th className="p-2.5">Emploi du temps</th>
-              <th className="p-2.5">Mois payé</th>
+              <th className="p-2.5">Carte payée</th>
               <th className="p-2.5">Provenance</th>
               <th className="p-2.5">Libellé</th>
               <th className="p-2.5 text-right">Montant</th>
@@ -1229,7 +1212,7 @@ function StudentPaymentsHistory({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center italic text-muted">
-                  Aucun paiement d&apos;élève sur cette période.
+                  Aucun paiement d&apos;chevalier sur cette période.
                 </td>
               </tr>
             ) : (
@@ -1246,7 +1229,7 @@ function StudentPaymentsHistory({
                     </td>
                     <td className="p-2.5">
                       <strong className="block text-ink">
-                        {stu ? studentName(stu) : "Élève supprimé"}
+                        {stu ? studentName(stu) : "Chevalier supprimé"}
                       </strong>
                       <span className="block font-mono text-[9px] text-muted">
                         {stu ? `N° ${registrationNumberOf(db, stu)}` : "—"}

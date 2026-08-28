@@ -1,24 +1,24 @@
 "use client";
 
 /**
- * LE TABLEAU DE BORD D'UN ENSEIGNANT — sa journée, son argent, ses retardataires.
+ * LE TABLEAU DE BORD D'UN ENTRAÎNEUR — sa journée, son argent, ses retardataires.
  *
- * L'écran répond à trois questions, dans l'ordre où un enseignant se les pose
+ * L'écran répond à trois questions, dans l'ordre où un entraîneur se les pose
  * en arrivant le matin :
  *
  *  1. **QUE FAIS-JE AUJOURD'HUI ?** — la journée se lit créneau par créneau,
- *     avec l'heure, la salle, le groupe, le mois que ce groupe vit et où en est
+ *     avec l'heure, l'arène, le groupe, la carte que ce groupe vit et où en est
  *     son pointage. Le jour est NAVIGABLE : hier, avant-hier, n'importe quelle
- *     date — un enseignant doit pouvoir vérifier ce qu'il a fait la semaine
- *     passée. Un clic sur un créneau ouvre la LISTE DE SES ÉLÈVES, en lecture
+ *     date — un entraîneur doit pouvoir vérifier ce qu'il a fait la semaine
+ *     passée. Un clic sur un créneau ouvre la LISTE DE SES CHEVALIERS, en lecture
  *     seule : c'est la seule action que son compte lui donne sur un groupe.
  *  2. **OÙ EN EST MA PAIE ?** — ce qui est payable, ce qui est retenu, ce qui
  *     a déjà été versé. Les chiffres sortent du même modèle que l'écran de
  *     règlement du guichet (`teacherMonths`), donc ce qu'il lit ici et ce que
  *     la réception lit là-bas sont, au centime, la même chose.
- *  3. **QUI ME RETIENT MON ARGENT ?** — les élèves en retard de paiement,
- *     nommés, avec leur groupe, leur mois, ce qu'ils doivent et la part que
- *     cela retient. C'est l'information qu'un enseignant réclame en premier et
+ *  3. **QUI ME RETIENT MON ARGENT ?** — les chevaliers en retard de paiement,
+ *     nommés, avec leur groupe, leur carte, ce qu'ils doivent et la part que
+ *     cela retient. C'est l'information qu'un entraîneur réclame en premier et
  *     que personne ne lui donnait.
  *
  * Rien ne s'écrit depuis cet écran : ni pointage, ni encaissement, ni
@@ -36,6 +36,7 @@ import { TeacherGroupRoster } from "@/components/teachers/TeacherGroupRoster";
 import { formatDA, money } from "@/lib/utils";
 import {
   DAY_LABELS_FR,
+  carteShort,
   dayKeyOf,
   formatDateFr,
   minutesOf,
@@ -46,20 +47,8 @@ import {
 import { payEmplois } from "@/lib/teacherPayBoard";
 import type { TeacherEmploi } from "@/lib/teacherMonths";
 import type { Day, Teacher } from "@/lib/types";
-import {
-  AlertTriangle,
-  BookOpen,
-  CalendarDays,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Eye,
-  Lock,
-  MapPin,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { AlertTriangle, BookOpen, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Eye, Home, Landmark, Lock, MapPin, Sparkles, UserCheck, Users, Wallet } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const JS_DAYS: Day[] = [
   "sunday",
@@ -71,7 +60,7 @@ const JS_DAYS: Day[] = [
   "saturday",
 ];
 
-/** L'ordre où la semaine se lit à l'école : samedi ouvre, vendredi ferme. */
+/** L'ordre où la semaine se lit au club : samedi ouvre, vendredi ferme. */
 const WEEK_ORDER: Day[] = [
   "saturday",
   "sunday",
@@ -110,7 +99,7 @@ function colorOf(id: string): string {
 
 const isoOf = (d: Date) => d.toLocaleDateString("fr-CA");
 
-/** Un élève en retard de paiement, rattaché au groupe et au mois qui le doivent. */
+/** Un chevalier en retard de paiement, rattaché au groupe et à la carte qui le doivent. */
 interface LateRow {
   key: string;
   studentId: string;
@@ -182,7 +171,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
     setDate(isoOf(d));
   };
 
-  /** Les créneaux que l'enseignant tient ce jour-là, dans l'ordre des heures. */
+  /** Les créneaux que l'entraîneur tient ce jour-là, dans l'ordre des heures. */
   const daySlots = useMemo(() => {
     const marks = new Map<string, number>();
     for (const a of db.attendance) {
@@ -235,7 +224,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
     return out;
   }, [db.sessions, teacher.id]);
 
-  // ---- LES ÉLÈVES EN RETARD DE PAIEMENT ------------------------------------
+  // ---- LES CHEVALIERS EN RETARD DE PAIEMENT ------------------------------------
   const lateRows = useMemo(() => {
     const out: LateRow[] = [];
     for (const e of emplois) {
@@ -243,7 +232,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
         for (const st of m.students) {
           if (st.debt <= 0) continue;
           out.push({
-            key: `${e.sessionId}|${m.code}|${st.studentId}`,
+            key: `${e.sessionId}|${carteShort(m.code)}|${st.studentId}`,
             studentId: st.studentId,
             name: st.name,
             registrationNumber: st.registrationNumber,
@@ -271,7 +260,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
   if (closedUnpaid.length > 0) {
     alerts.push({
       tone: "primary",
-      text: `${closedUnpaid.length} mois clos vous restent à régler — ${formatDA(
+      text: `${closedUnpaid.length} carte close vous restent à régler — ${formatDA(
         money(closedUnpaid.reduce((s, x) => s + x.m.payable, 0)),
       )} en attente de versement par l'administration.`,
     });
@@ -279,50 +268,50 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
   if (withheld > 0) {
     alerts.push({
       tone: "warning",
-      text: `${formatDA(withheld)} sont retenus : ${lateStudents} élève(s) n'ont pas payé leurs séances. Cette part vous revient dès qu'ils s'acquittent.`,
+      text: `${formatDA(withheld)} sont retenus : ${lateStudents} chevalier(s) n'ont pas payé leurs séances. Cette part vous revient dès qu'ils s'acquittent.`,
     });
   }
   if (lateRows.length > 0) {
     alerts.push({
       tone: "danger",
-      text: `${lateStudents} élève(s) sont en retard de paiement sur vos groupes, pour ${formatDA(lateTotal)} au total.`,
+      text: `${lateStudents} chevalier(s) sont en retard de paiement sur vos groupes, pour ${formatDA(lateTotal)} au total.`,
     });
   }
   for (const e of emplois) {
     if (!e.priced && teacher.paymentType === "per_group") {
       alerts.push({
         tone: "warning",
-        text: `« ${e.title} · ${e.groupName} » ne porte aucune part enseignant — ses séances ne vous rapportent rien tant que le tarif n'est pas saisi.`,
+        text: `« ${e.title} · ${e.groupName} » ne porte aucune part entraîneur — ses séances ne vous rapportent rien tant que le tarif n'est pas saisi.`,
       });
     }
   }
   if (alerts.length === 0 && emplois.length > 0) {
     alerts.push({
       tone: "success",
-      text: "Aucune alerte : tous vos élèves sont à jour et rien n'est retenu sur votre paie.",
+      text: "Aucune alerte : tous vos chevaliers sont à jour et rien n'est retenu sur votre paie.",
     });
   }
 
   return (
     <div className="space-y-5 text-xs">
       <PageHeader
-        emoji="🏠"
+        icon={Home}
         title={`Bonjour, ${teacher.firstName} ${teacher.lastName}`}
-        subtitle="Votre journée, vos groupes, votre paie et les élèves en retard de paiement"
+        subtitle="Votre journée, vos groupes, votre paie et les chevaliers en retard de paiement"
       />
 
       {/* ================= LES CHIFFRES DU COMPTE ========================== */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <HeroStat
-          emoji="📚"
+          icon={BookOpen}
           label="Mes groupes"
           value={String(emplois.length)}
-          hint={`${rosterTotal} élève(s) suivis`}
+          hint={`${rosterTotal} chevalier(s) suivis`}
           tone="primary"
           index={0}
         />
         <HeroStat
-          emoji="🗓️"
+          icon={CalendarDays}
           label={isToday ? "Séances aujourd'hui" : "Séances ce jour-là"}
           value={String(daySlots.length)}
           hint={`${dayDone} pointée(s) · ${dayStarted} en cours`}
@@ -330,23 +319,23 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
           index={1}
         />
         <HeroStat
-          emoji="💰"
+          icon={Wallet}
           label="Payable maintenant"
           value={formatDA(payable)}
-          hint="ce que l'école vous doit"
+          hint="ce que le club vous doit"
           tone="success"
           index={2}
         />
         <HeroStat
-          emoji="🔒"
+          icon={Lock}
           label="Retenu"
           value={formatDA(withheld)}
-          hint={`${lateStudents} élève(s) en retard`}
+          hint={`${lateStudents} chevalier(s) en retard`}
           tone={withheld > 0 ? "danger" : "neutral"}
           index={3}
         />
         <HeroStat
-          emoji="✅"
+          icon={UserCheck}
           label="Déjà gagné et soldé"
           value={formatDA(settled)}
           hint="parts déjà réglées"
@@ -354,7 +343,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
           index={4}
         />
         <HeroStat
-          emoji="🏦"
+          icon={Landmark}
           label="Net reçu à ce jour"
           value={formatDA(received)}
           hint={`${settlements.length} règlement(s)`}
@@ -467,7 +456,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                     style={{ borderInlineStartWidth: 5, borderInlineStartColor: color }}
                     title={
                       e
-                        ? "Voir la liste des élèves de ce groupe"
+                        ? "Voir la liste des chevaliers de ce groupe"
                         : "Ce créneau n'a pas encore d'abonnement — aucune liste à afficher"
                     }
                   >
@@ -496,7 +485,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                         <MapPin className="h-3 w-3" /> {row.salle || "—"}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Users className="h-3 w-3" /> {row.roster} élève(s)
+                        <Users className="h-3 w-3" /> {row.roster} chevalier(s)
                       </span>
                     </div>
 
@@ -508,7 +497,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                         </Badge>
                         {e.priced ? (
                           <Badge tone="neutral" className="font-mono text-[9px]">
-                            {formatDA(e.perSeance)} / élève présent
+                            {formatDA(e.perSeance)} / chevalier présent
                           </Badge>
                         ) : (
                           <Badge tone="warning" className="text-[9px]">
@@ -541,7 +530,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
 
                     <div className="mt-3 flex items-center justify-between border-t border-line bg-canvas/40 px-3.5 py-2 text-[10px] font-bold text-primary">
                       <span className="inline-flex items-center gap-1">
-                        <Eye className="h-3 w-3" /> Voir la liste des élèves
+                        <Eye className="h-3 w-3" /> Voir la liste des chevaliers
                       </span>
                       <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                     </div>
@@ -585,22 +574,22 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
         </div>
       </section>
 
-      {/* ================= LES ÉLÈVES EN RETARD DE PAIEMENT ================ */}
+      {/* ================= LES CHEVALIERS EN RETARD DE PAIEMENT ================ */}
       <section className="overflow-hidden rounded-2xl border-2 border-danger/30 bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-danger/15 to-transparent p-4">
           <div className="min-w-0">
             <strong className="flex items-center gap-2 text-sm text-danger">
-              <AlertTriangle className="h-4.5 w-4.5" /> Élèves en retard de paiement (
+              <AlertTriangle className="h-4.5 w-4.5" /> Chevaliers en retard de paiement (
               {lateStudents})
             </strong>
             <span className="block text-[11px] leading-relaxed text-muted">
               {lateRows.length === 0
-                ? "Aucun élève ne doit quoi que ce soit sur vos groupes — rien ne retient votre paie."
-                : `${formatDA(lateTotal)} manquants sur ${lateRows.length} mois d'élève. Tant qu'une séance n'est pas payée, la part qu'elle vous rapporte reste retenue — elle vous revient automatiquement le jour où l'élève s'acquitte. L'encaissement se fait au guichet.`}
+                ? "Aucun chevalier ne doit quoi que ce soit sur vos groupes — rien ne retient votre paie."
+                : `${formatDA(lateTotal)} manquants sur ${lateRows.length} carte de chevalier. Tant qu'une séance n'est pas payée, la part qu'elle vous rapporte reste retenue — elle vous revient automatiquement le jour où le chevalier s'acquitte. L'encaissement se fait au guichet.`}
             </span>
           </div>
           <div className="flex shrink-0 gap-2">
-            <SmallStat label="Élèves" value={String(lateStudents)} tone="text-danger" />
+            <SmallStat label="Chevaliers" value={String(lateStudents)} tone="text-danger" />
             <SmallStat label="Total dû" value={formatDA(lateTotal)} tone="text-danger" />
             <SmallStat
               label="Part retenue"
@@ -612,7 +601,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
 
         {lateRows.length === 0 ? (
           <p className="px-3 py-10 text-center text-xs italic text-muted">
-            Tous vos élèves sont à jour. 🎉
+            Tous vos chevaliers sont à jour. 🎉
           </p>
         ) : (
           <>
@@ -621,9 +610,9 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                 <thead className="bg-canvas/70">
                   <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
                     <th className="px-3 py-2.5">N°</th>
-                    <th className="px-3 py-2.5">Élève</th>
+                    <th className="px-3 py-2.5">Chevalier</th>
                     <th className="px-3 py-2.5">Groupe concerné</th>
-                    <th className="px-3 py-2.5 text-center">Mois</th>
+                    <th className="px-3 py-2.5 text-center">Carte</th>
                     <th className="px-3 py-2.5 text-center">Séances</th>
                     <th className="px-3 py-2.5 text-center">Statut</th>
                     <th className="px-3 py-2.5 text-right">Doit</th>
@@ -639,7 +628,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                       transition={{ delay: Math.min(i * 0.02, 0.25) }}
                       onClick={() => setOpenEmploi(r.emploi)}
                       className="cursor-pointer border-t border-line/60 transition-colors hover:bg-danger/5"
-                      title="Ouvrir la liste des élèves de ce groupe"
+                      title="Ouvrir la liste des chevaliers de ce groupe"
                     >
                       <td className="px-3 py-2.5 font-mono text-[10px] text-muted">
                         {r.registrationNumber || "—"}
@@ -658,7 +647,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                       </td>
                       <td className="px-3 py-2.5 text-center">
                         <Badge tone="primary" className="font-mono text-[9px]">
-                          {r.monthCode}
+                          {carteShort(r.monthCode)}
                         </Badge>
                       </td>
                       <td className="px-3 py-2.5 text-center font-mono">
@@ -738,7 +727,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 px-3.5">
-                    <MiniStat label="Élèves" value={String(e.rosterCount)} tone="text-ink" />
+                    <MiniStat label="Chevaliers" value={String(e.rosterCount)} tone="text-ink" />
                     <MiniStat label="Payable" value={formatDA(e.payable)} tone="text-success" />
                     <MiniStat
                       label="Retenu"
@@ -749,7 +738,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
 
                   <div className="mt-3 flex items-center justify-between border-t border-line bg-canvas/40 px-3.5 py-2 text-[10px] font-bold text-primary">
                     <span className="inline-flex items-center gap-1">
-                      <Users className="h-3 w-3" /> Liste des élèves
+                      <Users className="h-3 w-3" /> Liste des chevaliers
                     </span>
                     <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                   </div>
@@ -760,7 +749,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
         )}
       </section>
 
-      {/* La liste d'un groupe : le seul geste qu'un enseignant a sur un groupe. */}
+      {/* La liste d'un groupe : le seul geste qu'un entraîneur a sur un groupe. */}
       {openEmploi && (
         <TeacherGroupRoster
           emploi={openEmploi}
@@ -782,14 +771,14 @@ const HERO_TONE = {
 } as const;
 
 function HeroStat({
-  emoji,
+  icon: Icon,
   label,
   value,
   hint,
   tone,
   index,
 }: {
-  emoji: string;
+  icon: LucideIcon;
   label: string;
   value: string;
   hint: string;
@@ -803,7 +792,7 @@ function HeroStat({
       transition={{ delay: index * 0.04, duration: 0.3 }}
       className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3.5 ${HERO_TONE[tone]}`}
     >
-      <span className="absolute -end-2 -top-2 text-4xl opacity-20">{emoji}</span>
+      <Icon className="pointer-events-none absolute -end-3 -top-3 h-16 w-16 opacity-[0.14]" strokeWidth={1.2} aria-hidden="true" />
       <span className="block text-[9px] font-bold uppercase tracking-wider opacity-80">{label}</span>
       <strong className="mt-0.5 block font-mono text-base font-black text-ink">{value}</strong>
       <span className="block text-[9px] text-muted">{hint}</span>

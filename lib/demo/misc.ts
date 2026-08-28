@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * TOUT LE RESTE DE L'ÉCOLE DE DÉMONSTRATION : les supports de cours, les
+ * TOUT LE RESTE DE LE CLUB DE DÉMONSTRATION : les supports de cours, les
  * annonces, les dépenses, les périodes gratuites, les séances libres vendues à
  * l'unité ou au groupe, les notifications des parents et les stages.
  *
- * Ces collections n'entrent dans aucun calcul de scolarité — elles remplissent
+ * Ces collections n'entrent dans aucun calcul de cotisation — elles remplissent
  * les écrans qui, sans elles, s'ouvriraient sur un état vide.
  */
 
@@ -33,7 +33,7 @@ export const FREE_PERIODS: FreePeriod[] = [
   {
     id: "frp-1",
     name: "Semaine portes ouvertes",
-    description: "Séances offertes à toutes les classes pendant la rentrée",
+    description: "Séances offertes à toutes les catégories pendant la rentrée",
     startDate: shiftDays(-58),
     endDate: shiftDays(-52),
     allClasses: true,
@@ -45,7 +45,7 @@ export const FREE_PERIODS: FreePeriod[] = [
   {
     id: "frp-2",
     name: "Rattrapage du BEM",
-    description: "Trois séances offertes aux classes de 4ème AM avant l'examen",
+    description: "Trois séances offertes aux catégories de 4ème AM avant l'examen",
     startDate: shiftDays(-20),
     endDate: shiftDays(-17),
     allClasses: false,
@@ -82,7 +82,7 @@ export const MODULE_ABSENCE_RULES: ModuleAbsenceRule[] = [
 
 export const SUBJECTS: Subject[] = [
   { id: "suj-1", title: "Série d'exercices — Suites numériques", description: "Exercices 1 à 12, à rendre pour la prochaine séance.", sessionId: "ses-1", date: stamp(-4, "18:00") },
-  { id: "suj-2", title: "TP — Lois de Newton", description: "Compte-rendu du TP réalisé en salle 1.", sessionId: "ses-3", date: stamp(-3, "17:00") },
+  { id: "suj-2", title: "TP — Lois de Newton", description: "Compte-rendu du TP réalisé en arène 1.", sessionId: "ses-3", date: stamp(-3, "17:00") },
   { id: "suj-3", title: "Sujet type BAC — Analyse", description: "Sujet complet avec corrigé détaillé, 4 heures.", sessionId: "ses-2", date: stamp(-9, "19:00") },
   { id: "suj-4", title: "Fiche de vocabulaire — Unit 6", description: "150 mots à mémoriser avant l'évaluation.", sessionId: "ses-5", date: stamp(-6, "18:30") },
   { id: "suj-5", title: "Dictée préparée — Les accords", description: "Texte à travailler à la maison.", sessionId: "ses-4", date: stamp(-8, "12:00") },
@@ -90,7 +90,7 @@ export const SUBJECTS: Subject[] = [
   { id: "suj-7", title: "Texte d'étude — La poésie moderne", description: "Lecture analytique, questions 1 à 8.", sessionId: "ses-8", date: stamp(-11, "12:00") },
   { id: "suj-8", title: "Devoir surveillé n°3", description: "Sujet et barème du DS de mathématiques.", sessionId: "ses-9", date: stamp(-2, "16:30") },
   { id: "suj-9", title: "Carte muette — Le Maghreb", description: "À compléter pour la prochaine séance.", sessionId: "ses-12", date: stamp(-7, "13:00") },
-  { id: "suj-10", title: "Support Excel — Formules de base", description: "Classeur d'exercices, à télécharger et à remplir.", sessionId: "ses-13", date: stamp(-10, "19:30") },
+  { id: "suj-10", title: "Support Excel — Formules de base", description: "Catégorieur d'exercices, à télécharger et à remplir.", sessionId: "ses-13", date: stamp(-10, "19:30") },
   { id: "suj-11", title: "Dissertation — La conscience", description: "Plan détaillé attendu pour la séance suivante.", sessionId: "ses-11", date: stamp(-13, "18:00") },
   { id: "suj-12", title: "Comptine de la semaine", description: "À réciter avec les parents.", sessionId: "ses-14", date: stamp(-1, "11:30") },
 ];
@@ -101,27 +101,27 @@ export const SUBJECTS: Subject[] = [
 
 export const ANNOUNCEMENTS: Announcement[] = [
   { id: "ann-1", title: "Reprise des cours", description: "Les cours reprennent normalement cette semaine, aux horaires habituels.", audience: "all", endDate: shiftDays(14), date: stamp(-2, "09:00"), targetGroupIds: [], includeParents: true },
-  { id: "ann-2", title: "Réunion parents — 3ème AS", description: "Réunion avec les parents des élèves de 3ème AS samedi à 10h en salle 1.", audience: "parents", endDate: shiftDays(7), date: stamp(-1, "16:00"), targetGroupIds: ["grp-1"], includeParents: true },
+  { id: "ann-2", title: "Réunion parents — 3ème AS", description: "Réunion avec les parents des chevaliers de 3ème AS samedi à 10h en arène 1.", audience: "parents", endDate: shiftDays(7), date: stamp(-1, "16:00"), targetGroupIds: ["grp-1"], includeParents: true },
   { id: "ann-3", title: "Examen blanc du baccalauréat", description: "L'examen blanc se tiendra sur trois jours. Le planning détaillé est affiché à la réception.", audience: "students", endDate: shiftDays(21), date: stamp(-5, "10:00"), targetGroupIds: ["grp-1", "grp-2"], includeParents: true },
   { id: "ann-4", title: "Fermeture exceptionnelle", description: "L'établissement sera fermé vendredi pour travaux de maintenance.", audience: "all", endDate: shiftDays(5), date: stamp(-3, "08:30"), targetGroupIds: [], includeParents: true },
-  { id: "ann-5", title: "Note aux enseignants — fiches de paie", description: "Les fiches de paie du mois sont disponibles à la comptabilité à partir de jeudi.", audience: "teachers", endDate: shiftDays(10), date: stamp(-4, "14:00"), targetGroupIds: [] },
+  { id: "ann-5", title: "Note aux entraîneurs — fiches de paie", description: "Les fiches de paie de la carte sont disponibles à la comptabilité à partir de jeudi.", audience: "teachers", endDate: shiftDays(10), date: stamp(-4, "14:00"), targetGroupIds: [] },
   { id: "ann-6", title: "Inscriptions aux stages intensifs", description: "Les inscriptions au stage intensif de mathématiques sont ouvertes à la réception.", audience: "all", endDate: shiftDays(18), date: stamp(-6, "11:00"), targetGroupIds: [], includeParents: true },
-  { id: "ann-7", title: "Sortie pédagogique — Maternelle", description: "Sortie au jardin d'essai prévue le mois prochain. Autorisation à signer.", audience: "parents", endDate: shiftDays(25), date: stamp(-7, "09:30"), targetGroupIds: ["grp-7"], includeParents: true },
+  { id: "ann-7", title: "Sortie pédagogique — Maternelle", description: "Sortie au jardin d'essai prévue la carte prochain. Autorisation à signer.", audience: "parents", endDate: shiftDays(25), date: stamp(-7, "09:30"), targetGroupIds: ["grp-7"], includeParents: true },
   { id: "ann-8", title: "Rappel — Cartes RFID", description: "Merci de rappeler à votre enfant d'apporter sa carte à chaque séance.", audience: "parents", endDate: shiftDays(30), date: stamp(-9, "17:00"), targetGroupIds: [], includeParents: true },
 ];
 
 // ---------------------------------------------------------------------------
-//  Les dépenses de l'école
+//  Les dépenses du club
 // ---------------------------------------------------------------------------
 
 const EXPENSE_TEMPLATES: { name: string; categoryId: string; amount: number }[] = [
-  { name: "Loyer du mois", categoryId: "ecat-1", amount: 60000 },
+  { name: "Loyer du local", categoryId: "ecat-1", amount: 60000 },
   { name: "Facture Sonelgaz", categoryId: "ecat-2", amount: 9500 },
   { name: "Facture d'eau (SEAAL)", categoryId: "ecat-2", amount: 3400 },
   { name: "Ramettes de papier A4", categoryId: "ecat-3", amount: 3200 },
   { name: "Cartouches d'encre", categoryId: "ecat-3", amount: 7800 },
   { name: "Réparation photocopieuse", categoryId: "ecat-4", amount: 12000 },
-  { name: "Peinture des salles", categoryId: "ecat-4", amount: 24000 },
+  { name: "Peinture des arènes", categoryId: "ecat-4", amount: 24000 },
   { name: "Impression de flyers", categoryId: "ecat-5", amount: 8500 },
   { name: "Panneau publicitaire", categoryId: "ecat-5", amount: 18000 },
   { name: "Carburant du minibus", categoryId: "ecat-6", amount: 6000 },
@@ -132,15 +132,15 @@ const EXPENSE_TEMPLATES: { name: string; categoryId: string; amount: number }[] 
   { name: "Extincteurs — contrôle annuel", categoryId: "ecat-4", amount: 9800 },
 ];
 
-/** Les dépenses des quatre derniers mois, une poignée par mois. */
+/** Les dépenses des quatre derniers carte, une poignée par carte. */
 export function buildExpenses(): Expense[] {
   const out: Expense[] = [];
   let n = 1;
   for (let month = 3; month >= 0; month--) {
     for (const tpl of EXPENSE_TEMPLATES) {
       const seed = `exp:${month}:${tpl.name}`;
-      // Toutes les dépenses ne tombent pas tous les mois : le loyer si, la
-      // peinture des salles non.
+      // Toutes les dépenses ne tombent pas tous les cartes : le loyer si, la
+      // peinture des arènes non.
       if (month > 0 && pick(seed, 0, 2) === 0) continue;
       const day = shiftDays(-(month * 30 + pick(seed + ":d", 1, 27)));
       out.push({
@@ -167,7 +167,7 @@ export const COURSEWORK: Coursework[] = [
 ];
 
 // ---------------------------------------------------------------------------
-//  Les séances libres vendues à l'unité (les élèves de passage)
+//  Les séances libres vendues à l'unité (les chevaliers de passage)
 // ---------------------------------------------------------------------------
 
 const PASSAGER_NAMES = [
@@ -178,7 +178,7 @@ const PASSAGER_NAMES = [
 
 /**
  * Les séances vendues à l'unité, sur les deux créneaux « séance libre ».
- * L'école garde une part du prix, le reste revient à l'enseignant — et c'est
+ * Le club garde une part du prix, le reste revient à l'entraîneur — et c'est
  * cette part-là que sa fiche de paie lui règle, passager par passager.
  */
 export function buildIndependent(students: Student[]): IndependentSession[] {
@@ -194,7 +194,7 @@ export function buildIndependent(students: Student[]): IndependentSession[] {
       const seed = `${slot.sessionId}:${back}`;
       if (pick(seed, 0, 2) === 0) continue;
       const day = shiftDays(-back);
-      // Un passager sur trois est en réalité un élève inscrit qui vient en plus.
+      // Un passager sur trois est en réalité un chevalier inscrit qui vient en plus.
       const asStudent = pick(`${seed}:who`, 0, 2) === 0 && students.length > 0;
       const student = asStudent ? students[pick(`${seed}:stu`, 0, students.length - 1)] : undefined;
 
@@ -212,7 +212,7 @@ export function buildIndependent(students: Student[]): IndependentSession[] {
         startTime: slot.start,
         endTime: slot.end,
         createdAt: stampOn(day, slot.start),
-        // Les séances anciennes ont déjà été réglées à l'enseignant.
+        // Les séances anciennes ont déjà été réglées à l'entraîneur.
         teacherPaid: back > 18,
       });
     }
@@ -290,7 +290,7 @@ export function buildNotifications(parentIds: string[]): Notification[] {
 }
 
 // ---------------------------------------------------------------------------
-//  Les mots de passe des portails élèves
+//  Les mots de passe des portails chevaliers
 // ---------------------------------------------------------------------------
 
 export function buildCredentials(students: Student[]): StudentCredential[] {

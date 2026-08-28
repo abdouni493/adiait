@@ -19,8 +19,8 @@ export function WhatsAppSettingsPanel() {
               <MessageCircle className="h-5 w-5 text-primary" /> WhatsApp Cloud API (Meta)
             </h3>
             <p className="mt-1 text-xs text-muted">
-              Alertes de séances et de dette aux élèves et aux parents via le numéro WhatsApp
-              officiel de l&apos;école.
+              Alertes de séances et de dette aux chevaliers et aux parents via le numéro WhatsApp
+              officiel de l&apos;club.
             </p>
           </div>
           <Badge tone="warning">Désactivé en mode démo</Badge>

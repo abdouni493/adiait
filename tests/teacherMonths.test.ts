@@ -9,7 +9,7 @@ import {
 import { cycleOf, schoolPerSeanceOf } from "@/lib/helpers";
 
 /**
- * La paie de l'enseignant suit EXACTEMENT l'horloge des élèves : un mois d'un
+ * La paie de l'entraîneur suit EXACTEMENT l'horloge des chevaliers : une carte d'un
  * emploi du temps s'ouvre à la première présence et se ferme sur la séance qui
  * complète le pack. Ces tests pilotent les vraies actions du store — présence,
  * solde, règlement — et relisent ce que l'écran de paie affiche.
@@ -22,7 +22,7 @@ const STU = "stu-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Un emploi du temps propre : un seul élève, rien d'attendu, rien de dû. */
+/** Un emploi du temps propre : un seul chevalier, rien d'attendu, rien de dû. */
 function board(monthSeances = 4) {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -38,8 +38,8 @@ function board(monthSeances = 4) {
   db.freePeriods = [];
   db.enrollments = db.enrollments.filter((e) => e.studentId !== STU);
 
-  // Un seul élève sur cet emploi, et un seul emploi pour lui : les mois du
-  // groupe et ceux de l'élève ne peuvent pas diverger.
+  // Un seul chevalier sur cet emploi, et un seul emploi pour lui : les cartes du
+  // groupe et ceux du chevalier ne peuvent pas diverger.
   const opened = new Date();
   opened.setDate(opened.getDate() - 400);
   const openedIso = opened.toLocaleDateString("fr-CA");
@@ -82,8 +82,8 @@ beforeEach(() => {
   useData.setState(buildSeed());
 });
 
-describe("les mois de la paie sont ceux de l'emploi du temps", () => {
-  it("un mois reste EN COURS jusqu'à la séance qui complète le pack", async () => {
+describe("les cartes de la paie sont ceux de l'emploi du temps", () => {
+  it("une carte reste EN COURS jusqu'à la séance qui complète le pack", async () => {
     board(4);
     const days = scheduledDays(5);
 
@@ -99,7 +99,7 @@ describe("les mois de la paie sont ceux de l'emploi du temps", () => {
     expect(closed.months[0].state).toBe("done");
     expect(closed.months[0].held).toBe(4);
     expect(closed.months[0].endDate).toBe(days[3]);
-    // La séance suivante appartient déjà au mois d'après.
+    // La séance suivante appartient déjà à la carte d'après.
     expect(closed.currentCode).toBe("M2");
 
     await attend(days[4]);
@@ -110,7 +110,7 @@ describe("les mois de la paie sont ceux de l'emploi du temps", () => {
     expect(next.months[1].state).toBe("running");
   });
 
-  it("la part de l'enseignant est comptée mois par mois", async () => {
+  it("la part de l'entraîneur est comptée carte par carte", async () => {
     const sub = board(4);
     const days = scheduledDays(7);
     // Il paie tout d'avance : aucune dette, donc rien n'est retenu.
@@ -128,12 +128,12 @@ describe("les mois de la paie sont ceux de l'emploi du temps", () => {
   });
 });
 
-describe("un élève inscrit en retard ne fige pas la paie", () => {
-  it("le mois se ferme dès que son pack de séances a été tenu", async () => {
+describe("un chevalier inscrit en retard ne fige pas la paie", () => {
+  it("la carte se ferme dès que son pack de séances a été tenu", async () => {
     const sub = board(4);
     const days = scheduledDays(4);
 
-    // Un deuxième élève arrive à la 3e séance du mois.
+    // Un deuxième chevalier arrive à la 3e séance de la carte.
     const opened = new Date();
     opened.setDate(opened.getDate() - 400);
     const iso = opened.toLocaleDateString("fr-CA");
@@ -178,8 +178,8 @@ describe("un élève inscrit en retard ne fige pas la paie", () => {
   });
 });
 
-describe("l'écran de paie s'ouvre sur le mois CLOS, jamais sur le mois en cours", () => {
-  it("un mois entamé (3 séances sur 4) n'est pas proposé", async () => {
+describe("l'écran de paie s'ouvre sur la carte CLOS, jamais sur la carte en cours", () => {
+  it("une carte entamé (3 séances sur 4) n'est pas proposé", async () => {
     const sub = board(4);
     const days = scheduledDays(7);
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: sub.pricePerSession * 7, monthCode: "M1" });
@@ -192,7 +192,7 @@ describe("l'écran de paie s'ouvre sur le mois CLOS, jamais sur le mois en cours
     expect(suggested).not.toContain(`${SES}|M2`);
   });
 
-  it("tant qu'aucun mois n'est clos, rien n'est coché", async () => {
+  it("tant qu'aucune carte n'est clos, rien n'est coché", async () => {
     const sub = board(4);
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: sub.pricePerSession * 2, monthCode: "M1" });
     for (const day of scheduledDays(2)) await attend(day);
@@ -202,8 +202,8 @@ describe("l'écran de paie s'ouvre sur le mois CLOS, jamais sur le mois en cours
   });
 });
 
-describe("un élève qui n'a pas payé retient la part de l'enseignant", () => {
-  it("le mois affiche l'impayé, la part est retenue et non versée", async () => {
+describe("un chevalier qui n'a pas payé retient la part de l'entraîneur", () => {
+  it("la carte affiche l'impayé, la part est retenue et non versée", async () => {
     const sub = board(4);
     // Il ne verse rien : chaque séance creuse son solde.
     for (const day of scheduledDays(4)) await attend(day);
@@ -240,8 +240,8 @@ describe("un élève qui n'a pas payé retient la part de l'enseignant", () => {
   });
 });
 
-describe("régler un mois ne touche pas le suivant", () => {
-  it("le règlement solde exactement les présences du mois coché", async () => {
+describe("régler une carte ne touche pas le suivant", () => {
+  it("le règlement solde exactement les présences de la carte coché", async () => {
     const sub = board(4);
     const days = scheduledDays(7);
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: sub.pricePerSession * 7, monthCode: "M1" });
@@ -277,7 +277,7 @@ describe("régler un mois ne touche pas le suivant", () => {
     const after = emploi();
     expect(after.months[0].open).toBe(0);
     expect(after.months[0].settled).toBe(4 * sub.teacherPerSeance!);
-    // Le mois en cours est intact : il n'a pas été payé par ricochet.
+    // La carte en cours est intact : il n'a pas été payé par ricochet.
     expect(after.months[1].open).toBe(3 * sub.teacherPerSeance!);
     expect(after.payable).toBe(3 * sub.teacherPerSeance!);
 
@@ -287,8 +287,8 @@ describe("régler un mois ne touche pas le suivant", () => {
   });
 });
 
-describe("les cas particuliers des élèves", () => {
-  it("un élève « cas spécial » (gratuit) ne rapporte rien à l'enseignant", async () => {
+describe("les cas particuliers des chevaliers", () => {
+  it("un chevalier « cas spécial » (gratuit) ne rapporte rien à l'entraîneur", async () => {
     board(4);
     useData.setState({
       students: useData
@@ -301,7 +301,7 @@ describe("les cas particuliers des élèves", () => {
     expect(emploi().months[0].gross).toBe(0);
   });
 
-  it("« école seule » : l'école encaisse, l'enseignant listé n'est ni payé ni listé", async () => {
+  it("« club seule » : le club encaisse, l'entraîneur listé n'est ni payé ni listé", async () => {
     const sub = board(4);
     useData.setState({
       students: useData.getState().students.map((st) =>
@@ -310,22 +310,22 @@ describe("les cas particuliers des élèves", () => {
           : st,
       ),
     });
-    // Il ne paie que la part de l'école : 4 séances au tarif « école seule ».
+    // Il ne paie que la part du club : 4 séances au tarif « club seule ».
     const owed = schoolPerSeanceOf(useData.getState().subscriptions.find((s) => s.id === SUB)) * 4;
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: owed, monthCode: "M1" });
     for (const day of scheduledDays(4)) await attend(day);
 
-    // L'élève a bien payé ses séances : son solde est à jour sur SA fiche…
+    // Le chevalier a bien payé ses séances : son solde est à jour sur SA fiche…
     expect(cycleOf(useData.getState(), STU, SUB, "M1").credited).toBe(owed);
     expect(cycleOf(useData.getState(), STU, SUB, "M1").balance).toBe(0);
-    // … mais cet enseignant-là ne touche rien dessus, et l'écran de paie ne le
+    // … mais cet entraîneur-là ne touche rien dessus, et l'écran de paie ne le
     // liste même pas : une ligne à 0 DA n'inviterait qu'à une erreur de calcul.
     expect(emploi().months[0].gross).toBe(0);
     expect(emploi().months[0].students.map((s) => s.studentId)).not.toContain(STU);
     expect(sub.pricePerSession).toBeGreaterThan(0);
   });
 
-  it("« réduction » : l'enseignant ne supporte que SA part de la remise", async () => {
+  it("« réduction » : l'entraîneur ne supporte que SA part de la remise", async () => {
     const sub = board(4);
     useData.setState({
       students: useData.getState().students.map((st) =>

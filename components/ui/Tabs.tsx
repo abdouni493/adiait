@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export function Tabs({
@@ -13,24 +14,38 @@ export function Tabs({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-canvas p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActive(tab.id)}
-            className={cn(
-              "relative rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              active === tab.id ? "text-white" : "text-muted hover:text-ink",
-            )}
-          >
-            {active === tab.id && (
-              <span className="absolute inset-0 -z-10 rounded-lg bg-gradient-primary" />
-            )}
-            {tab.label}
-          </button>
-        ))}
+      <div
+        role="tablist"
+        className="mb-4 flex flex-wrap gap-1 rounded-xl border border-line bg-canvas p-1"
+      >
+        {tabs.map((tab) => {
+          const selected = active === tab.id;
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setActive(tab.id)}
+              className={cn(
+                "relative rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 cursor-pointer",
+                selected ? "text-white" : "text-muted hover:text-ink",
+              )}
+            >
+              {/* Le fond de l'onglet actif GLISSE d'un onglet à l'autre :
+                  le mouvement dit lequel on vient de quitter. */}
+              {selected && (
+                <motion.span
+                  layoutId="tabs-indicator"
+                  className="absolute inset-0 -z-10 rounded-lg bg-gradient-primary"
+                  transition={{ type: "spring", stiffness: 440, damping: 36 }}
+                />
+              )}
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
-      <div>{current?.content}</div>
+      <div role="tabpanel">{current?.content}</div>
     </div>
   );
 }

@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * LA FICHE DE PAIE D'UN MOIS — « فيش دفعة الأستاذ », calquée sur le modèle
- * papier de l'école (logo, coordonnées, puis trois tableaux numérotés) :
+ * LA FICHE DE PAIE D'UN CARTE — « فيش دفعة الأستاذ », calquée sur le modèle
+ * papier du club (logo, coordonnées, puis trois tableaux numérotés) :
  *
- *   1. la liste des élèves du mois et ce que leurs séances rapportent ;
- *   2. les mekhalfat du mois précédent — arriérés débloqués par un paiement
- *      tardif, et séances libres tombées sur ce mois ;
- *   3. les dépenses retenues sur la paie (avances, frais, scolarité des
+ *   1. la liste des chevaliers de la carte et ce que leurs séances rapportent ;
+ *   2. les mekhalfat de la carte précédente — arriérés débloqués par un paiement
+ *      tardif, et séances libres tombées sur cette carte ;
+ *   3. les dépenses retenues sur la paie (avances, frais, cotisation des
  *      enfants).
  *
  * Puis le résumé : table 1 + table 2 − table 3 = net versé.
@@ -16,7 +16,11 @@
 import type { School, Teacher, TeacherPayBoard } from "@/lib/types";
 import type { Language } from "@/lib/store/settings";
 import { fmtDateTime, metaFooterHtml, printDocument } from "@/lib/printTemplates";
-import { monthCodeLabel, schoolYearLabel } from "@/lib/helpers";
+import {
+  carteShort,
+  monthCodeLabel,
+  schoolYearLabel,
+} from "@/lib/helpers";
 
 function esc(v: unknown): string {
   return String(v ?? "")
@@ -28,35 +32,35 @@ function esc(v: unknown): string {
 
 const LABELS = {
   fr: {
-    docTitle: "Fiche de Paie de l'Enseignant",
+    docTitle: "Fiche de Paie de l'Entraîneur",
     receiptNo: "Bon N° :",
-    teacherName: "Nom et prénom de l'enseignant",
+    teacherName: "Nom et prénom de l'entraîneur",
     group: "Groupe",
-    month: "Mois",
-    year: "Année scolaire",
-    t1title: "Liste des élèves et des séances",
+    month: "Carte",
+    year: "Saison",
+    t1title: "Liste des chevaliers et des séances",
     number: "N°",
-    student: "Nom et prénom de l'élève",
+    student: "Nom et prénom du chevalier",
     seances: "Nb. séances",
     amountCol: "Montant des séances (DA)",
     total: "Total",
     withheldTag: "Retenu",
-    noStudents: "Aucun élève sur ce mois.",
-    t2title: "Arriérés du mois précédent",
-    tStudent: "Élève",
+    noStudents: "Aucun chevalier sur cette carte.",
+    t2title: "Arriérés de la carte précédente",
+    tStudent: "Chevalier",
     status: "Statut",
     arrearStatus: (m: string) => `Règlement en retard — ${m}`,
     passagerTag: "Séance libre",
-    noPrevious: "Aucun arriéré ni séance libre sur ce mois.",
-    t3title: "Dépenses de l'enseignant",
+    noPrevious: "Aucun arriéré ni séance libre sur cette carte.",
+    t3title: "Dépenses de l'entraîneur",
     label: "Désignation",
     expense: "Dépense",
     acompte: "Acompte",
-    child: "Scolarité enfant",
-    childDebt: "Scolarité avancée",
+    child: "Cotisation enfant",
+    childDebt: "Cotisation avancée",
     noExpenses: "Aucune dépense retenue sur cette paie.",
-    net: "Net à payer à l'enseignant",
-    signTeacher: "Signature de l'enseignant",
+    net: "Net à payer à l'entraîneur",
+    signTeacher: "Signature de l'entraîneur",
     signAdmin: "Signature de l'administration",
     paidOn: "Date de paiement :",
   },
@@ -143,7 +147,7 @@ export interface TeacherMonthPayslipData {
   board: TeacherPayBoard;
 }
 
-/** La fiche de paie complète d'un règlement de mois, prête à imprimer. */
+/** La fiche de paie complète d'un règlement de carte, prête à imprimer. */
 export function buildTeacherMonthPayslip(data: TeacherMonthPayslipData): string {
   const { school, teacher, lang, board } = data;
   const L = LABELS[lang];
@@ -166,7 +170,7 @@ export function buildTeacherMonthPayslip(data: TeacherMonthPayslipData): string 
     ? `<img src="${esc(school.logo)}" alt="logo" class="tp-logo" />`
     : `<div class="tp-logo-fallback">🎓</div>`;
 
-  // ---- en-tête : logo, école, et le petit encart "fiche" ------------------
+  // ---- en-tête : logo, club, et le petit encart "fiche" ------------------
   const headerHtml = `
     <div class="tp-header">
       <div class="tp-brand">
@@ -194,7 +198,7 @@ export function buildTeacherMonthPayslip(data: TeacherMonthPayslipData): string 
       </div>
     </div>`;
 
-  // ---- 1. la liste des élèves et des séances ------------------------------
+  // ---- 1. la liste des chevaliers et des séances ------------------------------
   const s1Rows = board.students
     .map((r) => {
       const tags = [
@@ -227,7 +231,7 @@ export function buildTeacherMonthPayslip(data: TeacherMonthPayslipData): string 
       }
     </div>`;
 
-  // ---- 2. mekhalfat du mois précédent : arriérés + séances libres ---------
+  // ---- 2. mekhalfat de la carte précédente : arriérés + séances libres ---------
   const prevRows = [
     ...board.arrears.map((a) => ({
       name: a.name,
@@ -319,7 +323,7 @@ export function buildTeacherMonthPayslip(data: TeacherMonthPayslipData): string 
     </div>`;
 
   return printDocument({
-    title: `${L.docTitle} - ${teacher.firstName} ${teacher.lastName} - ${board.monthCode}`,
+    title: `${L.docTitle} - ${teacher.firstName} ${teacher.lastName} - ${carteShort(board.monthCode)}`,
     lang,
     bodyHtml,
     extraCss: TP_CSS,

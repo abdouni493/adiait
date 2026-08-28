@@ -18,28 +18,11 @@
  *    l'administration lui ouvre ses écrans et ses boutons un par un ;
  *  - LA PAIE ne se devine plus dans les libellés de la caisse : les règlements
  *    sont des lignes, les acomptes et les absences sont retenus une fois et une
- *    seule, et tout s'imprime sur le papier de l'école.
+ *    seule, et tout s'imprime sur le papier du club.
  */
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  Briefcase,
-  CalendarX,
-  CreditCard,
-  Edit,
-  Eye,
-  History,
-  KeyRound,
-  MoreVertical,
-  Plus,
-  Scan,
-  Search,
-  ShieldCheck,
-  Trash2,
-  Wallet,
-  X,
-} from "lucide-react";
+import { AlertTriangle, Briefcase, CalendarX, CreditCard, Edit, Eye, History, KeyRound, MoreVertical, Plus, Scan, Search, ShieldCheck, Trash2, Users, Wallet, X } from "lucide-react";
 import { useData, uid } from "@/lib/store/data";
 import { useToast } from "@/lib/store/toast";
 import { useSettings } from "@/lib/store/settings";
@@ -294,7 +277,7 @@ export function AdministrationPage() {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <PageHeader
-          emoji="👥"
+          icon={Users}
           title="Travailleurs"
           subtitle="Le personnel : métiers, comptes, droits d'accès, acomptes, absences et paie"
         />

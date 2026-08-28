@@ -8,22 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  Trash2,
-  Edit,
-  Eye,
-  Plus,
-  Calendar as CalendarIcon,
-  User,
-  MapPin,
-  Users,
-  Clock,
-  Filter,
-  Printer,
-  Search,
-  Sparkles,
-  X
-} from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Clock, Edit, Eye, Filter, MapPin, Plus, Printer, Search, Sparkles, Trash2, User, Users, X } from "lucide-react";
 import type { DayTime, ScheduleSession, Day, Subscription, Teacher } from "@/lib/types";
 import {
   activeSessions,
@@ -69,12 +54,12 @@ const PRINT_LABELS = {
     time: "Horaire (début – fin)",
     module: "Module / Matière",
     group: "Groupe",
-    classLevel: "Classe / Niveau",
-    teacher: "Enseignant",
-    salle: "Salle",
-    enrolled: "Élèves inscrits",
+    classLevel: "Catégorie / Niveau",
+    teacher: "Entraîneur",
+    salle: "Arène",
+    enrolled: "Chevaliers inscrits",
     signDirection: "La Direction",
-    signTeacher: "L'Enseignant",
+    signTeacher: "L'Entraîneur",
     days: {
       saturday: "Samedi", sunday: "Dimanche", monday: "Lundi", tuesday: "Mardi",
       wednesday: "Mercredi", thursday: "Jeudi", friday: "Vendredi",
@@ -132,7 +117,7 @@ export function PlannerPage() {
   /**
    * La grille ne montre QUE les emplois du temps vivants. Un emploi supprimé est
    * archivé, pas effacé : sa ligne reste en base pour que les présences, les
-   * soldes, les paiements et les parts d'enseignant qu'il porte gardent un nom
+   * soldes, les paiements et les parts d'entraîneur qu'il porte gardent un nom
    * sur les écrans d'historique — mais il n'a plus rien à faire sur un
    * calendrier qui sert à organiser la semaine à venir.
    */
@@ -162,7 +147,7 @@ export function PlannerPage() {
    * LES GROUPES DE L'EMPLOI DU TEMPS — plusieurs, pas un seul.
    *
    * Un même créneau réunit souvent deux demi-groupes : même module, même
-   * enseignant, même salle, même heure. `groupIds` porte la liste complète et
+   * entraîneur, même arène, même heure. `groupIds` porte la liste complète et
    * `groupId` (la colonne historique) garde le PREMIER, pour que le scan, la
    * feuille de présence et la base continuent de lire un groupe sans rien
    * savoir de la nouveauté.
@@ -172,26 +157,26 @@ export function PlannerPage() {
   /**
    * UN EMPLOI DU TEMPS SUR PLUSIEURS NIVEAUX.
    *
-   * Le même créneau réunit parfois deux classes qui n'ont rien à voir — la 4e
+   * Le même créneau réunit parfois deux catégories qui n'ont rien à voir — la 4e
    * année moyenne et la 3e année secondaire — chacune avec SES groupes. Le
-   * formulaire bascule alors : au lieu d'une classe et d'une liste de groupes,
-   * il demande les classes, puis les groupes DE CHAQUE classe.
+   * formulaire bascule alors : au lieu d'une catégorie et d'une liste de groupes,
+   * il demande les catégories, puis les groupes DE CHAQUE catégorie.
    *
    * `classGroupMap` porte cette association, et c'est elle qui est enregistrée.
    * Le reste de l'application n'a rien à savoir de la nouveauté : `classId`
-   * garde la première classe, `groupIds` l'union de tous les groupes.
+   * garde la première catégorie, `groupIds` l'union de tous les groupes.
    */
   const [multiLevel, setMultiLevel] = useState(false);
   const [classGroupMap, setClassGroupMap] = useState<Record<string, string[]>>({});
-  /** Les classes du créneau, dans l'ordre où elles ont été cochées. */
+  /** Les catégories du créneau, dans l'ordre où elles ont été cochées. */
   const [multiClassIds, setMultiClassIds] = useState<string[]>([]);
-  /** Tous les groupes du créneau : ceux des classes en multi-niveaux, sinon la
+  /** Tous les groupes du créneau : ceux des catégories en multi-niveaux, sinon la
    *  liste simple. C'est ce que la base enregistre en `group_ids`. */
   const effectiveGroupIds = multiLevel
     ? [...new Set(multiClassIds.flatMap((cid) => classGroupMap[cid] ?? []))]
     : groupIds;
   const groupId = effectiveGroupIds[0] ?? "";
-  /** Les classes du créneau — une seule hors multi-niveaux. */
+  /** Les catégories du créneau — une seule hors multi-niveaux. */
   const effectiveClassIds = multiLevel ? multiClassIds : classId ? [classId] : [];
   const [salleId, setSalleId] = useState("");
   const [teacherId, setTeacherId] = useState("");
@@ -203,15 +188,15 @@ export function PlannerPage() {
    */
   const [dayTimes, setDayTimes] = useState<Partial<Record<Day, DayTime>>>({});
   /**
-   * The salle of EACH selected day. One day = one room, chosen in the ordinary
+   * The arène of EACH selected day. One day = one room, chosen in the ordinary
    * list. Several days = one room PER day, because a group is rarely given the
    * same room Samedi matin and Mardi après-midi.
    */
   const [daySalles, setDaySalles] = useState<Partial<Record<Day, string>>>({});
-  /** Recherche de l'enseignant par son nom, plutôt qu'une liste déroulante. */
+  /** Recherche de l'entraîneur par son nom, plutôt qu'une liste déroulante. */
   const [teacherSearch, setTeacherSearch] = useState("");
 
-  // ---- Tarification mensuelle de l'emploi du temps ------------------------
+  // ---- Tarification par carte de l'emploi du temps ------------------------
   // The desk gives TWO figures — the séances a month contains and what that
   // month costs — and everything else falls out of them: the price of one
   // séance, what the school keeps, what is left for the teacher, and what the
@@ -223,11 +208,11 @@ export function PlannerPage() {
   /**
    * LE PRIX D'UNE SÉANCE GARDE SES DÉCIMALES.
    *
-   * Un mois à 4 000 DA sur 3 séances vaut 1 333,33 DA la séance — pas 1 333. Et
-   * si l'école en garde 2 200, il reste 1 800 DA à l'enseignant, soit 600 DA
+   * Une carte à 4 000 DA sur 3 séances vaut 1 333,33 DA la séance — pas 1 333. Et
+   * si le club en garde 2 200, il reste 1 800 DA à l'entraîneur, soit 600 DA
    * par séance sur 3, mais 257,14 DA sur 7. Arrondir chaque division à l'entier
    * faisait perdre ou gagner quelques dinars à chaque présence, et l'écart se
-   * voyait sur la paie du mois.
+   * voyait sur la paie de la carte.
    */
   const pricePerSeance = monthSeances > 0 ? money(monthPrice / monthSeances) : 0;
   const teacherShare = positiveMoney(monthPrice - schoolShare);
@@ -380,7 +365,7 @@ export function PlannerPage() {
     return !!t?.startTime && !!t?.endTime && minutesOf(t.endTime) > minutesOf(t.startTime);
   };
 
-  /** Every selected day carries a coherent créneau — what unlocks the salle. */
+  /** Every selected day carries a coherent créneau — what unlocks the arène. */
   const timingReady = selectedDays.length > 0 && orderedDays.every(dayTimeValid);
 
   /** The days whose end hour does not follow their start — flagged inline. */
@@ -400,9 +385,9 @@ export function PlannerPage() {
   }, [orderedDays, dayTimes]);
 
   /**
-   * Salle availability for the créneaux currently on screen.
+   * Arène availability for the créneaux currently on screen.
    *
-   * A salle is taken when another emploi du temps already occupies it on one of
+   * A arène is taken when another emploi du temps already occupies it on one of
    * the selected days at an overlapping hour. Ends that merely touch (10:00 /
    * 10:00) do not clash — the room frees exactly as the next cours starts.
    */
@@ -410,16 +395,16 @@ export function PlannerPage() {
     id: string;
     name: string;
     free: boolean;
-    /** the emplois already in that salle on those créneaux */
+    /** the emplois already in that arène on those créneaux */
     clashes: { sessionId: string; label: string; days: Day[]; timeLabel: string }[];
   }
 
   /**
-   * Availability of every salle, for ONE day or for the whole draft.
+   * Availability of every arène, for ONE day or for the whole draft.
    *
    * Passing a day narrows the check twice over: only that day's créneau is
-   * compared, and only against the emplois that hold that salle THAT day — an
-   * emploi in Salle A on Samedi leaves Salle A free on Mardi.
+   * compared, and only against the emplois that hold that arène THAT day — an
+   * emploi in Arène A on Samedi leaves Arène A free on Mardi.
    */
   const availabilityFor = (day?: Day): SalleAvailability[] => {
     const editingId = selectedSession?.id;
@@ -476,7 +461,7 @@ export function PlannerPage() {
    * LE CHOIX DES GROUPES — plusieurs cases à cocher, pas une liste déroulante.
    *
    * Un emploi du temps peut réunir deux demi-groupes sur le même créneau. Le
-   * champ se cherche par le nom quand l'école en compte beaucoup, et le premier
+   * champ se cherche par le nom quand le club en compte beaucoup, et le premier
    * groupe coché reste celui que la base garde en colonne `group_id`.
    */
   const renderGroupField = () => {
@@ -572,10 +557,10 @@ export function PlannerPage() {
   /**
    * LE CHOIX DES NIVEAUX ET DE LEURS GROUPES.
    *
-   * Un emploi du temps ordinaire porte une classe et ses groupes. Celui-ci peut
+   * Un emploi du temps ordinaire porte une catégorie et ses groupes. Celui-ci peut
    * en porter plusieurs : on coche « 4e année moyenne » et « 3e année
    * secondaire », et chaque niveau ouvre SA propre liste de groupes. Les deux
-   * niveaux partagent l'heure, la salle et l'enseignant — c'est bien un seul
+   * niveaux partagent l'heure, l'arène et l'entraîneur — c'est bien un seul
    * créneau — mais chacun amène les siens.
    */
   const toggleMultiClass = (id: string) =>
@@ -591,7 +576,7 @@ export function PlannerPage() {
       return [...prev, id];
     });
 
-  /** Coche / décoche un groupe SUR UNE CLASSE précise. */
+  /** Coche / décoche un groupe SUR UNE CATÉGORIE précise. */
   const toggleClassGroup = (cid: string, gid: string) =>
     setClassGroupMap((prev) => {
       const current = prev[cid] ?? [];
@@ -778,7 +763,7 @@ export function PlannerPage() {
         type="button"
         onClick={() => {
           setMultiLevel(true);
-          // On repart de ce qui est déjà saisi : la classe choisie devient le
+          // On repart de ce qui est déjà saisi : la catégorie choisie devient le
           // premier niveau, avec ses groupes.
           setMultiClassIds((prev) => (prev.length > 0 ? prev : classId ? [classId] : []));
           setClassGroupMap((prev) =>
@@ -817,8 +802,8 @@ export function PlannerPage() {
     setGroupIds((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
 
   /**
-   * Deux salles ne peuvent pas porter le même nom : l'écran choisit une salle
-   * PAR SON NOM, et deux « Salle 3 » rendraient ce choix indécidable — la
+   * Deux arènes ne peuvent pas porter le même nom : l'écran choisit une arène
+   * PAR SON NOM, et deux « Arène 3 » rendraient ce choix indécidable — la
    * disponibilité afficherait deux lignes identiques dont une seule est libre.
    * La comparaison ignore la casse et les espaces de bord.
    */
@@ -831,7 +816,7 @@ export function PlannerPage() {
     const name = newSalleName.trim();
     if (!name) return;
     if (salleNameTaken(name)) {
-      alert(`La salle « ${name} » existe déjà — choisissez-la dans la liste ou donnez un autre nom.`);
+      alert(`L'arène « ${name} » existe déjà — choisissez-la dans la liste ou donnez un autre nom.`);
       return;
     }
     const newId = uid("salle");
@@ -890,7 +875,7 @@ export function PlannerPage() {
     const mod = openModuleId ? getModuleName(openModuleId) : "Module";
     const salleLabel = openSalleIds.length
       ? openSalleIds.map(getSalleName).join(" + ")
-      : "Salle ?";
+      : "Arène ?";
     const time = `${openStartHour}:${openStartMin}-${openEndHour}:${openEndMin}`;
     const period =
       openPeriodStart && openPeriodEnd
@@ -953,7 +938,7 @@ export function PlannerPage() {
    *
    * A timing is stored as a normal `sessions` row flagged `isOpen`, so the scan,
    * the présences and the teacher payout keep working unchanged. The single
-   * class/group/salle columns hold the FIRST selection (the one the scanner
+   * class/group/arène columns hold the FIRST selection (the one the scanner
    * matches on) while the `*_ids` arrays hold the complete multi-selection.
    * A matching `subscriptions` row is created at the same time, which is what
    * makes the timing show up on the Abonnements screen exactly like a
@@ -961,8 +946,8 @@ export function PlannerPage() {
    */
   const handleSaveOpenSeance = async () => {
     // A séance libre only needs the period it runs over and the days inside it —
-    // that is what makes it exist in the calendar. Module, classes, groupes,
-    // salles, enseignant and prix can all be completed afterwards.
+    // that is what makes it exist in the calendar. Module, catégories, groupes,
+    // arènes, entraîneur and prix can all be completed afterwards.
     if (!openPeriodStart || !openPeriodEnd) {
       return alert("Indiquez la période : une séance libre existe entre deux dates.");
     }
@@ -976,7 +961,7 @@ export function PlannerPage() {
       let teacherId = openTeacherId;
 
       // Teacher passager: no login, saved straight into the teachers table so
-      // the Enseignants screen can pay him and show his history.
+      // the Entraîneurs screen can pay him and show his history.
       if (openTeacherMode === "passager") {
         const existingPassager = teachers.find(
           (t) => t.isPassager && `${t.firstName} ${t.lastName}`.trim().toLowerCase() === openPassagerName.trim().toLowerCase(),
@@ -1123,8 +1108,8 @@ export function PlannerPage() {
 
   /**
    * Only the days are required — an emploi du temps that runs on no day never
-   * occurs, and the salle availability has nothing to check against. Classe,
-   * module, groupe, salle and enseignant can all be filled in later.
+   * occurs, and the arène availability has nothing to check against. Catégorie,
+   * module, groupe, arène and entraîneur can all be filled in later.
    */
   const handleCreateSession = () => {
     if (selectedDays.length === 0) {
@@ -1179,10 +1164,10 @@ export function PlannerPage() {
    *
    * Effacer la ligne effacerait aussi son tarif, et avec lui les inscriptions
    * qui s'y accrochent : les présences pointées, les soldes et les paiements des
-   * élèves, les parts déjà dues à l'enseignant deviendraient orphelins et
+   * chevaliers, les parts déjà dues à l'entraîneur deviendraient orphelins et
    * s'afficheraient en tirets partout où on les relit. On l'ARCHIVE donc : il
    * sort de la grille, de la feuille de présence et du catalogue d'inscription,
-   * ses élèves en sont désinscrits à la date du jour — et tout le reste demeure,
+   * ses chevaliers en sont désinscrits à la date du jour — et tout le reste demeure,
    * lisible et nommé, dans les historiques.
    */
   const handleDelete = async (id: string) => {
@@ -1195,8 +1180,8 @@ export function PlannerPage() {
     const warning =
       `Supprimer cet emploi du temps ?
 
-${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jour.
-` : ""}Rien n'est perdu : les présences déjà pointées, les paiements et les soldes des élèves, ainsi que les parts dues à l'enseignant, restent visibles dans les historiques avec le nom de cet emploi du temps.`;
+${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du jour.
+` : ""}Rien n'est perdu : les présences déjà pointées, les paiements et les soldes des chevaliers, ainsi que les parts dues à l'entraîneur, restent visibles dans les historiques avec le nom de cet emploi du temps.`;
     if (!confirm(warning)) {
       return;
     }
@@ -1233,7 +1218,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
     setGroupIds(sessionGroupIds(s));
     setGroupSearch("");
     // Un emploi multi-niveaux rouvre en multi-niveaux, avec les groupes de
-    // chaque classe là où la réception les avait mis.
+    // chaque catégorie là où la réception les avait mis.
     const levels = sessionClassIds(s);
     const multi = levels.length > 1 || !!s.classGroups;
     setMultiLevel(multi);
@@ -1247,8 +1232,8 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
     setTeacherId(s.teacherId);
     setTeacherSearch("");
     setSelectedDays(s.days);
-    // Un jour sans salle propre retombe sur celle de l'emploi : le formulaire
-    // s'ouvre donc toujours avec une salle en face de chaque jour coché.
+    // Un jour sans arène propre retombe sur celle de l'emploi : le formulaire
+    // s'ouvre donc toujours avec une arène en face de chaque jour coché.
     setDaySalles(
       Object.fromEntries(s.days.map((d) => [d, sessionSalleOn(s, d)])) as Partial<
         Record<Day, string>
@@ -1273,7 +1258,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
   };
 
   // Print one timing card: school letterhead + a detailed table (one row per
-  // scheduled weekday) with module, group, class level, teacher and salle.
+  // scheduled weekday) with module, group, class level, teacher and arène.
   const handlePrintSession = (s: ScheduleSession) => {
     const L = PRINT_LABELS[language];
     const enrolledCount = getSessionStudents(s.id).length;
@@ -1482,9 +1467,9 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
   );
 
   /**
-   * L'enseignant, CHERCHÉ PAR SON NOM.
+   * L'entraîneur, CHERCHÉ PAR SON NOM.
    *
-   * Une école qui compte quarante enseignants ne les retrouve pas dans une
+   * Un club qui compte quarante entraîneurs ne les retrouve pas dans une
    * liste déroulante : on tape deux lettres du nom (ou du téléphone) et on
    * clique. Celui qui est déjà choisi reste affiché en tête, avec de quoi le
    * retirer d'un clic.
@@ -1502,7 +1487,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
     return (
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-          <label className="block text-xs font-semibold text-muted font-sans">Enseignant</label>
+          <label className="block text-xs font-semibold text-muted font-sans">Entraîneur</label>
           <Badge tone="neutral" className="text-[9px] font-bold">
             {teachers.length} enseignant(s)
           </Badge>
@@ -1536,7 +1521,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
           <Input
             value={teacherSearch}
             onChange={(e) => setTeacherSearch(e.target.value)}
-            placeholder="Rechercher un enseignant par son nom…"
+            placeholder="Rechercher un entraîneur par son nom…"
             className="pl-9"
           />
         </div>
@@ -1581,7 +1566,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
     );
   };
 
-  /** Une salle dans la liste : son nom, son état et ce qui l'occupe déjà. */
+  /** Une arène dans la liste : son nom, son état et ce qui l'occupe déjà. */
   const renderSalleOption = (
     sa: SalleAvailability,
     picked: boolean,
@@ -1617,13 +1602,13 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
     </button>
   );
 
-  /** Le formulaire « + Nouvelle salle », partagé par les deux modes. */
+  /** Le formulaire « + Nouvell'arène », partagé par les deux modes. */
   const renderAddSalle = (day?: Day) => (
     <div className="flex gap-2">
       <Input
         value={newSalleName}
         onChange={(e) => setNewSalleName(e.target.value)}
-        placeholder="Nom de la salle"
+        placeholder="Nom de l'arène"
         className="flex-1"
       />
       <Button size="sm" onClick={() => handleCreateSalle(day)}>Créer</Button>
@@ -1634,22 +1619,22 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
   );
 
   /**
-   * La salle, choisie EN DERNIER.
+   * L'arène, choisie EN DERNIER.
    *
    * Elle reste verrouillée tant que chaque jour coché ne porte pas un créneau
-   * cohérent — sans cela il n'y a rien à confronter à une salle. Puis :
+   * cohérent — sans cela il n'y a rien à confronter à une arène. Puis :
    *
-   *  - UN seul jour  : la liste habituelle, chaque salle disant si elle est
+   *  - UN seul jour  : la liste habituelle, chaque arène disant si elle est
    *    libre sur ce créneau ou quel emploi l'occupe déjà ;
-   *  - PLUSIEURS jours : une salle PAR JOUR, chacune vérifiée sur le créneau de
-   *    CE jour-là. Samedi en Salle A et Mardi en Salle B est un seul emploi du
-   *    temps, et une salle occupée le samedi reste libre le mardi.
+   *  - PLUSIEURS jours : une arène PAR JOUR, chacune vérifiée sur le créneau de
+   *    CE jour-là. Samedi en Arène A et Mardi en Arène B est un seul emploi du
+   *    temps, et une arène occupée le samedi reste libre le mardi.
    */
   const renderSalleField = () => (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
         <label className="block text-xs font-semibold text-muted font-sans">
-          {orderedDays.length > 1 ? "Salle de chaque jour" : "Salle"}
+          {orderedDays.length > 1 ? "Arène de chaque jour" : "Arène"}
         </label>
         {timingReady && (
           <div className="flex items-center gap-2">
@@ -1669,7 +1654,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                 onClick={applyFirstSalleToAll}
                 className="text-[10px] font-semibold text-primary hover:underline"
               >
-                Même salle tous les jours
+                Même arène tous les jours
               </button>
             )}
             <button
@@ -1704,7 +1689,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
             }),
           )}
           <p className="pt-1 text-[10px] leading-relaxed text-muted">
-            Une salle occupée reste sélectionnable — l&apos;école peut vouloir doubler un créneau —
+            Une salle occupée reste sélectionnable — l&apos;club peut vouloir doubler un créneau —
             mais le conflit est affiché avant l&apos;enregistrement.
           </p>
         </div>
@@ -1730,7 +1715,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                       {free} / {salles.length} libre(s)
                     </Badge>
                     <Badge tone={chosen ? "primary" : "warning"} className="text-[9px] font-bold">
-                      {chosen ? getSalleName(chosen) : "Aucune salle"}
+                      {chosen ? getSalleName(chosen) : "Aucune arène"}
                     </Badge>
                   </div>
                 </div>
@@ -1762,7 +1747,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
     setKindFilter("all");
   };
 
-  /** A séance libre also "belongs" to every class / group / salle of its
+  /** A séance libre also "belongs" to every class / group / arène of its
    *  multi-selection, not only to the primary one stored in the columns. */
   const sessionCovers = (s: ScheduleSession, kind: "class" | "salle", id: string) => {
     if (kind === "class") return sessionClassIds(s).includes(id);
@@ -1802,7 +1787,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
     <div className="space-y-6 text-xs">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader emoji="📅" title="Emploi du Temps" subtitle="Visualisation du calendrier hebdomadaire et planification" />
+        <PageHeader icon={CalendarDays} title="Emploi du Temps" subtitle="Visualisation du calendrier hebdomadaire et planification" />
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
           {can("create_open") && (
             <Button
@@ -1872,9 +1857,9 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
 
             {/* Filter by Teacher */}
             <div>
-              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Enseignant</label>
+              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Entraîneur</label>
               <Select value={filterTeacherId} onChange={(e) => setFilterTeacherId(e.target.value)} className="w-full">
-                <option value="">Tous les enseignants</option>
+                <option value="">Tous les entraîneurs</option>
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.firstName} {t.lastName}
@@ -1885,9 +1870,9 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
 
             {/* Filter by Classroom */}
             <div>
-              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Salle de Cours</label>
+              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Arène de Cours</label>
               <Select value={filterSalleId} onChange={(e) => setFilterSalleId(e.target.value)} className="w-full">
-                <option value="">Toutes les salles</option>
+                <option value="">Toutes les arènes</option>
                 {salles.map((sa) => (
                   <option key={sa.id} value={sa.id}>
                     {sa.name}
@@ -1898,9 +1883,9 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
 
             {/* Filter by Class */}
             <div>
-              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Classe & Niveau</label>
+              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Catégorie & Niveau</label>
               <Select value={filterClassId} onChange={(e) => setFilterClassId(e.target.value)} className="w-full">
-                <option value="">Toutes les classes</option>
+                <option value="">Toutes les catégories</option>
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.type === "cours" ? c.coursLevel : c.formationLevel})
@@ -2076,7 +2061,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                           <div className="flex items-center gap-2">
                             <User className="h-3.5 w-3.5 text-primary shrink-0" />
                             <span>
-                              Enseignant: <strong>{getTeacherName(s.teacherId)}</strong>
+                              Entraîneur: <strong>{getTeacherName(s.teacherId)}</strong>
                               {teachers.find((t) => t.id === s.teacherId)?.isPassager && (
                                 <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-warning/15 text-warning">
                                   Passager
@@ -2131,7 +2116,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                       {/* Footer Actions & Count */}
                       <div className="flex justify-between items-center pt-3 border-t border-black/5 dark:border-white/5 mt-auto">
                         <Badge tone="success" className="text-[10px] font-bold flex items-center gap-1">
-                          <Users className="h-3 w-3" /> {enrolledCount} élève(s)
+                          <Users className="h-3 w-3" /> {enrolledCount} chevalier(s)
                         </Badge>
 
                         <div className="flex gap-1.5">
@@ -2233,11 +2218,11 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
               )}
             </div>
 
-            {/* Multi-selects: classes / groupes / salles */}
+            {/* Multi-selects: catégories / groupes / arènes */}
             {([
-              { label: "Classes concernées", items: classes.map((c) => ({ id: c.id, name: `${c.name} (${c.type === "cours" ? c.coursLevel : c.formationLevel})` })), selected: openClassIds, set: setOpenClassIds },
+              { label: "Catégories concernées", items: classes.map((c) => ({ id: c.id, name: `${c.name} (${c.type === "cours" ? c.coursLevel : c.formationLevel})` })), selected: openClassIds, set: setOpenClassIds },
               { label: "Groupes concernés", items: groups, selected: openGroupIds, set: setOpenGroupIds },
-              { label: "Salles", items: salles, selected: openSalleIds, set: setOpenSalleIds },
+              { label: "Arènes", items: salles, selected: openSalleIds, set: setOpenSalleIds },
             ] as const).map((block) => (
               <div key={block.label}>
                 <div className="flex items-center justify-between mb-1">
@@ -2271,7 +2256,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
 
             {/* Teacher: existing or passager */}
             <div>
-              <label className="block text-xs font-semibold text-muted mb-1.5 font-sans">Enseignant</label>
+              <label className="block text-xs font-semibold text-muted mb-1.5 font-sans">Entraîneur</label>
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <button
                   type="button"
@@ -2280,7 +2265,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                     openTeacherMode === "existing" ? "border-primary bg-primary/10 text-primary" : "border-line bg-surface text-muted"
                   }`}
                 >
-                  Enseignant existant
+                  Entraîneur existant
                 </button>
                 <button
                   type="button"
@@ -2289,7 +2274,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                     openTeacherMode === "passager" ? "border-primary bg-primary/10 text-primary" : "border-line bg-surface text-muted"
                   }`}
                 >
-                  Enseignant passager
+                  Entraîneur passager
                 </button>
               </div>
 
@@ -2300,7 +2285,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                     <Input
                       value={openTeacherSearch}
                       onChange={(e) => setOpenTeacherSearch(e.target.value)}
-                      placeholder="Rechercher un enseignant par nom..."
+                      placeholder="Rechercher un entraîneur par nom..."
                       className="pl-9"
                     />
                   </div>
@@ -2325,7 +2310,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                           </span>
                           <span className={openTeacherId === t.id ? "text-white/80" : "text-muted"}>
                             {t.paymentType === "monthly"
-                              ? "Mensuel"
+                              ? "Par carte"
                               : t.paymentType === "per_group"
                                 ? "Par groupe"
                                 : `${t.percentage ?? 0}%`}
@@ -2343,7 +2328,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                   <Input
                     value={openPassagerName}
                     onChange={(e) => setOpenPassagerName(e.target.value)}
-                    placeholder="Nom complet de l'enseignant passager"
+                    placeholder="Nom complet de l'entraîneur passager"
                   />
                   <Input
                     value={openPassagerPhone}
@@ -2351,7 +2336,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                     placeholder="Téléphone (optionnel)"
                   />
                   <p className="text-[10px] text-muted leading-relaxed">
-                    Il sera enregistré dans l&apos;interface <strong>Enseignants</strong> sans compte de connexion,
+                    Il sera enregistré dans l&apos;interface <strong>Entraîneurs</strong> sans compte de connexion,
                     avec uniquement les actions <strong>Payer</strong> et <strong>Détails</strong>.
                   </p>
                 </div>
@@ -2489,7 +2474,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
             </div>
             {/* UN SEUL NIVEAU, OU PLUSIEURS.
 
-                Le cas courant reste « une classe, ses groupes ». Mais un même
+                Le cas courant reste « une catégorie, ses groupes ». Mais un même
                 créneau réunit parfois deux niveaux qui n'ont rien à voir — la
                 4e année moyenne et la 3e année secondaire — chacun amenant SES
                 groupes. Le second bouton ouvre ce mode. */}
@@ -2497,9 +2482,9 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
 
             {!multiLevel && (
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1 font-sans">Classe</label>
+                <label className="block text-xs font-semibold text-muted mb-1 font-sans">Catégorie</label>
                 <Select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full">
-                  <option value="">Sélectionner une classe</option>
+                  <option value="">Sélectionner une catégorie</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.type === "cours" ? c.coursLevel : c.formationLevel})
@@ -2574,7 +2559,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
         {/* ---- Tarif de l'emploi du temps -----------------------------------
              Two figures are typed — the séances a month contains and what that
              month costs — and the rest is derived: the price of one séance,
-             what the school keeps, what is left for the enseignant, and what he
+             what the school keeps, what is left for the entraîneur, and what he
              earns per séance. That last figure is what every règlement pays. */}
         <div className="mt-6 space-y-3 rounded-2xl border border-primary/25 bg-primary-50/25 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2582,7 +2567,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
               💰 Tarif de l&apos;emploi du temps
             </span>
             <span className="text-[10px] text-muted">
-              Le mois d&apos;un élève s&apos;ouvre à sa 1<sup>re</sup> présence et se ferme à la
+              La carte d&apos;un chevalier s&apos;ouvre à sa 1<sup>re</sup> présence et se ferme à la
               dernière séance du pack.
             </span>
           </div>
@@ -2626,7 +2611,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Part de l&apos;école sur le mois (DA)
+                Part de l&apos;club sur le mois (DA)
               </label>
               <Input
                 type="number"
@@ -2660,18 +2645,18 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
               Un mois = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
               <strong className="text-ink">{formatDA(monthPrice)}</strong> →{" "}
-              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. L&apos;école
+              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. L&apos;club
               garde <strong className="text-ink">{formatDA(Math.min(schoolShare, monthPrice))}</strong>,
-              l&apos;enseignant reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
+              l&apos;entraîneur reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
               soit <strong className="text-success">{formatDA(teacherPerSeance)}</strong> par séance
-              assurée — et l&apos;école <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
+              assurée — et l&apos;club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
               par séance. Les divisions gardent leurs décimales : un mois qui ne tombe pas juste se
               répartit au centime, jamais arrondi au dinar.
             </p>
           ) : (
             <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] text-warning">
               Sans nombre de séances ni prix du mois, l&apos;emploi du temps est créé sans tarif : aucun
-              élève ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
+              chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
             </p>
           )}
         </div>
@@ -2701,7 +2686,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
             </div>
             {/* UN SEUL NIVEAU, OU PLUSIEURS.
 
-                Le cas courant reste « une classe, ses groupes ». Mais un même
+                Le cas courant reste « une catégorie, ses groupes ». Mais un même
                 créneau réunit parfois deux niveaux qui n'ont rien à voir — la
                 4e année moyenne et la 3e année secondaire — chacun amenant SES
                 groupes. Le second bouton ouvre ce mode. */}
@@ -2709,9 +2694,9 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
 
             {!multiLevel && (
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1 font-sans">Classe</label>
+                <label className="block text-xs font-semibold text-muted mb-1 font-sans">Catégorie</label>
                 <Select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full">
-                  <option value="">Sélectionner une classe</option>
+                  <option value="">Sélectionner une catégorie</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.type === "cours" ? c.coursLevel : c.formationLevel})
@@ -2749,7 +2734,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
         {/* ---- Tarif de l'emploi du temps -----------------------------------
              Two figures are typed — the séances a month contains and what that
              month costs — and the rest is derived: the price of one séance,
-             what the school keeps, what is left for the enseignant, and what he
+             what the school keeps, what is left for the entraîneur, and what he
              earns per séance. That last figure is what every règlement pays. */}
         <div className="mt-6 space-y-3 rounded-2xl border border-primary/25 bg-primary-50/25 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2757,7 +2742,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
               💰 Tarif de l&apos;emploi du temps
             </span>
             <span className="text-[10px] text-muted">
-              Le mois d&apos;un élève s&apos;ouvre à sa 1<sup>re</sup> présence et se ferme à la
+              La carte d&apos;un chevalier s&apos;ouvre à sa 1<sup>re</sup> présence et se ferme à la
               dernière séance du pack.
             </span>
           </div>
@@ -2801,7 +2786,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Part de l&apos;école sur le mois (DA)
+                Part de l&apos;club sur le mois (DA)
               </label>
               <Input
                 type="number"
@@ -2835,18 +2820,18 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
               Un mois = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
               <strong className="text-ink">{formatDA(monthPrice)}</strong> →{" "}
-              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. L&apos;école
+              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. L&apos;club
               garde <strong className="text-ink">{formatDA(Math.min(schoolShare, monthPrice))}</strong>,
-              l&apos;enseignant reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
+              l&apos;entraîneur reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
               soit <strong className="text-success">{formatDA(teacherPerSeance)}</strong> par séance
-              assurée — et l&apos;école <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
+              assurée — et l&apos;club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
               par séance. Les divisions gardent leurs décimales : un mois qui ne tombe pas juste se
               répartit au centime, jamais arrondi au dinar.
             </p>
           ) : (
             <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] text-warning">
               Sans nombre de séances ni prix du mois, l&apos;emploi du temps est créé sans tarif : aucun
-              élève ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
+              chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
             </p>
           )}
         </div>
@@ -2882,7 +2867,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                     <strong className="text-primary">{formatDA(openSessionPrice(selectedSession))}</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-muted block uppercase">Classes</span>
+                    <span className="text-[10px] text-muted block uppercase">Catégories</span>
                     <strong className="text-ink">
                       {(selectedSession.classIds ?? [selectedSession.classId]).map(getClassName).join(" · ")}
                     </strong>
@@ -2894,7 +2879,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-muted block uppercase">Salles</span>
+                    <span className="text-[10px] text-muted block uppercase">Arènes</span>
                     <strong className="text-ink">
                       {(selectedSession.salleIds ?? [selectedSession.salleId]).map(getSalleName).join(" · ")}
                     </strong>
@@ -2915,7 +2900,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                 <span className="font-bold text-ink">{getModuleName(selectedSession.moduleId)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Classe & Niveau</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Catégorie & Niveau</span>
                 <span className="font-semibold text-ink">
                   {sessionClassIds(selectedSession).map(getClassName).join(" + ") || "—"}
                 </span>
@@ -2948,7 +2933,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                 )}
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Enseignant</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Entraîneur</span>
                 <span className="font-semibold text-ink">
                   {getTeacherName(selectedSession.teacherId)}
                   {teachers.find((t) => t.id === selectedSession.teacherId)?.isPassager && (
@@ -2979,7 +2964,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                       <strong className="text-ink">{sub.monthlySeances ?? 0}</strong>
                     </div>
                     <div>
-                      <span className="block text-[10px] uppercase text-muted">Prix du mois</span>
+                      <span className="block text-[10px] uppercase text-muted">Prix de la carte</span>
                       <strong className="text-ink">{formatDA(monthlyPriceOf(sub))}</strong>
                     </div>
                     <div>
@@ -2987,7 +2972,7 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
                       <strong className="text-primary">{formatDA(sub.pricePerSession)}</strong>
                     </div>
                     <div>
-                      <span className="block text-[10px] uppercase text-muted">Part école</span>
+                      <span className="block text-[10px] uppercase text-muted">Part club</span>
                       <strong className="text-ink">{formatDA(schoolMonthShareOf(sub))}</strong>
                     </div>
                     <div>
@@ -3042,11 +3027,11 @@ ${enrolled > 0 ? `${enrolled} élève(s) en seront désinscrits à la date du jo
 
               <div>
                 <h4 className="font-bold text-ink mb-2.5 flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-primary" /> Étudiants Inscrits ({getSessionStudents(selectedSession.id).length})
+                  <Users className="h-4 w-4 text-primary" /> Chevaliers Inscrits ({getSessionStudents(selectedSession.id).length})
                 </h4>
                 <div className="bg-surface border border-line p-3 rounded-xl max-h-48 overflow-y-auto space-y-2">
                   {getSessionStudents(selectedSession.id).length === 0 ? (
-                    <p className="text-xs text-muted italic p-4 text-center">Aucun élève inscrit à cet emploi du temps.</p>
+                    <p className="text-xs text-muted italic p-4 text-center">Aucun chevalier inscrit à cet emploi du temps.</p>
                   ) : (
                     getSessionStudents(selectedSession.id).map((stu) => (
                       <div key={stu.id} className="flex justify-between items-center text-xs bg-canvas/30 p-2.5 rounded-lg border border-line/50">

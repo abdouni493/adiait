@@ -2,20 +2,20 @@
 
 /**
  * **Séances libres de GROUPE** — une séance ponctuelle vendue à un groupe
- * entier, sans nommer un seul élève.
+ * entier, sans nommer un seul chevalier.
  *
- * La réception choisit l'enseignant, la date, les horaires, nomme la séance,
- * puis tape trois nombres : combien d'élèves, combien paie un élève, et combien
- * l'école garde sur ce prix. Tout le reste se calcule :
+ * La réception choisit l'entraîneur, la date, les horaires, nomme la séance,
+ * puis tape trois nombres : combien de chevaliers, combien paie un chevalier, et combien
+ * le club garde sur ce prix. Tout le reste se calcule :
  *
- *     part enseignant par élève = prix élève − part école
- *     total encaissé            = élèves × prix élève
- *     total école               = élèves × part école
- *     total enseignant          = élèves × part enseignant
+ *     part entraîneur par chevalier = prix chevalier − part club
+ *     total encaissé            = chevaliers × prix chevalier
+ *     total club               = chevaliers × part club
+ *     total entraîneur          = chevaliers × part entraîneur
  *
  * À la création, l'écran propose d'imprimer la **fiche de paie** de
- * l'enseignant — qui n'affiche jamais la part de l'école. La séance apparaît
- * ensuite dans l'historique de paiement de l'enseignant, dans la caisse et dans
+ * l'entraîneur — qui n'affiche jamais la part du club. La séance apparaît
+ * ensuite dans l'historique de paiement de l'entraîneur, dans la caisse et dans
  * les rapports ; la modifier ou la supprimer déplace ces trois-là avec elle.
  */
 
@@ -140,7 +140,7 @@ export function GroupSeanceSection() {
 
   const submit = async () => {
     if (!draft.teacherId) {
-      addToast({ type: "danger", title: "Enseignant manquant", message: "Sélectionnez l'enseignant de la séance." });
+      addToast({ type: "danger", title: "Entraîneur manquant", message: "Sélectionnez l'entraîneur de la séance." });
       return;
     }
     if (!draft.title.trim()) {
@@ -151,7 +151,7 @@ export function GroupSeanceSection() {
       addToast({
         type: "danger",
         title: "Chiffres incomplets",
-        message: "Indiquez le nombre d'élèves et le prix payé par un élève.",
+        message: "Indiquez le nombre de chevaliers et le prix payé par un chevalier.",
       });
       return;
     }
@@ -188,7 +188,7 @@ export function GroupSeanceSection() {
   const remove = async (g: GroupSeance) => {
     if (
       !confirm(
-        `Supprimer « ${g.title} » ?\nLa recette et la paie de l'enseignant seront retirées de la caisse, de sa fiche et des rapports.`,
+        `Supprimer « ${g.title} » ?\nLa recette et la paie de l'entraîneur seront retirées de la caisse, de sa fiche et des rapports.`,
       )
     )
       return;
@@ -196,7 +196,7 @@ export function GroupSeanceSection() {
     addToast({
       type: res.ok ? "success" : "danger",
       title: res.ok ? "Séance libre supprimée" : "Suppression impossible",
-      message: res.ok ? "Caisse, fiche enseignant et rapports mis à jour." : "Réessayez.",
+      message: res.ok ? "Caisse, fiche entraîneur et rapports mis à jour." : "Réessayez.",
     });
   };
 
@@ -217,10 +217,10 @@ export function GroupSeanceSection() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="flex items-center gap-2 text-base font-black text-ink">
-                <UsersRound className="h-5 w-5 text-primary" /> Séances libres de groupe
+                <UsersRound className="h-5 w-5 text-primary" /> Sorties libres de groupe
               </h3>
               <p className="text-[11px] text-muted">
-                Une séance ponctuelle vendue à un groupe entier — on saisit le nombre d&apos;élèves,
+                Une séance ponctuelle vendue à un groupe entier — on saisit le nombre d&apos;chevaliers,
                 pas leurs noms.
               </p>
             </div>
@@ -231,9 +231,9 @@ export function GroupSeanceSection() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Tile label="Séances" value={String(rows.length)} tone="text-ink" />
-            <Tile label="Élèves cumulés" value={String(grand.students)} tone="text-primary" />
+            <Tile label="Chevaliers cumulés" value={String(grand.students)} tone="text-primary" />
             <Tile label="Total encaissé" value={formatDA(grand.total)} tone="text-success" />
-            <Tile label="Part enseignants" value={formatDA(grand.teacher)} tone="text-warning" />
+            <Tile label="Part entraîneurs" value={formatDA(grand.teacher)} tone="text-warning" />
           </div>
 
           <div className="relative">
@@ -241,14 +241,14 @@ export function GroupSeanceSection() {
             <Input
               value={listQuery}
               onChange={(e) => setListQuery(e.target.value)}
-              placeholder="Rechercher une séance de groupe — intitulé ou enseignant…"
+              placeholder="Rechercher une séance de groupe — intitulé ou entraîneur…"
               className="pl-9"
             />
           </div>
 
           {rows.length === 0 ? (
             <p className="py-8 text-center text-xs italic text-muted">
-              Aucune séance libre de groupe pour le moment.
+              Aucune sortie libre de groupe pour le moment.
             </p>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-line">
@@ -257,12 +257,12 @@ export function GroupSeanceSection() {
                   <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
                     <th className="px-3 py-2.5">Date &amp; horaire</th>
                     <th className="px-3 py-2.5">Séance</th>
-                    <th className="px-3 py-2.5">Enseignant</th>
-                    <th className="px-3 py-2.5 text-center">Élèves</th>
-                    <th className="px-3 py-2.5 text-right">Prix / élève</th>
+                    <th className="px-3 py-2.5">Entraîneur</th>
+                    <th className="px-3 py-2.5 text-center">Chevaliers</th>
+                    <th className="px-3 py-2.5 text-right">Prix / chevalier</th>
                     <th className="px-3 py-2.5 text-right">Total</th>
-                    <th className="px-3 py-2.5 text-right">École</th>
-                    <th className="px-3 py-2.5 text-right">Enseignant</th>
+                    <th className="px-3 py-2.5 text-right">Club</th>
+                    <th className="px-3 py-2.5 text-right">Entraîneur</th>
                     <th className="px-3 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -330,11 +330,11 @@ export function GroupSeanceSection() {
         <Modal
           open
           onClose={() => setFormOpen(false)}
-          title={editingId ? "Modifier la séance libre de groupe" : "Nouvelle séance libre de groupe"}
+          title={editingId ? "Modifier la sortie libre de groupe" : "Nouvelle sortie libre de groupe"}
           wide
         >
           <div className="space-y-4">
-            {/* enseignant */}
+            {/* entraîneur */}
             <div className="space-y-2 rounded-xl border border-line bg-canvas/30 p-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
                 👨‍🏫 Enseignant
@@ -344,7 +344,7 @@ export function GroupSeanceSection() {
                 <Input
                   value={teacherQuery}
                   onChange={(e) => setTeacherQuery(e.target.value)}
-                  placeholder="Rechercher un enseignant…"
+                  placeholder="Rechercher un entraîneur…"
                   className="pl-9"
                 />
               </div>
@@ -436,7 +436,7 @@ export function GroupSeanceSection() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted">
-                    Nombre total d&apos;élèves *
+                    Nombre total d&apos;chevaliers *
                   </label>
                   <Input
                     type="number"
@@ -450,7 +450,7 @@ export function GroupSeanceSection() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted">
-                    Prix de la séance / élève *
+                    Prix de la séance / chevalier *
                   </label>
                   <Input
                     type="number"
@@ -467,7 +467,7 @@ export function GroupSeanceSection() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted">
-                    Part de l&apos;école / élève *
+                    Part de l&apos;club / chevalier *
                   </label>
                   <Input
                     type="number"
@@ -486,18 +486,18 @@ export function GroupSeanceSection() {
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Tile
-                  label="Enseignant / élève"
+                  label="Entraîneur / chevalier"
                   value={formatDA(totals.teacherPerStudent)}
-                  hint="prix élève − part école"
+                  hint="prix chevalier − part club"
                   tone="text-warning"
                 />
                 <Tile label="Total encaissé" value={formatDA(totals.total)} hint={`${totals.students} × ${totals.pricePerStudent}`} tone="text-success" />
-                <Tile label="Total école" value={formatDA(totals.schoolTotal)} tone="text-primary" />
-                <Tile label="Total enseignant" value={formatDA(totals.teacherTotal)} tone="text-warning" />
+                <Tile label="Total club" value={formatDA(totals.schoolTotal)} tone="text-primary" />
+                <Tile label="Total entraîneur" value={formatDA(totals.teacherTotal)} tone="text-warning" />
               </div>
               {totals.schoolPerStudent >= totals.pricePerStudent && totals.pricePerStudent > 0 && (
                 <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-                  L&apos;école garde tout : cette séance ne rapporte rien à l&apos;enseignant.
+                  L&apos;club garde tout : cette séance ne rapporte rien à l&apos;enseignant.
                 </p>
               )}
             </div>
@@ -516,7 +516,7 @@ export function GroupSeanceSection() {
 
       {/* ---- details ---------------------------------------------------- */}
       {details && (
-        <Modal open onClose={() => setDetails(null)} title="Détails de la séance libre de groupe">
+        <Modal open onClose={() => setDetails(null)} title="Détails de la sortie libre de groupe">
           {(() => {
             const t = groupSeanceTotals(details);
             return (
@@ -536,17 +536,17 @@ export function GroupSeanceSection() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Tile label="Élèves" value={String(t.students)} tone="text-ink" />
-                  <Tile label="Prix / élève" value={formatDA(t.pricePerStudent)} tone="text-ink" />
-                  <Tile label="Part école / élève" value={formatDA(t.schoolPerStudent)} tone="text-primary" />
+                  <Tile label="Chevaliers" value={String(t.students)} tone="text-ink" />
+                  <Tile label="Prix / chevalier" value={formatDA(t.pricePerStudent)} tone="text-ink" />
+                  <Tile label="Part club / chevalier" value={formatDA(t.schoolPerStudent)} tone="text-primary" />
                   <Tile
-                    label="Part enseignant / élève"
+                    label="Part entraîneur / chevalier"
                     value={formatDA(t.teacherPerStudent)}
                     tone="text-warning"
                   />
                   <Tile label="Total encaissé" value={formatDA(t.total)} tone="text-success" />
-                  <Tile label="Total école" value={formatDA(t.schoolTotal)} tone="text-primary" />
-                  <Tile label="Total enseignant" value={formatDA(t.teacherTotal)} tone="text-warning" />
+                  <Tile label="Total club" value={formatDA(t.schoolTotal)} tone="text-primary" />
+                  <Tile label="Total entraîneur" value={formatDA(t.teacherTotal)} tone="text-warning" />
                   <Tile
                     label="Créée le"
                     value={formatDateFr(details.createdAt.slice(0, 10))}
@@ -576,8 +576,8 @@ export function GroupSeanceSection() {
               {teacherName(printAsk.teacherId)} ?
             </p>
             <p className="text-[11px] text-muted">
-              La fiche remise à l&apos;enseignant n&apos;affiche jamais la part de l&apos;école :
-              seulement les élèves, sa part par élève et son total.
+              La fiche remise à l&apos;enseignant n&apos;affiche jamais la part de l&apos;club :
+              seulement les chevaliers, sa part par chevalier et son total.
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setPrintAsk(null)}>

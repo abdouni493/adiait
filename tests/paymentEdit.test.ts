@@ -5,7 +5,7 @@ import { cycleOf, soldFor } from "@/lib/helpers";
 
 /**
  * Un encaissement se corrige et se supprime là où il a été saisi — depuis la
- * feuille de présence du groupe comme depuis la fiche de l'élève.
+ * feuille de présence du groupe comme depuis la fiche du chevalier.
  *
  * Ce qui compte : le SOLDE de l'emploi du temps et la CAISSE suivent
  * exactement le mouvement. Corriger 4000 en 2000 rend 2000 ; supprimer la ligne
@@ -57,7 +57,7 @@ describe("corriger et supprimer un encaissement", () => {
     expect(cashOf()[0].amount).toBe(2000);
   });
 
-  it("déplace un versement d'un mois à l'autre sans toucher au solde", async () => {
+  it("déplace un versement d'une carte à l'autre sans toucher au solde", async () => {
     const res = await useData
       .getState()
       .addSold({ studentId: STU, subscriptionId: SUB, amount: 3000, monthCode: "M1" });

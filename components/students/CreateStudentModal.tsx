@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * "Nouvel élève" — the ONE student screen of the app, for creating AND for
- * editing. Passing a `student` turns it into "Modifier l'élève": exactly the
+ * "Nouvel chevalier" — the ONE student screen of the app, for creating AND for
+ * editing. Passing a `student` turns it into "Modifier le chevalier": exactly the
  * same fields, pre-filled, with the identity, the cas, les emplois du temps et
  * les soldes tous modifiables, plus l'identifiant et le mot de passe du
  * portail que seule une fiche existante possède.
  *
- * Used from the Élèves page, from the dashboard, and from a group's présence
+ * Used from the Chevaliers page, from the dashboard, and from a group's présence
  * sheet (where the emploi du temps of the group arrives pre-ticked).
  *
  * Reception types the identity, picks the billing case, ticks the emplois du
@@ -16,16 +16,16 @@
  *
  * L'enregistrement propose alors DEUX documents, dans cet ordre :
  *  1. le REÇU DE L'AVANCE, dès qu'un dinar a été versé — c'est une entrée
- *     d'argent, elle mérite sa propre pièce, avec le mois crédité et le solde
+ *     d'argent, elle mérite sa propre pièce, avec la carte crédité et le solde
  *     qui en résulte emploi par emploi. Le versement part en même temps dans la
- *     caisse et dans l'historique des paiements de l'élève ;
+ *     caisse et dans l'historique des paiements du chevalier ;
  *  2. le BON D'INSCRIPTION, qui récapitule l'identité, les emplois du temps et
  *     ce qui a été versé sur chacun.
  *
  * La GRATUITÉ se coche emploi du temps par emploi du temps : un « cas spécial »
  * arrive avec tous ses emplois cochés « offert », et décocher l'un d'eux le
- * rend payant — l'école et l'enseignant sont alors réglés pour ce module-là
- * comme pour n'importe quel élève.
+ * rend payant — le club et l'entraîneur sont alors réglés pour ce module-là
+ * comme pour n'importe quel chevalier.
  *
  * A child never starts an emploi at its séance 1: he comes in WHERE THE GROUP
  * STANDS. Registered while the group lives its 2nd month on its 3rd séance, he
@@ -58,16 +58,17 @@ import {
   type TimingScope,
 } from "@/components/students/ClassTimingPicker";
 import {
+  carteShort,
   cycleSizeOf,
   joinPointFor,
-  schoolPerSeanceOf,
-  teacherPerSeanceOf,
+  nextRegistrationNumber,
   registrationFeeFor,
   registrationFeeSubIds,
   registrationNumberOf,
+  schoolPerSeanceOf,
   soldFor,
   studentMonthPrice,
-  nextRegistrationNumber,
+  teacherPerSeanceOf,
   todayIso,
 } from "@/lib/helpers";
 import { positiveMoney } from "@/lib/utils";
@@ -83,9 +84,9 @@ import type {
 export const STUDENT_CASE_OPTIONS: { value: StudentCase; label: string }[] = [
   { value: "normal", label: "Normal" },
   { value: "special", label: "Cas spécial (gratuit)" },
-  { value: "teacher_child", label: "Fils d'enseignant" },
+  { value: "teacher_child", label: "Fils d'entraîneur" },
   { value: "reduction", label: "Réduction" },
-  { value: "school_only", label: "École seulement" },
+  { value: "school_only", label: "Club seulement" },
 ];
 
 export interface StudentFicheProps {
@@ -193,23 +194,23 @@ function StudentFiche({
    * « Cas spécial » : les emplois du temps OFFERTS.
    *
    * Une fiche existante démarre sur ce qu'elle porte ; une fiche qui n'a jamais
-   * détaillé sa gratuité (ou un élève qu'on bascule en cas spécial maintenant)
+   * détaillé sa gratuité (ou un chevalier qu'on bascule en cas spécial maintenant)
    * démarre TOUT COCHÉ — c'est ainsi que le cas se lisait avant d'être détaillé.
    */
   const [freeSubIds, setFreeSubIds] = useState<string[]>(
     () => editing?.freeSubscriptionIds ?? editing?.subscriptionIds ?? defaultSubIds,
   );
   /**
-   * « ÉCOLE SEULEMENT » : LES EMPLOIS DU TEMPS OÙ L'OPTION EST ACTIVE.
+   * « CLUB SEULEMENT » : LES EMPLOIS DU TEMPS OÙ L'OPTION EST ACTIVE.
    *
    * Exactement comme la gratuité, l'option se coche emploi par emploi. Sur un
-   * emploi ACTIVÉ, la famille ne verse que la part de l'école, l'enseignant
-   * n'est pas payé pour cet élève et celui-ci n'apparaît même pas sur l'écran
-   * de paie de cet enseignant. Sur un emploi NON activé, tout se calcule
-   * normalement — l'école ET l'enseignant sont réglés.
+   * emploi ACTIVÉ, la famille ne verse que la part du club, l'entraîneur
+   * n'est pas payé pour ce chevalier et celui-ci n'apparaît même pas sur l'écran
+   * de paie de cet entraîneur. Sur un emploi NON activé, tout se calcule
+   * normalement — le club ET l'entraîneur sont réglés.
    *
-   * Une fiche qui n'a jamais détaillé son cas (ou un élève qu'on bascule
-   * maintenant en « école seule ») démarre TOUT COCHÉ : c'est ainsi que le cas
+   * Une fiche qui n'a jamais détaillé son cas (ou un chevalier qu'on bascule
+   * maintenant en « club seule ») démarre TOUT COCHÉ : c'est ainsi que le cas
    * se lisait avant d'être détaillé.
    */
   const [schoolOnlySubIds, setSchoolOnlySubIds] = useState<string[]>(
@@ -217,9 +218,9 @@ function StudentFiche({
   );
   const [solds, setSolds] = useState<Record<string, number>>({});
   /**
-   * OÙ LA RÉCEPTION EN EST dans le catalogue : le niveau (« classe ») et
+   * OÙ LA RÉCEPTION EN EST dans le catalogue : le niveau (« catégorie ») et
    * l'année. Ils sont enregistrés MÊME SANS emploi du temps coché, pour que la
-   * modification de la fiche rouvre là où l'élève a été inscrit au lieu d'un
+   * modification de la fiche rouvre là où le chevalier a été inscrit au lieu d'un
    * primaire/1AP qui ne le concerne pas.
    */
   const [enrollLevel, setEnrollLevel] = useState<string>(editing?.enrollmentLevel ?? "");
@@ -237,9 +238,9 @@ function StudentFiche({
   const shownNumber = editing ? registrationNumberOf(db, editing) : nextNumber;
   const isFree = studentCase === "special";
   const isSchoolOnly = studentCase === "school_only";
-  /** Cet emploi du temps est-il offert à l'élève tel que la fiche est cochée ? */
+  /** Cet emploi du temps est-il offert au chevalier tel que la fiche est cochée ? */
   const freeOn = (subId: string) => isFree && freeSubIds.includes(subId);
-  /** L'option « école seulement » est-elle ACTIVE sur cet emploi du temps ? */
+  /** L'option « club seulement » est-elle ACTIVE sur cet emploi du temps ? */
   const schoolOnlyOn = (subId: string) => isSchoolOnly && schoolOnlySubIds.includes(subId);
   /** Ce que la fiche enregistrera : rien à écrire hors du cas spécial. */
   const freeList = isFree ? subIds.filter((id) => freeSubIds.includes(id)) : undefined;
@@ -247,7 +248,7 @@ function StudentFiche({
     ? subIds.filter((id) => schoolOnlySubIds.includes(id))
     : undefined;
   /**
-   * Les enseignants que ce cas prive de paie : ceux des emplois du temps où
+   * Les entraîneurs que ce cas prive de paie : ceux des emplois du temps où
    * l'option est active. La liste historique `unpaidTeacherIds` reste écrite,
    * pour que tout ce qui la lit encore continue de fonctionner — mais c'est
    * bien l'emploi du temps qui décide désormais.
@@ -274,8 +275,8 @@ function StudentFiche({
   /**
    * LES FRAIS D'INSCRIPTION NE SONT PAS DUS PAR TOUT LE MONDE.
    *
-   * L'école choisit son périmètre depuis l'écran des abonnements : tous les
-   * élèves, tout un niveau, certaines classes, ou seulement certains emplois du
+   * Le club choisit son périmètre depuis l'écran des abonnements : tous les
+   * chevaliers, tout un niveau, certaines catégories, ou seulement certains emplois du
    * temps. Ici on ne fait que poser la question : parmi les emplois cochés,
    * lesquels tombent dans ce périmètre ? Aucun -> l'écran ne réclame rien, et la
    * fiche est créée sans la moindre dette d'inscription.
@@ -293,7 +294,7 @@ function StudentFiche({
   );
   /** Ce que la famille règle aujourd'hui, plafonné au montant réclamé. */
   const feePaid = Math.min(positiveMoney(feePaidNow), feeRequired);
-  /** Ce qui reste en DETTE sur sa fiche — créer l'élève reste toujours possible. */
+  /** Ce qui reste en DETTE sur sa fiche — créer le chevalier reste toujours possible. */
   const feeDebt = positiveMoney(feeRequired - feePaid);
 
   /**
@@ -339,8 +340,8 @@ function StudentFiche({
     // Un emploi qu'on vient de cocher sur un « cas spécial » arrive OFFERT :
     // c'est ce que le cas promet, et le décocher le rend payant.
     setFreeSubIds((prev) => [...new Set([...prev, ...added])].filter((id) => next.includes(id)));
-    // Même règle pour « école seulement » : l'emploi arrive avec l'option
-    // ACTIVE, et la décocher le fait payer école ET enseignant.
+    // Même règle pour « club seulement » : l'emploi arrive avec l'option
+    // ACTIVE, et la décocher le fait payer club ET entraîneur.
     setSchoolOnlySubIds((prev) =>
       [...new Set([...prev, ...added])].filter((id) => next.includes(id)),
     );
@@ -363,7 +364,7 @@ function StudentFiche({
 
   /**
    * Suggested opening solde of an emploi: the price of one of its months FOR
-   * HIM. An « école seule » élève ne paie que la part de l'école, donc son mois
+   * HIM. An « club seule » chevalier ne paie que la part du club, donc son carte
    * coûte cette part-là et pas le prix complet.
    */
   const suggestFor = (subId: string) => {
@@ -396,14 +397,14 @@ function StudentFiche({
     if (studentCase === "teacher_child" && !teacherFatherId) {
       addToast({
         type: "danger",
-        title: "Enseignant père",
-        message: "Sélectionnez l'enseignant père pour ce cas.",
+        title: "Entraîneur père",
+        message: "Sélectionnez l'entraîneur père pour ce cas.",
       });
       return;
     }
-    // « École seulement » se règle désormais EMPLOI PAR EMPLOI : il suffit
+    // « Club seulement » se règle désormais EMPLOI PAR EMPLOI : il suffit
     // qu'un emploi porte l'option (ou, sur une fiche sans emploi encore coché,
-    // qu'un enseignant soit listé) pour que le cas ait un sens.
+    // qu'un entraîneur soit listé) pour que le cas ait un sens.
     if (
       studentCase === "school_only" &&
       subIds.length > 0 &&
@@ -414,8 +415,8 @@ function StudentFiche({
         type: "danger",
         title: "Aucun emploi du temps concerné",
         message:
-          "Activez l'option « école seulement » sur au moins un emploi du temps, " +
-          "sinon l'élève paie tout normalement.",
+          "Activez l'option « club seulement » sur au moins un emploi du temps, " +
+          "sinon le chevalier paie tout normalement.",
       });
       return;
     }
@@ -533,9 +534,9 @@ function StudentFiche({
     }
     /**
      * Les frais d'inscription ne sont dus que si DEUX conditions tiennent :
-     *  - l'élève paie quelque chose (un cas entièrement offert ne les doit pas),
+     *  - le chevalier paie quelque chose (un cas entièrement offert ne les doit pas),
      *  - l'un de ses emplois du temps entre dans le périmètre choisi par
-     *    l'école (tous, un niveau, des classes, des emplois précis).
+     *    le club (tous, un niveau, des catégories, des emplois précis).
      *
      * Ce que la famille verse aujourd'hui les solde d'autant ; le reste part en
      * DETTE sur sa fiche, et la création n'est jamais bloquée pour autant.
@@ -592,10 +593,10 @@ function StudentFiche({
       push("students", student);
       await setStudentPassword(studentId, password);
 
-      // L'AVANCE est créditée sur son propre emploi, au mois où l'élève ENTRE :
-      // un enfant inscrit en M2 paie pour M2, jamais pour un mois qu'il a
+      // L'AVANCE est créditée sur son propre emploi, à la carte où le chevalier ENTRE :
+      // un enfant inscrit en M2 paie pour M2, jamais pour une carte qu'il a
       // manqué. Chaque versement laisse sa trace dans la caisse et dans
-      // l'historique des paiements de l'élève, comme n'importe quel autre.
+      // l'historique des paiements du chevalier, comme n'importe quel autre.
       // Les emplois offerts sont sautés : il n'y a rien à encaisser dessus.
       const advanceLines: SoldReceiptLine[] = [];
       for (const subId of paidSubIds) {
@@ -618,7 +619,7 @@ function StudentFiche({
       }
 
       // Les frais réglés au guichet entrent en caisse comme n'importe quelle
-      // recette, avec leur propre ligne dans l'historique de l'élève.
+      // recette, avec leur propre ligne dans l'historique du chevalier.
       if (feePaid > 0) {
         db.cashMove(
           "deposit",
@@ -630,7 +631,7 @@ function StudentFiche({
 
       addToast({
         type: "success",
-        title: `Élève créé — N° ${nextNumber}`,
+        title: `Chevalier créé — N° ${nextNumber}`,
         message:
           subIds.length > 0
             ? `${subIds.length} emploi(s) du temps · ${formatDA(totalSold)} versés · inscrit à partir de ${
@@ -679,7 +680,7 @@ function StudentFiche({
               },
             ]
           : []),
-        { html: voucher, question: "Imprimer le bon d'inscription de l'élève ?" },
+        { html: voucher, question: "Imprimer le bon d'inscription du chevalier ?" },
       ]);
 
       onCreated?.(student);
@@ -698,7 +699,7 @@ function StudentFiche({
 
   return (
     <>
-      <Modal open onClose={onClose} title={isEdit ? "Modifier l'élève" : "Nouvel élève"} wide>
+      <Modal open onClose={onClose} title={isEdit ? "Modifier le chevalier" : "Nouvel chevalier"} wide>
         <div className="space-y-4">
           {/* identity */}
           <div className="rounded-xl border border-line bg-canvas/30 p-3">
@@ -737,7 +738,7 @@ function StudentFiche({
                   placeholder="0661 98 76 54"
                 />
                 <p className="mt-1 text-[10px] text-muted">
-                  Numéro de secours — il s&apos;affiche sur la fiche de l&apos;élève à côté du
+                  Numéro de secours — il s&apos;affiche sur la fiche de l&apos;chevalier à côté du
                   premier.
                 </p>
               </div>
@@ -784,7 +785,7 @@ function StudentFiche({
           {/* billing case */}
           <div className="space-y-2 rounded-xl border border-line bg-canvas/30 p-3">
             <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              🎫 Cas de l&apos;élève
+              🎫 Cas de l&apos;chevalier
             </span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {STUDENT_CASE_OPTIONS.map((opt) => (
@@ -806,9 +807,9 @@ function StudentFiche({
             {studentCase === "special" && (
               <p className="rounded-lg bg-primary-50/50 p-2 text-[10px] leading-relaxed text-muted">
                 Études gratuites, <strong className="text-ink">emploi du temps par emploi du
-                temps</strong> : chaque emploi coché ci-dessous arrive « Offert » — ni l&apos;école
+                temps</strong> : chaque emploi coché ci-dessous arrive « Offert » — ni l&apos;club
                 ni l&apos;enseignant ne sont payés pour lui. Décochez « Offert » sur un emploi et
-                l&apos;élève le paie normalement.
+                l&apos;chevalier le paie normalement.
                 {subIds.length > 0 && (
                   <>
                     {" "}
@@ -823,17 +824,17 @@ function StudentFiche({
 
             {studentCase === "school_only" && (
               <p className="rounded-lg bg-warning/10 p-2 text-[10px] leading-relaxed text-muted">
-                Seule l&apos;école est payée, <strong className="text-ink">emploi du temps par
+                Seule l&apos;club est payée, <strong className="text-ink">emploi du temps par
                 emploi du temps</strong> : chaque emploi coché plus bas arrive avec l&apos;option
-                ACTIVE — la famille n&apos;y verse que la part de l&apos;école, l&apos;enseignant
-                n&apos;est pas payé pour lui et l&apos;élève ne figure même pas sur son écran de
+                ACTIVE — la famille n&apos;y verse que la part de l&apos;club, l&apos;enseignant
+                n&apos;est pas payé pour lui et l&apos;chevalier ne figure même pas sur son écran de
                 paie pour cet emploi. Désactivez-la sur un emploi et tout s&apos;y calcule
                 normalement.
                 {subIds.length > 0 && (
                   <>
                     {" "}
                     <strong className="text-warning">
-                      {schoolOnlyList?.length ?? 0} emploi(s) « école seule »
+                      {schoolOnlyList?.length ?? 0} emploi(s) « club seule »
                     </strong>{" "}
                     ·{" "}
                     <strong className="text-ink">
@@ -849,13 +850,13 @@ function StudentFiche({
               <div className="space-y-1.5">
                 <p className="text-[10px] text-muted">
                   {studentCase === "teacher_child"
-                    ? "L'école est payée sur le salaire de l'enseignant père."
-                    : "Facultatif : des enseignants qui ne seront JAMAIS payés pour cet élève, même hors des emplois cochés ci-dessous."}
+                    ? "Le club est payée sur le salaire de l'entraîneur père."
+                    : "Facultatif : des entraîneurs qui ne seront JAMAIS payés pour ce chevalier, même hors des emplois cochés ci-dessous."}
                 </p>
                 <Input
                   value={teacherSearch}
                   onChange={(e) => setTeacherSearch(e.target.value)}
-                  placeholder="Rechercher un enseignant…"
+                  placeholder="Rechercher un entraîneur…"
                 />
                 <div className="max-h-32 space-y-1 overflow-y-auto">
                   {teachers
@@ -918,7 +919,7 @@ function StudentFiche({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="mb-1 block text-[10px] font-semibold text-muted">
-                      Part école ({caseRedType === "percent" ? "%" : "DA"})
+                      Part club ({caseRedType === "percent" ? "%" : "DA"})
                     </label>
                     <Input
                       type="number"
@@ -949,7 +950,7 @@ function StudentFiche({
           <div className="space-y-3 rounded-xl border border-line bg-canvas/30 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                <BookOpen className="h-3.5 w-3.5" /> Emplois du temps de l&apos;élève
+                <BookOpen className="h-3.5 w-3.5" /> Emplois du temps de l&apos;chevalier
               </span>
               <span className="text-[10px] font-semibold text-muted">
                 {subIds.length} sélectionné(s)
@@ -958,7 +959,7 @@ function StudentFiche({
 
             {isEdit && (
               <p className="text-[10px] leading-relaxed text-muted">
-                Le tableau ci-dessous rappelle sa <strong>classe</strong>, son{" "}
+                Le tableau ci-dessous rappelle sa <strong>catégorie</strong>, son{" "}
                 <strong>année</strong> et les <strong>emplois du temps</strong> qu&apos;il suit,
                 avec le solde de chacun. Retirez-en un, cochez-en un autre dans la liste, puis{" "}
                 <strong>Enregistrer les modifications</strong> : ce qui part est désinscrit sans
@@ -972,7 +973,7 @@ function StudentFiche({
               student={editing}
               savedSubIds={editing?.subscriptionIds}
               showCurrent
-              /* La classe et l'année sont RETENUES même sans emploi du temps
+              /* La catégorie et l'année sont RETENUES même sans emploi du temps
                  coché : une fiche créée « 4AP, on verra le créneau plus tard »
                  rouvre sur 4AP, et non sur un primaire/1AP arbitraire. */
               initialLevel={editing?.enrollmentLevel}
@@ -1020,14 +1021,14 @@ function StudentFiche({
                             ) : (
                               <>
                                 séance à {formatDA(unit)}
-                                {suggestion > 0 ? ` · mois à ${formatDA(suggestion)}` : ""}
+                                {suggestion > 0 ? ` · carte à ${formatDA(suggestion)}` : ""}
                               </>
                             )}
                           </span>
                           <Badge tone="primary" className="mt-1 text-[9px]">
                             {isEdit && editing?.subscriptionIds.includes(subId)
                               ? `Déjà inscrit · solde ${formatDA(soldFor(db, editing.id, subId))}`
-                              : `Entre en ${point.monthCode} · séance ${point.slotIndex + 1}`}
+                              : `Entre en ${carteShort(point.monthCode)} · séance ${point.slotIndex + 1}`}
                           </Badge>
                         </div>
                         <button
@@ -1039,11 +1040,11 @@ function StudentFiche({
                         </button>
                       </div>
 
-                      {/* « École seulement », emploi par emploi — active par défaut.
+                      {/* « Club seulement », emploi par emploi — active par défaut.
                           Exactement la même mécanique que la gratuité : ce qui est
-                          activé ici ne paie que l'école et disparaît de la fiche de
-                          paie de l'enseignant ; ce qui ne l'est pas se calcule
-                          normalement, et l'élève y apparaît comme tout le monde. */}
+                          activé ici ne paie que le club et disparaît de la fiche de
+                          paie de l'entraîneur ; ce qui ne l'est pas se calcule
+                          normalement, et le chevalier y apparaît comme tout le monde. */}
                       {isSchoolOnly && (
                         <label
                           className={`mt-2 flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
@@ -1066,24 +1067,24 @@ function StudentFiche({
                             >
                               <Building2 className="h-3 w-3" />
                               {schoolOnlyOn(subId)
-                                ? "Paiement à L'ÉCOLE SEULEMENT"
-                                : "Paiement NORMAL (école + enseignant)"}
+                                ? "Paiement à LE CLUB SEULEMENT"
+                                : "Paiement NORMAL (club + entraîneur)"}
                             </strong>
                             <span className="block text-[9px] leading-relaxed text-muted">
                               {schoolOnlyOn(subId) ? (
                                 <>
-                                  La famille ne verse que la part de l&apos;école (
+                                  La famille ne verse que la part de l&apos;club (
                                   <strong className="text-ink">
                                     {formatDA(schoolPerSeanceOf(sub))}
                                   </strong>{" "}
                                   la séance au lieu de {formatDA(sub?.pricePerSession ?? 0)}).
-                                  L&apos;enseignant n&apos;est pas payé pour cet élève, et
-                                  l&apos;élève <strong className="text-ink">n&apos;apparaît pas</strong>{" "}
+                                  L&apos;enseignant n&apos;est pas payé pour ce chevalier, et
+                                  l&apos;chevalier <strong className="text-ink">n&apos;apparaît pas</strong>{" "}
                                   sur son écran de paie pour cet emploi du temps.
                                 </>
                               ) : (
                                 <>
-                                  L&apos;élève paie le tarif entier —{" "}
+                                  L&apos;chevalier paie le tarif entier —{" "}
                                   <strong className="text-ink">
                                     {formatDA(sub?.pricePerSession ?? 0)}
                                   </strong>{" "}
@@ -1121,8 +1122,8 @@ function StudentFiche({
                             </strong>
                             <span className="block text-[9px] leading-relaxed text-muted">
                               {offered
-                                ? "L’élève ne paie rien pour cet emploi : ni l’école ni l’enseignant ne sont réglés pour ses séances."
-                                : `L’élève paie cet emploi normalement — ${formatDA(listUnit)} la séance, et l’enseignant touche sa part.`}
+                                ? "L’chevalier ne paie rien pour cet emploi : ni l’club ni l’entraîneur ne sont réglés pour ses séances."
+                                : `L’chevalier paie cet emploi normalement — ${formatDA(listUnit)} la séance, et l’entraîneur touche sa part.`}
                             </span>
                           </span>
                         </label>
@@ -1183,21 +1184,21 @@ function StudentFiche({
                     🧾 Après la création, l&apos;écran proposera d&apos;imprimer le{" "}
                     <strong>reçu de cette avance</strong> puis le{" "}
                     <strong>bon d&apos;inscription</strong>. L&apos;avance entre dans la caisse et
-                    apparaît aussitôt dans l&apos;historique des paiements de l&apos;élève, emploi
+                    apparaît aussitôt dans l&apos;historique des paiements de l&apos;chevalier, emploi
                     du temps et mois compris.
                   </p>
                 )}
 
                 <p className="text-[10px] text-muted">
-                  ℹ️ L&apos;élève entre sur chaque emploi du temps LÀ OÙ EN EST LE GROUPE : son
+                  ℹ️ L&apos;chevalier entre sur chaque emploi du temps LÀ OÙ EN EST LE GROUPE : son
                   solde est versé sur ce mois-là, les séances déjà tenues avant lui restent vides
                   sur sa ligne et les mois précédents ne le comptent pas.
                 </p>
 
                 {/* -------------------------------------------------------
                     LES FRAIS D'INSCRIPTION — réclamés SEULEMENT si l'un des
-                    emplois cochés entre dans le périmètre choisi par l'école
-                    (tous les élèves, un niveau, des classes, des emplois
+                    emplois cochés entre dans le périmètre choisi par le club
+                    (tous les chevaliers, un niveau, des catégories, des emplois
                     précis). Sinon ce bloc ne s'affiche même pas.
 
                     La famille peut en régler tout, une partie, ou rien : ce
@@ -1216,7 +1217,7 @@ function StudentFiche({
                     </div>
                     <p className="text-[10px] leading-relaxed text-muted">
                       {feeSubIds.length} emploi(s) du temps coché(s) entrent dans le périmètre défini
-                      par l&apos;école :{" "}
+                      par l&apos;club :{" "}
                       <strong className="text-ink">
                         {feeSubIds.map((id) => subLabel(id)).join(", ")}
                       </strong>
@@ -1274,7 +1275,7 @@ function StudentFiche({
 
                 {!isEdit && feeRequired === 0 && (school?.registrationFee ?? 0) > 0 && paidSubIds.length > 0 && (
                   <p className="text-[10px] text-muted">
-                    ℹ️ Aucun frais d&apos;inscription pour cet élève : les emplois du temps cochés
+                    ℹ️ Aucun frais d&apos;inscription pour ce chevalier : les emplois du temps cochés
                     n&apos;entrent pas dans le périmètre défini sur la page Abonnements.
                   </p>
                 )}
@@ -1293,7 +1294,7 @@ function StudentFiche({
                   : "Création…"
                 : isEdit
                   ? "Enregistrer les modifications"
-                  : "Créer l'élève"}
+                  : "Créer le chevalier"}
             </Button>
           </div>
         </div>

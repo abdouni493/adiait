@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * LE JEU D'ESSAI DES TESTS — une école entière, construite en mémoire.
+ * LE JEU D'ESSAI DES TESTS — un club entier, construite en mémoire.
  *
  * L'APPLICATION NE S'EN SERT PLUS : elle lit et écrit dans Supabase
  * (`lib/supabase/`). Ce jeu reste parce qu'il est ce sur quoi les tests
- * s'appuient — il couvre les cinq cas de facturation d'un élève, les trois
- * modes de paie d'un enseignant, les quatre contrats d'un travailleur et les
+ * s'appuient — il couvre les cinq cas de facturation d'un chevalier, les trois
+ * modes de paie d'un entraîneur, les quatre contrats d'un travailleur et les
  * cas limites des emplois du temps, ce qu'aucune fixture écrite à la main
  * n'atteindrait.
  *
@@ -19,9 +19,9 @@
  *  - `buildDemoDatabase()` rend un objet NEUF à chaque appel ;
  *  - rien n'est recopié à la main. Les présences sont TIRÉES (avec une graine
  *    stable), et tout le reste en DÉCOULE : le prix d'une séance vient de
- *    `studentSeancePrice`, la part de l'enseignant de la même règle que le
+ *    `studentSeancePrice`, la part de l'entraîneur de la même règle que le
  *    scan (`teacherDueFor`), le solde d'une inscription de ce qui a été versé
- *    moins ce que les séances ont mangé. Un élève « cas réduction » ou « école
+ *    moins ce que les séances ont mangé. Un chevalier « cas réduction » ou « club
  *    seule » est donc facturé dans la démonstration exactement comme il le
  *    serait au comptoir ;
  *  - la caisse est écrite EN DERNIER, à partir des mouvements qui viennent
@@ -29,6 +29,7 @@
  */
 
 import {
+  carteShort,
   caseReductionCut,
   cycleSizeOf,
   isFreeSub,
@@ -93,7 +94,7 @@ import {
 import { choose, pastOccurrences, pick, shiftDays, stamp, stampOn } from "./dates";
 
 /** Jusqu'où l'historique des présences remonte. Neuf semaines suffisent à
- *  ouvrir deux ou trois mois d'emploi du temps sans alourdir la démonstration. */
+ *  ouvrir deux ou trois carte d'emploi du temps sans alourdir la démonstration. */
 const HISTORY_DAYS = 63;
 
 // ---------------------------------------------------------------------------
@@ -101,7 +102,7 @@ const HISTORY_DAYS = 63;
 // ---------------------------------------------------------------------------
 
 /**
- * CE QU'UNE SÉANCE RAPPORTE À L'ENSEIGNANT — la règle de `teacherDueFor()`
+ * CE QU'UNE SÉANCE RAPPORTE À L'ENTRAÎNEUR — la règle de `teacherDueFor()`
  * dans `lib/store/data.ts`, à l'identique.
  *
  * Elle est reprise ici plutôt qu'importée parce que le magasin ne l'expose pas :
@@ -136,12 +137,12 @@ function teacherDueFor(
 /**
  * LE COMPORTEMENT DE PAIEMENT D'UNE FAMILLE.
  *
- *  - `full`     : elle règle chaque mois en entier, et garde même un peu d'avance ;
- *  - `partial`  : le dernier mois n'a été réglé qu'en partie — il reste une dette ;
- *  - `late`     : elle n'a pas encore payé le mois en cours, son solde est dans le rouge ;
- *  - `advance`  : elle a payé un mois de plus que ce qu'elle a consommé ;
- *  - `salary`   : fils d'enseignant — la scolarité se retient sur la paie du père ;
- *  - `credited` : fils d'enseignant crédité d'avance, la somme attend la paie du père ;
+ *  - `full`     : elle règle chaque carte en entier, et garde même un peu d'avance ;
+ *  - `partial`  : le dernière carte n'a été réglé qu'en partie — il reste une dette ;
+ *  - `late`     : elle n'a pas encore payé la carte en cours, son solde est dans le rouge ;
+ *  - `advance`  : elle a payé une carte de plus que ce qu'elle a consommé ;
+ *  - `salary`   : fils d'entraîneur — la cotisation se retient sur la paie du père ;
+ *  - `credited` : fils d'entraîneur crédité d'avance, la somme attend la paie du père ;
  *  - `free`     : rien n'est dû, donc rien n'est versé.
  */
 type PayProfile = "full" | "partial" | "late" | "advance" | "salary" | "credited" | "free";
@@ -183,7 +184,7 @@ function profileOf(student: Student): PayProfile {
 }
 
 // ---------------------------------------------------------------------------
-//  Les présences, mois par mois
+//  Les présences, carte par carte
 // ---------------------------------------------------------------------------
 
 /** Le statut d'une séance, tiré d'une graine stable. */
@@ -205,9 +206,9 @@ interface Ledger {
 }
 
 /**
- * ÉCRIT TOUTE LA VIE SCOLAIRE D'UN ÉLÈVE SUR UN EMPLOI DU TEMPS : son
+ * ÉCRIT TOUTE LA VIE SCOLAIRE D'UN CHEVALIER SUR UN EMPLOI DU TEMPS : son
  * inscription, ses présences, ce qu'il a versé, et ce que ses séances doivent à
- * l'enseignant.
+ * l'entraîneur.
  *
  * `historyStart` est le jour où son inscription commence — les séances tenues
  * avant lui ne sont jamais les siennes.
@@ -236,7 +237,7 @@ function writeInscription(
     (d) => d >= startDate && (!leftOn || d <= leftOn),
   );
 
-  // Le point d'entrée : un élève arrivé au 2ᵉ mois du groupe commence là, pas
+  // Le point d'entrée : un chevalier arrivé au 2ᵉ carte du groupe commence là, pas
   // sur la première séance de M1.
   const joinOffset =
     (monthIndexOf(dates?.joinMonthCode) * size) + (dates?.joinSlotIndex ?? 0);
@@ -254,7 +255,7 @@ function writeInscription(
     // Un retard entre un quart d'heure après le début, une présence à l'heure.
     const at = status === "late" ? addMinutes(times.startTime, 25) : addMinutes(times.startTime, 4);
 
-    // Une séance annulée ne coûte rien et ne fait pas avancer le mois.
+    // Une séance annulée ne coûte rien et ne fait pas avancer la carte.
     const charged = status !== "cancelled";
     const cost = charged && !free ? unit : 0;
 
@@ -275,7 +276,7 @@ function writeInscription(
     consumedSeances += 1;
     consumedMoney = money(consumedMoney + cost);
 
-    // La part de l'enseignant : elle naît avec la présence et reste due jusqu'à
+    // La part de l'entraîneur : elle naît avec la présence et reste due jusqu'à
     // son règlement. Une part nulle n'est pas une dette — elle n'existe pas.
     const due = teacherDueFor(teacher, session, sub, cost, student);
     if (session.teacherId && due > 0 && status !== "absent") {
@@ -298,8 +299,8 @@ function writeInscription(
   let credited = 0;
 
   if (!free && monthPrice > 0 && profile !== "free") {
-    // Un profil « advance » règle un mois de plus que ce qu'il a consommé, un
-    // profil « late » laisse le dernier mois entièrement impayé.
+    // Un profil « advance » règle une carte de plus que ce qu'il a consommé, un
+    // profil « late » laisse le dernière carte entièrement impayé.
     const paidMonths =
       profile === "advance" ? monthCount + 1 : profile === "late" ? monthCount - 1 : monthCount;
 
@@ -329,12 +330,12 @@ function writeInscription(
         paidFrom:
           profile === "salary" ? "teacher_salary" : profile === "credited" ? "teacher_debt" : "cash",
         date: stampOn(when, "09:15"),
-        description: `${monthCode} — ${sessionTitle(session)}`,
+        description: `${carteShort(monthCode)} — ${sessionTitle(session)}`,
         alertRead: pick(`${enrollmentId}:${m}:alert`, 0, 3) > 0,
       });
       credited = money(credited + amountPaid);
 
-      // Fils d'enseignant crédité d'avance : la somme est portée sur le père et
+      // Fils d'entraîneur crédité d'avance : la somme est portée sur le père et
       // attend son prochain règlement.
       if (profile === "credited" && student.teacherFatherId) {
         led.childDebts.push({
@@ -343,7 +344,7 @@ function writeInscription(
           studentId: student.id,
           subscriptionId: sub.id,
           monthCode,
-          label: `${student.firstName} ${student.lastName} — ${monthCode} · ${sessionTitle(session)}`,
+          label: `${student.firstName} ${student.lastName} — ${carteShort(monthCode)} · ${sessionTitle(session)}`,
           amount: netTotal,
           date: when,
           paid: false,
@@ -369,16 +370,16 @@ function writeInscription(
     createdAt: stampOn(startDate, "09:00"),
   });
 
-  // Une inscription sur huit porte un frais au compte de l'élève : un livre,
-  // une tenue, une sortie. C'est une dette qui n'est PAS de la scolarité — elle
-  // ne retient donc jamais la paie d'un enseignant.
+  // Une inscription sur huit porte un frais au compte du chevalier : un livre,
+  // une tenue, une sortie. C'est une dette qui n'est PAS de la cotisation — elle
+  // ne retient donc jamais la paie d'un entraîneur.
   if (index === 0 && pick(`${student.id}:charge`, 0, 7) === 0) {
     const item = choose(`${student.id}:item`, [
       { name: "Livre de mathématiques", amount: 1200 },
       { name: "Tenue de sport", amount: 2500 },
       { name: "Sortie pédagogique", amount: 1500 },
       { name: "Polycopiés du trimestre", amount: 800 },
-      { name: "Transport scolaire (mois)", amount: 3000 },
+      { name: "Transport du club (carte)", amount: 3000 },
     ]);
     const day = shiftDays(-pick(`${student.id}:chargeday`, 5, 50));
     const half = pick(`${student.id}:chargepaid`, 0, 2) === 0;
@@ -464,7 +465,7 @@ function sessionTitle(session: ScheduleSession): string {
  * Construit une base de donnees complete et NEUVE.
  *
  * L'ordre compte : les presences d'abord (elles creent les parts dues aux
- * enseignants), la paie ensuite (elle les solde), la caisse en dernier (elle
+ * entraîneurs), la paie ensuite (elle les solde), la caisse en dernier (elle
  * recopie tous les mouvements d'argent qui viennent d'etre ecrits).
  */
 export function buildDemoDatabase(): Database {
@@ -507,7 +508,7 @@ export function buildDemoDatabase(): Database {
     });
   }
 
-  // ---- La paie des enseignants -------------------------------------------
+  // ---- La paie des entraîneurs -------------------------------------------
   const teacherPayroll = buildTeacherPayroll({
     teachers: TEACHERS,
     sessions: SESSIONS,
@@ -529,7 +530,7 @@ export function buildDemoDatabase(): Database {
   const credentials = buildCredentials(students);
 
   // ---- L'AVANCE DE L'ECOLE : elle a regle la dette d'une eleve de sa propre
-  //      caisse pour debloquer la part de son enseignant. La famille la doit
+  //      caisse pour debloquer la part de son entraîneur. La famille la doit
   //      desormais a l'ecole, et c'est ce frais qui le dit.
   const advanceStudent = students.find((s) => s.id === "stu-18");
   if (advanceStudent) {
@@ -539,7 +540,7 @@ export function buildDemoDatabase(): Database {
       studentId: advanceStudent.id,
       name: "Avance de l'ecole sur scolarite",
       amount: 2200,
-      description: "Reglee par la caisse pour debloquer la part de l'enseignant",
+      description: "Reglee par la caisse pour debloquer la part de l'entraîneur",
       date: day,
       origin: "school_advance",
       sourcePaymentId: "pay-advance-1",
@@ -670,12 +671,12 @@ interface CashInput {
  * LA CAISSE EST UN REFLET, PAS UNE SOURCE.
  *
  * Chaque mouvement recopie une operation qui existe deja ailleurs : un
- * versement d'eleve, un reglement d'enseignant, une avance sur salaire, une
+ * versement d'eleve, un reglement d'entraîneur, une avance sur salaire, une
  * depense. Le solde affiche par l'ecran Caisse est donc exactement la somme de
  * ce que l'ecole a encaisse et decaisse — et non un chiffre invente a cote.
  *
  * Ce qui n'est PAS entre en caisse n'y figure pas : une scolarite retenue sur le
- * salaire d'un pere enseignant ne fait bouger aucun billet.
+ * salaire d'un pere entraîneur ne fait bouger aucun billet.
  */
 function buildCash(input: CashInput): CashTransaction[] {
   const out: CashTransaction[] = [];
@@ -726,7 +727,7 @@ function buildCash(input: CashInput): CashTransaction[] {
     });
   }
 
-  // Les reglements des enseignants et des travailleurs.
+  // Les reglements des entraîneurs et des travailleurs.
   for (const tp of input.teacherPayments) {
     const t = input.teachers.find((x) => x.id === tp.teacherId);
     out.push({
@@ -754,7 +755,7 @@ function buildCash(input: CashInput): CashTransaction[] {
       type: "acompte",
       amount: -a.amount,
       date: a.date,
-      description: `Acompte enseignant — ${a.description}`,
+      description: `Acompte entraîneur — ${a.description}`,
     });
   }
   for (const a of input.workerAcomptes) {
@@ -790,7 +791,7 @@ function buildCash(input: CashInput): CashTransaction[] {
   }
 
   // Les seances vendues a un groupe entier : l'argent entre, la part de
-  // l'enseignant sort le meme jour.
+  // l'entraîneur sort le meme jour.
   for (const g of input.groupSeances) {
     const teacherShare = money(g.studentsCount * (g.pricePerStudent - g.schoolPerStudent));
     out.push({
@@ -805,7 +806,7 @@ function buildCash(input: CashInput): CashTransaction[] {
       type: "teacher_payment",
       amount: -teacherShare,
       date: stampOn(g.date, g.endTime),
-      description: `Part enseignant — ${g.title}`,
+      description: `Part entraîneur — ${g.title}`,
     });
   }
 

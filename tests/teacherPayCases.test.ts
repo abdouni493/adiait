@@ -17,17 +17,17 @@ import {
 } from "@/lib/teacherMonths";
 
 /**
- * Les cas d'élèves, du côté de l'argent.
+ * Les cas de chevaliers, du côté de l'argent.
  *
- * Un mois de 2000 DA sur 4 séances dont l'école garde 800 se partage ainsi :
+ * Une carte de 2000 DA sur 4 séances dont le club garde 800 se partage ainsi :
  *
- *     séance = 500 DA   ->   école 200 DA   +   enseignant 300 DA
+ *     séance = 500 DA   ->   club 200 DA   +   entraîneur 300 DA
  *
- * Une RÉDUCTION est accordée moitié-moitié, chacun sur SA part : l'élève ne
- * paie donc que ce que les deux côtés lui laissent, l'école n'encaisse que sa
- * part diminuée, et l'enseignant ne touche que la sienne. Un « cas spécial » ne
- * rapporte rien à personne, un « école seule » paie la seule part de l'école, et
- * un « fils d'enseignant » sort du salaire de son père.
+ * Une RÉDUCTION est accordée moitié-moitié, chacun sur SA part : le chevalier ne
+ * paie donc que ce que les deux côtés lui laissent, le club n'encaisse que sa
+ * part diminuée, et l'entraîneur ne touche que la sienne. Un « cas spécial » ne
+ * rapporte rien à personne, un « club seule » paie la seule part du club, et
+ * un « fils d'entraîneur » sort du salaire de son père.
  */
 
 const SUB = "sub-1";
@@ -38,7 +38,7 @@ const TEACHER = "tea-1";
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-/** Le tableau de l'énoncé : 4 séances, mois à 2000, l'école garde 800. */
+/** Le tableau de l'énoncé : 4 séances, carte à 2000, le club garde 800. */
 function board() {
   const db = buildSeed();
   const sub = db.subscriptions.find((s) => s.id === SUB)!;
@@ -110,8 +110,8 @@ beforeEach(() => {
 
 // ---------------------------------------------------------------------------
 
-describe("le partage école / enseignant d'une séance", () => {
-  it("un élève ordinaire paie le prix plein, réparti 200 / 300", () => {
+describe("le partage club / entraîneur d'une séance", () => {
+  it("un chevalier ordinaire paie le prix plein, réparti 200 / 300", () => {
     board();
     const st = studentOf(STU);
     expect(studentListPrice(st, subOf())).toBe(500);
@@ -123,8 +123,8 @@ describe("le partage école / enseignant d'une séance", () => {
 
   it("une réduction en pourcentage s'applique à CHAQUE part, pas au total", () => {
     board();
-    // L'école accorde 50% de SA part (200 -> 100), l'enseignant 10% de la
-    // sienne (300 -> 270). L'élève paie donc 370 et non 500.
+    // Le club accorde 50% de SA part (200 -> 100), l'entraîneur 10% de la
+    // sienne (300 -> 270). Le chevalier paie donc 370 et non 500.
     patch(STU, {
       studentCase: "reduction",
       caseReduction: { type: "percent", schoolValue: 50, teacherValue: 10 },
@@ -133,7 +133,7 @@ describe("le partage école / enseignant d'une séance", () => {
     expect(studentSchoolPerSeance(st, subOf())).toBe(100);
     expect(studentTeacherPerSeance(st, subOf(), TEACHER)).toBe(270);
     expect(studentListPrice(st, subOf())).toBe(370);
-    // Les deux parts se recomposent EXACTEMENT en ce que l'élève verse.
+    // Les deux parts se recomposent EXACTEMENT en ce que le chevalier verse.
     expect(studentSchoolPerSeance(st, subOf()) + studentTeacherPerSeance(st, subOf(), TEACHER)).toBe(
       studentListPrice(st, subOf()),
     );
@@ -147,17 +147,17 @@ describe("le partage école / enseignant d'une séance", () => {
       caseReduction: { type: "amount", schoolValue: 500, teacherValue: 50 },
     });
     const st = studentOf(STU);
-    // 500 DA de remise école sur une part de 200 : elle s'arrête à 200.
+    // 500 DA de remise club sur une part de 200 : elle s'arrête à 200.
     expect(studentSchoolPerSeance(st, subOf())).toBe(0);
     expect(studentTeacherPerSeance(st, subOf(), TEACHER)).toBe(250);
     expect(studentListPrice(st, subOf())).toBe(250);
   });
 
-  it("sans répartition mensuelle, seule la moitié « école » sort du prix", () => {
+  it("sans répartition par carte, seule la moitié « club » sort du prix", () => {
     board();
-    // Un emploi sans formule au mois ne porte AUCUNE part enseignant : il n'y a
-    // rien à réduire de ce côté-là ici, et la moitié « enseignant » de la remise
-    // est retirée là où elle a un sens — sur le pourcentage que l'enseignant
+    // Un emploi sans formule à la carte ne porte AUCUNE part entraîneur : il n'y a
+    // rien à réduire de ce côté-là ici, et la moitié « entraîneur » de la remise
+    // est retirée là où elle a un sens — sur le pourcentage que l'entraîneur
     // touche. Elle ne doit donc pas être comptée deux fois.
     useData.setState((st) => ({
       subscriptions: st.subscriptions.map((x) =>
@@ -174,7 +174,7 @@ describe("le partage école / enseignant d'une séance", () => {
     expect(studentTeacherPerSeance(studentOf(STU), subOf(), TEACHER)).toBe(0);
   });
 
-  it("la présence facture bien le prix réduit et paie l'enseignant sa part réduite", async () => {
+  it("la présence facture bien le prix réduit et paie l'entraîneur sa part réduite", async () => {
     board();
     patch(STU, {
       studentCase: "reduction",
@@ -200,7 +200,7 @@ describe("le partage école / enseignant d'une séance", () => {
     expect(studentTeacherPerSeance(studentOf(STU), subOf(), TEACHER)).toBe(0);
   });
 
-  it("un « école seule » paie la part de l'école et n'est pas listé sur la paie", async () => {
+  it("un « club seule » paie la part du club et n'est pas listé sur la paie", async () => {
     board();
     patch(STU, { studentCase: "school_only", unpaidTeacherIds: [TEACHER] });
     expect(studentListPrice(studentOf(STU), subOf())).toBe(200);
@@ -213,11 +213,11 @@ describe("le partage école / enseignant d'une séance", () => {
     const ids = emploi().months[0].students.map((s) => s.studentId);
     expect(ids).not.toContain(STU);
     expect(ids).toContain(OTHER);
-    // L'autre élève, lui, rapporte bien ses 300 DA.
+    // L'autre chevalier, lui, rapporte bien ses 300 DA.
     expect(emploi().months[0].gross).toBe(300);
   });
 
-  it("un « école seule » reste listé pour un enseignant qui, lui, EST payé", async () => {
+  it("un « club seule » reste listé pour un entraîneur qui, lui, EST payé", async () => {
     board();
     patch(STU, { studentCase: "school_only", unpaidTeacherIds: ["tea-autre"] });
     const [day] = scheduledDays(1);
@@ -228,15 +228,15 @@ describe("le partage école / enseignant d'une séance", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("les arriérés de part enseignant", () => {
+describe("les arriérés de part entraîneur", () => {
   /**
-   * Le cas que la réception vit tous les mois :
-   *   M1 — l'élève ne paie pas, la part de l'enseignant est RETENUE ;
-   *   l'enseignant est réglé du M1 sans cette part ;
-   *   l'élève s'acquitte ensuite ;
+   * Le cas que la réception vit tous les cartes :
+   *   M1 — le chevalier ne paie pas, la part de l'entraîneur est RETENUE ;
+   *   l'entraîneur est réglé du M1 sans cette part ;
+   *   le chevalier s'acquitte ensuite ;
    *   au règlement du M2, la part de M1 doit réapparaître.
    */
-  it("une part retenue en M1 réapparaît au règlement du M2 une fois l'élève à jour", async () => {
+  it("une part retenue en M1 réapparaît au règlement du M2 une fois le chevalier à jour", async () => {
     board();
     const days = scheduledDays(8);
 
@@ -246,7 +246,7 @@ describe("les arriérés de part enseignant", () => {
     const m1 = emploi().months[0];
     expect(m1.state).toBe("done");
     expect(m1.gross).toBe(4 * 300);
-    // Il doit 4 × 500 : toute la part de l'enseignant est bloquée.
+    // Il doit 4 × 500 : toute la part de l'entraîneur est bloquée.
     expect(m1.withheld).toBe(4 * 300);
     expect(m1.payable).toBe(0);
     expect(cycleOf(useData.getState(), STU, SUB, "M1").balance).toBe(-2000);
@@ -261,7 +261,7 @@ describe("les arriérés de part enseignant", () => {
     expect(blocked.withheld).toBe(4 * 300);
     expect(blocked.months).toEqual(["M1"]);
 
-    // ---- il solde enfin ses deux mois -------------------------------------
+    // ---- il solde enfin ses deux carte -------------------------------------
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 2000, monthCode: "M1" });
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 2000, monthCode: "M2" });
 
@@ -272,13 +272,13 @@ describe("les arriérés de part enseignant", () => {
     expect(freed.months).toEqual(["M1"]);
     expect(freed.dueIds).toHaveLength(4);
 
-    // Et les deux mois sont désormais réglables d'un coup.
+    // Et les deux carte sont désormais réglables d'un coup.
     expect(emploi().months[0].payable).toBe(4 * 300);
     expect(emploi().months[1].payable).toBe(4 * 300);
     expect(emploi().payable).toBe(8 * 300);
   });
 
-  it("le premier mois ne peut porter aucun arriéré", () => {
+  it("le première carte ne peut porter aucun arriéré", () => {
     board();
     expect(studentArrearsBefore(emploi(), STU, 0)).toEqual({
       payable: 0,
@@ -291,13 +291,13 @@ describe("les arriérés de part enseignant", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("les enfants de l'enseignant, scolarisés sur son salaire", () => {
-  it("listent ce qu'ils ont étudié, mois en cours et arriérés séparés", async () => {
+describe("les enfants de l'entraîneur, scolarisés sur son salaire", () => {
+  it("listent ce qu'ils ont étudié, carte en cours et arriérés séparés", async () => {
     board();
     patch(STU, { studentCase: "teacher_child", teacherFatherId: TEACHER });
     const days = scheduledDays(6);
 
-    // M1 complet, jamais payé -> arriéré. Puis 2 séances sur M2 -> mois en cours.
+    // M1 complet, jamais payé -> arriéré. Puis 2 séances sur M2 -> carte en cours.
     for (const day of days.slice(0, 6)) await attend(STU, day);
 
     const rows = teacherChildRows(useData.getState(), TEACHER);
@@ -322,11 +322,11 @@ describe("les enfants de l'enseignant, scolarisés sur son salaire", () => {
   });
 
   /**
-   * Le cas que la réception vit dès qu'une famille d'enseignant paie au
-   * guichet : l'enfant a réglé AVANT que son père ne soit payé. Le mois reste
+   * Le cas que la réception vit dès qu'une famille d'entraîneur paie au
+   * guichet : l'enfant a réglé AVANT que son père ne soit payé. La carte reste
    * affiché — sinon personne ne saurait qu'il a été soldé — mais avec son
    * propre statut, et il ne sort plus du salaire : le retenir une seconde fois
-   * ferait payer la scolarité deux fois.
+   * ferait payer la cotisation deux fois.
    */
   it("un enfant qui paie AVANT le salaire reste listé, avec un statut à part", async () => {
     board();
@@ -349,7 +349,7 @@ describe("les enfants de l'enseignant, scolarisés sur son salaire", () => {
     expect(m1.amount).toBe(0);
   });
 
-  it("un mois retenu sur le salaire se distingue d'un mois payé par la famille", async () => {
+  it("une carte retenu sur le salaire se distingue d'une carte payée par la famille", async () => {
     board();
     patch(STU, { studentCase: "teacher_child", teacherFatherId: TEACHER });
     const days = scheduledDays(4);
@@ -369,7 +369,7 @@ describe("les enfants de l'enseignant, scolarisés sur son salaire", () => {
     expect(child.paidFromSalary).toBe(2000);
     expect(child.paidByFamily).toBe(0);
     expect(child.settledBeforePay).toBe(false);
-    // Et l'argent n'a jamais traversé la caisse : l'école est payée en versant
+    // Et l'argent n'a jamais traversé la caisse : le club est payée en versant
     // simplement moins au père.
     expect(useData.getState().cash).toHaveLength(cashBefore);
   });
