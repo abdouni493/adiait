@@ -25,12 +25,61 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://nbhfpumaqirvhridhygr.supabase.co";
+/**
+ * UNE VARIABLE POSÉE MAIS VIDE EST TRAITÉE COMME ABSENTE.
+ *
+ * C'est le piège qui a coûté une page de connexion morte. `??` ne retient son
+ * repli que pour `undefined` et `null` : une variable déclarée dans les
+ * réglages d'un hébergeur mais laissée SANS VALEUR vaut `""`, qui traverse
+ * `??` intact — et `createClient("")` lève « supabaseUrl is required » avant
+ * que quoi que ce soit s'affiche.
+ *
+ * Une adresse vide n'est pas une adresse. On la traite donc comme une absence,
+ * et le projet de l'école reprend la main.
+ */
+function envOr(name: string, value: string | undefined, fallback: string): string {
+  const clean = typeof value === "string" ? value.trim() : "";
+  if (clean.length > 0) return clean;
 
-export const SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  // Déclarée mais laissée vide : ce n'est pas la même chose qu'absente, et
+  // celui qui l'a posée mérite de savoir qu'elle ne sert à rien.
+  if (typeof value === "string") {
+    console.warn(`[supabase] ${name} est déclarée mais vide — le projet par défaut est utilisé.`);
+  }
+  return fallback;
+}
+
+/** Le projet de l'école, utilisé quand rien n'est posé dans l'environnement. */
+const DEFAULT_URL = "https://nbhfpumaqirvhridhygr.supabase.co";
+const DEFAULT_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaGZwdW1hcWlydmhyaWRoeWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NjgyMjQsImV4cCI6MjEwMzQ0NDIyNH0.Ph5Fhegn16rpiGdsXxznXch0cZfIb-JR_sjJk5FUcEY";
+
+export const SUPABASE_URL = envOr(
+  "NEXT_PUBLIC_SUPABASE_URL",
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  DEFAULT_URL,
+);
+
+export const SUPABASE_ANON_KEY = envOr(
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  DEFAULT_ANON_KEY,
+);
+
+/**
+ * Une adresse mal formée ne doit pas non plus casser l'application : elle est
+ * signalée une fois, et le projet de l'école reprend la main. Sans cela, une
+ * faute de frappe dans une variable d'environnement rendrait la même page morte
+ * que celle qu'on vient de réparer.
+ */
+const BASE_URL = /^https?:\/\//.test(SUPABASE_URL) ? SUPABASE_URL : DEFAULT_URL;
+
+if (BASE_URL !== SUPABASE_URL) {
+  console.error(
+    `[supabase] NEXT_PUBLIC_SUPABASE_URL ne ressemble pas à une adresse ("${SUPABASE_URL}") — ` +
+      "le projet par défaut est utilisé à la place.",
+  );
+}
 
 /**
  * Le client est créé PARESSEUSEMENT : le module est importé par des fichiers
@@ -40,7 +89,7 @@ let client: SupabaseClient | null = null;
 
 export function supabase(): SupabaseClient {
   if (!client) {
-    client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    client = createClient(BASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         // La session survit au rechargement, et se renouvelle toute seule.
         persistSession: true,
@@ -88,7 +137,7 @@ export async function rpcAnon<T>(
   const timer = setTimeout(() => controller.abort(), RPC_TIMEOUT);
 
   try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    const response = await fetch(`${BASE_URL}/rest/v1/rpc/${fn}`, {
       method: "POST",
       headers: {
         apikey: SUPABASE_ANON_KEY,
