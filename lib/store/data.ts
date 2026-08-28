@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { emptyDatabase, loadDatabase, loadSchool } from "@/lib/demo/db";
+import { emptyDatabase, loadDatabase, loadSchool } from "@/lib/supabase/db";
 import {
   caseReductionCut,
   cycleSizeOf,
@@ -185,8 +185,12 @@ export function signed<T extends object>(item: T): T {
   return has ? item : ({ ...authorStamp(), ...item } as T);
 }
 
-/** Ids are generated locally now (demo mode); the prefix is kept so the ~100
- *  existing `uid("stu")`-style call sites read the same. */
+/** Les identifiants sont fabriqués ICI, avant tout aller-retour : un écran doit
+ *  pouvoir créer une ligne et la relier à une autre sans attendre le réseau.
+ *  C'est pourquoi les colonnes `id` sont en `text` et non en `uuid` — un compte
+ *  apporte le sien (celui d'`auth.users`), une fiche créée sans compte porte
+ *  celui-ci. Le préfixe est gardé pour que les ~100 appels `uid("stu")` se
+ *  lisent comme avant. */
 export function uid(prefix?: string): string {
   const rand =
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -196,8 +200,11 @@ export function uid(prefix?: string): string {
 }
 
 // =============================================================================
-// Date / time helpers — the whole app runs on the local clock in demo mode, so
-// the "Africa/Algiers" conversions the SQL used are simply local time here.
+// Les dates et les heures — l'application travaille sur l'horloge du poste, et
+// range partout des CHAÎNES ("2026-08-28", "14:30"). Le schéma les stocke en
+// `text` pour qu'elles reviennent à l'octet près : une colonne `timestamptz`
+// les reformaterait, et la réplication croirait à une modification à chaque
+// lecture.
 // =============================================================================
 
 const JS_DAYS: Day[] = [
@@ -1070,8 +1077,8 @@ function teacherShare(db: Database, teacherId: string | undefined, base: number)
 const MODULE_NAME = (db: Database, id: string) => db.modules.find((m) => m.id === id)?.name ?? "";
 const GROUP_NAME = (db: Database, id: string) => db.groups.find((g) => g.id === id)?.name ?? "";
 
-// Throttle for the automatic weekly-absence billing (the SQL kept it on the
-// school row; in demo mode one run per app session is plenty).
+// Le frein de la facturation automatique des absences : une fois par session
+// d'application suffit, et le traitement est de toute façon idempotent.
 let lastAbsenceRun: string | null = null;
 
 const SCAN_EARLY_MARGIN = 30; // min before the start the card is already accepted
@@ -1089,18 +1096,20 @@ export const useData = create<DataStore>((set, get) => ({
     try {
       set({ school: await loadSchool() });
     } catch (err) {
-      console.error("[demo] fetchSchool", err);
+      console.error("[supabase] fetchSchool", err);
     }
   },
 
-  /** Reads the whole database in one pass. Every screen then works off this
-   *  snapshot, and `lib/demo/persist.ts` keeps it in the browser. */
+  /** Lit la base ENTIÈRE en un passage. Chaque écran travaille ensuite sur cet
+   *  instantané, et `lib/supabase/persist.ts` renvoie vers la base tout ce qui
+   *  y change. Ce que la lecture ramène dépend du compte : la RLS filtre à la
+   *  source (le comptoir voit l'école, un parent voit ses enfants). */
   fetchAll: async () => {
     try {
       const db = await loadDatabase();
       set({ ...db, loaded: true });
     } catch (err) {
-      console.error("[demo] fetchAll", err);
+      console.error("[supabase] fetchAll", err);
       set({ loaded: true });
     }
   },

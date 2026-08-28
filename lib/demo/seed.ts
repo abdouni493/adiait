@@ -1,16 +1,22 @@
 "use client";
 
 /**
- * LE JEU DE DONNÉES DE LA DÉMONSTRATION.
+ * LE JEU D'ESSAI DES TESTS — une école entière, construite en mémoire.
  *
- * L'application ne parle plus à aucune base : tout ce qu'elle affiche est
- * construit ici, en mémoire, à partir des catalogues de `catalog.ts` et des
- * familles de `people.ts`.
+ * L'APPLICATION NE S'EN SERT PLUS : elle lit et écrit dans Supabase
+ * (`lib/supabase/`). Ce jeu reste parce qu'il est ce sur quoi les tests
+ * s'appuient — il couvre les cinq cas de facturation d'un élève, les trois
+ * modes de paie d'un enseignant, les quatre contrats d'un travailleur et les
+ * cas limites des emplois du temps, ce qu'aucune fixture écrite à la main
+ * n'atteindrait.
+ *
+ * `tests/supabaseMapping.test.ts` s'en sert pour vérifier que CHAQUE champ de
+ * CHAQUE ligne a bien une colonne dans `supabase/schema.sql` : c'est le filet
+ * qui rattrape un champ ajouté à un type sans sa colonne.
  *
  * CE QU'IL FAUT SAVOIR AVANT D'Y TOUCHER
  *
- *  - `buildDemoDatabase()` rend un objet NEUF à chaque appel : réinitialiser la
- *    démonstration, c'est simplement le rappeler ;
+ *  - `buildDemoDatabase()` rend un objet NEUF à chaque appel ;
  *  - rien n'est recopié à la main. Les présences sont TIRÉES (avec une graine
  *    stable), et tout le reste en DÉCOULE : le prix d'une séance vient de
  *    `studentSeancePrice`, la part de l'enseignant de la même règle que le

@@ -5,8 +5,7 @@ import { useData } from "@/lib/store/data";
 import { useSession } from "@/lib/store/session";
 import { uploadImage } from "@/lib/accounts/uploadImage";
 import { changeOwnPassword } from "@/lib/accounts/users";
-import { resetDemoDatabase } from "@/lib/demo/db";
-import { resetAccounts } from "@/lib/demo/accounts";
+import { setBaseline } from "@/lib/supabase/persist";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/SearchInput";
@@ -205,25 +204,24 @@ export function SettingsPage() {
   };
 
   /**
-   * REPARTIR DU JEU DE DÉMONSTRATION.
+   * RELIRE LA BASE.
    *
-   * Cette version ne s'appuie sur aucune base : ses données vivent dans ce
-   * navigateur. Une démonstration qu'on a beaucoup manipulée — des élèves
-   * supprimés, des paies réglées, une caisse vidée — n'a donc aucun moyen de
-   * revenir en arrière, sauf celui-ci : l'instantané est jeté, les comptes
-   * reprennent leurs mots de passe d'origine, et l'école est reconstruite
-   * telle qu'elle est livrée.
+   * L'application travaille sur un instantané chargé à la connexion : ce qu'un
+   * AUTRE poste a saisi depuis n'y est pas. Ce bouton rejette l'instantané et
+   * relit tout — le seul geste à faire quand deux personnes tiennent le
+   * comptoir en même temps et qu'on veut être sûr de voir la même chose.
    */
-  const handleResetDemo = () => {
-    const warning =
-      "Réinitialiser la démonstration ?\n\n" +
-      "Toutes les modifications faites dans ce navigateur seront perdues et " +
-      "l'école repartira de ses données d'origine.";
-    if (!confirm(warning)) {
-      return;
+  const [reloading, setReloading] = useState(false);
+  const handleReload = async () => {
+    setReloading(true);
+    try {
+      await dataStore.fetchAll();
+      // Ce qui vient d'être lu EST ce qui est en base : la réplication repart
+      // de là, sans croire que tout vient d'être modifié.
+      setBaseline(useData.getState());
+    } finally {
+      setReloading(false);
     }
-    resetAccounts();
-    restoreState(resetDemoDatabase());
   };
 
   return (
@@ -780,33 +778,35 @@ export function SettingsPage() {
                 </CardBody>
               </Card>
 
-              {/* Reset panel — la porte de sortie de la démonstration */}
+              {/* Relire la base — l'école telle qu'elle est en ce moment */}
               <Card className="border border-line rounded-2xl card-shadow">
                 <CardBody className="space-y-4 p-6">
                   <div>
                     <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-                      <RotateCcw className="h-5 w-5 text-primary" /> Réinitialiser la démonstration
+                      <RotateCcw className="h-5 w-5 text-primary" /> Recharger depuis la base
                     </h3>
                     <p className="text-xs text-muted mt-1">
-                      Repartir de l&apos;école livrée avec l&apos;application.
+                      Relire l&apos;école telle qu&apos;elle est enregistrée en ce moment.
                     </p>
                   </div>
 
                   <p className="text-xs text-muted/80 leading-relaxed">
-                    Cette version fonctionne <strong>sans base de données</strong> : tout ce que vous
-                    créez, modifiez ou supprimez reste dans ce navigateur. Réinitialiser efface ces
-                    modifications et reconstruit l&apos;école d&apos;origine — ses élèves, ses
-                    enseignants, ses paiements et sa caisse. Les mots de passe des comptes de
-                    démonstration reprennent eux aussi leur valeur initiale.
+                    L&apos;application charge toute l&apos;école à la connexion, puis calcule sur
+                    cet instantané : c&apos;est ce qui rend les écrans instantanés. Ce que{" "}
+                    <strong>un autre poste</strong> a saisi depuis n&apos;y est donc pas encore.
+                    Recharger jette cet instantané et relit la base — rien n&apos;est perdu, tout
+                    ce que vous avez fait est déjà enregistré.
                   </p>
 
                   <div className="pt-2">
                     <Button
-                      onClick={handleResetDemo}
+                      onClick={() => void handleReload()}
+                      disabled={reloading}
                       variant="outline"
                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold border-line hover:bg-primary-50 text-ink"
                     >
-                      <RotateCcw className="h-4.5 w-4.5" /> Restaurer les données de démonstration
+                      <RotateCcw className="h-4.5 w-4.5" />
+                      {reloading ? "Lecture en cours…" : "Recharger depuis la base"}
                     </Button>
                   </div>
                 </CardBody>

@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (the demo needs none: it talks to no service)
+# env files — `.env.example` est versionné, il documente les deux variables
 .env*
+!.env.example
 
 # vercel
 .vercel

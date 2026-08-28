@@ -1,0 +1,87 @@
+"use client";
+
+/**
+ * LA CONNEXION AU PROJET SUPABASE.
+ *
+ * Un seul client pour toute l'application : il porte la session (le jeton
+ * d'accès, son renouvellement, sa persistance dans le navigateur), et toutes
+ * les requêtes passent par lui.
+ *
+ * LA CLÉ « ANON » EST PUBLIQUE, ET C'EST NORMAL. Elle ne donne aucun droit par
+ * elle-même : c'est la RLS, côté PostgreSQL, qui décide ligne par ligne de ce
+ * qu'un compte peut lire et écrire (`supabase/schema.sql`, section 6). Sans
+ * connexion, elle ne permet de lire que le nom et le logo de l'établissement —
+ * ce que la page de connexion affiche.
+ *
+ * LA CLÉ DE SERVICE (`service_role`), elle, n'apparaît NULLE PART dans ce dépôt
+ * et ne doit jamais rejoindre un navigateur. Créer le compte d'un enseignant ou
+ * d'un travailleur passe par les fonctions `security definer` du schéma, qui
+ * vérifient elles-mêmes qui appelle.
+ *
+ * Les variables d'environnement l'emportent quand elles sont posées (un autre
+ * projet, une préproduction) ; sinon on retombe sur le projet de l'école, pour
+ * qu'un dépôt fraîchement cloné démarre sans configuration.
+ */
+
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+export const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://nbhfpumaqirvhridhygr.supabase.co";
+
+export const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaGZwdW1hcWlydmhyaWRoeWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NjgyMjQsImV4cCI6MjEwMzQ0NDIyNH0.Ph5Fhegn16rpiGdsXxznXch0cZfIb-JR_sjJk5FUcEY";
+
+/**
+ * Le client est créé PARESSEUSEMENT : le module est importé par des fichiers
+ * que Next rend aussi côté serveur, et rien ne doit y ouvrir de session.
+ */
+let client: SupabaseClient | null = null;
+
+export function supabase(): SupabaseClient {
+  if (!client) {
+    client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        // La session survit au rechargement, et se renouvelle toute seule.
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        storageKey: "ecole-privee-auth",
+      },
+    });
+  }
+  return client;
+}
+
+/**
+ * Le message d'une erreur Supabase, dit en français quand on le peut.
+ *
+ * Les messages de la couche d'authentification arrivent en anglais et parlent
+ * de « credentials » à quelqu'un qui vient de taper son mot de passe au
+ * comptoir. Les erreurs que NOS fonctions SQL lèvent, elles, sont déjà écrites
+ * pour être lues telles quelles.
+ */
+export function errorMessage(err: unknown, fallback = "Une erreur est survenue."): string {
+  if (!err) return fallback;
+  const raw =
+    typeof err === "string"
+      ? err
+      : err instanceof Error
+        ? err.message
+        : typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "";
+
+  if (!raw) return fallback;
+
+  const map: Record<string, string> = {
+    "Invalid login credentials": "Identifiants invalides",
+    "Email not confirmed": "Cet email n'a pas encore été confirmé.",
+    "User already registered": "Cet email est déjà utilisé par un autre compte.",
+    "Failed to fetch": "Impossible de joindre le serveur. Vérifiez la connexion.",
+  };
+  for (const [needle, french] of Object.entries(map)) {
+    if (raw.includes(needle)) return french;
+  }
+  return raw;
+}

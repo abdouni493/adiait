@@ -1,42 +1,50 @@
 "use client";
 
 /**
- * LES IMAGES DE LA DÉMONSTRATION — le logo de l'école et les illustrations des
- * supports de cours.
+ * LES IMAGES — le logo de l'école et les illustrations des supports de cours.
  *
- * Il n'y a plus de dépôt de fichiers : l'image choisie est lue dans le
- * navigateur et rendue sous forme de `data:` URL. Cette chaîne est ce qui est
- * rangé sur la ligne, exactement comme l'URL publique l'était — donc l'image
- * s'affiche partout où elle s'affichait, et survit à un rechargement puisque
- * l'instantané la garde avec le reste.
+ * Le fichier part dans un dépôt Supabase Storage (`logos` ou `subjects`), et
+ * c'est son URL PUBLIQUE qui est rangée sur la ligne (`school.logo`,
+ * `subject.image`). Deux conséquences voulues :
  *
- * LA CONTREPARTIE, ET C'EST POURQUOI LA LIMITE EST BASSE : une `data:` URL pèse
- * un tiers de plus que le fichier d'origine et vit dans l'instantané, dont la
- * place est comptée. Deux mégaoctets suffisent largement à un logo ou à une
- * vignette, et laissent l'instantané respirer.
+ *  - l'image s'affiche pour TOUT LE MONDE, y compris sur la page de connexion
+ *    avant qu'un compte soit ouvert, et dans un document imprimé ;
+ *  - la ligne ne porte qu'une adresse, pas l'image elle-même : la base reste
+ *    légère, et deux écrans qui affichent le même logo le chargent une fois.
+ *
+ * LE NOM DU FICHIER EST TIRÉ AU SORT plutôt que repris du fichier d'origine :
+ * deux « logo.png » déposés le même jour ne doivent pas s'écraser l'un l'autre,
+ * et une image remplacée ne doit pas rester en cache sous l'ancienne adresse.
  */
 
-const MAX_BYTES = 2 * 1024 * 1024; // 2 Mo
+import { supabase, errorMessage } from "@/lib/supabase/client";
 
-export async function uploadImage(
-  _bucket: "logos" | "subjects",
-  file: File,
-): Promise<string> {
+/** Cinq mégaoctets : largement de quoi loger un logo ou une vignette. */
+const MAX_BYTES = 5 * 1024 * 1024;
+
+export type ImageBucket = "logos" | "subjects";
+
+export async function uploadImage(bucket: ImageBucket, file: File): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Le fichier choisi n'est pas une image.");
   }
   if (file.size > MAX_BYTES) {
-    throw new Error("Le fichier est trop volumineux (maximum 2 Mo en démonstration).");
+    throw new Error("Le fichier est trop volumineux (maximum 5 Mo).");
   }
 
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("La lecture du fichier a échoué."));
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") resolve(result);
-      else reject(new Error("La lecture du fichier a échoué."));
-    };
-    reader.readAsDataURL(file);
-  });
+  const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+  const random =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+  const path = `${Date.now().toString(36)}-${random}.${extension}`;
+
+  const { error } = await supabase()
+    .storage.from(bucket)
+    .upload(path, file, { cacheControl: "31536000", contentType: file.type, upsert: false });
+
+  if (error) throw new Error(errorMessage(error, "L'envoi de l'image a échoué."));
+
+  const { data } = supabase().storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
 }

@@ -1,0 +1,1893 @@
+-- =============================================================================
+--  ÉCOLE PRIVÉE — SCHÉMA COMPLET SUPABASE
+-- =============================================================================
+--
+--  Ce fichier est le SEUL script à exécuter sur un projet Supabase neuf.
+--  Il est IDEMPOTENT : le relancer sur une base déjà installée ne casse rien.
+--
+--  À exécuter dans : Supabase Dashboard -> SQL Editor -> New query -> Run.
+--
+--  CE QU'IL INSTALLE, DANS L'ORDRE
+--
+--   1. Les extensions (pgcrypto : c'est lui qui chiffre les mots de passe).
+--   2. `public.profiles` — le pont entre `auth.users` et les fiches métier.
+--   3. LE CATALOGUE DES DROITS : `app_pages` (les 17 écrans) et
+--      `app_page_actions` (les 79 boutons), recopiés de `lib/permissions.ts`.
+--      C'est la table de vérité que l'écran « Droits d'accès » présente.
+--   4. Les 40 tables métier — une par collection du magasin (`lib/store/data.ts`),
+--      avec TOUTES leurs relations.
+--   5. Les fonctions de garde (qui suis-je, qu'ai-je le droit d'écrire).
+--   6. La RLS : une politique de lecture et une d'écriture par table.
+--   7. LES COMPTES : créer l'administrateur, créer un travailleur, changer un
+--      mot de passe — le tout DIRECTEMENT dans `auth.users`, pour que la
+--      connexion Supabase normale (email + mot de passe) fonctionne.
+--   8. Les buckets de stockage (`logos`, `subjects`) et leurs politiques.
+--
+--  UNE CONVENTION IMPORTANTE : LES DATES SONT DU TEXTE.
+--
+--  L'application manipule partout des chaînes — « 2026-08-28 », « 14:30 »,
+--  « 2026-08-28T13:05:00.000Z ». Les stocker en `date`/`timestamptz` les
+--  reformaterait au retour ("+00:00" au lieu de "Z"), et la réplication
+--  croirait à une modification à chaque lecture. Elles sont donc en `text`,
+--  et reviennent à l'octet près telles qu'elles sont parties.
+--
+--  LES IDENTIFIANTS SONT DU TEXTE AUSSI : une fiche créée sans compte porte un
+--  identifiant fabriqué par l'application (« stu-mf3k2a-9c1b »), tandis qu'une
+--  fiche créée AVEC un compte porte l'UUID de son compte `auth.users`. Les deux
+--  doivent tenir dans la même colonne.
+-- =============================================================================
+
+
+-- =============================================================================
+--  1. EXTENSIONS
+-- =============================================================================
+
+-- pgcrypto chiffre les mots de passe (`crypt`, `gen_salt`). Supabase l'installe
+-- déjà dans le schéma `extensions` ; la ligne ne sert qu'aux projets où il
+-- manquerait. Les fonctions qui s'en servent portent `extensions` dans leur
+-- `search_path`, et ne le qualifient donc pas : d'un projet à l'autre il n'est
+-- pas toujours dans le même schéma.
+create extension if not exists pgcrypto with schema extensions;
+
+
+-- =============================================================================
+--  2. LES COMPTES — `public.profiles`
+-- =============================================================================
+--
+--  `auth.users` appartient à Supabase et ne se lit pas depuis le navigateur.
+--  `profiles` en est le reflet lisible : le rôle du compte, la fiche qu'il
+--  pilote, et son nom d'utilisateur.
+--
+--  `id`        = l'identifiant du COMPTE (`auth.users.id`).
+--  `entity_id` = l'identifiant de la FICHE (élève, enseignant, parent,
+--                travailleur). Égal à `id` pour un compte créé en même temps
+--                que sa fiche ; DIFFÉRENT pour un travailleur à qui l'accès a
+--                été ouvert après coup — sa fiche existait déjà.
+-- =============================================================================
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'app_role') then
+    create type public.app_role as enum ('admin', 'reception', 'teacher', 'student', 'parent');
+  end if;
+end $$;
+
+create table if not exists public.profiles (
+  id          uuid primary key references auth.users (id) on delete cascade,
+  entity_id   text not null,
+  role        public.app_role not null,
+  email       text not null,
+  username    text not null,
+  full_name   text not null default '',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create unique index if not exists profiles_username_key on public.profiles (lower(username));
+create unique index if not exists profiles_email_key    on public.profiles (lower(email));
+create index        if not exists profiles_entity_idx   on public.profiles (entity_id);
+create index        if not exists profiles_role_idx     on public.profiles (role);
+
+comment on table  public.profiles is 'Le reflet lisible de auth.users : rôle, fiche pilotée, nom d''utilisateur.';
+comment on column public.profiles.entity_id is 'La fiche métier que ce compte pilote (students.id, teachers.id, …).';
+
+
+-- =============================================================================
+--  3. LE CATALOGUE DES DROITS — LES ÉCRANS ET LEURS BOUTONS
+-- =============================================================================
+--
+--  CE QUE CES DEUX TABLES SONT : la liste complète de ce qu'un travailleur peut
+--  se voir ouvrir. 17 écrans, 89 boutons. C'est exactement le contenu de
+--  `lib/permissions.ts` — l'application le lit depuis son code (pour ne pas
+--  faire un aller-retour réseau avant de dessiner un bouton), et la base le
+--  garde ici pour que les droits stockés soient VÉRIFIABLES et que la RLS
+--  puisse s'y référer.
+--
+--  COMMENT UN DROIT EST STOCKÉ, sur la fiche du travailleur :
+--
+--    reception_staff.nav_keys    = ['students', 'attendance']
+--    reception_staff.action_keys = ['students:create', 'students:pay', …]
+--
+--  Un écran coché n'ouvre AUCUN bouton : les deux listes sont indépendantes,
+--  et un bouton n'est utilisable que si SON écran est coché aussi.
+--
+--  `nav_keys` À NULL A UN SENS PRÉCIS : les droits de cette fiche n'ont JAMAIS
+--  été réglés. Elle garde alors l'ancien menu de la réception plutôt que de se
+--  retrouver devant un écran vide. Une liste VIDE (`[]`), elle, veut bien dire
+--  « aucun écran » — c'est une décision, pas un oubli.
+-- =============================================================================
+
+create table if not exists public.app_pages (
+  key        text primary key,
+  position   integer not null,
+  emoji      text not null default '',
+  label      text not null,
+  href       text not null,
+  hint       text not null default ''
+);
+
+create table if not exists public.app_page_actions (
+  page_key   text not null references public.app_pages (key) on delete cascade,
+  action_id  text not null,
+  position   integer not null,
+  label      text not null,
+  hint       text,
+  primary key (page_key, action_id)
+);
+
+comment on table public.app_pages is 'Les 17 écrans de l''application, dans l''ordre de la barre latérale.';
+comment on table public.app_page_actions is 'Les 89 boutons, écran par écran. Clé stockée : « écran:action ».';
+
+-- ---- Les écrans -------------------------------------------------------------
+insert into public.app_pages (key, position, emoji, label, href, hint) values
+  ('dashboard', 1, '📊', 'Tableau de bord', '/dashboard', 'Les emplois du temps du jour, les feuilles de présence et la caisse.'),
+  ('classes', 2, '🏫', 'Classes', '/classes', 'Les niveaux, les classes et leurs catégories.'),
+  ('planner', 3, '📅', 'Emplois du temps', '/planner', 'La grille des créneaux, les séances libres et les salles.'),
+  ('subscriptions', 4, '🎫', 'Tarifs & abonnements', '/subscriptions', 'Le prix de la séance et du mois, emploi du temps par emploi du temps.'),
+  ('students', 5, '🎓', 'Élèves', '/students', 'Les fiches des élèves, leurs inscriptions, leurs paiements et leurs dettes.'),
+  ('attendance', 6, '✅', 'Présences', '/attendance', 'Les feuilles de présence et l''historique des pointages.'),
+  ('teachers', 7, '👨‍🏫', 'Enseignants', '/teachers', 'Les fiches des enseignants, leurs parts et leur paie.'),
+  ('subjects', 8, '📄', 'Matières & cours', '/subjects', 'Les supports de cours publiés aux élèves.'),
+  ('workers', 9, '👥', 'Travailleurs', '/workers', 'Le personnel : métiers, comptes, droits, acomptes, absences et paie.'),
+  ('independent', 10, '🧩', 'Séances libres', '/independent', 'Les séances vendues à l''unité et les séances de groupe.'),
+  ('parents', 11, '👨‍👩‍👧', 'Parents', '/parents', 'Les fiches des parents et leurs comptes.'),
+  ('announcements', 12, '📢', 'Annonces', '/announcements', 'Les annonces publiées aux élèves et aux parents.'),
+  ('expenses', 13, '🧾', 'Dépenses', '/expenses', 'Les dépenses de l''école et leurs catégories.'),
+  ('analytics', 14, '📈', 'Statistiques', '/analytics', 'L''affluence des élèves par classe et par enseignant.'),
+  ('cash', 15, '💵', 'Caisse', '/cash', 'Les mouvements de caisse : dépôts, retraits, dépenses.'),
+  ('reports', 16, '💰', 'Rapports', '/reports', 'Le bilan de l''école sur une période. Cet écran se consulte ; il n''écrit rien.'),
+  ('settings', 17, '⚙️', 'Paramètres', '/settings', 'L''établissement, la sécurité, WhatsApp et les sauvegardes.')
+on conflict (key) do update set
+  position = excluded.position,
+  emoji    = excluded.emoji,
+  label    = excluded.label,
+  href     = excluded.href,
+  hint     = excluded.hint;
+
+-- ---- Les boutons ------------------------------------------------------------
+insert into public.app_page_actions (page_key, action_id, position, label, hint) values
+  ('dashboard', 'open_presence', 1, 'Ouvrir une feuille de présence', 'Cliquer un créneau du jour pour l''ouvrir.'),
+  ('dashboard', 'mark_presence', 2, 'Pointer les présences', 'Présent / absent / annulé, et corriger un pointage.'),
+  ('dashboard', 'collect_payment', 3, 'Encaisser un paiement d''élève', 'Recharger un solde depuis la feuille de présence.'),
+  ('dashboard', 'create_student', 4, 'Créer un élève', 'Le bouton « Nouvel élève ».'),
+  ('dashboard', 'student_situation', 5, 'Situation d''un élève', 'Le tableau récapitulatif d''un élève.'),
+  ('dashboard', 'cash_deposit', 6, 'Dépôt en caisse', null),
+  ('dashboard', 'cash_expense', 7, 'Saisir une dépense', null),
+  ('dashboard', 'cash_withdraw', 8, 'Retrait de caisse', null),
+  ('classes', 'create', 1, 'Créer une classe', null),
+  ('classes', 'view', 2, 'Voir le détail d''une classe', null),
+  ('classes', 'edit', 3, 'Modifier une classe', null),
+  ('classes', 'delete', 4, 'Supprimer une classe', null),
+  ('planner', 'create', 1, 'Créer un emploi du temps', null),
+  ('planner', 'create_open', 2, 'Créer un créneau de séance libre', null),
+  ('planner', 'view', 3, 'Voir le détail d''un emploi du temps', null),
+  ('planner', 'edit', 4, 'Modifier un emploi du temps', null),
+  ('planner', 'delete', 5, 'Archiver un emploi du temps', null),
+  ('planner', 'print', 6, 'Imprimer un horaire', null),
+  ('subscriptions', 'view', 1, 'Voir le détail d''un abonnement', null),
+  ('subscriptions', 'edit_price', 2, 'Créer / modifier un tarif', null),
+  ('subscriptions', 'archive', 3, 'Supprimer un abonnement', null),
+  ('students', 'create', 1, 'Créer un élève', null),
+  ('students', 'view', 2, 'Voir la fiche d''un élève', null),
+  ('students', 'edit', 3, 'Modifier un élève', null),
+  ('students', 'delete', 4, 'Supprimer un élève', null),
+  ('students', 'pay', 5, 'Payer & recharger les soldes', null),
+  ('students', 'charges', 6, 'Frais & dettes (créer, encaisser)', null),
+  ('students', 'edit_payment', 7, 'Corriger un paiement', null),
+  ('students', 'delete_payment', 8, 'Supprimer un paiement', null),
+  ('students', 'print_receipt', 9, 'Réimprimer le reçu d''un paiement', null),
+  ('students', 'print_file', 10, 'Imprimer la fiche de l''élève', null),
+  ('students', 'print_payments', 11, 'Imprimer le relevé des paiements', null),
+  ('students', 'scan', 12, 'Scanner une carte RFID', null),
+  ('students', 'situation', 13, 'Situation d''un élève', null),
+  ('students', 'whatsapp', 14, 'Envoyer un message WhatsApp', null),
+  ('attendance', 'mark', 1, 'Pointer les présences', 'Sans ce droit, l''écran se consulte sans s''écrire.'),
+  ('attendance', 'collect_payment', 2, 'Encaisser un paiement d''élève', 'Recharger un solde depuis la feuille de présence.'),
+  ('teachers', 'create', 1, 'Créer un enseignant', null),
+  ('teachers', 'create_passager', 2, 'Créer un enseignant de passage', null),
+  ('teachers', 'view', 3, 'Voir la fiche d''un enseignant', null),
+  ('teachers', 'edit', 4, 'Modifier un enseignant', null),
+  ('teachers', 'delete', 5, 'Supprimer un enseignant', null),
+  ('teachers', 'pay', 6, 'Régler la paie', null),
+  ('teachers', 'acompte', 7, 'Verser un acompte', null),
+  ('teachers', 'absence', 8, 'Enregistrer une absence', null),
+  ('teachers', 'expense', 9, 'Porter une dépense', null),
+  ('teachers', 'print', 10, 'Imprimer un rapport de paie', null),
+  ('subjects', 'create', 1, 'Publier un support', null),
+  ('subjects', 'view', 2, 'Voir un support', null),
+  ('subjects', 'delete', 3, 'Supprimer un support', null),
+  ('subjects', 'bulk_delete', 4, 'Suppression groupée', null),
+  ('workers', 'create', 1, 'Créer un travailleur', null),
+  ('workers', 'view', 2, 'Voir la fiche d''un travailleur', null),
+  ('workers', 'edit', 3, 'Modifier un travailleur', null),
+  ('workers', 'delete', 4, 'Supprimer un travailleur', null),
+  ('workers', 'roles', 5, 'Créer / supprimer un métier', null),
+  ('workers', 'account', 6, 'Activer un compte de connexion', null),
+  ('workers', 'permissions', 7, 'Attribuer les droits d''accès', null),
+  ('workers', 'acompte', 8, 'Verser un acompte', null),
+  ('workers', 'absence', 9, 'Enregistrer une absence', null),
+  ('workers', 'pay', 10, 'Régler la rémunération', null),
+  ('workers', 'history', 11, 'Consulter l''historique de travail', null),
+  ('workers', 'print', 12, 'Imprimer un reçu ou une fiche de paie', null),
+  ('workers', 'scan', 13, 'Pointage par badge', null),
+  ('independent', 'create', 1, 'Créer une séance libre', null),
+  ('independent', 'view', 2, 'Voir le détail d''une séance', null),
+  ('independent', 'edit', 3, 'Modifier une séance', null),
+  ('independent', 'delete', 4, 'Supprimer une séance', null),
+  ('independent', 'print', 5, 'Réimprimer le reçu', null),
+  ('parents', 'create', 1, 'Créer un parent', null),
+  ('parents', 'view', 2, 'Voir la fiche d''un parent', null),
+  ('parents', 'edit', 3, 'Modifier un parent', null),
+  ('parents', 'delete', 4, 'Supprimer un parent', null),
+  ('parents', 'message', 5, 'Envoyer un message (WhatsApp, notification)', null),
+  ('announcements', 'create', 1, 'Publier une annonce', null),
+  ('announcements', 'edit', 2, 'Modifier une annonce', null),
+  ('announcements', 'delete', 3, 'Supprimer une annonce', null),
+  ('expenses', 'create', 1, 'Saisir une dépense', null),
+  ('expenses', 'edit', 2, 'Modifier une dépense', null),
+  ('expenses', 'delete', 3, 'Supprimer une dépense', null),
+  ('analytics', 'print', 1, 'Imprimer la vue', null),
+  ('cash', 'deposit', 1, 'Dépôt en caisse', null),
+  ('cash', 'withdraw', 2, 'Retrait de caisse', null),
+  ('cash', 'edit', 3, 'Modifier un mouvement', null),
+  ('cash', 'delete', 4, 'Supprimer un mouvement', null),
+  ('settings', 'school', 1, 'Établissement', 'Nom, logo, coordonnées, identifiants fiscaux.'),
+  ('settings', 'security', 2, 'Identifiants & sécurité', 'Son propre mot de passe.'),
+  ('settings', 'whatsapp', 3, 'Paramètres WhatsApp', null),
+  ('settings', 'backup', 4, 'Sauvegarde & données', null)
+on conflict (page_key, action_id) do update set
+  position = excluded.position,
+  label    = excluded.label,
+  hint     = excluded.hint;
+
+-- « students:create » — la forme sous laquelle un droit d'action est stocké.
+create or replace function public.action_key(p_page text, p_action text)
+returns text language sql immutable as $$
+  select p_page || ':' || p_action;
+$$;
+
+-- Le catalogue en une seule ligne par bouton, prêt à être lu par un écran
+-- d'administration ou vérifié à la main.
+create or replace view public.app_permission_catalog as
+  select p.position       as page_position,
+         p.key            as page_key,
+         p.emoji          as page_emoji,
+         p.label          as page_label,
+         p.href           as page_href,
+         p.hint           as page_hint,
+         a.action_id,
+         a.position       as action_position,
+         a.label          as action_label,
+         a.hint           as action_hint,
+         public.action_key(p.key, a.action_id) as permission_key
+    from public.app_pages p
+    left join public.app_page_actions a on a.page_key = p.key
+   order by p.position, a.position;
+
+
+-- =============================================================================
+--  4. LES TABLES MÉTIER
+-- =============================================================================
+--
+--  Une table par collection du magasin (`Database`, dans `lib/store/data.ts`),
+--  déclarées dans l'ordre des dépendances : une table n'apparaît qu'après
+--  celles auxquelles elle se réfère.
+--
+--  LES NOMS DE COLONNES SONT LE `snake_case` DES CHAMPS TYPESCRIPT
+--  (`firstName` -> `first_name`, `pricePerSession` -> `price_per_session`).
+--  C'est ce qui permet à `lib/supabase/mapping.ts` de traduire dans les deux
+--  sens sans table de correspondance à tenir à jour.
+--
+--  LES CHAMPS COMPOSÉS (listes, dictionnaires, objets imbriqués) sont en
+--  `jsonb` et reviennent tels quels côté JavaScript.
+--
+--  LA SIGNATURE — `created_by`, `created_by_name`, `created_by_role` — dit QUI a
+--  écrit la ligne. Le nom est recopié à l'instant de l'écriture : un travailleur
+--  qui quitte l'école laisse quand même un historique lisible.
+-- =============================================================================
+
+-- ---- L'établissement --------------------------------------------------------
+create table if not exists public.schools (
+  id                            text primary key default 'school',
+  name                          text not null default 'École',
+  description                   text not null default '',
+  phone                         text not null default '',
+  email                         text not null default '',
+  logo                          text,
+  address                       text not null default '',
+  article_fiscal                text,
+  registre_commerce             text,
+  nif                           text,
+  nis                           text,
+  registration_fee              numeric,
+  registration_fee_scope        text check (registration_fee_scope in ('all','levels','classes','sessions')),
+  registration_fee_levels       jsonb,
+  registration_fee_class_ids    jsonb,
+  registration_fee_session_ids  jsonb,
+  absence_penalty_enabled       boolean,
+  absence_penalty_since         text,
+  absence_week_start_day        integer,
+  updated_at                    timestamptz not null default now()
+);
+
+-- La ligne unique de l'établissement. Elle existe toujours : la page de
+-- connexion affiche son nom et son logo avant que quiconque soit connecté.
+insert into public.schools (id, name) values ('school', 'École')
+on conflict (id) do nothing;
+
+-- ---- Le référentiel ---------------------------------------------------------
+create table if not exists public.class_categories (
+  id               text primary key,
+  name             text not null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+create table if not exists public.modules (
+  id               text primary key,
+  name             text not null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+create table if not exists public.groups (
+  id               text primary key,
+  name             text not null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+create table if not exists public.salles (
+  id               text primary key,
+  name             text not null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+create table if not exists public.classes (
+  id               text primary key,
+  type             text not null default 'cours' check (type in ('cours','formation')),
+  name             text not null,
+  description      text not null default '',
+  cours_level      text check (cours_level in ('maternelle','primaire','moyen','lycee')),
+  year             text,
+  category_id      text references public.class_categories (id) on delete set null,
+  formation_level  text check (formation_level in ('A1','A2','B1','B2','C1','C2')),
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists classes_category_idx on public.classes (category_id);
+
+-- ---- Le personnel -----------------------------------------------------------
+create table if not exists public.teachers (
+  id               text primary key,
+  first_name       text not null default '',
+  last_name        text not null default '',
+  phone            text not null default '',
+  email            text not null default '',
+  payment_type     text not null default 'percentage' check (payment_type in ('monthly','percentage','per_group')),
+  monthly_amount   numeric,
+  start_date       text,
+  percentage       numeric,
+  is_passager      boolean,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+create table if not exists public.worker_job_roles (
+  id               text primary key,
+  name             text not null,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+-- LE TRAVAILLEUR ET SES DROITS.
+--   `nav_keys`    : les écrans qu'il voit          (clés de `app_pages`)
+--   `action_keys` : les boutons qu'il peut cliquer (clés « écran:action »)
+-- `nav_keys` à NULL = droits jamais réglés (voir la section 3).
+create table if not exists public.reception_staff (
+  id               text primary key,
+  first_name       text not null default '',
+  last_name        text not null default '',
+  phone            text not null default '',
+  email            text not null default '',
+  payment_type     text not null default 'monthly' check (payment_type in ('daily','monthly','half_day','hourly')),
+  start_date       text not null default '',
+  salary           numeric not null default 0,
+  role             text references public.worker_job_roles (id) on delete set null,
+  rfid             text,
+  hourly_rate      numeric,
+  has_account      boolean,
+  username         text,
+  nav_keys         jsonb,
+  action_keys      jsonb,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists reception_staff_role_idx on public.reception_staff (role);
+create index if not exists reception_staff_rfid_idx on public.reception_staff (rfid);
+
+comment on column public.reception_staff.nav_keys is
+  'Les écrans ouverts à ce travailleur. NULL = droits jamais réglés (ancien menu réception).';
+comment on column public.reception_staff.action_keys is
+  'Les boutons ouverts, sous la forme « écran:action » (cf. app_permission_catalog).';
+
+create table if not exists public.parents (
+  id               text primary key,
+  first_name       text not null default '',
+  last_name        text not null default '',
+  phone            text not null default '',
+  email            text not null default '',
+  child_ids        jsonb not null default '[]'::jsonb,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+-- ---- Les emplois du temps ---------------------------------------------------
+create table if not exists public.schedule_sessions (
+  id               text primary key,
+  class_id         text references public.classes (id) on delete set null,
+  module_id        text references public.modules (id) on delete set null,
+  group_id         text references public.groups (id) on delete set null,
+  salle_id         text references public.salles (id) on delete set null,
+  teacher_id       text references public.teachers (id) on delete set null,
+  days             jsonb not null default '[]'::jsonb,
+  start_time       text not null default '',
+  end_time         text not null default '',
+  day_times        jsonb,
+  day_salles       jsonb,
+  class_groups     jsonb,
+  is_open          boolean,
+  title            text,
+  period_start     text,
+  period_end       text,
+  class_ids        jsonb,
+  group_ids        jsonb,
+  salle_ids        jsonb,
+  open_price       numeric,
+  archived_at      text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists sessions_teacher_idx on public.schedule_sessions (teacher_id);
+create index if not exists sessions_class_idx   on public.schedule_sessions (class_id);
+
+create table if not exists public.subscriptions (
+  id                  text primary key,
+  session_id          text references public.schedule_sessions (id) on delete cascade,
+  price_per_session   numeric not null default 0,
+  level_price         numeric,
+  period_months       integer,
+  monthly_seances     integer,
+  monthly_price       numeric,
+  school_month_share  numeric,
+  teacher_per_seance  numeric,
+  archived_at         text,
+  created_by          text,
+  created_by_name     text,
+  created_by_role     text
+);
+create index if not exists subscriptions_session_idx on public.subscriptions (session_id);
+
+-- ---- Les élèves -------------------------------------------------------------
+create table if not exists public.students (
+  id                           text primary key,
+  registration_number          text,
+  first_name                   text not null default '',
+  last_name                    text not null default '',
+  birth_date                   text not null default '',
+  phone                        text not null default '',
+  phone2                       text,
+  email                        text not null default '',
+  rfid                         text not null default '',
+  is_free                      boolean not null default false,
+  student_case                 text check (student_case in ('normal','special','teacher_child','reduction','school_only')),
+  free_subscription_ids        jsonb,
+  teacher_father_id            text references public.teachers (id) on delete set null,
+  case_reduction               jsonb,
+  unpaid_teacher_ids           jsonb,
+  school_only_subscription_ids jsonb,
+  enrollment_level             text,
+  enrollment_year              text,
+  parent_id                    text references public.parents (id) on delete set null,
+  subscription_ids             jsonb not null default '[]'::jsonb,
+  subscription_dates           jsonb,
+  subscription_discounts       jsonb,
+  registration_due             numeric,
+  created_by                   text,
+  created_by_name              text,
+  created_by_role              text
+);
+create index if not exists students_parent_idx  on public.students (parent_id);
+create index if not exists students_rfid_idx    on public.students (rfid);
+create index if not exists students_father_idx  on public.students (teacher_father_id);
+
+-- Le mot de passe que la réception a noté pour un élève, pour pouvoir le lui
+-- redonner au comptoir. Ce n'est PAS le mot de passe de connexion : celui-là
+-- vit chiffré dans `auth.users`, et personne ne peut le relire.
+create table if not exists public.student_credentials (
+  student_id  text primary key references public.students (id) on delete cascade,
+  password    text not null default '',
+  updated_at  text not null default ''
+);
+
+create table if not exists public.enrollments (
+  id                text primary key,
+  student_id        text not null references public.students (id) on delete cascade,
+  subscription_id   text not null references public.subscriptions (id) on delete cascade,
+  paid_seances      numeric not null default 0,
+  consumed_seances  numeric not null default 0,
+  discount          jsonb,
+  start_date        text,
+  expiry_date       text,
+  plan              text check (plan in ('seance','month')),
+  month_seances     numeric,
+  balance           numeric,
+  created_at        text not null default '',
+  created_by        text,
+  created_by_name   text,
+  created_by_role   text
+);
+create index if not exists enrollments_student_idx on public.enrollments (student_id);
+create index if not exists enrollments_sub_idx     on public.enrollments (subscription_id);
+
+-- ---- L'argent des élèves ----------------------------------------------------
+create table if not exists public.payments (
+  id                 text primary key,
+  student_id         text not null references public.students (id) on delete cascade,
+  enrollment_id      text references public.enrollments (id) on delete set null,
+  subscription_id    text references public.subscriptions (id) on delete set null,
+  month_code         text,
+  seances_purchased  numeric not null default 0,
+  unit_price         numeric not null default 0,
+  gross_total        numeric not null default 0,
+  plan               text check (plan in ('seance','month')),
+  discount_type      text check (discount_type in ('percent','amount')),
+  discount_value     numeric,
+  net_total          numeric not null default 0,
+  amount_paid        numeric not null default 0,
+  rest               numeric not null default 0,
+  type               text not null default 'subscription_payment'
+                     check (type in ('subscription_payment','debt_payment')),
+  paid_from          text check (paid_from in ('cash','teacher_salary','teacher_debt','school_cash')),
+  charge_id          text,
+  date               text not null default '',
+  description        text,
+  alert_read         boolean,
+  created_by         text,
+  created_by_name    text,
+  created_by_role    text
+);
+create index if not exists payments_student_idx on public.payments (student_id);
+create index if not exists payments_sub_idx     on public.payments (subscription_id);
+create index if not exists payments_date_idx    on public.payments (date);
+
+-- Tout ce qu'un élève doit à l'école SANS que ce soit de la scolarité : un
+-- livre, une tenue, une sortie — ou la dette que la caisse a avancée pour
+-- débloquer la part d'un enseignant (`origin = 'school_advance'`).
+create table if not exists public.student_charges (
+  id                 text primary key,
+  student_id         text not null references public.students (id) on delete cascade,
+  name               text not null default '',
+  amount             numeric not null default 0,
+  description        text,
+  date               text not null default '',
+  origin             text check (origin in ('manual','school_advance')),
+  source_payment_id  text,
+  subscription_id    text references public.subscriptions (id) on delete set null,
+  month_code         text,
+  paid_amount        numeric,
+  paid               boolean,
+  payment_id         text,
+  created_at         text,
+  created_by         text,
+  created_by_name    text,
+  created_by_role    text
+);
+create index if not exists student_charges_student_idx on public.student_charges (student_id);
+
+create table if not exists public.attendance_records (
+  id                text primary key,
+  student_id        text not null references public.students (id) on delete cascade,
+  session_id        text not null references public.schedule_sessions (id) on delete cascade,
+  "timestamp"       text not null default '',
+  amount_deducted   numeric not null default 0,
+  status            text not null default 'present'
+                    check (status in ('present','late','absent','cancelled')),
+  substitute_group  boolean,
+  free_period_id    text,
+  pre_start         boolean,
+  waived_amount     numeric,
+  no_charge         boolean,
+  created_by        text,
+  created_by_name   text,
+  created_by_role   text
+);
+create index if not exists attendance_student_idx on public.attendance_records (student_id);
+create index if not exists attendance_session_idx on public.attendance_records (session_id);
+create index if not exists attendance_ts_idx      on public.attendance_records ("timestamp");
+
+create table if not exists public.absence_penalties (
+  id               text primary key,
+  student_id       text not null references public.students (id) on delete cascade,
+  subscription_id  text references public.subscriptions (id) on delete set null,
+  session_id       text references public.schedule_sessions (id) on delete set null,
+  module_id        text references public.modules (id) on delete set null,
+  period_start     text not null default '',
+  period_end       text not null default '',
+  amount           numeric not null default 0,
+  remaining_after  numeric not null default 0,
+  created_at       text not null default '',
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists absence_penalties_student_idx on public.absence_penalties (student_id);
+
+-- ---- La paie des enseignants ------------------------------------------------
+create table if not exists public.teacher_payments (
+  id               text primary key,
+  teacher_id       text not null references public.teachers (id) on delete cascade,
+  amount           numeric not null default 0,
+  method           text not null default 'percent' check (method in ('fixed','percent','group')),
+  percentage       numeric,
+  students_count   integer not null default 0,
+  sessions_count   integer not null default 0,
+  description      text not null default '',
+  details          jsonb not null default '[]'::jsonb,
+  gross            numeric,
+  expenses         jsonb,
+  acomptes         jsonb,
+  child_charges    jsonb,
+  child_debts      jsonb,
+  months           jsonb,
+  arrears          jsonb,
+  cash_id          text,
+  board            jsonb,
+  paid_at          text not null default '',
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists teacher_payments_teacher_idx on public.teacher_payments (teacher_id);
+
+create table if not exists public.teacher_acomptes (
+  id               text primary key,
+  teacher_id       text not null references public.teachers (id) on delete cascade,
+  amount           numeric not null default 0,
+  description      text not null default '',
+  date             text not null default '',
+  paid             boolean,
+  payment_id       text references public.teacher_payments (id) on delete set null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists teacher_acomptes_teacher_idx on public.teacher_acomptes (teacher_id);
+
+create table if not exists public.teacher_expenses (
+  id               text primary key,
+  teacher_id       text not null references public.teachers (id) on delete cascade,
+  name             text not null default '',
+  amount           numeric not null default 0,
+  description      text,
+  date             text not null default '',
+  paid             boolean,
+  payment_id       text references public.teacher_payments (id) on delete set null,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists teacher_expenses_teacher_idx on public.teacher_expenses (teacher_id);
+
+-- La scolarité d'un enfant d'enseignant, créditée d'avance par l'école et
+-- portée sur le salaire du père.
+create table if not exists public.teacher_child_debts (
+  id               text primary key,
+  teacher_id       text not null references public.teachers (id) on delete cascade,
+  student_id       text not null references public.students (id) on delete cascade,
+  subscription_id  text references public.subscriptions (id) on delete set null,
+  month_code       text,
+  label            text not null default '',
+  amount           numeric not null default 0,
+  date             text not null default '',
+  paid             boolean,
+  payment_id       text references public.teacher_payments (id) on delete set null,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists teacher_child_debts_teacher_idx on public.teacher_child_debts (teacher_id);
+create index if not exists teacher_child_debts_student_idx on public.teacher_child_debts (student_id);
+
+create table if not exists public.teacher_absences (
+  id               text primary key,
+  teacher_id       text not null references public.teachers (id) on delete cascade,
+  cost             numeric not null default 0,
+  description      text not null default '',
+  date             text not null default '',
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists teacher_absences_teacher_idx on public.teacher_absences (teacher_id);
+
+-- La part d'enseignant qu'un élève n'a pas réglée : elle reste due, et la
+-- retenue tombe sur le prochain règlement.
+create table if not exists public.unpaid_teacher_sessions (
+  id               text primary key,
+  teacher_id       text not null references public.teachers (id) on delete cascade,
+  session_id       text references public.schedule_sessions (id) on delete set null,
+  student_id       text references public.students (id) on delete cascade,
+  amount           numeric not null default 0,
+  date             text not null default '',
+  paid             boolean not null default false,
+  payment_id       text references public.teacher_payments (id) on delete set null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists unpaid_teacher_teacher_idx on public.unpaid_teacher_sessions (teacher_id);
+
+-- ---- La paie des travailleurs -----------------------------------------------
+create table if not exists public.worker_payments (
+  id               text primary key,
+  worker_id        text not null references public.reception_staff (id) on delete cascade,
+  kind             text not null default 'monthly' check (kind in ('daily','monthly','half_day','hourly')),
+  period_keys      jsonb not null default '[]'::jsonb,
+  shift_ids        jsonb,
+  gross            numeric not null default 0,
+  acomptes         numeric not null default 0,
+  absences         numeric not null default 0,
+  net              numeric not null default 0,
+  amount           numeric not null default 0,
+  date             text not null default '',
+  description      text,
+  cash_id          text,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists worker_payments_worker_idx on public.worker_payments (worker_id);
+
+create table if not exists public.worker_shifts (
+  id               text primary key,
+  worker_id        text not null references public.reception_staff (id) on delete cascade,
+  work_date        text not null default '',
+  start_at         text,
+  end_at           text,
+  minutes          numeric not null default 0,
+  frozen           boolean not null default false,
+  paid             boolean not null default false,
+  payment_id       text references public.worker_payments (id) on delete set null,
+  created_at       text not null default '',
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists worker_shifts_worker_idx on public.worker_shifts (worker_id);
+create index if not exists worker_shifts_date_idx   on public.worker_shifts (work_date);
+
+create table if not exists public.worker_acomptes (
+  id               text primary key,
+  worker_id        text not null references public.reception_staff (id) on delete cascade,
+  amount           numeric not null default 0,
+  description      text not null default '',
+  date             text not null default '',
+  paid             boolean,
+  payment_id       text references public.worker_payments (id) on delete set null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists worker_acomptes_worker_idx on public.worker_acomptes (worker_id);
+
+create table if not exists public.worker_absences (
+  id               text primary key,
+  worker_id        text not null references public.reception_staff (id) on delete cascade,
+  cost             numeric not null default 0,
+  description      text not null default '',
+  date             text not null default '',
+  paid             boolean,
+  payment_id       text references public.worker_payments (id) on delete set null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists worker_absences_worker_idx on public.worker_absences (worker_id);
+
+-- ---- Les règles de facturation ----------------------------------------------
+create table if not exists public.free_periods (
+  id               text primary key,
+  name             text not null default '',
+  description      text not null default '',
+  start_date       text not null default '',
+  end_date         text not null default '',
+  all_classes      boolean not null default false,
+  class_ids        jsonb not null default '[]'::jsonb,
+  pay_teachers     boolean not null default false,
+  active           boolean not null default true,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+create table if not exists public.module_absence_rules (
+  module_id    text primary key references public.modules (id) on delete cascade,
+  enabled      boolean not null default false,
+  days_window  integer not null default 0
+);
+
+-- ---- La vie de l'école ------------------------------------------------------
+create table if not exists public.subjects (
+  id               text primary key,
+  title            text not null default '',
+  description      text not null default '',
+  image            text,
+  session_id       text references public.schedule_sessions (id) on delete cascade,
+  date             text not null default '',
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists subjects_session_idx on public.subjects (session_id);
+
+create table if not exists public.announcements (
+  id                text primary key,
+  title             text not null default '',
+  description       text not null default '',
+  audience          text not null default 'all' check (audience in ('students','teachers','parents','all')),
+  end_date          text not null default '',
+  date              text not null default '',
+  target_group_ids  jsonb,
+  include_parents   boolean,
+  created_by        text,
+  created_by_name   text,
+  created_by_role   text
+);
+
+create table if not exists public.coursework (
+  id                 text primary key,
+  name               text not null default '',
+  type               text not null default 'single' check (type in ('single','period')),
+  dates              jsonb not null default '[]'::jsonb,
+  price_per_session  numeric not null default 0,
+  total              numeric not null default 0,
+  teacher_id         text references public.teachers (id) on delete cascade,
+  created_by         text,
+  created_by_name    text,
+  created_by_role    text
+);
+
+-- ---- La caisse et les dépenses ----------------------------------------------
+create table if not exists public.expense_categories (
+  id               text primary key,
+  name             text not null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+
+create table if not exists public.expenses (
+  id               text primary key,
+  name             text not null default '',
+  category_id      text references public.expense_categories (id) on delete set null,
+  amount           numeric not null default 0,
+  date             text not null default '',
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists expenses_category_idx on public.expenses (category_id);
+create index if not exists expenses_date_idx     on public.expenses (date);
+
+-- `amount` est SIGNÉ : un retrait, une dépense ou une paie sont négatifs.
+create table if not exists public.cash_transactions (
+  id               text primary key,
+  type             text not null check (type in (
+                     'deposit','withdraw','expense','student_payment',
+                     'teacher_payment','acompte','student_debt')),
+  amount           numeric not null default 0,
+  date             text not null default '',
+  description      text not null default '',
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists cash_date_idx on public.cash_transactions (date);
+
+create table if not exists public.notifications (
+  id               text primary key,
+  parent_id        text not null references public.parents (id) on delete cascade,
+  title            text not null default '',
+  description      text not null default '',
+  date             text not null default '',
+  read             boolean not null default false,
+  auto             boolean not null default false,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists notifications_parent_idx on public.notifications (parent_id);
+
+-- ---- Les séances vendues à l'unité ------------------------------------------
+create table if not exists public.independent_sessions (
+  id               text primary key,
+  student_id       text references public.students (id) on delete set null,
+  passager_name    text,
+  item_label       text not null default '',
+  price            numeric not null default 0,
+  date             text not null default '',
+  session_id       text references public.schedule_sessions (id) on delete set null,
+  start_time       text,
+  end_time         text,
+  created_at       text,
+  teacher_paid     boolean,
+  school_share     numeric,
+  teacher_id       text references public.teachers (id) on delete set null,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists independent_student_idx on public.independent_sessions (student_id);
+create index if not exists independent_date_idx    on public.independent_sessions (date);
+
+-- Une séance vendue à un GROUPE d'élèves, sans nommer personne.
+create table if not exists public.group_seances (
+  id                 text primary key,
+  teacher_id         text not null references public.teachers (id) on delete cascade,
+  title              text not null default '',
+  description        text,
+  date               text not null default '',
+  start_time         text not null default '',
+  end_time           text not null default '',
+  students_count     integer not null default 0,
+  price_per_student  numeric not null default 0,
+  school_per_student numeric not null default 0,
+  cash_in_id         text,
+  cash_out_id        text,
+  created_at         text not null default '',
+  created_by         text,
+  created_by_name    text,
+  created_by_role    text
+);
+create index if not exists group_seances_teacher_idx on public.group_seances (teacher_id);
+
+
+-- =============================================================================
+--  5. QUI SUIS-JE, ET QU'AI-JE LE DROIT D'ÉCRIRE
+-- =============================================================================
+--
+--  Ces fonctions sont le seul endroit où la question est tranchée ; toutes les
+--  politiques de la section 6 les appellent. Elles sont `stable` et lisent
+--  `public.profiles` en `security definer` — autrement une politique posée SUR
+--  `profiles` se rappellerait elle-même à l'infini.
+-- =============================================================================
+
+create or replace function public.my_role()
+returns public.app_role
+language sql stable security definer set search_path = public
+as $$
+  select role from public.profiles where id = auth.uid();
+$$;
+
+-- L'identifiant de la FICHE que le compte connecté pilote.
+create or replace function public.my_entity_id()
+returns text
+language sql stable security definer set search_path = public
+as $$
+  select entity_id from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.is_admin()
+returns boolean language sql stable as $$ select public.my_role() = 'admin'; $$;
+
+create or replace function public.is_teacher()
+returns boolean language sql stable as $$ select public.my_role() = 'teacher'; $$;
+
+create or replace function public.is_student()
+returns boolean language sql stable as $$ select public.my_role() = 'student'; $$;
+
+create or replace function public.is_parent()
+returns boolean language sql stable as $$ select public.my_role() = 'parent'; $$;
+
+-- L'administration et les travailleurs : ceux qui tiennent le comptoir.
+create or replace function public.is_staff()
+returns boolean language sql stable as $$
+  select public.my_role() in ('admin', 'reception');
+$$;
+
+-- Les écrans ouverts au compte connecté. L'administration les a tous.
+-- `nav_keys` à NULL = droits jamais réglés : la fiche garde l'ancien menu de la
+-- réception, exactement comme `lib/permissions.ts` le fait côté écran.
+create or replace function public.my_pages()
+returns text[]
+language sql stable security definer set search_path = public
+as $$
+  select case
+    when public.my_role() = 'admin' then (select array_agg(key) from public.app_pages)
+    when public.my_role() = 'reception' then coalesce(
+      (select array(select jsonb_array_elements_text(w.nav_keys))
+         from public.reception_staff w
+        where w.id = public.my_entity_id() and w.nav_keys is not null),
+      array['dashboard','classes','planner','subscriptions','students','attendance',
+            'subjects','independent','parents','announcements','expenses','settings']
+    )
+    else array[]::text[]
+  end;
+$$;
+
+-- Les boutons ouverts, sous la forme « écran:action ».
+create or replace function public.my_actions()
+returns text[]
+language sql stable security definer set search_path = public
+as $$
+  select case
+    when public.my_role() = 'admin' then
+      (select array_agg(public.action_key(page_key, action_id)) from public.app_page_actions)
+    when public.my_role() = 'reception' then coalesce(
+      (select array(select jsonb_array_elements_text(w.action_keys))
+         from public.reception_staff w
+        where w.id = public.my_entity_id() and w.nav_keys is not null),
+      (select array_agg(public.action_key(page_key, action_id)) from public.app_page_actions)
+    )
+    else array[]::text[]
+  end;
+$$;
+
+-- Cet écran est-il ouvert ?
+create or replace function public.can_page(p_page text)
+returns boolean language sql stable as $$
+  select p_page = any (public.my_pages());
+$$;
+
+-- Ce bouton est-il ouvert ? Un écran fermé ferme tous ses boutons.
+create or replace function public.can_action(p_page text, p_action text)
+returns boolean language sql stable as $$
+  select public.can_page(p_page)
+     and public.action_key(p_page, p_action) = any (public.my_actions());
+$$;
+
+-- LE DROIT D'ÉCRIRE DANS UNE TABLE.
+--
+-- Une même table est alimentée par PLUSIEURS écrans : un encaissement part de
+-- la fiche de l'élève, du tableau de bord ou de la feuille de présence. La
+-- politique reçoit donc la LISTE des écrans qui écrivent là, et il suffit d'en
+-- avoir un seul pour que la ligne passe.
+create or replace function public.can_write(p_pages text[])
+returns boolean language sql stable as $$
+  select public.is_admin()
+      or (public.my_role() = 'reception' and public.my_pages() && p_pages);
+$$;
+
+-- LES ÉLÈVES QU'UN COMPTE A LE DROIT DE VOIR.
+--   un élève  -> lui-même
+--   un parent -> ses enfants
+--   les autres (administration, travailleur, enseignant) passent par
+--   `is_staff()` / `is_teacher()` et n'ont pas besoin de cette liste.
+create or replace function public.my_student_ids()
+returns text[]
+language sql stable security definer set search_path = public
+as $$
+  select case public.my_role()
+    when 'student' then array[public.my_entity_id()]
+    when 'parent'  then coalesce(
+      (select array(select jsonb_array_elements_text(p.child_ids))
+         from public.parents p where p.id = public.my_entity_id()),
+      array[]::text[]
+    ) || coalesce(
+      (select array_agg(s.id) from public.students s where s.parent_id = public.my_entity_id()),
+      array[]::text[]
+    )
+    else array[]::text[]
+  end;
+$$;
+
+
+-- =============================================================================
+--  6. LA RLS — QUI LIT QUOI, QUI ÉCRIT QUOI
+-- =============================================================================
+--
+--  DEUX POLITIQUES PAR TABLE : une pour la lecture, une pour l'écriture
+--  (`for all`, qui couvre INSERT, UPDATE et DELETE d'un seul tenant).
+--
+--  LA LECTURE EST LARGE POUR LE COMPTOIR, ET ÉTROITE POUR LES FAMILLES.
+--  L'application charge la base ENTIÈRE en un appel puis calcule tout côté
+--  écran : un travailleur autorisé aux seuls « Élèves » a quand même besoin des
+--  emplois du temps, des tarifs et des présences pour que cet écran affiche
+--  quoi que ce soit. C'est donc l'ÉCRITURE que les droits d'écran filtrent —
+--  et, pour les portails élève / parent, la lecture ligne à ligne.
+--
+--  L'ENSEIGNANT est un cas à part : son tableau de paie recalcule sa part à
+--  partir des présences ET des paiements de ses élèves, et il peut pointer une
+--  feuille de présence. Il lit donc les tables de scolarité, et écrit celles
+--  que le pointage touche.
+--
+--  CE QUE LA RLS N'EST PAS : le filtre des BOUTONS. Un bouton caché l'est par
+--  `lib/permissions.ts`, écran par écran. La RLS est le filet en dessous : même
+--  en forgeant un appel à la main, un travailleur n'écrit pas dans une table
+--  dont aucun de ses écrans ne dépend.
+-- =============================================================================
+
+do $$
+declare
+  r record;
+  staff_read constant text := 'public.is_staff()';
+  any_signed constant text := 'auth.uid() is not null';
+begin
+  for r in
+    select * from (values
+      -- table                        lecture                               écriture
+      ('schools',                     any_signed,                           $w$public.can_write(array['settings'])$w$),
+      ('class_categories',            any_signed,                           $w$public.can_write(array['classes'])$w$),
+      ('classes',                     any_signed,                           $w$public.can_write(array['classes','planner'])$w$),
+      ('modules',                     any_signed,                           $w$public.can_write(array['classes','planner','subscriptions'])$w$),
+      ('groups',                      any_signed,                           $w$public.can_write(array['classes','planner'])$w$),
+      ('salles',                      any_signed,                           $w$public.can_write(array['classes','planner'])$w$),
+      ('schedule_sessions',           any_signed,                           $w$public.can_write(array['planner','classes'])$w$),
+      ('subscriptions',               any_signed,                           $w$public.can_write(array['subscriptions','planner'])$w$),
+      ('free_periods',                any_signed,                           $w$public.can_write(array['subscriptions','planner','settings'])$w$),
+      ('module_absence_rules',        any_signed,                           $w$public.can_write(array['subscriptions','settings','planner'])$w$),
+      ('worker_job_roles',            any_signed,                           $w$public.can_write(array['workers'])$w$),
+      ('teachers',                    any_signed,                           $w$public.can_write(array['teachers'])$w$),
+      ('announcements',               any_signed,                           $w$public.can_write(array['announcements'])$w$),
+      ('subjects',                    any_signed,                           $w$public.can_write(array['subjects'])$w$),
+      ('coursework',                  any_signed,                           $w$public.can_write(array['teachers','planner'])$w$),
+
+      -- Les élèves et leur scolarité : le comptoir et l'enseignant voient tout,
+      -- une famille ne voit qu'elle-même.
+      ('students',
+        $r$public.is_staff() or public.is_teacher() or id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['students','dashboard','attendance','parents']) or public.is_teacher()$w$),
+      ('student_credentials',
+        $r$public.is_staff() or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['students','dashboard'])$w$),
+      ('enrollments',
+        $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['students','dashboard','attendance']) or public.is_teacher()$w$),
+      ('payments',
+        $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['students','dashboard','attendance']) or public.is_teacher()$w$),
+      ('student_charges',
+        $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['students','dashboard','attendance','teachers']) or public.is_teacher()$w$),
+      ('attendance_records',
+        $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['attendance','dashboard','students']) or public.is_teacher()$w$),
+      ('absence_penalties',
+        $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['attendance','dashboard','students']) or public.is_teacher()$w$),
+
+      -- La paie des enseignants : le comptoir, et l'enseignant sur SES lignes.
+      ('teacher_payments',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())$r$,
+        $w$public.can_write(array['teachers'])$w$),
+      ('teacher_acomptes',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())$r$,
+        $w$public.can_write(array['teachers'])$w$),
+      ('teacher_expenses',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())$r$,
+        $w$public.can_write(array['teachers'])$w$),
+      ('teacher_absences',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())$r$,
+        $w$public.can_write(array['teachers'])$w$),
+      ('teacher_child_debts',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())
+           or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['teachers','students','dashboard','attendance']) or public.is_teacher()$w$),
+      ('unpaid_teacher_sessions',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())$r$,
+        $w$public.can_write(array['teachers','students','dashboard','attendance']) or public.is_teacher()$w$),
+
+      -- Le personnel : rien n'en sort vers les portails des familles.
+      ('reception_staff',             staff_read,                           $w$public.can_write(array['workers'])$w$),
+      ('worker_shifts',               staff_read,                           $w$public.can_write(array['workers'])$w$),
+      ('worker_acomptes',             staff_read,                           $w$public.can_write(array['workers'])$w$),
+      ('worker_absences',             staff_read,                           $w$public.can_write(array['workers'])$w$),
+      ('worker_payments',             staff_read,                           $w$public.can_write(array['workers'])$w$),
+
+      -- Les parents et leurs notifications.
+      ('parents',
+        $r$public.is_staff() or (public.is_parent() and id = public.my_entity_id())
+           or (public.is_student() and exists (
+                 select 1 from public.students s
+                  where s.id = public.my_entity_id() and s.parent_id = parents.id))$r$,
+        $w$public.can_write(array['parents','students'])$w$),
+      ('notifications',
+        $r$public.is_staff() or (public.is_parent() and parent_id = public.my_entity_id())$r$,
+        $w$public.can_write(array['parents','students','announcements'])$w$),
+
+      -- La caisse et les dépenses : le comptoir seul.
+      ('expense_categories',          staff_read,                           $w$public.can_write(array['expenses'])$w$),
+      ('expenses',                    staff_read,                           $w$public.can_write(array['expenses','dashboard'])$w$),
+      -- La caisse est alimentée par presque tous les écrans qui encaissent.
+      ('cash_transactions',           staff_read,
+        $w$public.can_write(array['cash','dashboard','students','teachers','workers','expenses','independent','attendance'])$w$),
+
+      -- Les séances vendues à l'unité.
+      ('independent_sessions',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())
+           or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['independent','dashboard'])$w$),
+      ('group_seances',
+        $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())$r$,
+        $w$public.can_write(array['independent','teachers'])$w$)
+    ) as t(tbl, read_using, write_using)
+  loop
+    execute format('alter table public.%I enable row level security', r.tbl);
+    execute format('drop policy if exists %I on public.%I', r.tbl || '_read', r.tbl);
+    execute format('drop policy if exists %I on public.%I', r.tbl || '_write', r.tbl);
+    execute format(
+      'create policy %I on public.%I for select to authenticated using (%s)',
+      r.tbl || '_read', r.tbl, r.read_using);
+    execute format(
+      'create policy %I on public.%I for all to authenticated using (%s) with check (%s)',
+      r.tbl || '_write', r.tbl, r.write_using, r.write_using);
+  end loop;
+end $$;
+
+-- ---- Le catalogue des droits ------------------------------------------------
+-- Tout compte connecté le lit (l'écran « Droits d'accès » l'affiche) ; seule
+-- l'administration le modifie — et en pratique, c'est ce script qui l'écrit.
+alter table public.app_pages        enable row level security;
+alter table public.app_page_actions enable row level security;
+
+drop policy if exists app_pages_read         on public.app_pages;
+drop policy if exists app_pages_write        on public.app_pages;
+drop policy if exists app_page_actions_read  on public.app_page_actions;
+drop policy if exists app_page_actions_write on public.app_page_actions;
+
+create policy app_pages_read  on public.app_pages
+  for select to authenticated using (true);
+create policy app_pages_write on public.app_pages
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy app_page_actions_read  on public.app_page_actions
+  for select to authenticated using (true);
+create policy app_page_actions_write on public.app_page_actions
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- ---- Les comptes ------------------------------------------------------------
+-- Chacun lit le sien ; le comptoir les lit tous (il faut bien retrouver le
+-- compte d'une fiche pour changer son mot de passe). PERSONNE n'écrit ici
+-- directement : tout passe par les fonctions de la section 7, qui vérifient
+-- qui appelle avant de toucher à `auth.users`.
+alter table public.profiles enable row level security;
+
+drop policy if exists profiles_read on public.profiles;
+create policy profiles_read on public.profiles
+  for select to authenticated
+  using (id = auth.uid() or public.is_staff());
+
+-- La page de connexion doit pouvoir afficher le nom et le logo de l'école
+-- AVANT que quiconque soit connecté.
+drop policy if exists schools_public_read on public.schools;
+create policy schools_public_read on public.schools
+  for select to anon using (true);
+
+
+-- =============================================================================
+--  7. LES COMPTES — CRÉER, RENOMMER, SUPPRIMER
+-- =============================================================================
+--
+--  POURQUOI DES FONCTIONS, ET PAS L'API D'ADMINISTRATION SUPABASE.
+--
+--  Créer un compte pour QUELQU'UN D'AUTRE demande normalement la clé de service
+--  (`service_role`), qui donne tous les droits sur le projet. Une application
+--  qui tourne dans un navigateur ne peut pas la porter : elle serait lisible
+--  par n'importe qui ouvrant les outils de développement.
+--
+--  Ces fonctions font le travail à sa place. Elles écrivent DIRECTEMENT dans
+--  `auth.users` — la vraie table d'authentification de Supabase, pas une copie
+--  — avec le mot de passe chiffré par `crypt()`, exactement comme Supabase le
+--  fait lui-même. Un compte ainsi créé se connecte donc par
+--  `signInWithPassword()` normal, et rien ne le distingue d'un autre.
+--
+--  Elles sont `security definer` (elles s'exécutent avec les droits du
+--  propriétaire du schéma) et VÉRIFIENT ELLES-MÊMES qui appelle : sans cela,
+--  n'importe quel visiteur se fabriquerait un compte d'administration.
+-- =============================================================================
+
+-- ---- L'écriture dans `auth.users` -------------------------------------------
+--
+-- Le cœur de la mécanique, appelé par toutes les fonctions publiques
+-- ci-dessous. Il n'est PAS exposé au navigateur (aucun `grant execute` à
+-- `anon` / `authenticated`) : on n'y arrive qu'en passant par une fonction qui
+-- a vérifié les droits de l'appelant.
+create or replace function public.raw_create_auth_user(
+  p_email     text,
+  p_password  text,
+  p_role      public.app_role,
+  p_full_name text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  v_id     uuid := gen_random_uuid();
+  v_email  text := lower(trim(p_email));
+  v_has_provider_id boolean;
+begin
+  if v_email is null or v_email = '' then
+    raise exception 'L''email est obligatoire.' using errcode = '22023';
+  end if;
+  if p_password is null or length(p_password) < 6 then
+    raise exception 'Le mot de passe doit contenir au moins 6 caractères.' using errcode = '22023';
+  end if;
+  if exists (select 1 from auth.users u where lower(u.email) = v_email) then
+    raise exception 'Cet email est déjà utilisé par un autre compte.' using errcode = '23505';
+  end if;
+
+  insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+    confirmation_token, email_change, email_change_token_new, recovery_token
+  ) values (
+    '00000000-0000-0000-0000-000000000000',
+    v_id,
+    'authenticated',
+    'authenticated',
+    v_email,
+    crypt(p_password, gen_salt('bf')),
+    now(),
+    jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
+    jsonb_build_object('role', p_role::text, 'full_name', coalesce(p_full_name, '')),
+    now(), now(),
+    '', '', '', ''
+  );
+
+  -- `auth.identities` a changé de forme selon les versions de Supabase : la
+  -- colonne `provider_id` est apparue en cours de route. On s'adapte plutôt que
+  -- d'exiger une version précise.
+  select exists (
+    select 1 from information_schema.columns
+     where table_schema = 'auth' and table_name = 'identities' and column_name = 'provider_id'
+  ) into v_has_provider_id;
+
+  if v_has_provider_id then
+    execute
+      'insert into auth.identities (id, provider_id, user_id, identity_data, provider,
+                                    last_sign_in_at, created_at, updated_at)
+       values (gen_random_uuid(), $1, $2, $3, ''email'', now(), now(), now())'
+      using v_id::text, v_id, jsonb_build_object('sub', v_id::text, 'email', v_email);
+  else
+    execute
+      'insert into auth.identities (id, user_id, identity_data, provider,
+                                    last_sign_in_at, created_at, updated_at)
+       values ($1, $2, $3, ''email'', now(), now(), now())'
+      using v_id::text, v_id, jsonb_build_object('sub', v_id::text, 'email', v_email);
+  end if;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function public.raw_create_auth_user(text, text, public.app_role, text) from public, anon, authenticated;
+
+
+-- ---- Y a-t-il déjà un administrateur ? --------------------------------------
+--
+-- La page de connexion pose cette question AVANT que quiconque soit connecté :
+-- c'est elle qui décide d'afficher — ou de ne plus afficher — le bouton
+-- « Créer le compte administrateur ».
+create or replace function public.admin_exists()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.profiles where role = 'admin');
+$$;
+
+
+-- ---- LE PREMIER ADMINISTRATEUR ----------------------------------------------
+--
+-- La seule fonction que quelqu'un de NON connecté peut appeler pour créer un
+-- compte, et elle ne sert qu'une fois : dès qu'un administrateur existe, elle
+-- refuse. C'est ce qui rend le bouton de la page de connexion sûr — il ne peut
+-- pas amorcer une école qui tourne déjà.
+create or replace function public.bootstrap_admin(
+  p_email     text,
+  p_password  text,
+  p_full_name text default 'Administration'
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id    uuid;
+  v_email text := lower(trim(p_email));
+begin
+  if public.admin_exists() then
+    raise exception 'Un administrateur existe déjà pour cette école.' using errcode = '42501';
+  end if;
+
+  v_id := public.raw_create_auth_user(v_email, p_password, 'admin', p_full_name);
+
+  insert into public.profiles (id, entity_id, role, email, username, full_name)
+  values (v_id, v_id::text, 'admin', v_email, v_email, coalesce(nullif(trim(p_full_name), ''), 'Administration'));
+
+  return v_id::text;
+end;
+$$;
+
+
+-- ---- Créer le compte de quelqu'un d'autre -----------------------------------
+--
+-- Appelée par « Nouvel enseignant », « Nouvel élève », « Nouveau parent » et
+-- « Activer un compte de connexion » sur la fiche d'un travailleur.
+--
+-- `p_entity_id` À NULL VEUT DIRE : la fiche naît en même temps que le compte,
+-- et prend son identifiant. Renseigné, il désigne une fiche qui EXISTE DÉJÀ —
+-- le cas du travailleur à qui l'accès est ouvert après coup : sa fiche, ses
+-- pointages et ses acomptes ne bougent pas, c'est le compte qui pointe vers eux.
+create or replace function public.create_app_user(
+  p_email     text,
+  p_password  text,
+  p_role      text,
+  p_full_name text default '',
+  p_username  text default null,
+  p_entity_id text default null
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id     uuid;
+  v_email  text := lower(trim(p_email));
+  v_user   text;
+  v_role   public.app_role := p_role::public.app_role;
+begin
+  if not (public.is_admin()
+          or public.can_write(array['workers','teachers','students','parents','dashboard'])) then
+    raise exception 'Vous n''avez pas le droit de créer un compte.' using errcode = '42501';
+  end if;
+
+  -- Seule l'administration fabrique une autre administration.
+  if v_role = 'admin' and not public.is_admin() then
+    raise exception 'Seule l''administration peut créer un compte administrateur.' using errcode = '42501';
+  end if;
+
+  v_user := lower(coalesce(nullif(trim(p_username), ''), v_email));
+  if exists (select 1 from public.profiles p where lower(p.username) = v_user) then
+    raise exception 'Ce nom d''utilisateur est déjà pris.' using errcode = '23505';
+  end if;
+
+  v_id := public.raw_create_auth_user(v_email, p_password, v_role, p_full_name);
+
+  insert into public.profiles (id, entity_id, role, email, username, full_name)
+  values (v_id, coalesce(nullif(trim(p_entity_id), ''), v_id::text), v_role, v_email, v_user, coalesce(p_full_name, ''));
+
+  return v_id::text;
+end;
+$$;
+
+
+-- ---- Le compte qui pilote une fiche -----------------------------------------
+--
+-- L'identifiant d'une fiche n'est pas toujours celui de son compte. Pour
+-- changer un mot de passe depuis l'écran des enseignants ou des travailleurs,
+-- il faut d'abord retrouver le compte.
+create or replace function public.account_id_for_entity(p_entity_id text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id::text
+    from public.profiles p
+   where public.is_staff()
+     and (p.entity_id = p_entity_id or p.id::text = p_entity_id)
+   order by (p.entity_id = p_entity_id) desc
+   limit 1;
+$$;
+
+
+-- ---- Retrouver un compte, quel que soit l'identifiant qu'on présente -------
+--
+-- LES ÉCRANS N'ONT PAS TOUJOURS L'IDENTIFIANT DU COMPTE SOUS LA MAIN. La fiche
+-- d'un enseignant appelle `resetUserPassword(teacher.id)` : c'est l'identifiant
+-- de la FICHE. Il se trouve être aussi celui du compte quand les deux sont nés
+-- ensemble — mais pas pour un travailleur à qui l'accès a été ouvert après coup.
+--
+-- Cette fonction accepte les deux, et rend NULL — sans lever — quand la fiche
+-- n'a pas de compte du tout : une personne créée sans identifiants, ce qui est
+-- un cas parfaitement normal. Elle encaisse aussi un identifiant qui n'est pas
+-- un UUID, plutôt que de faire échouer la conversion.
+create or replace function public.resolve_account(p_id text)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id
+    from public.profiles p
+   where p.id::text = p_id or p.entity_id = p_id
+   order by (p.id::text = p_id) desc
+   limit 1;
+$$;
+
+
+-- ---- Changer le mot de passe de quelqu'un d'autre ---------------------------
+create or replace function public.set_app_user_password(p_id text, p_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  v_uuid uuid := public.resolve_account(p_id);
+begin
+  if not (public.is_staff() or v_uuid = auth.uid()) then
+    raise exception 'Vous n''avez pas le droit de changer ce mot de passe.' using errcode = '42501';
+  end if;
+  if p_password is null or length(p_password) < 6 then
+    raise exception 'Le mot de passe doit contenir au moins 6 caractères.' using errcode = '22023';
+  end if;
+  if v_uuid is null then
+    raise exception 'Cette fiche n''a pas de compte de connexion.' using errcode = 'P0002';
+  end if;
+
+  update auth.users
+     set encrypted_password = crypt(p_password, gen_salt('bf')),
+         updated_at = now()
+   where id = v_uuid;
+end;
+$$;
+
+
+-- ---- Changer l'email de connexion -------------------------------------------
+--
+-- Modifier une fiche doit garder son email de connexion en phase, sinon la
+-- personne se retrouve à taper une adresse qui ne la reconnaît plus.
+create or replace function public.set_app_user_email(p_id text, p_email text)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_email text := lower(trim(p_email));
+  v_uuid  uuid := public.resolve_account(p_id);
+  v_old   text;
+begin
+  if not (public.is_staff() or v_uuid = auth.uid()) then
+    raise exception 'Vous n''avez pas le droit de changer cet email.' using errcode = '42501';
+  end if;
+  if v_email is null or v_email = '' or v_uuid is null then
+    return; -- une fiche sans compte n'a pas d'email de connexion à suivre
+  end if;
+  if exists (select 1 from auth.users u where lower(u.email) = v_email and u.id <> v_uuid) then
+    raise exception 'Cet email est déjà utilisé par un autre compte.' using errcode = '23505';
+  end if;
+
+  select p.email into v_old from public.profiles p where p.id = v_uuid;
+
+  update auth.users set email = v_email, updated_at = now() where id = v_uuid;
+  update auth.identities
+     set identity_data = identity_data || jsonb_build_object('email', v_email),
+         updated_at = now()
+   where user_id = v_uuid and provider = 'email';
+
+  -- Le nom d'utilisateur suivait l'email tant qu'on ne l'a pas personnalisé.
+  update public.profiles
+     set email = v_email,
+         username = case when lower(username) = lower(coalesce(v_old, '')) then v_email else username end,
+         updated_at = now()
+   where id = v_uuid;
+end;
+$$;
+
+
+-- ---- Changer le nom d'utilisateur -------------------------------------------
+create or replace function public.set_app_user_username(p_id text, p_username text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user text := lower(trim(p_username));
+  v_uuid uuid := public.resolve_account(p_id);
+begin
+  if not (public.is_staff() or v_uuid = auth.uid()) then
+    raise exception 'Vous n''avez pas le droit de changer ce nom d''utilisateur.' using errcode = '42501';
+  end if;
+  if v_user is null or v_user = '' or v_uuid is null then
+    return;
+  end if;
+  if exists (select 1 from public.profiles p where lower(p.username) = v_user and p.id <> v_uuid) then
+    raise exception 'Ce nom d''utilisateur est déjà pris.' using errcode = '23505';
+  end if;
+
+  update public.profiles set username = v_user, updated_at = now() where id = v_uuid;
+end;
+$$;
+
+
+-- ---- Le nom affiché ---------------------------------------------------------
+create or replace function public.set_app_user_name(p_id text, p_full_name text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uuid uuid := public.resolve_account(p_id);
+begin
+  if not (public.is_staff() or v_uuid = auth.uid()) then
+    raise exception 'Vous n''avez pas le droit de renommer ce compte.' using errcode = '42501';
+  end if;
+  if v_uuid is null then
+    return;
+  end if;
+  update public.profiles set full_name = coalesce(p_full_name, ''), updated_at = now()
+   where id = v_uuid;
+end;
+$$;
+
+
+-- ---- Supprimer un compte ----------------------------------------------------
+--
+-- Ne lève jamais quand le compte n'existe pas : une fiche créée sans
+-- identifiants n'en a tout simplement pas, et elle s'en va quand même.
+create or replace function public.delete_app_user(p_id text)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_uuid uuid;
+begin
+  if not public.is_staff() then
+    raise exception 'Vous n''avez pas le droit de supprimer un compte.' using errcode = '42501';
+  end if;
+
+  v_uuid := public.resolve_account(p_id);
+
+  if v_uuid is null then
+    return;
+  end if;
+
+  -- Le dernier administrateur ne se supprime pas : plus personne ne pourrait
+  -- ouvrir l'école.
+  if (select role from public.profiles where id = v_uuid) = 'admin'
+     and (select count(*) from public.profiles where role = 'admin') <= 1 then
+    raise exception 'C''est le dernier compte administrateur : il ne peut pas être supprimé.'
+      using errcode = '42501';
+  end if;
+
+  delete from auth.users where id = v_uuid; -- `profiles` suit en cascade
+end;
+$$;
+
+
+-- ---- SE CONNECTER AVEC UN NOM D'UTILISATEUR ---------------------------------
+--
+-- Supabase ne connaît que les emails. Au comptoir, on tape « yasmine ». Cette
+-- fonction traduit l'un en l'autre, et l'application enchaîne sur une connexion
+-- Supabase tout à fait ordinaire.
+--
+-- Elle rend NULL quand personne ne répond à cet identifiant — la page de
+-- connexion affiche alors le même message que pour un mot de passe faux, et
+-- rien ne se déduit de la différence.
+create or replace function public.login_email(p_login text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.email
+    from public.profiles p
+   where lower(p.username) = lower(trim(p_login))
+      or lower(p.email) = lower(trim(p_login))
+   limit 1;
+$$;
+
+
+-- ---- Qui peut appeler quoi --------------------------------------------------
+grant execute on function public.admin_exists()                       to anon, authenticated;
+grant execute on function public.bootstrap_admin(text, text, text)    to anon, authenticated;
+grant execute on function public.login_email(text)                    to anon, authenticated;
+
+grant execute on function public.create_app_user(text, text, text, text, text, text) to authenticated;
+grant execute on function public.account_id_for_entity(text)          to authenticated;
+grant execute on function public.resolve_account(text)                to authenticated;
+grant execute on function public.set_app_user_password(text, text)    to authenticated;
+grant execute on function public.set_app_user_email(text, text)       to authenticated;
+grant execute on function public.set_app_user_username(text, text)    to authenticated;
+grant execute on function public.set_app_user_name(text, text)        to authenticated;
+grant execute on function public.delete_app_user(text)                to authenticated;
+
+grant execute on function public.my_role()          to authenticated;
+grant execute on function public.my_entity_id()     to authenticated;
+grant execute on function public.my_pages()         to authenticated;
+grant execute on function public.my_actions()       to authenticated;
+grant execute on function public.my_student_ids()   to authenticated;
+grant execute on function public.can_page(text)     to authenticated;
+grant execute on function public.can_action(text, text) to authenticated;
+
+
+-- =============================================================================
+--  8. LE STOCKAGE DES IMAGES
+-- =============================================================================
+--
+--  DEUX DÉPÔTS, ET RIEN D'AUTRE :
+--
+--    `logos`    — le logo de l'établissement, affiché sur la page de connexion,
+--                 dans la barre latérale et en tête de chaque document imprimé.
+--    `subjects` — les illustrations des supports de cours publiés aux élèves.
+--
+--  ILS SONT PUBLICS EN LECTURE, et c'est voulu : l'application range l'URL
+--  publique du fichier dans la ligne (`schools.logo`, `subjects.image`) et la
+--  rend telle quelle dans un `<img>`. Une page de connexion doit pouvoir
+--  afficher le logo AVANT que quiconque soit connecté, et un document imprimé
+--  doit pouvoir l'afficher sans jeton.
+--
+--  L'ÉCRITURE, elle, est réservée : seuls l'administration et les travailleurs
+--  autorisés déposent, remplacent ou effacent un fichier.
+-- =============================================================================
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('logos',    'logos',    true, 5242880,
+   array['image/png','image/jpeg','image/jpg','image/webp','image/gif','image/svg+xml']),
+  ('subjects', 'subjects', true, 10485760,
+   array['image/png','image/jpeg','image/jpg','image/webp','image/gif'])
+on conflict (id) do update set
+  public             = excluded.public,
+  file_size_limit    = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+-- ---- Qui lit, qui dépose ----------------------------------------------------
+--
+-- `storage.objects` n'appartient pas toujours au rôle qui exécute ce script :
+-- sur certains projets, seul `supabase_storage_admin` peut y poser une
+-- politique. On essaie, et si le projet refuse on le DIT plutôt que de faire
+-- tomber tout le reste du schéma — les buckets, eux, sont déjà créés, et les
+-- politiques se posent alors depuis Storage -> Policies dans le tableau de bord.
+do $storage$
+begin
+  drop policy if exists "app images are publicly readable" on storage.objects;
+  drop policy if exists "staff upload app images"          on storage.objects;
+  drop policy if exists "staff update app images"          on storage.objects;
+  drop policy if exists "staff delete app images"          on storage.objects;
+
+  create policy "app images are publicly readable" on storage.objects
+    for select to public
+    using (bucket_id in ('logos', 'subjects'));
+
+  create policy "staff upload app images" on storage.objects
+    for insert to authenticated
+    with check (
+      bucket_id in ('logos', 'subjects')
+      and (public.can_write(array['settings','subjects']) or public.is_teacher())
+    );
+
+  create policy "staff update app images" on storage.objects
+    for update to authenticated
+    using (
+      bucket_id in ('logos', 'subjects')
+      and (public.can_write(array['settings','subjects']) or public.is_teacher())
+    );
+
+  create policy "staff delete app images" on storage.objects
+    for delete to authenticated
+    using (
+      bucket_id in ('logos', 'subjects')
+      and (public.can_write(array['settings','subjects']) or public.is_teacher())
+    );
+exception
+  when insufficient_privilege then
+    raise notice
+      'Les politiques de storage.objects n''ont pas pu être posées depuis ce script. '
+      'Les deux buckets existent : ouvrez Storage -> Policies et autorisez '
+      'l''envoi de fichiers aux comptes connectes.';
+end
+$storage$;
+
+
+-- =============================================================================
+--  8 bis. LES PRIVILÈGES
+-- =============================================================================
+--
+--  La RLS dit quelles LIGNES un compte voit ; les privilèges disent quelles
+--  TABLES il peut seulement adresser. Supabase les accorde d'office aux tables
+--  créées dans `public`, mais un projet dont les privilèges par défaut ont été
+--  resserrés rendrait « permission denied » là où la RLS aurait suffi. On les
+--  repose donc explicitement — ils n'ouvrent rien : sans politique qui
+--  l'autorise, la ligne reste invisible.
+-- =============================================================================
+
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant select on public.schools to anon;
+
+
+-- =============================================================================
+--  9. CE QUI RESTE À FAIRE, ET COMMENT VÉRIFIER
+-- =============================================================================
+--
+--  1. Ce script une fois passé, la base est prête MAIS VIDE : aucune école
+--     n'a encore de compte.
+--
+--  2. Ouvrez l'application. La page de connexion propose
+--     « Créer le compte administrateur » — c'est `bootstrap_admin()` qui
+--     répond. Le bouton DISPARAÎT dès que ce compte existe, ici comme pour
+--     tout autre visiteur : `admin_exists()` est interrogée à chaque
+--     chargement, et la fonction elle-même refuse un second amorçage.
+--
+--  3. Connectez-vous, puis créez les travailleurs depuis « Travailleurs ».
+--     Cochez « Activer un compte de connexion », puis ouvrez « Droits d'accès »
+--     pour choisir ses écrans et ses boutons. Il se connectera avec son email
+--     OU son nom d'utilisateur.
+--
+--  LES REQUÊTES DE CONTRÔLE
+--
+--    -- Les 40 tables métier sont-elles là, et toutes protégées ?
+--    select tablename, rowsecurity from pg_tables
+--     where schemaname = 'public' order by tablename;
+--
+--    -- Le catalogue des droits (17 écrans, 89 boutons)
+--    select page_key, action_id, permission_key from public.app_permission_catalog;
+--
+--    -- Les comptes existants, et la fiche que chacun pilote
+--    select role, email, username, entity_id from public.profiles order by role, email;
+--
+--    -- Les droits réellement accordés à un travailleur
+--    select first_name, last_name, nav_keys, action_keys from public.reception_staff;
+-- =============================================================================
+
+select
+  (select count(*) from public.app_pages)        as ecrans,
+  (select count(*) from public.app_page_actions) as boutons,
+  (select count(*) from pg_tables where schemaname = 'public') as tables,
+  (select count(*) from storage.buckets where id in ('logos','subjects')) as buckets,
+  public.admin_exists() as administrateur_existe;

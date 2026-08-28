@@ -1,32 +1,31 @@
 "use client";
 
 /**
- * LA GESTION DES COMPTES, EN MODE DÉMONSTRATION.
+ * LA GESTION DES COMPTES.
  *
- * Les signatures sont exactement celles de la version qui parlait à une base
- * d'authentification : créer un enseignant, ouvrir un accès à un travailleur,
- * réinitialiser un mot de passe, supprimer un compte. Seule l'implémentation
- * change — tout se joue désormais dans le registre local
- * (`lib/demo/accounts.ts`), donc aucun écran n'a eu à bouger.
+ * Créer un enseignant, ouvrir un accès à un travailleur, réinitialiser un mot
+ * de passe, supprimer un compte : tout se joue dans `auth.users`, la vraie
+ * table d'authentification de Supabase. Un compte créé ici se connecte donc par
+ * la porte normale — email (ou nom d'utilisateur) et mot de passe.
  *
- * L'identifiant rendu à la création est celui du COMPTE, et l'appelant range sa
- * fiche (Teacher / Student / Parent / ReceptionStaff) sous ce même identifiant :
- * c'est ce qui relie une session à ses données.
+ * POURQUOI DES `rpc()` ET PAS L'API D'ADMINISTRATION. Créer le compte de
+ * quelqu'un d'autre demande la clé de service, qui donne tous les droits sur le
+ * projet et n'a rien à faire dans un navigateur. Les fonctions
+ * `security definer` du schéma (`supabase/schema.sql`, section 7) font ce
+ * travail à sa place et VÉRIFIENT elles-mêmes qui appelle : un travailleur sans
+ * l'écran « Travailleurs » se voit refuser la création, quoi qu'il envoie.
+ *
+ * L'IDENTIFIANT RENDU À LA CRÉATION est celui du COMPTE, et l'appelant range sa
+ * fiche (Teacher / Student / Parent) sous ce même identifiant : c'est ce qui
+ * relie une session à ses données. `createAccountForEntity` fait exception —
+ * voir son commentaire.
  */
 
-import {
-  emailTaken,
-  findByAnyId,
-  newAccountId,
-  removeAccount,
-  rememberedSession,
-  upsertAccount,
-  type DemoAccount,
-  type DemoRole,
-} from "@/lib/demo/accounts";
+import { supabase, errorMessage } from "@/lib/supabase/client";
+import type { Role } from "@/lib/store/session";
 
 export interface CreateUserPayload {
-  role: DemoRole;
+  role: Role;
   email: string;
   password: string;
   fullName?: string;
@@ -44,11 +43,11 @@ export interface CreateUserPayload {
   startDate?: string;
   percentage?: number;
   salary?: number;
-  /** worker (reception_staff) job: reception | security | menage | … */
+  /** le métier d'un travailleur : réception, sécurité, ménage, … */
   workerRole?: string;
-  /** worker badge used by the clock-in / clock-out scanner */
+  /** le badge du pointage */
   workerRfid?: string;
-  /** hourly contracts: price of one worked hour */
+  /** contrats horaires : le prix d'une heure travaillée */
   hourlyRate?: number;
 }
 
@@ -67,35 +66,24 @@ function guard(payload: CreateUserPayload): string {
   if (!payload.password || payload.password.length < 6) {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
   }
-  const email = payload.email.trim().toLowerCase();
-  if (emailTaken(email)) {
-    throw new Error("Cet email est déjà utilisé par un autre compte.");
-  }
-  return email;
+  return payload.email.trim().toLowerCase();
 }
 
-/**
- * Crée le compte d'une nouvelle personne et rend son identifiant.
- *
- * Le compte et la fiche partagent le même identifiant : c'est la convention que
- * les écrans supposent quand ils réinitialisent un mot de passe à partir d'une
- * fiche (`resetUserPassword(teacher.id)`).
- */
+/** Crée le compte d'une nouvelle personne et rend son identifiant. */
 export async function createRoleUser(payload: CreateUserPayload): Promise<{ id: string }> {
   const email = guard(payload);
-  const id = newAccountId(payload.role.slice(0, 3));
 
-  upsertAccount({
-    id,
-    entityId: id,
-    email,
-    username: email,
-    password: payload.password,
-    role: payload.role,
-    fullName: displayName(payload),
+  const { data, error } = await supabase().rpc("create_app_user", {
+    p_email: email,
+    p_password: payload.password,
+    p_role: payload.role,
+    p_full_name: displayName(payload),
+    p_username: null,
+    p_entity_id: null,
   });
+  if (error) throw new Error(errorMessage(error, "La création du compte a échoué."));
 
-  return { id };
+  return { id: String(data) };
 }
 
 /**
@@ -105,8 +93,7 @@ export async function createRoleUser(payload: CreateUserPayload): Promise<{ id: 
  * l'administration lui ouvre un compte, `createRoleUser` en rendrait un TOUT
  * NEUF : il faudrait déplacer sa fiche, ses pointages, ses acomptes et ses
  * règlements dessous. La fiche reste donc où elle est, et c'est le compte qui
- * pointe vers elle — ce que l'application lit pour retrouver les droits d'un
- * connecté.
+ * pointe vers elle.
  *
  * Renvoie l'identifiant du COMPTE, qui n'est pas celui de la fiche.
  */
@@ -115,19 +102,18 @@ export async function createAccountForEntity(
   payload: CreateUserPayload & { username?: string },
 ): Promise<{ id: string }> {
   const email = guard(payload);
-  const id = newAccountId("acc");
 
-  upsertAccount({
-    id,
-    entityId,
-    email,
-    username: payload.username?.trim() || email,
-    password: payload.password,
-    role: payload.role,
-    fullName: displayName(payload),
+  const { data, error } = await supabase().rpc("create_app_user", {
+    p_email: email,
+    p_password: payload.password,
+    p_role: payload.role,
+    p_full_name: displayName(payload),
+    p_username: payload.username?.trim() || null,
+    p_entity_id: entityId,
   });
+  if (error) throw new Error(errorMessage(error, "La création du compte a échoué."));
 
-  return { id };
+  return { id: String(data) };
 }
 
 /**
@@ -138,62 +124,83 @@ export async function createAccountForEntity(
  * jamais quand l'accès a été ouvert après coup.
  */
 export async function accountIdForEntity(entityId: string): Promise<string | null> {
-  return findByAnyId(entityId)?.id ?? null;
+  const { data, error } = await supabase().rpc("account_id_for_entity", {
+    p_entity_id: entityId,
+  });
+  if (error) {
+    console.error("[supabase] account_id_for_entity", error.message);
+    return null;
+  }
+  return data ? String(data) : null;
 }
 
 /** Le nom d'utilisateur affiché sur un compte. */
 export async function updateUsername(id: string, username: string): Promise<void> {
-  const account = mustFind(id);
-  upsertAccount({ ...account, username: username.trim() || account.username });
+  const { error } = await supabase().rpc("set_app_user_username", {
+    p_id: id,
+    p_username: username.trim(),
+  });
+  if (error) throw new Error(errorMessage(error, "Ce nom d'utilisateur n'a pas pu être posé."));
 }
 
-/** Admin/réception réinitialise le mot de passe de quelqu'un d'autre. */
+/** L'administration réinitialise le mot de passe de quelqu'un d'autre. */
 export async function resetUserPassword(id: string, password: string): Promise<void> {
   if (!password || password.length < 6) {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
   }
-  const account = mustFind(id);
-  upsertAccount({ ...account, password });
+  const { error } = await supabase().rpc("set_app_user_password", {
+    p_id: id,
+    p_password: password,
+  });
+  if (error) throw new Error(errorMessage(error, "Le mot de passe n'a pas pu être changé."));
 }
 
-/** Garde l'email de connexion en phase quand une fiche est modifiée. Une
- *  personne créée sans identifiants n'a simplement pas de compte à mettre à
- *  jour, et c'est très bien ainsi. */
+/**
+ * Garde l'email de connexion en phase quand une fiche est modifiée.
+ *
+ * Une personne créée sans identifiants n'a simplement pas de compte à mettre à
+ * jour, et c'est très bien ainsi : la fonction ne lève pas pour autant.
+ */
 export async function updateUserEmail(id: string, email: string): Promise<void> {
   if (!email?.trim()) return;
-  const account = findByAnyId(id);
-  if (!account) return;
-  const next = email.trim().toLowerCase();
-  if (emailTaken(next, account.id)) {
-    throw new Error("Cet email est déjà utilisé par un autre compte.");
-  }
-  upsertAccount({
-    ...account,
-    email: next,
-    // Le nom d'utilisateur suivait l'email tant qu'on ne l'a pas personnalisé.
-    username: account.username === account.email ? next : account.username,
+
+  const accountId = (await accountIdForEntity(id)) ?? id;
+  const { error } = await supabase().rpc("set_app_user_email", {
+    p_id: accountId,
+    p_email: email.trim().toLowerCase(),
   });
+  if (!error) return;
+
+  // « Cet email est déjà pris » doit remonter à l'écran ; l'absence de compte,
+  // non — la fiche se modifie quand même.
+  if (/déjà utilisé|already/i.test(error.message)) {
+    throw new Error(errorMessage(error));
+  }
+  console.error("[supabase] set_app_user_email", error.message);
 }
 
-/** Retire le compte d'une fiche supprimée. Ne lève jamais : la ligne s'en va de
- *  toute façon, et les personnes créées sans identifiants n'ont pas de compte. */
+/**
+ * Retire le compte d'une fiche supprimée.
+ *
+ * Ne lève jamais : la ligne s'en va de toute façon, et les personnes créées
+ * sans identifiants n'ont pas de compte. La fonction SQL accepte aussi bien
+ * l'identifiant du compte que celui de la fiche.
+ */
 export async function deleteRoleUser(id: string): Promise<void> {
-  removeAccount(id);
+  const { error } = await supabase().rpc("delete_app_user", { p_id: id });
+  if (error) console.error("[supabase] delete_app_user", error.message);
 }
 
-/** Changement de mot de passe par la personne elle-même. */
+/**
+ * Changement de mot de passe par la personne elle-même.
+ *
+ * Celui-là passe par la porte normale de Supabase : c'est SA session qui
+ * autorise le changement, sans qu'aucun droit particulier soit nécessaire.
+ */
 export async function changeOwnPassword(password: string): Promise<void> {
   if (!password || password.length < 6) {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
   }
-  const account = rememberedSession();
-  if (!account) throw new Error("Aucun compte connecté.");
-  upsertAccount({ ...account, password });
-}
-
-/** Le compte visé, ou une erreur lisible s'il n'existe pas. */
-function mustFind(id: string): DemoAccount {
-  const account = findByAnyId(id);
-  if (!account) throw new Error("Cette fiche n'a pas de compte de connexion.");
-  return account;
+  const { error } = await supabase().auth.updateUser({ password });
+  if (error) throw new Error(errorMessage(error, "Le mot de passe n'a pas pu être changé."));
 }

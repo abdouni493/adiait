@@ -3,13 +3,21 @@
 import { useEffect } from "react";
 import { useSession } from "@/lib/store/session";
 import { setCurrentActor, useData } from "@/lib/store/data";
-import { pauseSync, resumeSync, startSync, stopSync } from "@/lib/demo/persist";
+import {
+  onPersistError,
+  pauseSync,
+  resumeSync,
+  setBaseline,
+  startSync,
+  stopSync,
+} from "@/lib/supabase/persist";
+import { useToast } from "@/lib/store/toast";
 
 /**
- * Boots the app: restores the demo session, loads the establishment (the login
- * screen shows its name and logo before anyone signs in), and — once someone is
- * signed in — reads the whole demo database and starts saving every change back
- * into the browser.
+ * Le démarrage de l'application : la session Supabase est restaurée,
+ * l'établissement est lu (la page de connexion affiche son nom et son logo
+ * avant que quiconque soit connecté), et — une fois quelqu'un connecté — la
+ * base entière est chargée puis tenue à jour à chaque modification.
  */
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const initSession = useSession((s) => s.initSession);
@@ -19,11 +27,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const fetchAll = useData((s) => s.fetchAll);
   const clear = useData((s) => s.clear);
   const processWeeklyAbsences = useData((s) => s.processWeeklyAbsences);
+  const addToast = useToast((s) => s.addToast);
 
   useEffect(() => {
     fetchSchool();
     initSession();
   }, [initSession, fetchSchool]);
+
+  /**
+   * UN ENREGISTREMENT REFUSÉ NE DOIT PAS PASSER INAPERÇU.
+   *
+   * L'écran affiche ce que le magasin contient, et le magasin est modifié
+   * AVANT que la base réponde : sans ce message, une écriture refusée — droits
+   * insuffisants, réseau coupé — laisserait quelqu'un travailler sur un écran
+   * qui ment.
+   */
+  useEffect(() => {
+    onPersistError((message) =>
+      addToast({
+        type: "danger",
+        title: "Enregistrement refusé",
+        message,
+      }),
+    );
+    return () => onPersistError(null);
+  }, [addToast]);
 
   /**
    * QUI SIGNE LES OPÉRATIONS.
@@ -48,7 +76,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
 
     if (!user) {
-      // Signed out: stop saving and drop the data of the previous account.
+      // Déconnecté : on cesse d'enregistrer et on jette les données du compte
+      // précédent, pour que le suivant ne les voie jamais.
       stopSync();
       clear();
       fetchSchool();
@@ -56,16 +85,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
 
     let cancelled = false;
-    // Subscribe first but hold the writes: the rows we are about to READ must
-    // not be written straight back to the snapshot.
+    // On s'abonne d'abord mais on retient les écritures : les lignes qu'on
+    // s'apprête à LIRE ne doivent pas repartir aussitôt vers la base.
     startSync();
     pauseSync();
 
     void fetchAll().then(() => {
       if (cancelled) return;
+      // Ce qui vient d'être lu EST ce qui est en base : c'est le point de
+      // départ à partir duquel la réplication mesurera les écarts.
+      setBaseline(useData.getState());
       resumeSync();
-      // Staff load is the safety-net trigger for the automatic weekly-absence
-      // billing (idempotent, throttled to once/day).
+      // Le chargement du personnel est le déclencheur de secours de la
+      // facturation automatique des absences (idempotente, une fois par jour).
       if (user.role === "admin" || user.role === "reception") {
         processWeeklyAbsences();
       }

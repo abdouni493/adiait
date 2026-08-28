@@ -1,123 +1,164 @@
-# ALTECH SCHOOL — Gestion d'école privée · **version de démonstration**
+# ALTECH SCHOOL — Gestion d'école privée
 
-Application de gestion d'école privée (Next.js App Router + TypeScript + Tailwind) :
+Application de gestion d'école privée (Next.js App Router + TypeScript + Tailwind + **Supabase**) :
 abonnements (cours & formations) **facturés à la séance ou au mois**, présence par carte RFID,
 achats de séances et règlement des restes à payer, paie des enseignants et des travailleurs,
 caisse, dépenses, rapports financiers, annonces, 5 rôles (admin / réception / enseignant /
 étudiant / parent), thèmes clair (par défaut) / sombre et FR/AR (RTL).
 
-> **Cette version ne se connecte à aucune base de données.**
-> Tout ce qu'elle affiche est un jeu de démonstration construit en mémoire au démarrage
-> (`lib/demo/`) : une école entière, avec ses élèves, ses enseignants, ses emplois du temps, ses
-> présences, ses paiements et sa caisse. Il n'y a ni serveur, ni compte à créer, ni script SQL à
-> exécuter — `npm install && npm run dev` suffit.
->
-> Ce que vous modifiez (créer un élève, encaisser un paiement, régler une paie) est enregistré
-> **dans votre navigateur** et survit au rechargement. Rien n'est envoyé nulle part, et
-> **Paramètres → Sauvegarde → Réinitialiser la démonstration** remet l'école à son état d'origine.
+Les données vivent dans un projet **Supabase** : PostgreSQL pour les 40 tables métier, Auth pour
+les comptes, Storage pour le logo et les images.
 
 ## Démarrer
+
+### 1. Installer la base
+
+Ouvrez le **SQL Editor** de votre projet Supabase et exécutez **`supabase/schema.sql`** en une
+fois. Un seul fichier, idempotent — le relancer sur une base déjà installée ne casse rien. Il pose :
+
+| | |
+| --- | --- |
+| **40 tables métier** | une par collection du magasin, avec toutes leurs relations |
+| **le catalogue des droits** | les 17 écrans et les 89 boutons de l'application (`app_pages`, `app_page_actions`) |
+| **la RLS** | une politique de lecture et une d'écriture par table |
+| **les fonctions de comptes** | créer, renommer, supprimer un compte **dans `auth.users`** |
+| **deux buckets** | `logos` et `subjects`, publics en lecture |
+
+### 2. Lancer l'application
 
 ```bash
 npm install
 npm run dev     # http://localhost:3000
 ```
 
+Le projet Supabase de l'école est **déjà configuré** dans `lib/supabase/client.ts` : un dépôt
+fraîchement cloné démarre sans rien poser. Pour viser un autre projet (une préproduction, une
+autre école), posez les deux variables d'environnement — elles l'emportent :
+
+```bash
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-cle-anon
+```
+
 Autres scripts : `npm run build`, `npm run test` (vitest), `npm run lint`.
 
-## Se connecter — les accès rapides
+## Se connecter
 
-La page de connexion porte un **bouton par rôle**. Un clic suffit : le compte est connu d'avance,
-il n'y a rien à taper.
+### Le premier compte
 
-| Bouton | Rôle | Ce qu'on voit | Identifiants |
-| ------ | ---- | ------------- | ------------ |
-| **Administration** | `admin` | tous les écrans : élèves, enseignants, travailleurs, paie, caisse, rapports, paramètres | `admin@altech-school.dz` · `demo1234` |
-| **Enseignant** | `teacher` | Karim Bensalah — son emploi du temps, ses groupes, sa paie | `enseignant@altech-school.dz` · `demo1234` |
-| **Travailleur** | `reception` | Yasmine Belkacem — la réception, avec ses droits d'accès | `travailleur@altech-school.dz` · `demo1234` |
-| **Élève** | `student` | Yacine Amrani — son portail (présences, soldes, paiements) | `eleve@altech-school.dz` · `demo1234` |
-| **Parent** | `parent` | Rachid Amrani — le portail de la famille | `parent@altech-school.dz` · `demo1234` |
+Une base fraîchement installée n'a **aucun compte** : personne ne peut se connecter, donc personne
+ne peut créer le premier administrateur. La page de connexion propose donc
+**« Créer le compte administrateur »** — nom, email, mot de passe, et c'est parti.
 
-Le formulaire email + mot de passe reste là : il accepte **l'email ou le nom d'utilisateur**, et
-tous les comptes du personnel ont le même mot de passe de démonstration (`demo1234`).
+Le bouton **disparaît dès que ce compte existe**, ici comme pour tout autre visiteur : la question
+est posée à la base à chaque chargement (`admin_exists()`), et la fonction d'amorçage
+(`bootstrap_admin()`) **refuse elle-même** un second appel. Le bouton n'est donc pas seulement
+caché — même appelée à la main, la fonction ne peut pas amorcer une école qui tourne déjà.
 
-Les comptes créés depuis l'application (un enseignant, un parent, un élève, l'accès d'un
-travailleur) fonctionnent exactement comme avant : ils s'ajoutent au registre local et se
-connectent immédiatement.
+### Tous les autres comptes
 
-> Le registre des comptes est un registre de **démonstration** : les mots de passe y sont en clair,
-> dans le navigateur du visiteur. Rien de ce qu'il contient n'est réel, et rien n'en sort.
+Ils se créent **depuis l'application**, par l'administration :
+
+| Écran | Ce qu'il crée |
+| ----- | ------------- |
+| **Travailleurs** → *Activer un compte de connexion* | le compte d'un membre du personnel, puis **Droits d'accès** choisit ses écrans et ses boutons |
+| **Enseignants** → *Nouvel enseignant* | son compte et son portail (emploi du temps, groupes, paie) |
+| **Élèves** → *Nouvel élève* | son portail (présences, soldes, paiements) |
+| **Parents** → *Nouveau parent* | le portail de la famille |
+
+Chacun se connecte avec **son email ou son nom d'utilisateur** — Supabase ne connaît que les
+emails, et `login_email()` traduit l'un en l'autre avant une connexion tout à fait ordinaire.
+
+> **La clé `anon` est publique, et c'est normal.** Elle ne donne aucun droit par elle-même : c'est
+> la RLS, côté PostgreSQL, qui décide ligne par ligne de ce qu'un compte lit et écrit. Sans
+> connexion, elle ne permet de lire que le nom et le logo de l'établissement — ce que la page de
+> connexion affiche. La clé de service (`service_role`) n'apparaît **nulle part** dans ce dépôt.
+
+## Les droits d'un travailleur — écran par écran, bouton par bouton
+
+Un travailleur qui se connecte ne voit pas « l'écran de la réception » : il voit **exactement** ce
+que l'administration a coché pour lui.
+
+- **Travailleurs → Droits d'accès** présente à gauche les 17 écrans, et à droite les boutons de
+  l'écran sélectionné. Cocher un écran n'ouvre **aucun** bouton : on peut très bien consulter les
+  élèves sans pouvoir en créer un.
+- Ce qui est coché est stocké sur sa fiche : `nav_keys` (les écrans) et `action_keys` (les boutons,
+  sous la forme `students:create`).
+- `lib/permissions.ts` porte le catalogue côté écran — c'est lui qui cache un bouton, sans aller
+  chercher la réponse sur le réseau — et `supabase/schema.sql` le recopie dans `app_pages` /
+  `app_page_actions`, où la RLS s'y réfère.
+
+**Trois filets, et non un seul :** le bouton n'est pas affiché ; la route est gardée
+(`ModuleDispatcher` rend « Accès refusé » à une adresse tapée à la main) ; et la RLS refuse
+l'écriture en base même à un appel forgé.
+
+> Une fiche dont les droits n'ont **jamais** été réglés (`nav_keys` à `NULL`) garde l'ancien menu
+> de la réception : une mise à jour ne verrouille personne du jour au lendemain. Une liste **vide**,
+> elle, veut bien dire « aucun écran » — c'est une décision, pas un oubli.
 
 ## Où vivent les données
 
 | Fichier | Rôle |
 | ------- | ---- |
-| `lib/demo/catalog.ts` | l'établissement, les matières, les groupes, les salles, les classes, les enseignants, les travailleurs, les emplois du temps et leurs tarifs |
-| `lib/demo/people.ts` | les familles : vingt fiches écrites à la main (une par **cas de facturation**) et l'effectif qui donne son volume à l'école |
-| `lib/demo/seed.ts` | l'assemblage : présences, inscriptions, paiements, parts dues aux enseignants, caisse |
-| `lib/demo/payroll.ts` | la paie — règlements des enseignants et des travailleurs, acomptes, absences, retenues |
-| `lib/demo/misc.ts` | supports de cours, annonces, dépenses, séances libres, notifications, périodes gratuites |
-| `lib/demo/db.ts` | la lecture au démarrage et l'instantané rangé dans le navigateur |
-| `lib/demo/persist.ts` | l'enregistrement automatique de ce que les écrans changent |
-| `lib/demo/accounts.ts` | le registre des comptes et les accès rapides |
+| `supabase/schema.sql` | **le schéma complet** : tables, relations, RLS, fonctions de comptes, buckets |
+| `lib/supabase/client.ts` | la connexion au projet (un seul client, qui porte la session) |
+| `lib/supabase/schema.ts` | collection du magasin → table, clé primaire, colonnes — **engendré depuis le SQL** |
+| `lib/supabase/mapping.ts` | `camelCase` ⇄ `snake_case`, et la comparaison qui décide d'envoyer ou non |
+| `lib/supabase/db.ts` | la lecture — toute la base en un passage, paginée |
+| `lib/supabase/persist.ts` | l'enregistrement automatique de ce que les écrans changent |
+| `lib/supabase/auth.ts` | le premier administrateur (`admin_exists`, `bootstrap_admin`) |
 | `lib/accounts/users.ts` | création / mot de passe / email / suppression des comptes |
-| `lib/accounts/uploadImage.ts` | le logo et les images de matières, lus en `data:` URL |
+| `lib/accounts/uploadImage.ts` | le logo et les images de matières, déposés dans Storage |
+| `lib/demo/` | **le jeu d'essai des tests** : une école entière construite en mémoire |
 
-### Rien n'est recopié à la main
+### Deux conventions qui expliquent le schéma
 
-Le jeu de données ne contient presque aucun chiffre écrit en dur. Les présences sont **tirées au
-sort** — avec une graine stable, donc deux visiteurs voient la même école et un rechargement ne
-rejoue pas le mois — et tout le reste en **découle**, par les mêmes fonctions que l'application :
+**Les dates sont du `text`.** L'application manipule partout des chaînes — `2026-08-28`, `14:30`,
+`2026-08-28T13:05:00.000Z`. Les stocker en `date` / `timestamptz` les reformaterait au retour, et
+la réplication croirait à une modification à chaque lecture.
 
-- le prix d'une séance vient de `studentSeancePrice()`, donc un élève « cas réduction » ou
-  « école seule » est facturé dans la démonstration exactement comme il le serait au comptoir ;
-- la part de l'enseignant suit la règle du scan (`teacherDueFor`) ;
-- le solde d'une inscription est ce qui a été versé moins ce que les séances ont mangé ;
-- la caisse est écrite **en dernier**, à partir des mouvements qui viennent d'être créés, si bien
-  que le bilan tombe juste.
-
-`tests/demoSeed.test.ts` vérifie les invariants du jeu (aucune relation dans le vide, les soldes,
-les cas de facturation, la caisse) et `tests/demoScreens.test.ts` fait tourner, sur ces données, ce
-que **chaque grand écran calcule** — y compris le tableau de paie de chaque enseignant, mois par
-mois, et la fiche de chaque travailleur, contrat par contrat.
-
-### Ce que la démonstration couvre
-
-Le jeu est construit pour qu'aucun écran ne s'ouvre vide et qu'aucun cas ne manque à l'appel :
-
-- **les cinq cas de facturation d'un élève** — ordinaire, cas spécial (gratuité **totale** et
-  gratuité **emploi par emploi**), fils d'enseignant (retenu sur le salaire du père, et **crédité
-  d'avance** en attente de sa paie), cas réduction (en **pourcentage** et en **montant**, l'école et
-  l'enseignant renonçant chacun à sa part), et « école seulement » (**global** et **emploi par
-  emploi**) ;
-- **toutes les situations d'argent** — mois réglés, versement **partiel** avec reste à payer, mois
-  en retard et solde **dans le rouge**, mois payé **d'avance**, frais d'inscription encore dus,
-  frais divers (livre, tenue, sortie) réglés en plusieurs fois, et **dette avancée par la caisse de
-  l'école** pour débloquer la part d'un enseignant ;
-- **les trois modes de paie d'un enseignant** — pourcentage, forfait mensuel, et **par groupe** —
-  plus les intervenants « de passage », avec pour chacun des acomptes, des dépenses avancées et des
-  absences, dont certains **déjà retenus** et d'autres **encore ouverts** ;
-- **les quatre contrats d'un travailleur** — mois, journée, demi-journée et **heures pointées** —
-  avec leurs pointages (dont un **gelé**, faute de pointage de sortie), leurs avances et leurs
-  règlements, chacun laissant quelque chose à verser ;
-- **les cas des emplois du temps** — horaires et salles qui changent d'un jour à l'autre, créneau à
-  cheval sur **deux niveaux**, séances libres vendues à l'unité ou **au groupe entier**, formations
-  à échéance (en cours, bientôt échue, expirée), inscription **en cours de mois**, désinscription
-  dont l'historique reste lisible, et un emploi du temps **archivé**.
+**Les identifiants sont du `text` aussi.** Un écran doit pouvoir créer une ligne et la relier à une
+autre **sans attendre le réseau** : il fabrique l'identifiant lui-même. Une fiche créée avec un
+compte porte l'UUID de son compte `auth.users` ; une fiche créée sans compte porte un identifiant
+local (`stu-mf3k2a-9c1b`). Les deux tiennent dans la même colonne.
 
 ## Comment les écrans enregistrent
 
-Les écrans travaillent sur le store Zustand, comme avant. `lib/demo/persist.ts` observe ce store et
-**range l'instantané** dès que quelque chose change : les ajouts, les modifications et les
-suppressions, qu'ils viennent d'un simple bouton ou d'une action qui réécrit six collections d'un
-coup (règlement d'un enseignant, feuille de présence, achat de séances…).
+Aucun écran n'appelle jamais la base pour écrire. Il modifie le store Zustand — un paiement
+encaissé, une présence pointée, un travailleur créé — et `lib/supabase/persist.ts`, abonné au
+store, s'occupe du reste.
 
-Aucune action n'a donc à s'en occuper, et aucune ne peut être oubliée. L'écriture est **groupée** :
-une feuille de présence pointée à la volée ne sérialise pas la base à chaque clic.
+Il garde une **photo** de ce qu'il a envoyé la dernière fois, posée à la lecture initiale. À chaque
+modification il compare, ligne par ligne : ce qui est nouveau ou a changé **part**, ce qui a disparu
+est **supprimé**, le reste ne bouge pas. Un pointage de présence n'envoie donc que la présence, pas
+les vingt mille lignes de l'école.
 
-Si le navigateur refuse d'écrire (navigation privée, quota atteint), la démonstration **continue en
-mémoire** et le dit une seule fois dans la console : les modifications seront simplement perdues au
-rechargement.
+- L'écriture est **groupée** (250 ms) : une action qui touche six collections — encaisser, débiter
+  le solde, créditer la part de l'enseignant, écrire la caisse — ne produit qu'**un** envoi.
+- L'**ordre** suit les dépendances : un élève part avant son inscription, et les suppressions
+  remontent dans l'ordre inverse.
+- Quand un envoi **échoue** — droits insuffisants, réseau coupé — l'erreur est affichée, et la photo
+  n'avance pas : la modification repartira, plutôt que d'être perdue en silence.
+
+Aucune des ~35 actions du magasin n'a donc à s'en occuper, et aucune ne peut être oubliée.
+
+`tests/supabaseMapping.test.ts` construit une école entière et vérifie que **chaque champ de chaque
+ligne** a bien une colonne pour l'accueillir : c'est le filet qui rattrape un champ ajouté à un type
+TypeScript sans sa colonne dans le SQL.
+
+## La lecture — toute l'école, en un temps
+
+L'application charge la base **entière** à la connexion, puis calcule tout côté écran : c'est ce qui
+rend le pointage d'une feuille de présence instantané, et ce qui permet aux rapports de recouper
+présences, paiements et paie sans vingt requêtes.
+
+Ce que chacun ramène n'est pas la même chose — **la RLS filtre à la source**. Le comptoir voit
+l'école entière ; un enseignant voit ses groupes et la scolarité qui entre dans sa paie ; un parent
+ne voit que ses enfants. Aucun écran n'a à le savoir : la collection est simplement plus courte.
+
+**Paramètres → Sauvegarde → Recharger depuis la base** relit tout, pour le cas où un autre poste a
+saisi quelque chose depuis la connexion.
 
 ## Le système de séances
 
@@ -1068,8 +1109,10 @@ même modèle qu'au guichet.
 
 | Domaine                          | Fichiers                                                              |
 | -------------------------------- | --------------------------------------------------------------------- |
-| Jeu de démonstration             | `lib/demo/`                                                            |
-| Comptes & connexion (registre)   | `lib/demo/accounts.ts`, `lib/accounts/`                                |
+| Schéma de la base                | `supabase/schema.sql`                                                  |
+| Connexion, lecture, réplication  | `lib/supabase/`                                                        |
+| Comptes (création, mots de passe)| `lib/accounts/users.ts`, `lib/supabase/auth.ts`                        |
+| Jeu d'essai des tests            | `lib/demo/`                                                            |
 | Règles métier + cache            | `lib/store/data.ts`                                                    |
 | Session / connexion              | `lib/store/session.ts`, `app/(auth)/login/`                            |
 | Types & sélecteurs               | `lib/types.ts`, `lib/helpers.ts`                                       |

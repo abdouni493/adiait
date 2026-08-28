@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { ShieldPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/SearchInput";
 import { ThemeToggle } from "@/components/controls/ThemeToggle";
@@ -11,7 +12,7 @@ import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useData } from "@/lib/store/data";
 import { useSession } from "@/lib/store/session";
 import { roleHome } from "@/lib/nav";
-import { FAMILY_ACCOUNTS, QUICK_ACCOUNTS, type QuickAccount } from "@/lib/demo/accounts";
+import { bootstrapAdmin, schemaState, type SchemaState } from "@/lib/supabase/auth";
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -29,20 +30,57 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  /** Le bouton d'accès rapide en cours — pour n'occuper que celui-là. */
-  const [pendingRole, setPendingRole] = useState<string>("");
 
-  const enter = async (login: string, secret: string, role = "") => {
+  /**
+   * LE PREMIER ADMINISTRATEUR.
+   *
+   * Une école qui vient d'être installée n'a AUCUN compte : personne ne peut se
+   * connecter, donc personne ne peut créer le premier administrateur. Ce
+   * formulaire est la seule porte d'entrée de ce cas-là.
+   *
+   * `null` = on ne sait pas encore (la question est posée à la base au
+   * chargement). Tant qu'on ne sait pas, on n'affiche rien : proposer puis
+   * retirer le bouton ferait clignoter la page.
+   */
+  const [state, setState] = useState<SchemaState | null>(null);
+  const needsAdmin = state === "no-admin";
+  const [creating, setCreating] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminConfirm, setAdminConfirm] = useState("");
+  const [adminName, setAdminName] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [created, setCreated] = useState(false);
+
+  /**
+   * La question est posée à CHAQUE chargement de la page : le compte a pu être
+   * créé entre-temps, depuis un autre poste. Le garde d'annulation évite de
+   * répondre à une page déjà quittée.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const found = await schemaState();
+      if (!cancelled) setState(found);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refreshAdmin = useCallback(async () => {
+    setState(await schemaState());
+  }, []);
+
+  const enter = async (login: string, secret: string) => {
     setError("");
     setBusy(true);
-    setPendingRole(role);
     try {
       const user = await signIn(login, secret);
       router.replace(roleHome(user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.invalidCredentials"));
       setBusy(false);
-      setPendingRole("");
     }
   };
 
@@ -51,39 +89,50 @@ export default function LoginPage() {
     void enter(email, password);
   };
 
-  /** Un accès rapide : le compte est connu, il n'y a rien à taper. */
-  const QuickButton = ({ account, compact }: { account: QuickAccount; compact?: boolean }) => (
-    <button
-      type="button"
-      disabled={busy}
-      onClick={() => void enter(account.email, account.password, account.role)}
-      className={
-        compact
-          ? "flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-canvas px-3 py-2 text-xs font-semibold text-muted transition hover:border-primary/40 hover:text-body disabled:opacity-50"
-          : "group flex w-full items-center gap-3 rounded-2xl border border-line bg-canvas p-3 text-start transition hover:border-primary/50 hover:bg-surface disabled:opacity-50"
-      }
-    >
-      <span aria-hidden className={compact ? "text-base" : "text-2xl"}>
-        {account.emoji}
-      </span>
-      {compact ? (
-        <span>{t(account.labelKey)}</span>
-      ) : (
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-body">{t(account.labelKey)}</span>
-          <span className="block truncate text-xs text-muted">{t(account.hintKey)}</span>
-        </span>
-      )}
-      {!compact && (
-        <span
-          aria-hidden
-          className="text-lg text-muted transition group-hover:translate-x-0.5 group-hover:text-primary rtl:rotate-180"
-        >
-          {pendingRole === account.role ? "…" : "→"}
-        </span>
-      )}
-    </button>
-  );
+  /**
+   * Crée le compte, puis RETIRE le formulaire et le bouton : la base refuse de
+   * toute façon un second amorçage, mais l'écran ne doit pas continuer à
+   * proposer quelque chose qui n'a plus lieu d'être.
+   *
+   * L'email et le mot de passe qui viennent d'être choisis sont recopiés dans
+   * le formulaire de connexion — c'est la seule chose qu'on ait envie de faire
+   * ensuite.
+   */
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminError("");
+
+    if (!adminEmail.trim()) {
+      setAdminError("L'email est obligatoire.");
+      return;
+    }
+    if (adminPassword.length < 6) {
+      setAdminError("Le mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+    if (adminPassword !== adminConfirm) {
+      setAdminError("Les deux mots de passe ne sont pas identiques.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await bootstrapAdmin(adminEmail, adminPassword, adminName);
+      setEmail(adminEmail.trim().toLowerCase());
+      setPassword(adminPassword);
+      setState("ready");
+      setCreating(false);
+      setCreated(true);
+      setAdminPassword("");
+      setAdminConfirm("");
+    } catch (err) {
+      setAdminError(err instanceof Error ? err.message : "La création du compte a échoué.");
+      // La base a peut-être été amorcée entre-temps par quelqu'un d'autre.
+      void refreshAdmin();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-canvas p-4">
@@ -130,8 +179,8 @@ export default function LoginPage() {
         {/* Sign in */}
         <form onSubmit={handleSignIn} className="mt-7 space-y-3">
           <Input
-            type="email"
-            autoComplete="email"
+            type="text"
+            autoComplete="username"
             placeholder={t("auth.email")}
             value={email}
             onChange={(e) => {
@@ -151,41 +200,128 @@ export default function LoginPage() {
           />
           {error && <p className="text-sm font-medium text-danger">{error}</p>}
           <Button type="submit" size="lg" className="w-full" disabled={busy}>
-            {busy && !pendingRole ? t("auth.signingIn") : t("auth.signIn")}
+            {busy ? t("auth.signingIn") : t("auth.signIn")}
           </Button>
         </form>
 
         {/*
-          L'ACCÈS RAPIDE DE LA DÉMONSTRATION.
-
-          Cette version ne se connecte à aucune base : ses comptes sont connus
-          d'avance. Plutôt que de faire recopier une adresse et un mot de passe
-          à un visiteur qui découvre l'application, chaque rôle a son bouton —
-          un clic, et on est à l'intérieur, avec les droits qui vont avec.
+          LE COMPTE D'ADMINISTRATION — proposé UNIQUEMENT tant qu'il n'en existe
+          aucun. Dès qu'il est créé, ce bloc disparaît définitivement : la
+          question est reposée à la base à chaque chargement de la page, et la
+          base elle-même refuse un second amorçage.
         */}
-        <div className="my-6 flex items-center gap-3">
-          <span className="h-px flex-1 bg-line" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-            {t("auth.quick.title")}
-          </span>
-          <span className="h-px flex-1 bg-line" />
-        </div>
+        {needsAdmin && (
+          <div className="mt-6 border-t border-line pt-6">
+            {!creating ? (
+              <>
+                <p className="text-center text-xs leading-relaxed text-muted">
+                  Cette école n&apos;a encore aucun compte. Créez celui de
+                  l&apos;administration pour commencer — il n&apos;est proposé
+                  qu&apos;une fois.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="lg"
+                  className="mt-3 w-full"
+                  disabled={busy}
+                  onClick={() => setCreating(true)}
+                >
+                  <ShieldPlus className="h-4 w-4" />
+                  Créer le compte administrateur
+                </Button>
+              </>
+            ) : (
+              <form onSubmit={handleCreateAdmin} className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-body">
+                  <ShieldPlus className="h-4 w-4 text-primary" />
+                  Compte administrateur
+                </div>
+                <Input
+                  type="text"
+                  placeholder="Nom affiché (Direction)"
+                  value={adminName}
+                  onChange={(e) => setAdminName(e.target.value)}
+                />
+                <Input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Email de connexion"
+                  value={adminEmail}
+                  onChange={(e) => {
+                    setAdminEmail(e.target.value);
+                    setAdminError("");
+                  }}
+                />
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Mot de passe (6 caractères minimum)"
+                  value={adminPassword}
+                  onChange={(e) => {
+                    setAdminPassword(e.target.value);
+                    setAdminError("");
+                  }}
+                />
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Confirmer le mot de passe"
+                  value={adminConfirm}
+                  onChange={(e) => {
+                    setAdminConfirm(e.target.value);
+                    setAdminError("");
+                  }}
+                />
+                {adminError && <p className="text-sm font-medium text-danger">{adminError}</p>}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="flex-1"
+                    disabled={busy}
+                    onClick={() => {
+                      setCreating(false);
+                      setAdminError("");
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={busy}>
+                    {busy ? "Création…" : "Créer le compte"}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
 
-        <div className="space-y-2">
-          {QUICK_ACCOUNTS.map((account) => (
-            <QuickButton key={account.role} account={account} />
-          ))}
-        </div>
+        {/*
+          LE PROJET RÉPOND, MAIS LA BASE EST VIDE DE TOUT SCHÉMA. Personne ne
+          peut ni se connecter ni créer quoi que ce soit tant que
+          `supabase/schema.sql` n'a pas été exécuté : le dire est la seule chose
+          utile à afficher.
+        */}
+        {state === "not-installed" && (
+          <p className="mt-6 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-center text-xs font-medium leading-relaxed text-warning">
+            La base de cette école n&apos;est pas encore installée. Exécutez{" "}
+            <code className="font-bold">supabase/schema.sql</code> dans le SQL Editor de votre
+            projet Supabase, puis rechargez cette page.
+          </p>
+        )}
 
-        <div className="mt-3 flex items-center gap-2">
-          {FAMILY_ACCOUNTS.map((account) => (
-            <QuickButton key={account.role} account={account} compact />
-          ))}
-        </div>
+        {state === "unreachable" && (
+          <p className="mt-6 rounded-2xl border border-danger/30 bg-danger/10 p-3 text-center text-xs font-medium leading-relaxed text-danger">
+            Le serveur ne répond pas. Vérifiez la connexion, puis rechargez cette page.
+          </p>
+        )}
 
-        <p className="mt-4 text-center text-xs leading-relaxed text-muted">
-          {t("auth.quick.note")}
-        </p>
+        {created && (
+          <p className="mt-6 rounded-2xl border border-success/30 bg-success/10 p-3 text-center text-xs font-medium leading-relaxed text-success">
+            Le compte administrateur est créé. Ses identifiants sont déjà
+            saisis&nbsp;: connectez-vous pour ouvrir l&apos;école.
+          </p>
+        )}
       </motion.div>
     </div>
   );

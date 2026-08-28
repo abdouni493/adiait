@@ -1,50 +1,111 @@
 "use client";
 
+/**
+ * QUI EST CONNECTÉ.
+ *
+ * La session est celle de Supabase : `signInWithPassword` sur `auth.users`,
+ * avec le jeton renouvelé et rangé par le client. Ce magasin y ajoute ce que
+ * l'application a besoin de savoir en plus — le RÔLE, et la FICHE que le compte
+ * pilote — qu'il lit dans `public.profiles`.
+ *
+ * DEUX FAÇONS D'ÊTRE IDENTIFIÉ, et il faut les deux :
+ *
+ *   `id`       — l'identifiant du COMPTE (`auth.users.id`).
+ *   `entityId` — l'identifiant de la FICHE (élève, enseignant, parent,
+ *                travailleur), sous laquelle vivent ses données.
+ *
+ * Ils sont égaux pour un compte créé en même temps que sa fiche. Ils DIFFÈRENT
+ * pour un travailleur à qui l'accès a été ouvert après coup : sa fiche, ses
+ * pointages et ses acomptes existaient déjà, et le compte est venu pointer
+ * dessus. C'est `entityId` qui commande partout ailleurs.
+ *
+ * ON SE CONNECTE AVEC SON EMAIL OU SON NOM D'UTILISATEUR. Supabase ne connaît
+ * que les emails ; « yasmine » est donc d'abord traduit par la fonction
+ * `login_email()`, puis la connexion se fait tout à fait normalement.
+ */
+
 import { create } from "zustand";
-import {
-  findByLogin,
-  rememberSession,
-  rememberedSession,
-  upsertAccount,
-  type DemoAccount,
-} from "@/lib/demo/accounts";
+import { supabase, errorMessage } from "@/lib/supabase/client";
 
 export type Role = "admin" | "reception" | "student" | "teacher" | "parent";
 
 export interface SessionUser {
   id: string;
   name: string;
-  /** The account's login name — the email when no username was recorded. */
+  /** Son identifiant de connexion — l'email quand aucun nom d'utilisateur
+   *  n'a été choisi. */
   username: string;
   email: string;
   role: Role;
-  /** Row this account owns in students / teachers / parents / reception_staff.
-   *  Accounts created by the app use the same id for both, so they match. */
+  /** La ligne que ce compte pilote dans students / teachers / parents /
+   *  reception_staff. */
   entityId?: string;
 }
 
-function toSessionUser(account: DemoAccount): SessionUser {
+interface Profile {
+  id: string;
+  entity_id: string;
+  role: Role;
+  email: string;
+  username: string;
+  full_name: string;
+}
+
+function toSessionUser(profile: Profile): SessionUser {
   return {
-    id: account.id,
-    name: account.fullName || account.email,
-    username: account.username || account.email,
-    email: account.email,
-    role: account.role,
-    entityId: account.entityId ?? account.id,
+    id: profile.id,
+    name: profile.full_name || profile.email,
+    username: profile.username || profile.email,
+    email: profile.email,
+    role: profile.role,
+    entityId: profile.entity_id || profile.id,
   };
+}
+
+/** La fiche de compte du connecté. */
+async function loadProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase()
+    .from("profiles")
+    .select("id, entity_id, role, email, username, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[supabase] profil", error.message);
+    return null;
+  }
+  return (data as Profile | null) ?? null;
+}
+
+/**
+ * L'email derrière un identifiant de connexion.
+ *
+ * Une adresse est rendue telle quelle sans interroger la base — c'est le cas
+ * courant, et cela évite un aller-retour avant chaque connexion.
+ */
+async function emailForLogin(login: string): Promise<string> {
+  const clean = login.trim();
+  if (clean.includes("@")) return clean.toLowerCase();
+
+  const { data, error } = await supabase().rpc("login_email", { p_login: clean });
+  if (error || !data) {
+    // Personne ne répond à cet identifiant. On ne le dit PAS : le message est
+    // le même que pour un mot de passe faux, et rien ne se déduit de l'écart.
+    throw new Error("Identifiants invalides");
+  }
+  return String(data);
 }
 
 interface SessionState {
   user: SessionUser | null;
   hydrated: boolean;
-  /** Signs in with a login (email OR username) and a password. */
+  /** Se connecte avec un identifiant (email OU nom d'utilisateur). */
   signIn: (login: string, password: string) => Promise<SessionUser>;
-  /** Patches the signed-in account (the portals let people rename themselves)
-   *  and writes the change through to the demo account registry. */
+  /** Renomme le compte connecté (les portails laissent chacun se renommer). */
   updateUser: (fields: Partial<SessionUser>) => void;
   logout: () => Promise<void>;
   setHydrated: () => void;
-  /** Restores the session saved in this browser. */
+  /** Restaure la session en cours au démarrage de l'application. */
   initSession: () => Promise<void>;
 }
 
@@ -53,12 +114,22 @@ export const useSession = create<SessionState>((set, get) => ({
   hydrated: false,
 
   signIn: async (login, password) => {
-    const account = findByLogin(login);
-    if (!account || account.password !== password) {
-      throw new Error("Identifiants invalides");
+    const email = await emailForLogin(login);
+
+    const { data, error } = await supabase().auth.signInWithPassword({ email, password });
+    if (error || !data.user) {
+      throw new Error(errorMessage(error, "Identifiants invalides"));
     }
-    const user = toSessionUser(account);
-    rememberSession(account.id);
+
+    const profile = await loadProfile(data.user.id);
+    if (!profile) {
+      // Un compte sans fiche ne sait pas quoi afficher : mieux vaut le refuser
+      // que de l'envoyer sur une application vide.
+      await supabase().auth.signOut();
+      throw new Error("Ce compte n'est rattaché à aucun rôle. Contactez l'administration.");
+    }
+
+    const user = toSessionUser(profile);
     set({ user, hydrated: true });
     return user;
   },
@@ -69,18 +140,28 @@ export const useSession = create<SessionState>((set, get) => ({
     const next = { ...current, ...fields };
     set({ user: next });
 
-    const account = findByLogin(current.email) ?? findByLogin(current.username);
-    if (!account) return;
-    upsertAccount({
-      ...account,
-      fullName: next.name,
-      username: next.username,
-      email: next.email,
-    });
+    void (async () => {
+      try {
+        if (fields.name !== undefined && fields.name !== current.name) {
+          await supabase().rpc("set_app_user_name", { p_id: current.id, p_full_name: next.name });
+        }
+        if (fields.username !== undefined && fields.username !== current.username) {
+          await supabase().rpc("set_app_user_username", {
+            p_id: current.id,
+            p_username: next.username,
+          });
+        }
+        if (fields.email !== undefined && fields.email !== current.email) {
+          await supabase().rpc("set_app_user_email", { p_id: current.id, p_email: next.email });
+        }
+      } catch (err) {
+        console.error("[supabase] mise à jour du compte", err);
+      }
+    })();
   },
 
   logout: async () => {
-    rememberSession(null);
+    await supabase().auth.signOut();
     set({ user: null });
   },
 
@@ -89,12 +170,23 @@ export const useSession = create<SessionState>((set, get) => ({
   /**
    * LA SESSION SURVIT AU RECHARGEMENT.
    *
-   * Elle est relue depuis le navigateur, jamais depuis un serveur : la
-   * démonstration n'en a pas. Un registre vidé à la main rend simplement une
-   * page de connexion, ce qui est le bon comportement.
+   * Le jeton est rangé par le client Supabase et relu ici. Un jeton expiré ou
+   * révoqué rend simplement une page de connexion, ce qui est le bon
+   * comportement.
    */
   initSession: async () => {
-    const account = rememberedSession();
-    set({ user: account ? toSessionUser(account) : null, hydrated: true });
+    try {
+      const { data } = await supabase().auth.getSession();
+      const account = data.session?.user;
+      if (!account) {
+        set({ user: null, hydrated: true });
+        return;
+      }
+      const profile = await loadProfile(account.id);
+      set({ user: profile ? toSessionUser(profile) : null, hydrated: true });
+    } catch (err) {
+      console.error("[supabase] session", err);
+      set({ user: null, hydrated: true });
+    }
   },
 }));
