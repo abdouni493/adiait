@@ -28,15 +28,26 @@ import { useCan } from "@/lib/usePermissions";
 const CHART_POINTS = 8;
 
 /** Distinct accent per card, tuned to read well on both light & dark themes. */
+/**
+ * LES COULEURS DE SÉRIE, ÉCRITES EN ÉMAUX D'ARMOIRIES.
+ *
+ * Elles doivent rester distinguables les unes des autres — c'est leur seul
+ * travail — mais aussi tenir sur le parchemin du jour COMME sur la nuit. D'où
+ * des tons moyens : un ton trop clair disparaît sur le parchemin, un ton trop
+ * sombre se noie dans la nuit.
+ *
+ * Elles ne portent jamais un sens à elles seules : chaque carte affiche aussi
+ * son nom et son chiffre, pour qui ne distingue pas ces teintes.
+ */
 const PALETTE = [
-  "#6366f1", // indigo
-  "#0ea5e9", // sky
-  "#f59e0b", // amber
-  "#ec4899", // pink
-  "#14b8a6", // teal
-  "#8b5cf6", // violet
-  "#f43f5e", // rose
-  "#22c55e", // green
+  "#b08328", // or
+  "#3f6491", // azur
+  "#2f855a", // sinople
+  "#b91c1c", // gueules
+  "#7b5ea7", // pourpre
+  "#0f766e", // vert de mer
+  "#c2410c", // tenné
+  "#6b7280", // argent
 ];
 
 function initials(name: string) {
@@ -297,38 +308,38 @@ function buildPrintDocument(opts: {
             .page-break { page-break-before: always; }
           }
           * { box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 25px; color: #1e1b4b; background-color: #faf9ff; }
+          body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 25px; color: #10151f; background-color: #faf9f5; }
           
           /* Letterhead Header */
-          .letterhead { display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #e8e6f4; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+          .letterhead { display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #e4e1d8; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
           .school-identity { display: flex; align-items: center; gap: 15px; }
           .school-logo, .school-logo-fallback { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; }
-          .school-logo-fallback { background: #f5f3ff; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 2em; }
-          .school-details h2 { margin: 0; font-size: 1.35em; color: #7c3aed; font-weight: 800; }
-          .school-details p { margin: 2px 0; font-size: 0.82em; color: #5c567a; }
+          .school-logo-fallback { background: #f6f5f0; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 2em; }
+          .school-details h2 { margin: 0; font-size: 1.35em; color: #1e293b; font-weight: 800; }
+          .school-details p { margin: 2px 0; font-size: 0.82em; color: #59637a; }
           
-          .school-tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; border-left: 2px solid #7c3aed; padding-left: 15px; align-items: center; }
-          .tax-item { font-size: 0.75em; color: #5c567a; }
-          .tax-item strong { color: #1e1b4b; font-family: monospace; }
+          .school-tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; border-left: 2px solid #1e293b; padding-left: 15px; align-items: center; }
+          .tax-item { font-size: 0.75em; color: #59637a; }
+          .tax-item strong { color: #10151f; font-family: monospace; }
           
           /* Document title banner */
-          .doc-title-banner { background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: #fff; padding: 12px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
+          .doc-title-banner { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; padding: 12px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
           .doc-title-banner h1 { margin: 0; font-size: 1.35em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
           .doc-title-banner p { margin: 4px 0 0; font-size: 0.85em; opacity: 0.9; }
 
           .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
-          .block { break-inside: avoid; border: 1px solid #e8e6f4; border-radius: 14px; overflow: hidden; margin-bottom: 15px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+          .block { break-inside: avoid; border: 1px solid #e4e1d8; border-radius: 14px; overflow: hidden; margin-bottom: 15px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
           .block-top { border-top: 5px solid; padding: 16px; }
           .block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
           .avatar { width: 38px; height: 38px; border-radius: 10px; color: #fff; font-weight: 700; font-size: 0.8em; display: flex; align-items: center; justify-content: center; }
-          .block-head h3 { margin: 0; font-size: 1em; color: #1e1b4b; font-weight: 700; }
-          .tag { display: inline-block; margin-top: 2px; font-size: 0.68em; background: #f5f3ff; color: #7c3aed; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+          .block-head h3 { margin: 0; font-size: 1em; color: #10151f; font-weight: 700; }
+          .tag { display: inline-block; margin-top: 2px; font-size: 0.68em; background: #f6f5f0; color: #1e293b; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
           .block-body { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
           .stats-grid { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-          .stat { background: #faf9ff; border: 1px solid #f1f0fb; border-radius: 8px; padding: 6px 8px; }
-          .stat label { display: block; font-size: 0.62em; text-transform: uppercase; color: #5c567a; font-weight: 700; }
-          .stat strong { font-size: 1em; color: #1e1b4b; font-weight: 700; }
-          .trend-label { display: block; font-size: 0.65em; text-transform: uppercase; color: #5c567a; font-weight: 700; margin-bottom: 6px; }
+          .stat { background: #faf9f5; border: 1px solid #f1efe8; border-radius: 8px; padding: 6px 8px; }
+          .stat label { display: block; font-size: 0.62em; text-transform: uppercase; color: #59637a; font-weight: 700; }
+          .stat strong { font-size: 1em; color: #10151f; font-weight: 700; }
+          .trend-label { display: block; font-size: 0.65em; text-transform: uppercase; color: #59637a; font-weight: 700; margin-bottom: 6px; }
           
           .meta-text { text-align: center; font-size: 0.72em; color: #999; margin-top: 30px; font-style: italic; }
         </style>
@@ -809,7 +820,7 @@ export function AnalyticsPage() {
             <h3 className="font-bold text-ink">Aucune analyse générée</h3>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
               Choisissez une période puis cliquez sur « Générer l&apos;analyse » pour afficher, classe par classe et
-              enseignant par enseignant, le graphique d&apos;affluence des chevaliers.
+              entraîneur par entraîneur, le graphique d&apos;affluence des chevaliers.
             </p>
           </div>
         </motion.div>

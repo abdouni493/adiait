@@ -841,48 +841,48 @@ export function StudentsPage() {
               .page-break { page-break-before: always; }
             }
             * { box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 25px; color: #1e1b4b; background-color: #faf9ff; }
+            body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 25px; color: #10151f; background-color: #faf9f5; }
             
             /* Letterhead Header */
-            .letterhead { display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #e8e6f4; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+            .letterhead { display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #e4e1d8; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
             .school-identity { display: flex; align-items: center; gap: 15px; }
             .school-logo, .school-logo-fallback { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; }
-            .school-logo-fallback { background: #f5f3ff; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 2.2em; }
-            .school-details h2 { margin: 0; font-size: 1.4em; color: #7c3aed; font-weight: 800; }
-            .school-details p { margin: 2px 0; font-size: 0.85em; color: #5c567a; }
+            .school-logo-fallback { background: #f6f5f0; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 2.2em; }
+            .school-details h2 { margin: 0; font-size: 1.4em; color: #1e293b; font-weight: 800; }
+            .school-details p { margin: 2px 0; font-size: 0.85em; color: #59637a; }
             
-            .school-tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; border-left: 2px solid #7c3aed; padding-left: 15px; align-items: center; }
-            .tax-item { font-size: 0.78em; color: #5c567a; }
-            .tax-item strong { color: #1e1b4b; font-family: monospace; }
+            .school-tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; border-left: 2px solid #1e293b; padding-left: 15px; align-items: center; }
+            .tax-item { font-size: 0.78em; color: #59637a; }
+            .tax-item strong { color: #10151f; font-family: monospace; }
             
             /* Document title banner */
-            .doc-title-banner { background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
+            .doc-title-banner { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
             .doc-title-banner h1 { margin: 0; font-size: 1.5em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
             .doc-title-banner p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
 
             /* Grid Layout of Frames */
             .frames-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-            .frame { border: 1px solid #e8e6f4; border-top: 4px solid #7c3aed; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+            .frame { border: 1px solid #e4e1d8; border-top: 4px solid #1e293b; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
             .frame-info { border-top-color: #3b82f6; }
             .frame-success { border-top-color: #22c55e; }
-            .frame h3 { margin: 0 0 12px; font-size: 1.05em; color: #1e1b4b; border-bottom: 1px dashed #e8e6f4; padding-bottom: 6px; }
+            .frame h3 { margin: 0 0 12px; font-size: 1.05em; color: #10151f; border-bottom: 1px dashed #e4e1d8; padding-bottom: 6px; }
             
             /* Tables styled inside frames */
             table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 0.9em; }
-            th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f1f0fb; }
-            th { background-color: #fcfbff; font-weight: 700; color: #5c567a; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.3px; }
+            th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f1efe8; }
+            th { background-color: #faf9f5; font-weight: 700; color: #59637a; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.3px; }
             tr:last-child td { border-bottom: 0; }
             
             /* Badges */
             .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75em; font-weight: bold; text-align: center; }
-            .badge-primary { background-color: #f5f3ff; color: #7c3aed; }
+            .badge-primary { background-color: #f6f5f0; color: #1e293b; }
             .badge-success { background-color: #dcfce7; color: #15803d; }
             .badge-danger { background-color: #fee2e2; color: #b91c1c; }
             .badge-warning { background-color: #fef9c3; color: #854d0e; }
             
             /* Account Card */
-            .summary-card { background: #fdfcff; border: 2px solid #7c3aed; border-radius: 12px; padding: 15px; margin-top: 20px; }
-            .summary-line { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f0fb; font-size: 0.95em; }
+            .summary-card { background: #fcfbf8; border: 2px solid #1e293b; border-radius: 12px; padding: 15px; margin-top: 20px; }
+            .summary-line { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1efe8; font-size: 0.95em; }
             .summary-line:last-child { border-bottom: 0; padding-bottom: 0; }
             .balance-box { display: flex; justify-content: space-between; border-radius: 10px; padding: 12px; margin-top: 10px; font-size: 1.15em; font-weight: 800; }
             .balance-positive { background: #f0fdf4; border: 2px solid #22c55e; color: #15803d; }
@@ -890,8 +890,8 @@ export function StudentsPage() {
             
             /* Signatures block */
             .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
-            .signature-block { border: 1px dashed #c0b6e9; border-radius: 10px; background: #fff; padding: 15px; height: 100px; display: flex; flex-direction: column; justify-content: space-between; }
-            .signature-label { font-size: 0.8em; font-weight: bold; text-transform: uppercase; color: #5c567a; text-align: center; }
+            .signature-block { border: 1px dashed #d8c79a; border-radius: 10px; background: #fff; padding: 15px; height: 100px; display: flex; flex-direction: column; justify-content: space-between; }
+            .signature-label { font-size: 0.8em; font-weight: bold; text-transform: uppercase; color: #59637a; text-align: center; }
             
             .meta-text { text-align: center; font-size: 0.75em; color: #999; margin-top: 30px; font-style: italic; }
           </style>
@@ -927,25 +927,25 @@ export function StudentsPage() {
             <h3>Informations Personnelles de l'Chevalier</h3>
             <table style="margin-top:0;">
               <tr>
-                <td style="width:15%; font-weight:bold; color:#5c567a;">Nom Complet :</td>
+                <td style="width:15%; font-weight:bold; color:#59637a;">Nom Complet :</td>
                 <td style="width:35%; font-weight:bold; font-size:1.1em;">${stu.lastName} ${stu.firstName}</td>
-                <td style="width:15%; font-weight:bold; color:#5c567a;">ID Unique / RFID :</td>
+                <td style="width:15%; font-weight:bold; color:#59637a;">ID Unique / RFID :</td>
                 <td style="width:35%; font-family:monospace;">${stu.id} / ${stu.rfid || "-"}</td>
               </tr>
               <tr>
-                <td style="font-weight:bold; color:#5c567a;">Date de Naiss. :</td>
+                <td style="font-weight:bold; color:#59637a;">Date de Naiss. :</td>
                 <td>${formatDate(stu.birthDate)}</td>
-                <td style="font-weight:bold; color:#5c567a;">Téléphone Chevalier :</td>
+                <td style="font-weight:bold; color:#59637a;">Téléphone Chevalier :</td>
                 <td style="font-family:monospace;">${[stu.phone, stu.phone2].filter(Boolean).join(" / ") || "-"}</td>
               </tr>
               <tr>
-                <td style="font-weight:bold; color:#5c567a;">Parent / Tuteur :</td>
+                <td style="font-weight:bold; color:#59637a;">Parent / Tuteur :</td>
                 <td>${parentObj ? `${parentObj.lastName} ${parentObj.firstName}` : "-"}</td>
-                <td style="font-weight:bold; color:#5c567a;">Tél Parent :</td>
+                <td style="font-weight:bold; color:#59637a;">Tél Parent :</td>
                 <td style="font-family:monospace;">${parentObj ? parentObj.phone : "-"}</td>
               </tr>
               <tr>
-                <td style="font-weight:bold; color:#5c567a;">Statut Spécial :</td>
+                <td style="font-weight:bold; color:#59637a;">Statut Spécial :</td>
                 <td colspan="3">
                   <span class="badge ${stu.isFree ? "badge-warning" : "badge-success"}">
                     ${stu.isFree ? "Bénéficiaire (Accès Gratuit)" : "Standard (Payant)"}
@@ -979,7 +979,7 @@ export function StudentsPage() {
                           <td>${sub.teacherName}</td>
                           <td>${sub.groupName} <span style="font-size:0.85em; color:#888;">(Salle ${sub.salleName})</span></td>
                           <td style="text-align:right; font-weight:bold;">${stu.isFree ? 0 : sub.price} DA</td>
-                          <td style="font-size:0.85em; color:#5c567a;">${sub.schedule}</td>
+                          <td style="font-size:0.85em; color:#59637a;">${sub.schedule}</td>
                         </tr>
                       `).join("")
                   }
@@ -1070,7 +1070,7 @@ export function StudentsPage() {
                           <td style="text-align:center;">${p.seancesPurchased || "—"}</td>
                           <td style="text-align:right;">${p.netTotal ? `${formatDA(p.netTotal)}` : "—"}</td>
                           <td style="text-align:right; font-weight:bold; color:#15803d;">${formatDA(p.amountPaid)}</td>
-                          <td style="text-align:right; font-weight:bold; color:${p.rest > 0 ? "#b91c1c" : "#5c567a"};">${formatDA(p.rest)}</td>
+                          <td style="text-align:right; font-weight:bold; color:${p.rest > 0 ? "#b91c1c" : "#59637a"};">${formatDA(p.rest)}</td>
                         </tr>
                       `).join("")
                   }
@@ -1082,7 +1082,7 @@ export function StudentsPage() {
 
           <!-- Séances + debt summary -->
           <div class="summary-card">
-            <h3 style="margin-top:0; border-bottom:1px solid #7c3aed; padding-bottom:6px; color:#7c3aed;">Situation des Séances de l'Chevalier</h3>
+            <h3 style="margin-top:0; border-bottom:1px solid #1e293b; padding-bottom:6px; color:#1e293b;">Situation des Séances de l'Chevalier</h3>
             <div class="summary-line">
               <span>Séances achetées (cumul) :</span>
               <strong>${totalSeancesBought}</strong>
@@ -1211,22 +1211,22 @@ export function StudentsPage() {
               .no-print { display: none; }
             }
             * { box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #1e1b4b; background-color: #faf9ff; max-width: 600px; margin: 0 auto; }
+            body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #10151f; background-color: #faf9f5; max-width: 600px; margin: 0 auto; }
             
             /* Letterhead Header */
-            .letterhead { display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #e8e6f4; background: #fff; padding: 12px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+            .letterhead { display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #e4e1d8; background: #fff; padding: 12px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
             .school-identity { display: flex; align-items: center; gap: 12px; }
             .school-logo, .school-logo-fallback { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; }
-            .school-logo-fallback { background: #f5f3ff; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 1.8em; }
-            .school-details h2 { margin: 0; font-size: 1.2em; color: #7c3aed; font-weight: 800; }
-            .school-details p { margin: 1px 0; font-size: 0.8em; color: #5c567a; }
+            .school-logo-fallback { background: #f6f5f0; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 1.8em; }
+            .school-details h2 { margin: 0; font-size: 1.2em; color: #1e293b; font-weight: 800; }
+            .school-details p { margin: 1px 0; font-size: 0.8em; color: #59637a; }
             
-            .school-tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; border-left: 2px solid #7c3aed; padding-left: 12px; align-items: center; }
-            .tax-item { font-size: 0.72em; color: #5c567a; }
-            .tax-item strong { color: #1e1b4b; font-family: monospace; }
+            .school-tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; border-left: 2px solid #1e293b; padding-left: 12px; align-items: center; }
+            .tax-item { font-size: 0.72em; color: #59637a; }
+            .tax-item strong { color: #10151f; font-family: monospace; }
             
             /* Document title banner */
-            .doc-title-banner { background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: #fff; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; }
+            .doc-title-banner { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; }
             .doc-title-banner h1 { margin: 0; font-size: 1.15em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
 
             /* Compact Side-by-Side Information Grid */
@@ -1234,8 +1234,8 @@ export function StudentsPage() {
               display: grid;
               grid-template-columns: 1fr 1fr;
               gap: 15px;
-              border: 1px solid #e8e6f4;
-              border-top: 4px solid #7c3aed;
+              border: 1px solid #e4e1d8;
+              border-top: 4px solid #1e293b;
               background: #fff;
               padding: 12px;
               border-radius: 12px;
@@ -1250,7 +1250,7 @@ export function StudentsPage() {
             .info-item {
               display: flex;
               justify-content: space-between;
-              border-bottom: 1px dashed #f1f0fb;
+              border-bottom: 1px dashed #f1efe8;
               padding-bottom: 4px;
               font-size: 0.85em;
             }
@@ -1260,41 +1260,41 @@ export function StudentsPage() {
             }
             .info-label {
               font-weight: bold;
-              color: #5c567a;
+              color: #59637a;
             }
             .info-value {
               font-weight: bold;
-              color: #1e1b4b;
+              color: #10151f;
               text-align: right;
             }
             
             /* Portal credentials block */
-            .credentials { border: 1px solid #e8e6f4; border-top: 4px solid #3b82f6; background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 15px; }
-            .credentials h3 { margin: 0 0 8px; font-size: 0.9em; color: #1e40af; border-bottom: 1px dashed #e8e6f4; padding-bottom: 5px; }
+            .credentials { border: 1px solid #e4e1d8; border-top: 4px solid #3b82f6; background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 15px; }
+            .credentials h3 { margin: 0 0 8px; font-size: 0.9em; color: #1e40af; border-bottom: 1px dashed #e4e1d8; padding-bottom: 5px; }
             .cred-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 15px; }
             .cred-note { margin-top: 8px; font-size: 0.68em; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 5px 8px; }
 
             /* Modules table */
-            .modules-card { border: 1px solid #e8e6f4; border-top: 4px solid #7c3aed; background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 15px; }
-            .modules-card h3 { margin: 0 0 8px; font-size: 0.9em; color: #7c3aed; border-bottom: 1px dashed #e8e6f4; padding-bottom: 5px; }
+            .modules-card { border: 1px solid #e4e1d8; border-top: 4px solid #1e293b; background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 15px; }
+            .modules-card h3 { margin: 0 0 8px; font-size: 0.9em; color: #1e293b; border-bottom: 1px dashed #e4e1d8; padding-bottom: 5px; }
             table.modules { width: 100%; border-collapse: collapse; font-size: 0.78em; }
-            table.modules th { background: #fcfbff; color: #5c567a; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.3px; text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1f0fb; }
-            table.modules td { padding: 6px 8px; border-bottom: 1px solid #f1f0fb; }
+            table.modules th { background: #faf9f5; color: #59637a; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.3px; text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1efe8; }
+            table.modules td { padding: 6px 8px; border-bottom: 1px solid #f1efe8; }
             table.modules tr:last-child td { border-bottom: 0; }
             .num { text-align: right; font-family: monospace; font-weight: 700; }
             .strike { text-decoration: line-through; color: #9ca3af; font-weight: 400; }
             .cut { color: #b91c1c; font-weight: 700; }
 
             /* Payment Synthesis Card */
-            .synthesis-card { background: #fdfcff; border: 2px solid #7c3aed; border-radius: 12px; padding: 14px; margin-top: 15px; }
-            .synthesis-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f0fb; font-size: 0.9em; }
+            .synthesis-card { background: #fcfbf8; border: 2px solid #1e293b; border-radius: 12px; padding: 14px; margin-top: 15px; }
+            .synthesis-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1efe8; font-size: 0.9em; }
             .synthesis-line:last-child { border-bottom: 0; padding-bottom: 0; }
             .amount-box { display: flex; justify-content: space-between; background: #f0fdf4; border: 2px solid #22c55e; color: #15803d; border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 1.15em; font-weight: 800; }
             
             /* Signatures block */
             .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 25px; }
-            .signature-block { border: 1px dashed #c0b6e9; border-radius: 10px; background: #fff; padding: 10px; height: 75px; display: flex; flex-direction: column; justify-content: space-between; }
-            .signature-label { font-size: 0.75em; font-weight: bold; text-transform: uppercase; color: #5c567a; text-align: center; }
+            .signature-block { border: 1px dashed #d8c79a; border-radius: 10px; background: #fff; padding: 10px; height: 75px; display: flex; flex-direction: column; justify-content: space-between; }
+            .signature-label { font-size: 0.75em; font-weight: bold; text-transform: uppercase; color: #59637a; text-align: center; }
             
             .meta-text { text-align: center; font-size: 0.7em; color: #999; margin-top: 20px; font-style: italic; }
           </style>
@@ -1329,7 +1329,7 @@ export function StudentsPage() {
             <div class="info-column">
               <div class="info-item">
                 <span class="info-label">Chevalier :</span>
-                <span class="info-value" style="color: #7c3aed;">${stu.lastName} ${stu.firstName}</span>
+                <span class="info-value" style="color: #1e293b;">${stu.lastName} ${stu.firstName}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">RFID :</span>
@@ -1345,7 +1345,7 @@ export function StudentsPage() {
             <div class="info-column">
               <div class="info-item">
                 <span class="info-label">Reçu N° :</span>
-                <span class="info-value" style="font-family: monospace; color: #7c3aed;">${invoiceNum}</span>
+                <span class="info-value" style="font-family: monospace; color: #1e293b;">${invoiceNum}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">Opération :</span>
@@ -1401,7 +1401,7 @@ export function StudentsPage() {
               <thead>
                 <tr>
                   <th>Module</th>
-                  <th>Classe / Niveau</th>
+                  <th>Catégorie / Niveau</th>
                   <th>Groupe</th>
                   <th>Entraîneur</th>
                   <th class="num">Tarif</th>
@@ -1412,7 +1412,7 @@ export function StudentsPage() {
                   .map(
                     (e) => `
                 <tr>
-                  <td style="font-weight:bold; color:#1e1b4b;">${e.module}</td>
+                  <td style="font-weight:bold; color:#10151f;">${e.module}</td>
                   <td>${e.classLabel}</td>
                   <td>${e.group}</td>
                   <td>${e.teacher}</td>
@@ -1434,7 +1434,7 @@ export function StudentsPage() {
 
           <!-- Payment Synthesis Card -->
           <div class="synthesis-card">
-            <h3 style="margin-top:0; border-bottom:1px dashed #7c3aed; padding-bottom:6px; color:#7c3aed; font-size: 0.95em;">Détail du Paiement</h3>
+            <h3 style="margin-top:0; border-bottom:1px dashed #1e293b; padding-bottom:6px; color:#1e293b; font-size: 0.95em;">Détail du Paiement</h3>
             <div class="synthesis-line">
               <span>Module :</span>
               <strong>${moduleLabel}</strong>
@@ -1454,7 +1454,7 @@ export function StudentsPage() {
             }
             <div class="synthesis-line">
               <span>Net à payer :</span>
-              <strong style="color: #1e1b4b;">${formatDA(receipt.netTotal)}</strong>
+              <strong style="color: #10151f;">${formatDA(receipt.netTotal)}</strong>
             </div>
             <div class="synthesis-line">
               <span>Reste à payer :</span>
@@ -2268,8 +2268,8 @@ export function StudentsPage() {
                                   {getTimingLabel(subId)}
                                 </span>
                                 <span className="block text-[10px] text-muted">
-                                  {cycleSizeOf(sub)} séances / mois · séance à{" "}
-                                  {formatDA(sub.pricePerSession)} · mois à{" "}
+                                  {cycleSizeOf(sub)} séances / carte · séance à{" "}
+                                  {formatDA(sub.pricePerSession)} · carte à{" "}
                                   {formatDA(monthlyPriceOf(sub))}
                                 </span>
                               </div>

@@ -63,7 +63,7 @@ export const PAY_MONTHS = 12;
 /**
  * CE QU'UNE PASTILLE DE CARTE DIT, D'UN COUP D'ŒIL :
  *  - `paid`     : l'entraîneur a déjà été réglé pour cette carte ;
- *  - `payable`  : la carte est clos (ses séances sont tenues) et doit encore ;
+ *  - `payable`  : la carte est closee (ses séances sont tenues) et doit encore ;
  *  - `running`  : la carte court — 3 séances sur 4 — il n'est pas encore à régler ;
  *  - `blocked`  : tout ce qu'il doit est RETENU (des chevaliers n'ont pas payé) ;
  *  - `empty`    : rien ne s'y est encore passé.

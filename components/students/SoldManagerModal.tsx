@@ -274,7 +274,7 @@ export function SoldManagerModal({
                         </span>
                         <span className="block text-[10px] text-muted">
                           {teacherName(db, r.session.teacherId)} · {cycleSizeOf(r.sub)} séances /
-                          mois ·{" "}
+                          carte ·{" "}
                           {r.offered ? (
                             <strong className="text-success">
                               offert — rien à encaisser sur cet emploi du temps
@@ -443,7 +443,7 @@ export function SoldManagerModal({
                   Le tableau du haut rappelle sa <strong>catégorie</strong>, son{" "}
                   <strong>année</strong> et les <strong>emplois du temps qu&apos;il suit</strong>{" "}
                   aujourd&apos;hui ; la liste du dessous en propose d&apos;autres. Cochez un
-                  créneau pour l&apos;ajouter à sa fiche : il entre LÀ OÙ EN EST LE GROUPE (mois et
+                  créneau pour l&apos;ajouter à sa fiche : il entre LÀ OÙ EN EST LE GROUPE (carte et
                   séance en cours), son solde s&apos;ouvre à 0 et se recharge ci-dessus. Cocher un
                   autre groupe du MÊME cours l&apos;y déplace au lieu de le facturer deux fois.
                 </p>

@@ -468,7 +468,7 @@ function EmploiList({
       <p className="rounded-2xl border border-primary/30 bg-primary-50/50 p-3 text-[11px] leading-relaxed text-primary">
         Choisissez l&apos;emploi du temps à consulter. Chacun compte{" "}
         <strong>ses propres carte</strong> — M1 s&apos;ouvre à la première présence et se ferme sur
-        la séance qui complète le pack — et se règle mois par mois, indépendamment des autres.
+        la séance qui complète le pack — et se règla carte par carte, indépendamment des autres.
       </p>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -501,7 +501,7 @@ function EmploiList({
                   )}
                 </strong>
                 <span className="block text-[10px] text-muted">
-                  Groupe {e.groupName} · {e.className} · Salle {e.salleName}
+                  Groupe {e.groupName} · {e.className} · Arène {e.salleName}
                 </span>
                 <span className="block text-[10px] text-muted">
                   {e.daysLabel} · <span className="font-mono">{e.timeLabel}</span> · {e.rosterCount}{" "}
@@ -524,12 +524,12 @@ function EmploiList({
             <div className="flex flex-wrap items-center gap-1.5 p-4 pt-3">
               <Badge tone="primary" className="gap-1 text-[10px] font-bold">
                 <CalendarClock className="h-3 w-3" />
-                Mois en cours {e.currentCode} · séance{" "}
+                Carte en cours {e.currentCode} · séance{" "}
                 {Math.min(Math.max(e.currentHeld, 0), e.size)}/{e.size}
               </Badge>
               {e.priced ? (
                 <Badge tone="neutral" className="text-[10px]">
-                  {formatDA(e.perSeance)} / séance · {formatDA(money(e.perSeance * e.size))} le mois
+                  {formatDA(e.perSeance)} / séance · {formatDA(money(e.perSeance * e.size))} la carte
                 </Badge>
               ) : (
                 <Badge tone="warning" className="text-[10px]">
@@ -610,11 +610,11 @@ function MonthList({
           {emploi.title} — Groupe {emploi.groupName}
         </strong>
         <span className="block text-[11px] text-muted">
-          {emploi.size} séances par mois ·{" "}
+          {emploi.size} séances par carte ·{" "}
           {emploi.priced ? (
             <>
               votre part <strong className="text-primary">{formatDA(emploi.perSeance)}</strong> par
-              séance, soit {formatDA(money(emploi.perSeance * emploi.size))} le mois complet
+              séance, soit {formatDA(money(emploi.perSeance * emploi.size))} la carte complète
             </>
           ) : (
             <span className="font-semibold text-warning">
@@ -623,10 +623,10 @@ function MonthList({
           )}
         </span>
         <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-          <strong className="text-ink">« 4/4 » veut dire que le mois est clos</strong> : ses quatre
+          <strong className="text-ink">« 4/4 » veut dire que la carte est closee</strong> : ses quatre
           séances ont été assurées, il peut être réglé. « 3/4 » veut dire qu&apos;il court encore —
-          c&apos;est le mois qui vient de se terminer qui se règle, pas celui d&apos;aujourd&apos;hui.
-          Cliquez un mois pour en lire le détail.
+          c&apos;est la carte qui vient de se terminer qui se règle, pas celui d&apos;aujourd&apos;hui.
+          Cliquez une carte pour en lire le détail.
         </p>
       </div>
 
@@ -804,7 +804,7 @@ function MonthBoardView({
       {settlement ? (
         <div className="rounded-2xl border-2 border-success/40 bg-gradient-to-r from-success/15 to-success/5 p-4">
           <strong className="flex items-center gap-1.5 text-sm text-success">
-            <ShieldCheck className="h-4 w-4" /> Ce mois vous a été réglé —{" "}
+            <ShieldCheck className="h-4 w-4" /> Cette carte vous a été réglée —{" "}
             {formatDA(settlement.amount)} nets
           </strong>
           <span className="mt-0.5 block text-[11px] text-muted">
@@ -813,16 +813,16 @@ function MonthBoardView({
             {settlement.id.slice(0, 8).toUpperCase()}
           </span>
           <span className="mt-1 block text-[11px] leading-relaxed text-muted">
-            Les tables ci-dessous montrent ce que ce mois représente{" "}
+            Les tables ci-dessous montrent ce que cette carte représente{" "}
             <strong className="text-ink">aujourd&apos;hui</strong>. Si des chevaliers ont payé depuis, ou
             si des séances libres sont tombées ici, ces parts vous reviennent sur le{" "}
             <strong className="text-ink">règlement suivant</strong>, dans sa table « Retards de
-            paiement &amp; séances libres » — le mois lui-même ne se repaie jamais deux fois.
+            paiement &amp; séances libres » — la carte lui-même ne se repaie jamais deux fois.
           </span>
         </div>
       ) : (
         <div className="rounded-2xl border border-primary/30 bg-primary-50/50 p-3 text-[11px] leading-relaxed text-primary">
-          Ce mois n&apos;a pas encore été réglé. Ce que les tables affichent est ce qu&apos;il vous
+          Cette carte n&apos;a pas encore été réglé. Ce que les tables affichent est ce qu&apos;il vous
           rapportera : le montant définitif est arrêté par l&apos;administration au moment du
           versement.
         </div>
@@ -925,11 +925,11 @@ function MonthBoardView({
             {board.students.length})
           </strong>
           <span className="block text-[11px] leading-relaxed text-muted">
-            Votre part : {formatDA(board.teacherMonthShare)} le mois ÷ {board.size} séances ={" "}
+            Votre part : {formatDA(board.teacherMonthShare)} la carte ÷ {board.size} séances ={" "}
             <strong className="text-primary">{formatDA(board.perSeance)}</strong> la séance. La
             colonne « Ma part » multiplie ce tarif par les séances payables de chaque chevalier, au
             centime — une séance ne devient payable que lorsque le chevalier l&apos;a payée sur ce
-            mois.
+            carte.
           </span>
         </div>
 
@@ -960,7 +960,7 @@ function MonthBoardView({
                     colSpan={9 + board.size}
                     className="px-3 py-8 text-center text-xs italic text-muted"
                   >
-                    Aucun chevalier sur {carteShort(monthCode)} — ce mois n&apos;a encore rien produit.
+                    Aucun chevalier sur {carteShort(monthCode)} — cette carte n&apos;a encore rien produit.
                   </td>
                 </tr>
               ) : (
@@ -1007,10 +1007,10 @@ function MonthBoardView({
           <span className="block text-[11px] leading-relaxed text-muted">
             Deux natures, un même principe : ce que ce règlement vous doit{" "}
             <strong className="text-ink">en dehors des chevaliers de la carte</strong>. Les{" "}
-            <strong className="text-ink">retards</strong> appartiennent à des mois déjà réglés — la
+            <strong className="text-ink">retards</strong> appartiennent à des cartes déjà réglés — la
             part avait été retenue, le chevalier s&apos;est acquitté depuis. Les{" "}
             <strong className="text-ink">séances libres</strong> sont celles des chevaliers de passage :
-            payées d&apos;avance, elles reviennent au mois où elles sont tombées.
+            payées d&apos;avance, elles reviennent à la carte où elles sont tombées.
           </span>
         </div>
 
@@ -1105,7 +1105,7 @@ function MonthBoardView({
 
         {board.passagers.length === 0 ? (
           <p className="bg-surface px-3 py-5 text-center text-xs italic text-muted">
-            Aucune séance libre sur {carteShort(monthCode)} — aucun chevalier de passage n&apos;est venu sur ce mois.
+            Aucune séance libre sur {carteShort(monthCode)} — aucun chevalier de passage n&apos;est venu sur cette carte.
           </p>
         ) : (
           <div className="overflow-x-auto bg-surface">
@@ -1317,7 +1317,7 @@ function MonthBoardView({
             <p className="text-[10px] leading-relaxed text-muted">
               Le net figé du règlement fait foi. Ce que les tables affichent aujourd&apos;hui (
               {formatDA(net)}) peut différer : des chevaliers ont payé depuis, ou des séances libres
-              sont tombées sur ce mois — cela vous revient sur le règlement suivant.
+              sont tombées sur cette carte — cela vous revient sur le règlement suivant.
             </p>
           )}
         </div>
@@ -1743,7 +1743,7 @@ function SettlementList({ settlements }: { settlements: TeacherPayment[] }) {
               <PayBoardView board={viewed.board} />
             ) : (
               <p className="rounded-xl border border-dashed border-line py-8 text-center text-[11px] italic text-muted">
-                Ce règlement a été enregistré avant l&apos;écran « un mois à la fois » : il n&apos;en
+                Ce règlement a été enregistré avant l&apos;écran « une carte à la fois » : il n&apos;en
                 garde pas le détail table par table.
               </p>
             )}

@@ -659,13 +659,13 @@ export function PresenceSheet({
         <div className="min-w-0">
           <h3 className="text-base font-black text-ink sm:text-lg">{title}</h3>
           <p className="text-[11px] text-muted sm:text-xs">
-            Groupe {groupName(db, session.groupId)} · Salle{" "}
+            Groupe {groupName(db, session.groupId)} · Arène{" "}
             {salleName(db, sessionSalleOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]))} ·{" "}
             {sessionTimesOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]).startTime}–
             {sessionTimesOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]).endTime}
           </p>
           <p className="text-[10px] text-muted sm:text-[11px]">
-            Enseignant : {teacherName(db, session.teacherId)} · {cycleSizeOf(sub)} séances / mois ·
+            Entraîneur : {teacherName(db, session.teacherId)} · {cycleSizeOf(sub)} séances / carte ·
             séance à {formatDA(unitPrice)}
             {schoolOnlyPrice > 0 && schoolOnlyPrice !== unitPrice && (
               <> · « club seule » : {formatDA(schoolOnlyPrice)} / séance</>
@@ -899,7 +899,7 @@ export function PresenceSheet({
                 </th>
               ))}
               <th className="px-2 py-2.5">Versé / Reste {carteShort(monthCode)}</th>
-              <th className="px-2 py-2.5">Mois préc.</th>
+              <th className="px-2 py-2.5">Carte préc.</th>
               <th className="px-2 py-2.5">Autres dettes</th>
               <th className="px-2 py-2.5">Frais &amp; avances</th>
               <th className="px-2 py-2.5 text-center">Pointage du jour</th>
@@ -1804,7 +1804,7 @@ function SeanceStepper({
         ) : null}
         {atCap ? (
           <span className="font-semibold text-warning">
-            Plafond atteint : il ne reste plus que {formatDA(cap)} à payer sur ce mois, on ne peut
+            Plafond atteint : il ne reste plus que {formatDA(cap)} à payer sur cette carte, on ne peut
             pas lui en facturer davantage ici.
           </span>
         ) : (
@@ -1984,7 +1984,7 @@ function MarkAllModal({
             <>
               La séance du {formatDateFr(date)} sera marquée{" "}
               <strong className="text-primary">annulée</strong> pour tous les chevaliers cochés :
-              aucune séance consommée, aucun solde débité, aucune part enseignant due, et le mois du
+              aucune séance consommée, aucun solde débité, aucune part entraîneur due, et la carte du
               groupe n&apos;avance pas. Un pointage déjà saisi ce jour-là est{" "}
               <strong className="text-ink">repris</strong> et le solde rendu.
             </>
@@ -2924,7 +2924,7 @@ function TeacherChildPayModal({
 
         {!father && (
           <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[11px] font-semibold text-warning">
-            Aucun enseignant père n&apos;est désigné sur sa fiche : seul l&apos;encaissement auprès
+            Aucun entraîneur père n&apos;est désigné sur sa fiche : seul l&apos;encaissement auprès
             de la famille est possible tant qu&apos;il n&apos;y en a pas.
           </p>
         )}
@@ -2959,7 +2959,7 @@ function TeacherChildPayModal({
           </div>
           {owing.length === 0 && (
             <p className="text-[10px] italic text-muted">
-              Aucun mois en dette sur cet emploi du temps — un versement d&apos;avance reste
+              Aucune carte en dette sur cet emploi du temps — un versement d&apos;avance reste
               possible sur {monthCodeLabel(current)}.
             </p>
           )}
@@ -3002,7 +3002,7 @@ function TeacherChildPayModal({
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
                 Un versement de chevalier ordinaire : l&apos;argent <strong>entre en caisse</strong>{" "}
                 et le salaire de son père n&apos;est <strong>pas amputé</strong>. Sa paie affichera
-                le mois « payé par la famille », pour que personne ne le retienne une seconde fois.
+                la carte « payée par la famille », pour que personne ne le retienne une seconde fois.
               </p>
             </div>
             <Button
@@ -3157,7 +3157,7 @@ function DebtDrill({
         )}
         {loose > 0 && (
           <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[11px] text-warning">
-            S&apos;ajoutent <strong>{formatDA(loose)}</strong> qui ne relèvent d&apos;aucun mois :
+            S&apos;ajoutent <strong>{formatDA(loose)}</strong> qui ne relèvent d&apos;aucune carte :
             {summary.rests > 0 ? ` ${formatDA(summary.rests)} de restes d'anciens paiements` : ""}
             {summary.rests > 0 && summary.registrationDue > 0 ? " et" : ""}
             {summary.registrationDue > 0

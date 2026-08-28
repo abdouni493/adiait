@@ -1006,7 +1006,7 @@ export function unpaidStudents(emplois: TeacherEmploi[]): UnpaidStudentRow[] {
 /**
  * Un chevalier qui a payé APRÈS que l'entraîneur a été réglé pour son carte.
  *
- * C'est le cas que la réception vit tous les cartes : au moment de régler le M1,
+ * C'est le cas que la réception vit toutes les cartess : au moment de régler le M1,
  * trois chevaliers n'avaient rien versé, leur part a donc été RETENUE et
  * l'entraîneur a touché le M1 sans elle. Ces chevaliers s'acquittent ensuite, et
  * quand vient le tour du M2, cette part de M1 est de nouveau due.
@@ -1118,7 +1118,7 @@ const NO_ARREARS: StudentArrears = { payable: 0, withheld: 0, months: [], dueIds
  * Les parts que les cartes d'AVANT `index` doivent encore à l'entraîneur pour cet
  * chevalier.
  *
- * C'est le cas que la réception vit tous les cartes : le chevalier n'avait pas payé
+ * C'est le cas que la réception vit toutes les cartess : le chevalier n'avait pas payé
  * son M2, l'entraîneur a donc été réglé du M2 sans sa part à lui ; le chevalier
  * s'acquitte ensuite, et au moment de régler le M3 cette part de M2 doit
  * réapparaître. Elle est ici, `payable`, avec la carte qui l'a générée.

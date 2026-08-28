@@ -1858,7 +1858,7 @@ export function ReportsPage() {
       {
         label: "Paiements entraîneurs",
         value: teacherPayout,
-        color: "#7c3aed",
+        color: "#1e293b",
         hint: "Salaires, parts de séances et acomptes",
       },
       {
@@ -1923,7 +1923,7 @@ export function ReportsPage() {
 
     const teacherGeneratedTotal = teacherStats.reduce((s, t) => s + t.generated, 0);
     const teacherEarnedTotal = teacherStats.reduce((s, t) => s + t.earned, 0);
-    const TEACHER_COLORS = ["#7c3aed", "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7", "#84cc16"];
+    const TEACHER_COLORS = ["#1e293b", "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#33475f", "#84cc16"];
 
     const analysisSection: Section = {
       id: "analysis",
@@ -2059,7 +2059,7 @@ export function ReportsPage() {
                     <UserCog className="h-4 w-4 text-primary" /> Analyse par entraîneur
                   </h4>
                   <p className="text-[11px] text-muted">
-                    Part de chaque enseignant dans les {formatDA(teacherGeneratedTotal)} générés par les séances.
+                    Part de chaque entraîneur dans les {formatDA(teacherGeneratedTotal)} générés par les séances.
                   </p>
                 </div>
                 <div>
@@ -2079,7 +2079,7 @@ export function ReportsPage() {
 
               {teacherStats.length === 0 ? (
                 <p className="py-10 text-center text-xs italic text-muted">
-                  Aucune activité enseignante sur cette période.
+                  Aucune activité entraîneuse sur cette période.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -3022,7 +3022,7 @@ export function ReportsPage() {
               restreint la paie des entraîneurs à cette carte-là. */}
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-              Mois (paie)
+              Carte (paie)
             </label>
             <select
               value={monthFilter}

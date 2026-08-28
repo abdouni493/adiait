@@ -639,7 +639,7 @@ export function CashPage() {
             onClick={() => setFilterPeriod("month")}
             className="rounded-xl font-bold py-1.5 px-3"
           >
-            Ce mois-ci
+            Cette carte-ci
           </Button>
           <Button
             size="sm"
@@ -823,7 +823,7 @@ export function CashPage() {
             </div>
             <p className="mt-1.5 text-[10px] leading-relaxed text-muted">
               Un règlement se lit en trois tables : les <strong>chevaliers de la carte</strong>, les{" "}
-              <strong>arriérés rattrapés</strong> (des parts d&apos;un mois déjà réglé, libérées par
+              <strong>arriérés rattrapés</strong> (des parts d&apos;une carte déjà réglée, libérées par
               un paiement tardif) et les <strong>retenues</strong> (dépenses, acomptes, cotisation
               des enfants). Le net versé est la somme des deux premières moins la troisième.
             </p>

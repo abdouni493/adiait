@@ -21,7 +21,7 @@ import { boardTotals, buildPayBoard, freezeBoard, settledMonthCodes } from "@/li
  *   · donc elle réapparaissait à la carte suivante, et la carte lui-même continuait
  *     de s'afficher « à régler » alors qu'un règlement existait.
  *
- * Deux cas le déclenchaient tous les cartes : des frais d'inscription encore dus,
+ * Deux cas le déclenchaient toutes les cartess : des frais d'inscription encore dus,
  * et un retardataire qui a soldé son M1 mais vit déjà son M2. Les deux sont
  * testés ici.
  */

@@ -222,15 +222,15 @@ export function buildTeacherPaymentReport(data: TeacherReportData): string {
       <h3>${L.teacherInfo}</h3>
       <table style="margin-top:0;">
         <tr>
-          <td style="width:18%; font-weight:bold; color:#5c567a;">${L.fullName}</td>
+          <td style="width:18%; font-weight:bold; color:#59637a;">${L.fullName}</td>
           <td style="width:32%; font-weight:bold; font-size:1.1em;">${teacher.lastName} ${teacher.firstName}</td>
-          <td style="width:18%; font-weight:bold; color:#5c567a;">${L.phone}</td>
+          <td style="width:18%; font-weight:bold; color:#59637a;">${L.phone}</td>
           <td style="width:32%; font-family:monospace;">${teacher.phone || "-"}</td>
         </tr>
         <tr>
-          <td style="font-weight:bold; color:#5c567a;">${L.email}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.email}</td>
           <td>${teacher.email || "-"}</td>
-          <td style="font-weight:bold; color:#5c567a;">${L.contract}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.contract}</td>
           <td>
             <span class="badge ${earnsPerSeance ? "badge-success" : "badge-warning"}">${contractLabel}</span>
           </td>
@@ -264,7 +264,7 @@ export function buildTeacherPaymentReport(data: TeacherReportData): string {
             <td>${r.classLabel}</td>
             <td class="ctr"><strong>${r.presents}</strong></td>
             <td class="num">${r.revenue} ${L.da}</td>
-            <td class="num" style="color:#7c3aed;">${r.share} ${L.da}</td>
+            <td class="num" style="color:#1e293b;">${r.share} ${L.da}</td>
           </tr>`,
                   )
                   .join("")
@@ -274,11 +274,11 @@ export function buildTeacherPaymentReport(data: TeacherReportData): string {
           rows.length === 0
             ? ""
             : `<tfoot>
-          <tr style="background:#fcfbff; border-top:2px solid #7c3aed;">
+          <tr style="background:#faf9f5; border-top:2px solid #1e293b;">
             <td colspan="3" style="font-weight:800; text-transform:uppercase;">${L.totals}</td>
             <td class="ctr" style="font-weight:800;">${totalPresents}</td>
             <td class="num" style="font-weight:800;">${totalRevenue} ${L.da}</td>
-            <td class="num" style="font-weight:800; color:#7c3aed;">${totalShare} ${L.da}</td>
+            <td class="num" style="font-weight:800; color:#1e293b;">${totalShare} ${L.da}</td>
           </tr>
         </tfoot>`
         }

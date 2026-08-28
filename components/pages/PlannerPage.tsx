@@ -1292,21 +1292,21 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
         <h3>${L.infoTitle}</h3>
         <table style="margin-top:0;">
           <tr>
-            <td style="width:18%; font-weight:bold; color:#5c567a;">${L.module} :</td>
+            <td style="width:18%; font-weight:bold; color:#59637a;">${L.module} :</td>
             <td style="width:32%; font-weight:bold; font-size:1.1em;">${getModuleName(s.moduleId)}</td>
-            <td style="width:18%; font-weight:bold; color:#5c567a;">${L.group} :</td>
+            <td style="width:18%; font-weight:bold; color:#59637a;">${L.group} :</td>
             <td style="width:32%;">${sessionGroupIds(s).map(getGroupName).join(" · ")}</td>
           </tr>
           <tr>
-            <td style="font-weight:bold; color:#5c567a;">${L.classLevel} :</td>
+            <td style="font-weight:bold; color:#59637a;">${L.classLevel} :</td>
             <td>${getClassName(s.classId)}</td>
-            <td style="font-weight:bold; color:#5c567a;">${L.teacher} :</td>
+            <td style="font-weight:bold; color:#59637a;">${L.teacher} :</td>
             <td>${getTeacherName(s.teacherId)}</td>
           </tr>
           <tr>
-            <td style="font-weight:bold; color:#5c567a;">${L.salle} :</td>
+            <td style="font-weight:bold; color:#59637a;">${L.salle} :</td>
             <td>${getSalleName(s.salleId)}</td>
-            <td style="font-weight:bold; color:#5c567a;">${L.enrolled} :</td>
+            <td style="font-weight:bold; color:#59637a;">${L.enrolled} :</td>
             <td><span class="badge badge-primary">${enrolledCount}</span></td>
           </tr>
         </table>
@@ -1410,7 +1410,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
       {selectedDays.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line bg-canvas/40 p-3 text-[11px] leading-relaxed text-muted">
           Choisissez d&apos;abord les jours. Vous fixerez ensuite l&apos;heure de début et de fin
-          <strong className="text-ink"> de chaque jour</strong>, et les salles libres sur ces
+          <strong className="text-ink"> de chaque jour</strong>, et les arènes libres sur ces
           créneaux vous seront proposées.
         </div>
       ) : (
@@ -1489,7 +1489,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
         <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
           <label className="block text-xs font-semibold text-muted font-sans">Entraîneur</label>
           <Badge tone="neutral" className="text-[9px] font-bold">
-            {teachers.length} enseignant(s)
+            {teachers.length} entraîneur(s)
           </Badge>
         </div>
 
@@ -1528,12 +1528,12 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
 
         {teachers.length === 0 ? (
           <p className="mt-1.5 rounded-xl border border-dashed border-line bg-canvas/40 p-3 text-[11px] text-muted">
-            Aucun enseignant enregistré — créez-en un depuis l&apos;écran Enseignants.
+            Aucun entraîneur enregistré — créez-en un depuis l&apos;écran Entraîneurs.
           </p>
         ) : (
           <div className="mt-1.5 max-h-44 space-y-1 overflow-y-auto pr-0.5">
             {matches.length === 0 ? (
-              <p className="p-2 text-[11px] italic text-muted">Aucun enseignant ne correspond.</p>
+              <p className="p-2 text-[11px] italic text-muted">Aucun entraîneur ne correspond.</p>
             ) : (
               matches.map((t) => (
                 <button
@@ -1640,7 +1640,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <div className="flex items-center gap-2">
             {daysWithoutSalle.length > 0 && (
               <Badge tone="warning" className="text-[9px] font-bold">
-                {formatDays(daysWithoutSalle)} sans salle
+                {formatDays(daysWithoutSalle)} sans arène
               </Badge>
             )}
             {orderedDays.length <= 1 && (
@@ -1661,7 +1661,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
               onClick={() => setShowAddSalle(!showAddSalle)}
               className="text-xs text-primary hover:underline"
             >
-              + Nouvelle salle
+              + Nouvelle arène
             </button>
           </div>
         )}
@@ -1675,7 +1675,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
         </div>
       ) : salles.length === 0 && !showAddSalle ? (
         <div className="rounded-xl border border-dashed border-line bg-canvas/40 p-3 text-[11px] text-muted">
-          Aucune salle enregistrée — créez-en une avec « + Nouvelle salle ».
+          Aucune arène enregistrée — créez-en une avec « + Nouvelle arène ».
         </div>
       ) : showAddSalle && orderedDays.length <= 1 ? (
         renderAddSalle(orderedDays[0])
@@ -2072,7 +2072,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                           <div className="flex items-center gap-2">
                             <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
                             <span>
-                              Salle:{" "}
+                              Arène:{" "}
                               <strong>
                                 {s.isOpen
                                   ? (s.salleIds ?? [s.salleId]).map(getSalleName).join(" + ")
@@ -2439,8 +2439,8 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                 <div className="font-bold text-ink break-words">{openTitleOverride.trim() || buildOpenTitle()}</div>
                 {openSeanceCount > 0 && (
                   <div className="text-[10px] text-muted mt-1.5">
-                    {openSeanceCount} séance(s) sur la période · {openClassIds.length} classe(s) ·{" "}
-                    {openGroupIds.length} groupe(s) · {openSalleIds.length} salle(s)
+                    {openSeanceCount} séance(s) sur la période · {openClassIds.length} catégorie(s) ·{" "}
+                    {openGroupIds.length} groupe(s) · {openSalleIds.length} arène(s)
                   </div>
                 )}
               </div>
@@ -2548,7 +2548,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                 {effectiveGroupIds.length
                   ? effectiveGroupIds.map(getGroupName).join(" · ")
                   : "?"}{" "}
-                / Salle: {salleId ? getSalleName(salleId) : "?"}) par{" "}
+                / Arène: {salleId ? getSalleName(salleId) : "?"}) par{" "}
                 {teacherId ? getTeacherName(teacherId) : "?"}
               </div>
             </div>
@@ -2575,7 +2575,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Nombre de séances du mois *
+                Nombre de séances de la carte *
               </label>
               <Input
                 type="number"
@@ -2587,7 +2587,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Prix total du mois (DA) *
+                Prix total de la carte (DA) *
               </label>
               <Input
                 type="number"
@@ -2611,7 +2611,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Part du club sur le mois (DA)
+                Part du club sur la carte (DA)
               </label>
               <Input
                 type="number"
@@ -2643,19 +2643,19 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
 
           {monthSeances > 0 && monthPrice > 0 ? (
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
-              Un mois = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
+              Une carte = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
               <strong className="text-ink">{formatDA(monthPrice)}</strong> →{" "}
               <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. Le club
               garde <strong className="text-ink">{formatDA(Math.min(schoolShare, monthPrice))}</strong>,
               l&apos;entraîneur reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
               soit <strong className="text-success">{formatDA(teacherPerSeance)}</strong> par séance
               assurée — et le club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
-              par séance. Les divisions gardent leurs décimales : un mois qui ne tombe pas juste se
+              par séance. Les divisions gardent leurs décimales : une carte qui ne tombe pas juste se
               répartit au centime, jamais arrondi au dinar.
             </p>
           ) : (
             <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] text-warning">
-              Sans nombre de séances ni prix du mois, l&apos;emploi du temps est créé sans tarif : aucun
+              Sans nombre de séances ni prix de la carte, l&apos;emploi du temps est créé sans tarif : aucun
               chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
             </p>
           )}
@@ -2750,7 +2750,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Nombre de séances du mois *
+                Nombre de séances de la carte *
               </label>
               <Input
                 type="number"
@@ -2762,7 +2762,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Prix total du mois (DA) *
+                Prix total de la carte (DA) *
               </label>
               <Input
                 type="number"
@@ -2786,7 +2786,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Part du club sur le mois (DA)
+                Part du club sur la carte (DA)
               </label>
               <Input
                 type="number"
@@ -2818,19 +2818,19 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
 
           {monthSeances > 0 && monthPrice > 0 ? (
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
-              Un mois = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
+              Une carte = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
               <strong className="text-ink">{formatDA(monthPrice)}</strong> →{" "}
               <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. Le club
               garde <strong className="text-ink">{formatDA(Math.min(schoolShare, monthPrice))}</strong>,
               l&apos;entraîneur reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
               soit <strong className="text-success">{formatDA(teacherPerSeance)}</strong> par séance
               assurée — et le club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
-              par séance. Les divisions gardent leurs décimales : un mois qui ne tombe pas juste se
+              par séance. Les divisions gardent leurs décimales : une carte qui ne tombe pas juste se
               répartit au centime, jamais arrondi au dinar.
             </p>
           ) : (
             <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] text-warning">
-              Sans nombre de séances ni prix du mois, l&apos;emploi du temps est créé sans tarif : aucun
+              Sans nombre de séances ni prix de la carte, l&apos;emploi du temps est créé sans tarif : aucun
               chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
             </p>
           )}
@@ -2912,7 +2912,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
               </div>
               <div>
                 <span className="text-[10px] text-muted block uppercase font-sans">
-                  Groupe(s) / Salle
+                  Groupe(s) / Arène
                 </span>
                 <span className="font-semibold text-ink">
                   {sessionGroupIds(selectedSession).map(getGroupName).join(" · ") || "—"} -{" "}
@@ -2960,7 +2960,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                   </span>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
                     <div>
-                      <span className="block text-[10px] uppercase text-muted">Séances / mois</span>
+                      <span className="block text-[10px] uppercase text-muted">Séances / carte</span>
                       <strong className="text-ink">{sub.monthlySeances ?? 0}</strong>
                     </div>
                     <div>
@@ -2977,7 +2977,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase text-muted">
-                        Enseignant (mois / séance)
+                        Entraîneur (carte / séance)
                       </span>
                       <strong className="text-success">
                         {formatDA(teacherMonthShareOf(sub))} · {formatDA(teacherPerSeanceOf(sub))}

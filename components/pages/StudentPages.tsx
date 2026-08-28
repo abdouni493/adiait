@@ -543,11 +543,11 @@ function StudentScheduleView({
                 <span className="font-bold text-ink">{selectedSession.moduleLabel}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Niveau / Classe</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Niveau / Catégorie</span>
                 <span className="font-semibold text-ink">{selectedSession.classLabel}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Groupe / Salle</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Groupe / Arène</span>
                 <span className="font-semibold text-ink">
                   {selectedSession.groupLabel} - {selectedSession.salleName}
                 </span>

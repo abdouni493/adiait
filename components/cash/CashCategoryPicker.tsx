@@ -24,7 +24,7 @@ import { formatDA } from "@/lib/utils";
 import { todayIso } from "@/lib/helpers";
 
 /** Les jetons proposés à la création. Ils reprennent la palette de l'Ordre. */
-const SWATCHES = ["#b08328", "#35506f", "#15803d", "#b45309", "#b91c1c", "#7c3aed"];
+const SWATCHES = ["#b08328", "#35506f", "#15803d", "#b45309", "#b91c1c", "#1e293b"];
 
 export function CashCategoryPicker({
   value,

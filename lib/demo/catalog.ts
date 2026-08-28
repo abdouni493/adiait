@@ -35,10 +35,10 @@ import { TODAY, shiftDays, stamp, weekday } from "./dates";
 
 export const SCHOOL: School = {
   id: "school",
-  name: "ALTECH SCHOOL",
-  description: "Club privée — cours de soutien, formations et prédu club",
+  name: "ORDRE DES CHEVALIERS",
+  description: "Club privé de chevalerie — équitation, escrime et art équestre",
   phone: "0550 12 34 56",
-  email: "contact@altech-school.dz",
+  email: "contact@ordre-chevaliers.dz",
   address: "12 Rue des Frères Bouadou, Birkhadem, Alger",
   articleFiscal: "16/2024/0012",
   registreCommerce: "16 B 0987654",

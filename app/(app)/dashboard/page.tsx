@@ -76,9 +76,9 @@ const JS_DAYS: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", 
  * two renders — the same groupe garde sa couleur d'un jour à l'autre.
  */
 const PALETTE = [
-  "#7c3aed", "#0ea5e9", "#16a34a", "#ea580c", "#db2777",
-  "#0891b2", "#ca8a04", "#4f46e5", "#059669", "#e11d48",
-  "#2563eb", "#9333ea",
+  "#1e293b", "#0ea5e9", "#16a34a", "#ea580c", "#db2777",
+  "#0891b2", "#ca8a04", "#35506f", "#059669", "#e11d48",
+  "#2563eb", "#294059",
 ];
 
 function colorOf(id: string): string {
@@ -833,7 +833,7 @@ function AdminDashboard() {
 
           <p className="text-[10px] text-muted">
             Chaque emploi du temps porte sa couleur, la ligne donne son créneau horaire et la
-            colonne sa salle. Un clic ouvre la feuille de présence de cette date.
+            colonne son arène. Un clic ouvre la feuille de présence de cette date.
           </p>
 
           {/* -------------------------------------------------------------
@@ -860,10 +860,10 @@ function AdminDashboard() {
                     Part club {formatDA(dayTotals.school)}
                   </Badge>
                   <Badge tone="warning" className="font-mono text-[10px]">
-                    Part enseignants {formatDA(dayTotals.teacher)}
+                    Part entraîneurs {formatDA(dayTotals.teacher)}
                   </Badge>
                   <Badge tone="primary" className="font-mono text-[10px]">
-                    Total encaissé (tous mois) {formatDA(dayTotals.collected)}
+                    Total encaissé (toutes cartes) {formatDA(dayTotals.collected)}
                   </Badge>
                 </span>
               </div>
@@ -935,7 +935,7 @@ function AdminDashboard() {
                           </span>
                         </td>
                         {/* CE QUE CE GROUPE A RAPPORTÉ DEPUIS LE PREMIER JOUR —
-                            tous carte confondus, tous versements confondus. */}
+                            toutes cartes confondus, tous versements confondus. */}
                         <td className="px-2 py-1.5 text-right font-mono font-black text-primary">
                           {formatDA(r.collected)}
                           <span className="block text-[8px] font-normal text-muted">
@@ -964,7 +964,7 @@ function AdminDashboard() {
               <p className="text-[10px] leading-relaxed text-muted">
                 <strong className="text-ink">« Total encaissé »</strong> est ce que cet emploi
                 du temps a rapporté DEPUIS LE PREMIER JOUR : la somme de tous les versements de
-                ses chevaliers, tous mois confondus — à ne pas confondre avec la recette du jour, qui
+                ses chevaliers, toutes cartes confondues — à ne pas confondre avec la recette du jour, qui
                 ne compte que les séances pointées aujourd&apos;hui.
                 <br />
                 Prix d&apos;une séance = <strong className="text-ink">prix de la carte ÷ séances du

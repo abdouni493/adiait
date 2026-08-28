@@ -311,7 +311,7 @@ function EmploiList({
   if (emplois.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-line py-12 text-center text-xs font-bold text-muted">
-        Cet enseignant n&apos;a aucun emploi du temps — rien à régler.
+        Cet entraîneur n&apos;a aucun emploi du temps — rien à régler.
       </p>
     );
   }
@@ -337,9 +337,9 @@ function EmploiList({
       </div>
 
       <p className="rounded-2xl border border-primary/30 bg-primary-50/50 p-3 text-[11px] leading-relaxed text-primary">
-        Choisissez l&apos;emploi du temps à régler. Chacun compte SES propres mois — M1 s&apos;ouvre
-        à la première présence et se ferme sur la séance qui complète le pack — et se paie mois par
-        mois, indépendamment des autres.
+        Choisissez l&apos;emploi du temps à régler. Chacun compte SES propres cartes — C1 s&apos;ouvre
+        à la première présence et se ferme sur la séance qui complète le pack — et se paie carte par
+        carte, indépendamment des autres.
       </p>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -370,7 +370,7 @@ function EmploiList({
                   )}
                 </strong>
                 <span className="block text-[10px] text-muted">
-                  Groupe {e.groupName} · {e.className} · Salle {e.salleName}
+                  Groupe {e.groupName} · {e.className} · Arène {e.salleName}
                 </span>
                 <span className="block text-[10px] text-muted">
                   {e.daysLabel} · <span className="font-mono">{e.timeLabel}</span> · {e.rosterCount}{" "}
@@ -393,12 +393,12 @@ function EmploiList({
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <Badge tone="primary" className="gap-1 text-[10px] font-bold">
                 <CalendarClock className="h-3 w-3" />
-                Mois en cours {e.currentCode} · séance{" "}
+                Carte en cours {e.currentCode} · séance{" "}
                 {Math.min(Math.max(e.currentHeld, 0), e.size)}/{e.size}
               </Badge>
               {e.priced ? (
                 <Badge tone="neutral" className="text-[10px]">
-                  {formatDA(e.perSeance)} / séance · {formatDA(money(e.perSeance * e.size))} le mois
+                  {formatDA(e.perSeance)} / séance · {formatDA(money(e.perSeance * e.size))} la carte
                 </Badge>
               ) : (
                 <Badge tone="warning" className="text-[10px]">
@@ -452,11 +452,11 @@ function MonthList({
           {emploi.title} — Groupe {emploi.groupName}
         </strong>
         <span className="block text-[11px] text-muted">
-          {emploi.size} séances par mois ·{" "}
+          {emploi.size} séances par carte ·{" "}
           {emploi.priced ? (
             <>
               part entraîneur <strong className="text-primary">{formatDA(emploi.perSeance)}</strong>{" "}
-              par séance, soit {formatDA(money(emploi.perSeance * emploi.size))} le mois complet
+              par séance, soit {formatDA(money(emploi.perSeance * emploi.size))} la carte complète
             </>
           ) : (
             <span className="font-semibold text-warning">
@@ -465,9 +465,9 @@ function MonthList({
           )}
         </span>
         <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-          <strong className="text-ink">« 4/4 » veut dire que le mois est clos</strong> : ses quatre
+          <strong className="text-ink">« 4/4 » veut dire que la carte est closee</strong> : ses quatre
           séances ont été assurées, il peut être réglé. « 3/4 » veut dire qu&apos;il court encore —
-          on règle le mois qui vient de se terminer, pas celui d&apos;aujourd&apos;hui.
+          on règle la carte qui vient de se terminer, pas celui d&apos;aujourd&apos;hui.
         </p>
       </div>
 
@@ -624,7 +624,7 @@ function MonthBoard({
    *
    * Tout ce qui est réglable l'est d'office : la réception décoche ce qu'elle
    * ne veut pas payer aujourd'hui, elle n'a pas à cocher vingt lignes pour
-   * faire ce qu'elle fait tous les cartes.
+   * faire ce qu'elle fait toutes les cartess.
    */
   const [studentIds, setStudentIds] = useState<string[]>(() =>
     board.students.filter((r) => !r.withheld && r.amount > 0).map((r) => r.studentId),
@@ -985,7 +985,7 @@ function MonthBoard({
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-success/40 bg-success/10 p-3.5">
           <div className="min-w-0">
             <strong className="flex items-center gap-1.5 text-sm text-success">
-              <CheckCircle2 className="h-4 w-4" /> Ce mois a déjà été réglé —{" "}
+              <CheckCircle2 className="h-4 w-4" /> Cette carte a déjà été réglée —{" "}
               {formatDA(settlement.amount)} nets
             </strong>
             <span className="block text-[11px] text-muted">
@@ -997,7 +997,7 @@ function MonthBoard({
               Cette carte <strong className="text-ink">ne se règle plus</strong> : les tables
               ci-dessous se lisent, elles ne se cochent pas. Pour corriger le net versé, la date ou
               le libellé, utilisez <strong className="text-ink">Modifier</strong> ; pour tout
-              reprendre à zéro, <strong className="text-ink">Supprimer</strong> — le mois redevient
+              reprendre à zéro, <strong className="text-ink">Supprimer</strong> — la carte redevient
               alors réglable.
             </span>
             {stillOpen > 0 && (
@@ -1006,7 +1006,7 @@ function MonthBoard({
                 chevaliers ont payé en retard, ou des séances libres sont tombées ici). Ces parts
                 appartiennent à <strong>{carteShort(monthCode)}</strong> mais se rattrapent sur le{" "}
                 <strong>règlement suivant</strong>, dans sa table « Retards de paiement &amp;
-                séances libres » — jamais en repayant ce mois-ci.
+                séances libres » — jamais en repayant cette carte-ci.
               </span>
             )}
           </div>
@@ -1107,7 +1107,7 @@ function MonthBoard({
             <strong className="text-ink">Encaisser</strong> (la famille paie maintenant, au
             guichet) ou <strong className="text-ink">Payer de la caisse</strong> (le club
             avance et se fera rembourser). Un chevalier laissé tel quel n&apos;empêche rien : sa part
-            reviendra toute seule dans les <em>retards de paiement</em> du mois suivant, le jour où
+            reviendra toute seule dans les <em>retards de paiement</em> de la carte suivante, le jour où
             il s&apos;acquittera.
           </p>
           <div className="overflow-x-auto rounded-xl border border-danger/25 bg-surface">
@@ -1177,7 +1177,7 @@ function MonthBoard({
             séances rapportent ne se règle donc pas aujourd&apos;hui — elle reviendra dès
             qu&apos;ils se seront acquittés. Une dette sur un AUTRE groupe, ou des frais
             d&apos;inscription, ne retiennent rien ici. Le club peut aussi ne pas faire attendre
-            l&apos;entraîneur : « Payer de la caisse » avance ce mois-là et débloque la part
+            l&apos;entraîneur : « Payer de la caisse » avance cette carte-là et débloque la part
             immédiatement.
           </span>
         </div>
@@ -1192,11 +1192,11 @@ function MonthBoard({
               {board.students.length})
             </strong>
             <span className="block text-[11px] text-muted">
-              Part enseignant : {formatDA(board.teacherMonthShare)} le mois ÷ {board.size} séances ={" "}
+              Part entraîneur : {formatDA(board.teacherMonthShare)} la carte ÷ {board.size} séances ={" "}
               <strong className="text-primary">{formatDA(board.perSeance)}</strong> la séance. La
-              colonne « Part enseignant » multiplie ce tarif par les séances payables de chaque
+              colonne « Part entraîneur » multiplie ce tarif par les séances payables de chaque
               chevalier, au centime — une séance ne devient payable que lorsque le chevalier l&apos;a
-              payée sur ce mois.
+              payée sur cette carte.
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -1250,7 +1250,7 @@ function MonthBoard({
               {board.students.length === 0 ? (
                 <tr>
                   <td colSpan={11 + board.size} className="px-3 py-8 text-center text-xs italic text-muted">
-                    Aucun chevalier sur {carteShort(monthCode)} — ce mois n&apos;a encore rien produit.
+                    Aucun chevalier sur {carteShort(monthCode)} — cette carte n&apos;a encore rien produit.
                   </td>
                 </tr>
               ) : (
@@ -1327,10 +1327,10 @@ function MonthBoard({
             <span className="block text-[11px] leading-relaxed text-muted">
               Deux natures, un même principe : ce que ce règlement doit à
               l&apos;entraîneur <strong className="text-ink">en dehors des chevaliers de la carte</strong>.
-              Les <strong className="text-ink">retards</strong> appartiennent à des mois déjà
+              Les <strong className="text-ink">retards</strong> appartiennent à des cartes déjà
               réglés — la part avait été retenue, le chevalier s&apos;est acquitté depuis. Les{" "}
               <strong className="text-ink">séances libres</strong> sont celles des chevaliers de
-              passage : payées d&apos;avance, elles reviennent au mois où elles sont tombées.
+              passage : payées d&apos;avance, elles reviennent à la carte où elles sont tombées.
             </span>
           </div>
         </div>
@@ -1473,7 +1473,7 @@ function MonthBoard({
         {board.passagers.length === 0 ? (
           <p className="bg-surface px-3 py-5 text-center text-xs italic text-muted">
             Aucune séance libre sur {carteShort(monthCode)} — aucun chevalier de passage n&apos;est venu sur ce
-            mois.
+            carte.
           </p>
         ) : (
           <div className="overflow-x-auto bg-surface">
@@ -1719,7 +1719,7 @@ function MonthBoard({
             <p className="text-[10px] leading-relaxed text-muted">
               Le net figé du règlement fait foi. Ce que les tables affichent aujourd&apos;hui
               ({formatDA(totals.net)}) peut différer : des chevaliers ont payé depuis, ou des séances
-              libres sont tombées sur ce mois — cela se rattrape sur le règlement suivant.
+              libres sont tombées sur cette carte — cela se rattrape sur le règlement suivant.
             </p>
           )}
         </div>
@@ -2082,7 +2082,7 @@ function DeductionLine({
  * CORRIGER UN RÈGLEMENT — le net, la date, le libellé, et rien d'autre.
  *
  * Rejouer ce qu'un règlement a soldé à l'occasion d'une faute de frappe
- * rouvrirait une carte déjà payé : les présences redeviendraient dues et la paie
+ * rouvrirait une carte déjà payée : les présences redeviendraient dues et la paie
  * suivante les réclamerait une seconde fois. Seul le mouvement de caisse suit
  * le nouveau montant.
  */
@@ -2111,7 +2111,7 @@ function EditPaymentModal({
         <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[11px] leading-relaxed text-warning">
           Seuls le <strong>net versé</strong>, la <strong>date</strong> et le{" "}
           <strong>libellé</strong> se corrigent ici. Ce que ce règlement a soldé — les présences,
-          les dépenses, les acomptes — ne bouge pas : le rejouer rouvrirait un mois déjà payé.
+          les dépenses, les acomptes — ne bouge pas : le rejouer rouvrirait une carte déjà payée.
           Pour tout reprendre, utilisez « Supprimer ».
         </p>
 
@@ -2263,7 +2263,7 @@ function CashInModal({
               onClick={() => setAmount(Math.round(proposal.total))}
               className="rounded-lg border border-line px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary-50"
             >
-              Le mois entier ({formatDA(proposal.total)})
+              La carte entière ({formatDA(proposal.total)})
             </button>
           )}
         </div>
@@ -2358,7 +2358,7 @@ function CoverModal({
         <p className="text-xs leading-relaxed text-ink">
           Les séances que ce chevalier n&apos;a pas payées sur <strong>{emploiTitle}</strong> retiennent
           la part qu&apos;elles rapportent à l&apos;entraîneur. Le club peut la débloquer en
-          avançant elle-même ces mois : deux mouvements entrent dans la caisse — le paiement porté
+          avançant elle-même ces cartes : deux mouvements entrent dans la caisse — le paiement porté
           au crédit du chevalier, et la sortie qui l&apos;a financé.
         </p>
 
@@ -2387,7 +2387,7 @@ function CoverModal({
           <p className="rounded-xl border border-line bg-canvas/40 p-2.5 text-[11px] leading-relaxed text-muted">
             Il doit encore <strong className="text-ink">{formatDA(elsewhere)}</strong> ailleurs
             (autres emplois du temps, restes d&apos;anciens paiements, frais d&apos;inscription).
-            Cette dette-là <strong>ne retient pas</strong> cet enseignant : elle reste à la charge de
+            Cette dette-là <strong>ne retient pas</strong> cet entraîneur : elle reste à la charge de
             la famille et se règle au guichet.
           </p>
         )}

@@ -1314,7 +1314,7 @@ function StudentFiche({
                   </div>
                   <div>
                     <label className="mb-1 block text-[10px] font-semibold text-muted">
-                      Part enseignant ({caseRedType === "percent" ? "%" : "DA"})
+                      Part entraîneur ({caseRedType === "percent" ? "%" : "DA"})
                     </label>
                     <Input
                       type="number"
@@ -1395,7 +1395,7 @@ function StudentFiche({
                         <div className="min-w-0">
                           <strong className="block text-[11px] text-ink">{subLabel(subId)}</strong>
                           <span className="text-[10px] text-muted">
-                            {cycleSizeOf(sub)} séances / mois ·{" "}
+                            {cycleSizeOf(sub)} séances / carte ·{" "}
                             {offered ? (
                               <>
                                 <span className="line-through">{formatDA(listUnit)}</span>{" "}
@@ -1473,7 +1473,7 @@ function StudentFiche({
                                   </strong>{" "}
                                   la séance — et l&apos;entraîneur touche sa part
                                   ({formatDA(teacherPerSeanceOf(sub))} / séance). Il figure sur
-                                  l&apos;écran de paie de cet enseignant.
+                                  l&apos;écran de paie de cet entraîneur.
                                 </>
                               )}
                             </span>
@@ -1542,7 +1542,7 @@ function StudentFiche({
                                 onClick={() => setSolds({ ...solds, [subId]: suggestion })}
                                 className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
                               >
-                                Un mois ({formatDA(suggestion)})
+                                Une carte ({formatDA(suggestion)})
                               </button>
                             )}
                             <span className="pb-2.5 text-[10px] text-muted">
@@ -1568,14 +1568,14 @@ function StudentFiche({
                     <strong>reçu de cette avance</strong> puis le{" "}
                     <strong>bon d&apos;inscription</strong>. L&apos;avance entre dans la caisse et
                     apparaît aussitôt dans l&apos;historique des paiements du chevalier, emploi
-                    du temps et mois compris.
+                    du temps et carte compris.
                   </p>
                 )}
 
                 <p className="text-[10px] text-muted">
                   ℹ️ Le chevalier entre sur chaque emploi du temps LÀ OÙ EN EST LE GROUPE : son
-                  solde est versé sur ce mois-là, les séances déjà tenues avant lui restent vides
-                  sur sa ligne et les mois précédents ne le comptent pas.
+                  solde est versé sur cette carte-là, les séances déjà tenues avant lui restent vides
+                  sur sa ligne et les cartes précédents ne le comptent pas.
                 </p>
 
                 {/* -------------------------------------------------------

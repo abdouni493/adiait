@@ -145,12 +145,12 @@ export interface PayslipArrear {
 }
 
 const EXTRA_CSS = `
-  .emploi-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; background:#f5f3ff; border:1px solid #e8e6f4; border-radius:10px; padding:8px 12px; margin-bottom:8px; }
-  .emploi-head h4 { margin:0; font-size:0.95em; color:#5b21b6; }
-  .emploi-head span { display:block; font-size:0.75em; color:#5c567a; }
-  .emploi-head .chip { background:#fff; border:1px solid #c0b6e9; border-radius:999px; padding:3px 10px; font-size:0.72em; font-weight:700; color:#7c3aed; white-space:nowrap; }
-  .grand-total { display:flex; justify-content:space-between; align-items:center; background:#f5f3ff; border:2px solid #7c3aed; border-radius:10px; padding:12px 14px; margin-top:14px; font-weight:800; color:#5b21b6; }
-  .note { font-size:0.75em; color:#5c567a; margin:6px 0 0; font-style:italic; }
+  .emploi-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; background:#f6f5f0; border:1px solid #e4e1d8; border-radius:10px; padding:8px 12px; margin-bottom:8px; }
+  .emploi-head h4 { margin:0; font-size:0.95em; color:#0f172a; }
+  .emploi-head span { display:block; font-size:0.75em; color:#59637a; }
+  .emploi-head .chip { background:#fff; border:1px solid #d8c79a; border-radius:999px; padding:3px 10px; font-size:0.72em; font-weight:700; color:#1e293b; white-space:nowrap; }
+  .grand-total { display:flex; justify-content:space-between; align-items:center; background:#f6f5f0; border:2px solid #1e293b; border-radius:10px; padding:12px 14px; margin-top:14px; font-weight:800; color:#0f172a; }
+  .note { font-size:0.75em; color:#59637a; margin:6px 0 0; font-style:italic; }
   .deduct { color:#b91c1c; }
 `;
 
@@ -326,17 +326,17 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
                 <td>
                   <strong>${esc(st.name)}</strong>
                   ${st.isPassager ? `<span class="badge badge-warning" style="margin-inline-start:6px;">passager</span>` : ""}
-                  ${st.caseLabel ? `<br/><span style="font-size:0.78em;color:#5c567a;">${esc(st.caseLabel)}</span>` : ""}
+                  ${st.caseLabel ? `<br/><span style="font-size:0.78em;color:#59637a;">${esc(st.caseLabel)}</span>` : ""}
                   ${st.withheld ? `<br/><span class="badge badge-danger">chevalier en dette — non réglé</span>` : ""}
                 </td>
                 <td class="ctr"><strong>${st.presents}</strong></td>
                 <td class="num">${da(st.fees)}</td>
                 <td class="num">${
                   st.arrears
-                    ? `<span style="color:#15803d;font-weight:700;">${da(st.arrears)}</span>${st.arrearsMonths ? `<br/><span style="font-size:0.75em;color:#5c567a;">${esc(st.arrearsMonths)}</span>` : ""}`
+                    ? `<span style="color:#15803d;font-weight:700;">${da(st.arrears)}</span>${st.arrearsMonths ? `<br/><span style="font-size:0.75em;color:#59637a;">${esc(st.arrearsMonths)}</span>` : ""}`
                     : "—"
                 }</td>
-                <td class="num" style="color:#7c3aed;">${st.withheld ? "—" : da(st.total)}</td>
+                <td class="num" style="color:#1e293b;">${st.withheld ? "—" : da(st.total)}</td>
               </tr>`,
             )
             .join("");
@@ -364,12 +364,12 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
               </thead>
               <tbody>${rows || `<tr><td colspan="6" class="ctr">—</td></tr>`}</tbody>
               <tfoot>
-                <tr style="background:#fcfbff;border-top:2px solid #c0b6e9;">
+                <tr style="background:#faf9f5;border-top:2px solid #d8c79a;">
                   <td colspan="2" style="font-weight:800;text-transform:uppercase;">${L.subtotal}</td>
                   <td class="ctr" style="font-weight:800;">${e.presents}</td>
                   <td class="num" style="font-weight:800;">${da(e.fees)}</td>
                   <td class="num" style="font-weight:800;color:#15803d;">${da(e.students.reduce((s, st) => s + (st.arrears ?? 0), 0))}</td>
-                  <td class="num" style="font-weight:800;color:#7c3aed;">${da(e.total)}</td>
+                  <td class="num" style="font-weight:800;color:#1e293b;">${da(e.total)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -384,11 +384,11 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
       .filter((st) => st.caseLabel)
       .map(
         (st) => `<tr>
-          <td><strong>${esc(st.name)}</strong>${st.registrationNumber ? ` <span style="font-family:monospace;color:#5c567a;">${esc(st.registrationNumber)}</span>` : ""}</td>
+          <td><strong>${esc(st.name)}</strong>${st.registrationNumber ? ` <span style="font-family:monospace;color:#59637a;">${esc(st.registrationNumber)}</span>` : ""}</td>
           <td>${esc(e.title)}</td>
           <td><span class="badge badge-warning">${esc(st.caseLabel)}</span></td>
           <td class="ctr">${st.presents}</td>
-          <td class="num" style="color:#7c3aed;">${st.withheld ? "—" : da(st.total)}</td>
+          <td class="num" style="color:#1e293b;">${st.withheld ? "—" : da(st.total)}</td>
         </tr>`,
       ),
   );
@@ -434,7 +434,7 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
                 (a) => `<tr>
                   <td class="ctr" style="font-family:monospace;">${esc(a.registrationNumber ?? "—")}</td>
                   <td><strong>${esc(a.studentName)}</strong></td>
-                  <td>${esc(a.emploi)}${a.groupName ? `<br/><span style="font-size:0.78em;color:#5c567a;">${esc(a.groupName)}</span>` : ""}</td>
+                  <td>${esc(a.emploi)}${a.groupName ? `<br/><span style="font-size:0.78em;color:#59637a;">${esc(a.groupName)}</span>` : ""}</td>
                   <td class="ctr"><span class="badge badge-primary">${esc(a.monthCode)}</span></td>
                   <td class="ctr"><strong>${a.seances}</strong></td>
                   <td style="font-family:monospace;font-size:0.78em;">${esc((a.dates ?? []).map((d) => fmtDate(d, lang)).join(" · ") || "—")}</td>
@@ -458,7 +458,7 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
   const childRows = data.childCharges.flatMap((c) =>
     c.lines.map(
       (l, i) => `<tr>
-        ${i === 0 ? `<td rowspan="${c.lines.length}"><strong>${esc(c.studentName)}</strong>${c.registrationNumber ? `<br/><span style="font-family:monospace;font-size:0.8em;color:#5c567a;">N° ${esc(c.registrationNumber)}</span>` : ""}</td>` : ""}
+        ${i === 0 ? `<td rowspan="${c.lines.length}"><strong>${esc(c.studentName)}</strong>${c.registrationNumber ? `<br/><span style="font-family:monospace;font-size:0.8em;color:#59637a;">N° ${esc(c.registrationNumber)}</span>` : ""}</td>` : ""}
         <td>${esc(l.label)}</td>
         <td class="ctr">${esc(l.monthCode)}</td>
         <td class="num deduct">${da(l.amount)}</td>
@@ -474,7 +474,7 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
           </thead>
           <tbody>${childRows.join("")}</tbody>
           <tfoot>
-            <tr style="background:#fcfbff;border-top:2px solid #3b82f6;">
+            <tr style="background:#faf9f5;border-top:2px solid #3b82f6;">
               <td colspan="3" style="font-weight:800;text-transform:uppercase;">${L.totalChildren}</td>
               <td class="num deduct" style="font-weight:800;">${da(totalChildren)}</td>
             </tr>
@@ -513,7 +513,7 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
         ${
           deductions.length
             ? `<tfoot>
-                <tr style="background:#fcfbff;border-top:2px solid #ef4444;">
+                <tr style="background:#faf9f5;border-top:2px solid #ef4444;">
                   <td colspan="4" style="font-weight:800;text-transform:uppercase;">${L.totalDeductions}</td>
                   <td class="num deduct" style="font-weight:800;">${da(totalExpenses + totalAcomptes)}</td>
                 </tr>
@@ -532,32 +532,32 @@ export function buildTeacherPayslip(data: TeacherPayslipData): string {
       <h3>${L.teacherInfo}</h3>
       <table style="margin-top:0;">
         <tr>
-          <td style="width:16%;font-weight:bold;color:#5c567a;">${L.fullName}</td>
+          <td style="width:16%;font-weight:bold;color:#59637a;">${L.fullName}</td>
           <td style="width:34%;font-weight:bold;font-size:1.1em;">${esc(teacher.lastName)} ${esc(teacher.firstName)}</td>
-          <td style="width:16%;font-weight:bold;color:#5c567a;">${L.phone}</td>
+          <td style="width:16%;font-weight:bold;color:#59637a;">${L.phone}</td>
           <td style="width:34%;font-family:monospace;">${esc(teacher.phone || "-")}</td>
         </tr>
         <tr>
-          <td style="font-weight:bold;color:#5c567a;">${L.email}</td>
+          <td style="font-weight:bold;color:#59637a;">${L.email}</td>
           <td>${esc(teacher.email || "-")}</td>
-          <td style="font-weight:bold;color:#5c567a;">${L.contract}</td>
+          <td style="font-weight:bold;color:#59637a;">${L.contract}</td>
           <td><span class="badge badge-primary">${esc(contract)}</span></td>
         </tr>
         <tr>
-          <td style="font-weight:bold;color:#5c567a;">${L.status}</td>
+          <td style="font-weight:bold;color:#59637a;">${L.status}</td>
           <td><span class="badge ${teacher.isPassager ? "badge-warning" : "badge-primary"}">${teacher.isPassager ? L.passager : L.regular}</span></td>
-          <td style="font-weight:bold;color:#5c567a;">${L.method}</td>
+          <td style="font-weight:bold;color:#59637a;">${L.method}</td>
           <td><span class="badge badge-success">${data.method === "percent" ? L.methodPercent(data.percentage ?? 0) : data.method === "group" ? L.methodGroup : L.methodFixed}</span></td>
         </tr>
       </table>
     </div>
 
-    <h3 style="margin:0 0 10px;font-size:1.05em;color:#1e1b4b;">${L.emploisTitle}</h3>
+    <h3 style="margin:0 0 10px;font-size:1.05em;color:#10151f;">${L.emploisTitle}</h3>
     ${emploisHtml}
 
     ${
       arrears.length
-        ? `<div class="grand-total" style="border-color:#c0b6e9;background:#fcfbff;">
+        ? `<div class="grand-total" style="border-color:#d8c79a;background:#faf9f5;">
              <span>${L.monthsSubtotal} — ${totalPresents} ${L.presents.toLowerCase()} · ${da(totalFees)} ${L.fees.toLowerCase()}</span>
              <span>${da(totalShare)}</span>
            </div>`

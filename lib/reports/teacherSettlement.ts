@@ -128,19 +128,19 @@ export function buildTeacherSettlementReceipt(data: TeacherSettlementReceiptData
       <h3>${L.teacherInfo}</h3>
       <table style="margin-top:0;">
         <tr>
-          <td style="width:18%; font-weight:bold; color:#5c567a;">${L.fullName}</td>
+          <td style="width:18%; font-weight:bold; color:#59637a;">${L.fullName}</td>
           <td style="width:32%; font-weight:bold; font-size:1.1em;">${teacher.lastName} ${teacher.firstName}</td>
-          <td style="width:18%; font-weight:bold; color:#5c567a;">${L.phone}</td>
+          <td style="width:18%; font-weight:bold; color:#59637a;">${L.phone}</td>
           <td style="width:32%; font-family:monospace;">${teacher.phone || "-"}</td>
         </tr>
         <tr>
-          <td style="font-weight:bold; color:#5c567a;">${L.status}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.status}</td>
           <td>
             <span class="badge ${teacher.isPassager ? "badge-warning" : "badge-primary"}">
               ${teacher.isPassager ? L.passager : L.regular}
             </span>
           </td>
-          <td style="font-weight:bold; color:#5c567a;">${L.method}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.method}</td>
           <td>
             <span class="badge badge-success">
               ${data.method === "percent" ? L.methodPercent(data.percentage ?? 0) : data.method === "group" ? L.methodGroup : L.methodFixed}
@@ -181,7 +181,7 @@ export function buildTeacherSettlementReceipt(data: TeacherSettlementReceiptData
               ${r.passagers > 0 ? `<br/><span style="font-size:0.8em;color:#888;">${r.passagers} ${L.passagers}</span>` : ""}
             </td>
             <td class="num">${r.gross} ${L.da}</td>
-            <td class="num" style="color:#7c3aed;">${r.share} ${L.da}</td>
+            <td class="num" style="color:#1e293b;">${r.share} ${L.da}</td>
           </tr>`,
                   )
                   .join("")
@@ -191,11 +191,11 @@ export function buildTeacherSettlementReceipt(data: TeacherSettlementReceiptData
           rows.length === 0
             ? ""
             : `<tfoot>
-          <tr style="background:#fcfbff; border-top:2px solid #7c3aed;">
+          <tr style="background:#faf9f5; border-top:2px solid #1e293b;">
             <td colspan="4" style="font-weight:800; text-transform:uppercase;">${L.totals}</td>
             <td class="ctr" style="font-weight:800;">${totalPresents}${totalPassagers > 0 ? ` (${totalPassagers})` : ""}</td>
             <td class="num" style="font-weight:800;">${totalRevenue} ${L.da}</td>
-            <td class="num" style="font-weight:800; color:#7c3aed;">${totalShare} ${L.da}</td>
+            <td class="num" style="font-weight:800; color:#1e293b;">${totalShare} ${L.da}</td>
           </tr>
         </tfoot>`
         }

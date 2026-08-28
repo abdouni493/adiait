@@ -6,7 +6,7 @@ import { defaultPayableMonthKeys, teacherEmplois, unlockedArrears } from "@/lib/
 /**
  * CHAQUE CARTE EST INDÉPENDANT — ET LES RETARDATAIRES ONT LEUR PROPRE TABLE.
  *
- * Le cas que la réception vit tous les cartes : au moment de régler le M1, un
+ * Le cas que la réception vit toutes les cartess : au moment de régler le M1, un
  * chevalier n'avait rien versé. Sa part a donc été RETENUE, et l'entraîneur a
  * touché le M1 sans elle. Le chevalier s'acquitte ensuite ; au moment de régler le
  * M2, cette part de M1 est de nouveau due.

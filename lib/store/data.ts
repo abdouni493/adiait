@@ -542,7 +542,7 @@ interface DataActions {
    *  - `source: "cash"` — la famille paie elle-même, maintenant. L'argent entre
    *    en caisse comme n'importe quel versement de chevalier, et RIEN n'est retenu au
    *    père : son salaire n'est pas amputé, l'écran de paie affiche simplement
-   *    la carte « payé par la famille ».
+   *    la carte « payée par la famille ».
    *  - `source: "teacher_debt"` — à porter sur le salaire du père. Le solde de
    *    l'enfant est crédité tout de suite (ses carte sortent du rouge, la part
    *    que ses séances rapportent se débloque) et le montant est inscrit en
@@ -1926,7 +1926,7 @@ export const useData = create<DataStore>((set, get) => ({
                     amount: -credit,
                     date: now,
                     description: `Caisse club → dette ${code} de ${studentLabel} (${
-                      description?.trim() || "part enseignant débloquée"
+                      description?.trim() || "part entraîneur débloquée"
                     })`,
                   },
                 ]
@@ -3448,7 +3448,7 @@ export const useData = create<DataStore>((set, get) => ({
    * CORRIGER UN RÈGLEMENT — le net, la date, le libellé, et rien d'autre.
    *
    * Ce que le règlement a soldé n'est pas rejoué : rouvrir des présences à
-   * l'occasion d'une faute de frappe ferait réapparaître une carte déjà payé.
+   * l'occasion d'une faute de frappe ferait réapparaître une carte déjà payée.
    * Seul le mouvement de caisse suit le nouveau montant.
    */
   updateTeacherPayment: async (paymentId, fields) => {

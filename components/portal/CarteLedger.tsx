@@ -6,11 +6,11 @@
  * Les portails du chevalier et du parent posaient la même question et y
  * répondaient chacun à leur façon : « où en suis-je ? ». Une liste de pointages
  * à plat n'y répond pas. Ce qu'un chevalier veut savoir tient en trois choses :
- * quelle carte est en cours, quelles séances elle a déjà consommées, et ce
+ * quella carte est en cours, quelles séances elle a déjà consommées, et ce
  * qu'il reste à payer dessus.
  *
  * D'où ce relevé, écrit UNE fois et lu par les deux portails — sans quoi le
- * père et le fils finiraient par voir deux comptes différents du même mois.
+ * père et le fils finiraient par voir deux comptes différents du même carte.
  *
  * CE QU'IL MONTRE, séance par séance : présent, en retard, ABSENT et ANNULÉ.
  * Une séance annulée n'est pas une absence — elle n'a rien coûté et n'a pas

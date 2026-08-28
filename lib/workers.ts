@@ -182,7 +182,7 @@ function dayKey(d: Date): string {
  * Les règlements écrits depuis la mise à jour le disent eux-mêmes. Ceux d'AVANT
  * n'existaient que sous la forme d'un mouvement de caisse dont le LIBELLÉ
  * contenait le nom de famille et la période : ils sont relus ici aussi, sans
- * quoi tous les cartes déjà payés repasseraient pour dus le jour de la mise à
+ * quoi toutes les cartess déjà payés repasseraient pour dus le jour de la mise à
  * jour. C'est une lecture de secours, et elle ne concerne que le passé.
  */
 function settledKeys(db: Database, worker: ReceptionStaff): Set<string> {

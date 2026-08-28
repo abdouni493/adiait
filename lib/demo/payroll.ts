@@ -499,7 +499,7 @@ function buildHourly(
   }
 }
 
-/** Contrat par carte : tous les cartes révolus sont réglés, la carte courante non. */
+/** Contrat par carte : toutes les cartess révolus sont réglés, la carte courante non. */
 function buildMonthlyWorker(
   worker: ReceptionStaff,
   hiredAgo: number,

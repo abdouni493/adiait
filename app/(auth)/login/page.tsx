@@ -191,13 +191,34 @@ export default function LoginPage() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-4xl bg-gradient-to-br from-red-500/10 to-red-500/20">
-                  🏫
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-accent/10 to-accent/25">
+                  {/* Le blason à l'épée — le même dessin que l'icône d'onglet
+                      et que l'écusson de la barre latérale. */}
+                  <svg viewBox="0 0 24 24" className="h-10 w-10 text-accent-ink" aria-hidden="true">
+                    <path
+                      d="M12 2.6 19.4 5.2v6.1c0 4.3-3.2 7.4-7.4 8.8-4.2-1.4-7.4-4.5-7.4-8.8V5.2Z"
+                      fill="currentColor"
+                      opacity="0.18"
+                    />
+                    <path
+                      d="M12 2.6 19.4 5.2v6.1c0 4.3-3.2 7.4-7.4 8.8-4.2-1.4-7.4-4.5-7.4-8.8V5.2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M12 6.4v10.2M9.4 10.4h5.2"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </div>
               )}
             </div>
           </div>
-          <h1 className="mt-4 text-2xl font-extrabold login-name-gradient">{school.name}</h1>
+          <h1 className="font-display login-name-gradient mt-4 text-2xl font-extrabold">{school.name}</h1>
           <p className="mt-1 text-sm text-muted">{t("auth.signInSubtitle")}</p>
         </div>
 

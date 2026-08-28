@@ -340,7 +340,7 @@ export function TeachersPage() {
         <p className="text-[11px] leading-relaxed text-muted">
           Avec cette formule l&apos;entraîneur n&apos;a pas de taux sur sa fiche : chaque emploi du
           temps le rémunère au tarif défini dans son <strong className="text-ink">abonnement</strong>{" "}
-          (prix du mois → part du club → le reste revient à l&apos;entraîneur, divisé par le
+          (prix de la carte → part du club → le reste revient à l&apos;entraîneur, divisé par le
           nombre de séances). Une séance lui rapporte exactement ce tarif, quel que soit le nombre
           de chevaliers présents.
         </p>
@@ -348,12 +348,12 @@ export function TeachersPage() {
         {!tid ? (
           <p className="text-[11px] leading-relaxed text-muted bg-surface border border-line rounded-xl p-3">
             Créez d&apos;abord l&apos;entraîneur, affectez-le à ses emplois du temps, puis réglez la
-            part club / enseignant depuis <strong className="text-ink">Emploi du temps</strong> ou{" "}
+            part club / entraîneur depuis <strong className="text-ink">Emploi du temps</strong> ou{" "}
             <strong className="text-ink">Abonnements</strong>. Ses tarifs apparaîtront ici.
           </p>
         ) : rows.length === 0 ? (
           <p className="text-[11px] leading-relaxed text-muted bg-surface border border-line rounded-xl p-3">
-            Cet enseignant n&apos;est encore affecté à aucun emploi du temps.
+            Cet entraîneur n&apos;est encore affecté à aucun emploi du temps.
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-line bg-surface">
@@ -1105,7 +1105,7 @@ export function TeachersPage() {
                     <div className="border-t border-line/60 pt-3 mt-4 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-[10px] text-muted flex items-center gap-1.5">
                         <span className={`h-1.5 w-1.5 rounded-full ${owing ? "bg-warning animate-pulse" : "bg-success"}`} />
-                        {pay.closed} mois clos à régler · {unpaidSess.length} présence(s)
+                        {pay.closed} carte clos à régler · {unpaidSess.length} présence(s)
                         {pay.debtors > 0 && ` · ${pay.debtors} impayé(s) chevalier`}
                       </span>
                       <div className="flex items-center gap-1.5">
@@ -1314,7 +1314,7 @@ export function TeachersPage() {
                   {selectedTeacher.isPassager
                     ? "Réglé à la séance"
                     : selectedTeacher.paymentType === "monthly"
-                      ? `Salaire Fixe: ${formatDA(selectedTeacher.monthlyAmount ?? 0)} / mois`
+                      ? `Salaire Fixe: ${formatDA(selectedTeacher.monthlyAmount ?? 0)} / carte`
                       : selectedTeacher.paymentType === "per_group"
                         ? "Rémunération: par groupe (tarif de chaque emploi du temps)"
                         : `Rémunération: ${selectedTeacher.percentage}% / séance`}
@@ -1338,7 +1338,7 @@ export function TeachersPage() {
                       <thead>
                         <tr className="border-b border-line text-[10px] font-bold uppercase text-muted">
                           <th className="py-1.5">Emploi du temps</th>
-                          <th className="py-1.5 text-center">Séances / mois</th>
+                          <th className="py-1.5 text-center">Séances / carte</th>
                           <th className="py-1.5 text-right">Prix de la carte</th>
                           <th className="py-1.5 text-right">Prix séance</th>
                           <th className="py-1.5 text-right">Part club</th>
@@ -1389,8 +1389,8 @@ export function TeachersPage() {
                     </table>
                   </div>
                   <p className="mt-2 text-[10px] leading-relaxed text-muted">
-                    La « séance enseignant » est ce que chaque présence lui rapporte : part enseignant du
-                    mois ÷ nombre de séances du mois, telle qu&apos;elle a été fixée à la création de
+                    La « séance entraîneur » est ce que chaque présence lui rapporte : part entraîneur du
+                    la carte ÷ nombre de séances de la carte, telle qu&apos;elle a été fixée à la création de
                     l&apos;emploi du temps.
                   </p>
                 </div>
@@ -1468,7 +1468,7 @@ export function TeachersPage() {
                       <strong className="text-success text-base font-mono">
                         {myPayments.reduce((s, p) => s + p.amount, 0)} DA
                       </strong>
-                      <span className="text-[9px] text-warning block">{myPayroll?.closed ?? 0} mois clos à régler</span>
+                      <span className="text-[9px] text-warning block">{myPayroll?.closed ?? 0} carte clos à régler</span>
                     </div>
                   </div>
 
@@ -1682,7 +1682,7 @@ export function TeachersPage() {
                     📅 Séances de cours programmées
                   </h4>
                   {sessions.filter((s) => s.teacherId === selectedTeacher.id).length === 0 ? (
-                    <p className="text-xs text-muted italic text-center py-6">Aucune séance programmée pour cet enseignant.</p>
+                    <p className="text-xs text-muted italic text-center py-6">Aucune séance programmée pour cet entraîneur.</p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
                       {sessions
@@ -1694,7 +1694,7 @@ export function TeachersPage() {
                                 {modules.find((m) => m.id === s.moduleId)?.name}
                               </strong>
                               <span className="text-muted block text-[10px] uppercase font-semibold mt-0.5">
-                                Groupe: {groups.find((g) => g.id === s.groupId)?.name || "Inconnu"} | Salle: {classes.find((c) => c.id === s.classId)?.name}
+                                Groupe: {groups.find((g) => g.id === s.groupId)?.name || "Inconnu"} | Arène: {classes.find((c) => c.id === s.classId)?.name}
                               </span>
                             </div>
                             <div className="text-primary font-bold mt-1 text-[11px] font-mono">
@@ -2224,7 +2224,7 @@ export function TeachersPage() {
                         <tbody>
                           {filteredSessionsList.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="p-6 text-center text-muted italic">Aucune séance enregistrée pour cet enseignant.</td>
+                              <td colSpan={4} className="p-6 text-center text-muted italic">Aucune séance enregistrée pour cet entraîneur.</td>
                             </tr>
                           ) : (
                             filteredSessionsList.map((u) => {
@@ -2548,11 +2548,11 @@ export function TeachersPage() {
             {/* Les cartes soldées */}
             <div className="rounded-xl border border-line bg-surface p-3">
               <h4 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted">
-                📅 Mois d&apos;emploi du temps soldés ({(viewedPayment.months ?? []).length})
+                📅 Cartes d&apos;emploi du temps soldées ({(viewedPayment.months ?? []).length})
               </h4>
               {(viewedPayment.months ?? []).length === 0 ? (
                 <p className="py-2 text-center text-[11px] italic text-muted">
-                  Aucun mois figé sur ce règlement.
+                  Aucune carte figé sur ce règlement.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
@@ -2718,7 +2718,7 @@ export function TeachersPage() {
           CORRIGER UN RÈGLEMENT — le net, la date, le libellé.
 
           Ce que le règlement a SOLDÉ n'est pas rejoué : rouvrir des présences
-          pour une faute de frappe ferait réapparaître une carte déjà payé. Pour
+          pour une faute de frappe ferait réapparaître une carte déjà payée. Pour
           revenir vraiment en arrière, il faut l'annuler.
           ----------------------------------------------------------------- */}
       <Modal

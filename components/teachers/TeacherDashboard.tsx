@@ -77,18 +77,18 @@ const WEEK_ORDER: Day[] = [
  * a la même couleur que le même groupe le jeudi.
  */
 const PALETTE = [
-  "#7c3aed",
+  "#1e293b",
   "#0ea5e9",
   "#16a34a",
   "#ea580c",
   "#db2777",
   "#0891b2",
   "#ca8a04",
-  "#4f46e5",
+  "#35506f",
   "#059669",
   "#e11d48",
   "#2563eb",
-  "#9333ea",
+  "#294059",
 ];
 
 function colorOf(id: string): string {
@@ -719,7 +719,7 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                   <div className="p-3.5">
                     <strong className="block truncate text-sm text-ink">{e.title}</strong>
                     <span className="block truncate text-[10px] text-muted">
-                      Groupe {e.groupName} · {e.className} · Salle {e.salleName}
+                      Groupe {e.groupName} · {e.className} · Arène {e.salleName}
                     </span>
                     <span className="block truncate text-[10px] text-muted">
                       {e.daysLabel} · <span className="font-mono">{e.timeLabel}</span>

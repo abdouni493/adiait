@@ -314,7 +314,7 @@ function ParentHomeView({
  *
  * Le relevé par carte est exactement celui que l'enfant voit sur son propre
  * portail (`CarteLedger`) : le père et le fils ne peuvent pas lire deux comptes
- * différents du même mois.
+ * différents du même carte.
  */
 function ParentChildrenView({
   myChildren,
@@ -739,11 +739,11 @@ function ParentScheduleView({
                 <span className="font-bold text-ink">{selectedSession.moduleLabel}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Niveau / Classe</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Niveau / Catégorie</span>
                 <span className="font-semibold text-ink">{selectedSession.classLabel}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Groupe / Salle</span>
+                <span className="text-[10px] text-muted block uppercase font-sans">Groupe / Arène</span>
                 <span className="font-semibold text-ink">
                   {selectedSession.groupLabel} - {selectedSession.salleName}
                 </span>

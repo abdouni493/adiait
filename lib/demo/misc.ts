@@ -123,7 +123,7 @@ export function buildExpenses(): Expense[] {
   for (let month = 3; month >= 0; month--) {
     for (const tpl of EXPENSE_TEMPLATES) {
       const seed = `exp:${month}:${tpl.name}`;
-      // Toutes les dépenses ne tombent pas tous les cartes : le loyer si, la
+      // Toutes les dépenses ne tombent pas toutes les cartess : le loyer si, la
       // peinture des arènes non.
       if (month > 0 && pick(seed, 0, 2) === 0) continue;
       const day = shiftDays(-(month * 30 + pick(seed + ":d", 1, 27)));

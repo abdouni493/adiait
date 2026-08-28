@@ -186,42 +186,42 @@ export function daTicket(n: number, lang: Language): string {
 
 export const TICKET_CSS = `
   @page { size: A5; margin: 8mm; }
-  body { padding: 14px 0; background: #f6ecf1; }
+  body { padding: 14px 0; background: #faf6ea; }
   .rcpt { max-width: 380px; margin: 0 auto; background: #fff; border: 1px solid #efd9e3; border-radius: 16px 16px 0 0; padding: 20px 22px 6px; }
   .rcpt-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
-  .rcpt-logo, .rcpt-logo-fallback { width: 78px; height: 78px; border-radius: 50%; object-fit: cover; border: 3px solid #fbe4ee; margin-bottom: 6px; }
-  .rcpt-logo-fallback { background: #7a1440; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2em; }
-  .rcpt-desc { font-size: 0.72em; color: #7a1440; font-weight: 700; }
-  .rcpt-name { font-size: 1.4em; font-weight: 800; color: #7a1440; letter-spacing: 0.3px; margin: 1px 0; }
+  .rcpt-logo, .rcpt-logo-fallback { width: 78px; height: 78px; border-radius: 50%; object-fit: cover; border: 3px solid #f6ecd4; margin-bottom: 6px; }
+  .rcpt-logo-fallback { background: #8a6518; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2em; }
+  .rcpt-desc { font-size: 0.72em; color: #8a6518; font-weight: 700; }
+  .rcpt-name { font-size: 1.4em; font-weight: 800; color: #8a6518; letter-spacing: 0.3px; margin: 1px 0; }
   .rcpt-contact { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; font-size: 0.72em; color: #4a4453; }
   .rcpt-sep { border-top: 1px dashed #d9c3cf; margin: 12px 0; }
-  .rcpt-title-box { margin: 0 auto; width: fit-content; border: 1.5px solid #1e1b2e; border-radius: 10px; padding: 5px 26px; font-weight: 800; font-size: 1.05em; text-align: center; color: #1e1b2e; }
+  .rcpt-title-box { margin: 0 auto; width: fit-content; border: 1.5px solid #10151f; border-radius: 10px; padding: 5px 26px; font-weight: 800; font-size: 1.05em; text-align: center; color: #10151f; }
   .rcpt-no { text-align: center; font-size: 0.85em; margin-top: 9px; color: #3a3444; }
-  .rcpt-no strong { font-family: monospace; font-size: 1.15em; color: #7a1440; letter-spacing: 1.5px; }
+  .rcpt-no strong { font-family: monospace; font-size: 1.15em; color: #8a6518; letter-spacing: 1.5px; }
   .rcpt-fields { display: flex; flex-direction: column; gap: 9px; margin-top: 2px; }
   .field { display: flex; justify-content: center; align-items: baseline; gap: 10px; font-size: 0.86em; text-align: center; }
   .field-label { font-weight: 700; color: #3a3444; white-space: nowrap; }
-  .field-value { color: #1e1b2e; font-weight: 600; }
+  .field-value { color: #10151f; font-weight: 600; }
   .field-value.muted { color: #a79fae; font-weight: 400; }
   .field-amount .field-value { font-size: 1.2em; font-weight: 800; color: #15803d; }
   .field-value.danger { color: #b91c1c; font-weight: 800; }
   .field-value.success { color: #15803d; font-weight: 800; }
   .rcpt-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 0.8em; }
-  .rcpt-table th { background: #fbe4ee; color: #7a1440; font-weight: 700; padding: 6px; text-align: center; }
+  .rcpt-table th { background: #f6ecd4; color: #8a6518; font-weight: 700; padding: 6px; text-align: center; }
   .rcpt-table td { padding: 6px; border-bottom: 1px solid #f4e9ee; text-align: center; }
   .rcpt-table td.num { text-align: end; font-family: monospace; font-weight: 700; }
-  .rcpt-table tfoot td { border-top: 2px solid #7a1440; font-weight: 800; color: #7a1440; border-bottom: none; }
+  .rcpt-table tfoot td { border-top: 2px solid #8a6518; font-weight: 800; color: #8a6518; border-bottom: none; }
   .rcpt-summary { display: flex; flex-direction: column; gap: 6px; }
   .rcpt-summary-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 0.84em; color: #3a3444; }
-  .rcpt-summary-line strong { font-family: monospace; font-weight: 800; color: #1e1b2e; }
+  .rcpt-summary-line strong { font-family: monospace; font-weight: 800; color: #10151f; }
   .rcpt-summary-line strong.danger { color: #b91c1c; }
   .rcpt-summary-line strong.success { color: #15803d; }
   .rcpt-summary-line strong.muted { color: #a79fae; font-weight: 600; }
-  .rcpt-summary-line.strong { border-top: 2px solid #7a1440; margin-top: 4px; padding-top: 8px; font-size: 0.98em; font-weight: 800; color: #7a1440; }
+  .rcpt-summary-line.strong { border-top: 2px solid #8a6518; margin-top: 4px; padding-top: 8px; font-size: 0.98em; font-weight: 800; color: #8a6518; }
   .rcpt-summary-line.strong strong { font-size: 1.15em; }
-  .rcpt-thanks { text-align: center; font-weight: 700; color: #7a1440; font-size: 0.95em; margin-top: 8px; }
+  .rcpt-thanks { text-align: center; font-weight: 700; color: #8a6518; font-size: 0.95em; margin-top: 8px; }
   .rcpt-disclaimer { text-align: center; font-size: 0.68em; color: #8c8594; font-style: italic; margin: 4px 0 10px; }
-  .rcpt-torn { height: 12px; background-image: linear-gradient(135deg, transparent 50%, #f6ecf1 50%), linear-gradient(45deg, #f6ecf1 50%, transparent 50%); background-size: 16px 16px; background-position: top left, top right; background-repeat: repeat-x; }
+  .rcpt-torn { height: 12px; background-image: linear-gradient(135deg, transparent 50%, #faf6ea 50%), linear-gradient(45deg, #faf6ea 50%, transparent 50%); background-size: 16px 16px; background-position: top left, top right; background-repeat: repeat-x; }
 `;
 
 export interface TicketRow {
@@ -587,7 +587,7 @@ export function presenceSheetHtml(
       }).join("");
       return `<tr>
         <td class="ctr" style="font-family:monospace">${esc(r.number)}</td>
-        <td><strong>${esc(r.name)}</strong>${r.caseLabel ? `<br/><span style="font-size:0.75em;color:#5c567a">${esc(r.caseLabel)}</span>` : ""}</td>
+        <td><strong>${esc(r.name)}</strong>${r.caseLabel ? `<br/><span style="font-size:0.75em;color:#59637a">${esc(r.caseLabel)}</span>` : ""}</td>
         <td>${esc(r.phone || "-")}</td>
         ${slots}
         <td class="num"><span class="badge ${r.sold < 0 ? "badge-danger" : r.sold === 0 ? "badge-warning" : "badge-success"}">${da(r.sold)}</span></td>
@@ -620,14 +620,14 @@ export function presenceSheetHtml(
         </thead>
         <tbody>${body || `<tr><td colspan="${slotCount + 6}" class="ctr">Aucun chevalier inscrit.</td></tr>`}</tbody>
       </table>
-      <p style="margin-top:10px;font-size:0.8em;color:#5c567a">
+      <p style="margin-top:10px;font-size:0.8em;color:#59637a">
         Légende : <span class="badge badge-success">P</span> présent ·
         <span class="badge badge-warning">R</span> retard ·
         <span class="badge badge-danger">A</span> absent ·
         <span class="badge badge-primary">×</span> annulée · — non pointé
       </p>
     </div>
-    ${signaturesHtml("La Direction", "L'Enseignant")}
+    ${signaturesHtml("La Direction", "L'Entraîneur")}
     ${metaFooterHtml(db.school.name, language)}
   `;
   return printDocument({ title: "Feuille de présence", lang: language, bodyHtml: html });

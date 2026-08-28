@@ -180,7 +180,7 @@ export function TeacherGroupRoster({
                   <Users className="h-3 w-3" /> {emploi.className}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> Salle {emploi.salleName}
+                  <MapPin className="h-3 w-3" /> Arène {emploi.salleName}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <CalendarClock className="h-3 w-3" /> {emploi.daysLabel}
@@ -240,7 +240,7 @@ export function TeacherGroupRoster({
           Cette liste se <strong className="text-ink">consulte</strong>. Le pointage des présences,
           les encaissements et les corrections se font au guichet : rien de ce que vous lisez ici ne
           se modifie depuis votre compte. Un chevalier « en retard de paiement » n&apos;a pas soldé son
-          mois sur <strong className="text-ink">ce groupe-ci</strong> — c&apos;est ce qui retient la
+          carte sur <strong className="text-ink">ce groupe-ci</strong> — c&apos;est ce qui retient la
           part que ses séances vous rapportent, jusqu&apos;à ce qu&apos;il s&apos;acquitte.
         </p>
 

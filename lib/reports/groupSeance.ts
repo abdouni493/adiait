@@ -87,7 +87,7 @@ export function groupSeancePayslipHtml(
       <div class="net-pay-box"><span>Net à verser à l'entraîneur</span><span>${da(t.teacherTotal)}</span></div>
     </div>
 
-    ${signaturesHtml("La Direction", "L'Enseignant")}
+    ${signaturesHtml("La Direction", "L'Entraîneur")}
     ${metaFooterHtml(db.school.name, language)}
   `;
 

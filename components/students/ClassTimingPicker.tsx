@@ -378,7 +378,7 @@ export function CurrentInscriptions({
                   <td className="px-2 py-1.5 text-muted">
                     {r.daysLabel}
                     <span className="block font-mono text-[9px]">{r.timeLabel}</span>
-                    <span className="block text-[9px]">Salle {r.salleName}</span>
+                    <span className="block text-[9px]">Arène {r.salleName}</span>
                   </td>
                   <td className="px-2 py-1.5 text-muted">{r.teacherName}</td>
                   <td className="px-2 py-1.5 text-right font-mono">{formatDA(r.unitPrice)}</td>
@@ -648,7 +648,7 @@ export function ClassTimingPicker({
                     </strong>
                     {t.hasMonthly && (
                       <span className={picked ? "text-white/80" : "text-warning"}>
-                        {t.monthlySeances} séances · {formatDA(t.monthlyPrice)} / mois
+                        {t.monthlySeances} séances · {formatDA(t.monthlyPrice)} / carte
                       </span>
                     )}
                   </span>

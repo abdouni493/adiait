@@ -109,7 +109,7 @@ interface SituationRow {
   complete: boolean;
   /** ce que les cartes PRÉCÉDENTS de cet emploi doivent encore */
   previousDue: number;
-  /** le solde de l'emploi, tous carte confondus */
+  /** le solde de l'emploi, toutes cartes confondus */
   balance: number;
 }
 
@@ -413,7 +413,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                           </th>
                         ))}
                         <th className="px-2 py-2.5">Versé / Reste</th>
-                        <th className="px-2 py-2.5">Mois préc.</th>
+                        <th className="px-2 py-2.5">Carte préc.</th>
                         <th className="px-2 py-2.5">Solde emploi</th>
                         <th className="px-2 py-2.5 text-center">Encaisser</th>
                       </tr>
@@ -599,8 +599,8 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                   Séance tenue avant son inscription
                 </span>
                 <span className="flex items-center gap-1">
-                  <History className="h-3 w-3" /> Chaque emploi du temps compte SES propres mois :
-                  « 1 mois avant » recule d&apos;un cran sur chaque ligne, pas sur un mois du
+                  <History className="h-3 w-3" /> Chaque emploi du temps compte SES propres cartes :
+                  « 1 carte avant » recule d&apos;un cran sur chaque ligne, pas sur une carte du
                   calendrier.
                 </span>
               </div>

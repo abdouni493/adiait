@@ -100,33 +100,33 @@ const LABELS = {
 } as const;
 
 const TP_CSS = `
-  body { background: #f6ecf1; }
+  body { background: #faf6ea; }
   .tp-page { background: #fff; }
   .tp-header { display: flex; justify-content: space-between; align-items: stretch; flex-wrap: wrap; gap: 16px; border: 1px solid #f0d9e3; border-radius: 14px; padding: 16px 18px; margin-bottom: 18px; background: #fff; }
   .tp-brand { display: flex; align-items: center; gap: 14px; }
-  .tp-logo, .tp-logo-fallback { width: 82px; height: 82px; border-radius: 50%; object-fit: cover; border: 3px solid #fbe4ee; flex-shrink: 0; }
-  .tp-logo-fallback { background: #7a1440; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2.2em; }
-  .tp-desc { margin: 0; font-size: 0.78em; color: #7a1440; font-weight: 700; }
-  .tp-name { margin: 1px 0; font-size: 1.5em; font-weight: 800; color: #7a1440; }
+  .tp-logo, .tp-logo-fallback { width: 82px; height: 82px; border-radius: 50%; object-fit: cover; border: 3px solid #f6ecd4; flex-shrink: 0; }
+  .tp-logo-fallback { background: #8a6518; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2.2em; }
+  .tp-desc { margin: 0; font-size: 0.78em; color: #8a6518; font-weight: 700; }
+  .tp-name { margin: 1px 0; font-size: 1.5em; font-weight: 800; color: #8a6518; }
   .tp-contact { display: flex; flex-direction: column; gap: 1px; font-size: 0.78em; color: #4a4453; }
   .tp-right { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 240px; }
-  .tp-title-box { background: linear-gradient(135deg, #7a1440, #4d0c28); color: #fff; text-align: center; font-weight: 800; font-size: 1.05em; padding: 8px 14px; border-radius: 10px; }
+  .tp-title-box { background: linear-gradient(135deg, #8a6518, #4d0c28); color: #fff; text-align: center; font-weight: 800; font-size: 1.05em; padding: 8px 14px; border-radius: 10px; }
   .tp-title-box small { display: block; font-size: 0.68em; font-weight: 600; opacity: 0.9; margin-top: 3px; letter-spacing: 0.5px; }
   .tp-fields { width: 100%; border-collapse: collapse; font-size: 0.82em; }
   .tp-fields th { text-align: start; color: #5c5566; font-weight: 700; padding: 3px 8px 3px 0; white-space: nowrap; }
-  .tp-fields td { text-align: start; font-weight: 700; color: #1e1b2e; padding: 3px 0; }
+  .tp-fields td { text-align: start; font-weight: 700; color: #10151f; padding: 3px 0; }
   .tp-section { margin-bottom: 16px; }
-  .tp-section-title { display: flex; align-items: center; gap: 8px; font-weight: 800; color: #7a1440; font-size: 1em; margin-bottom: 8px; }
-  .tp-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #7a1440; color: #fff; font-size: 0.8em; flex-shrink: 0; }
+  .tp-section-title { display: flex; align-items: center; gap: 8px; font-weight: 800; color: #8a6518; font-size: 1em; margin-bottom: 8px; }
+  .tp-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #8a6518; color: #fff; font-size: 0.8em; flex-shrink: 0; }
   .tp-table { width: 100%; border-collapse: collapse; font-size: 0.85em; border: 1px solid #f0d9e3; border-radius: 10px; overflow: hidden; }
-  .tp-table th { background: #7a1440; color: #fff; padding: 8px; font-weight: 700; text-align: center; }
+  .tp-table th { background: #8a6518; color: #fff; padding: 8px; font-weight: 700; text-align: center; }
   .tp-table td { padding: 7px 8px; border-bottom: 1px solid #f6e9ee; text-align: center; }
   .tp-table td.num { text-align: end; font-family: monospace; font-weight: 700; }
   .tp-table tbody tr:nth-child(even) { background: #fdf5f8; }
-  .tp-table tfoot td { background: #fbe4ee; color: #7a1440; font-weight: 800; border-top: 2px solid #7a1440; border-bottom: none; }
+  .tp-table tfoot td { background: #f6ecd4; color: #8a6518; font-weight: 800; border-top: 2px solid #8a6518; border-bottom: none; }
   .tp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .tp-empty { text-align: center; color: #9a93a3; font-size: 0.82em; font-style: italic; padding: 14px; border: 1px dashed #e6d4de; border-radius: 10px; }
-  .tp-net { display: flex; justify-content: space-between; align-items: center; background: #fdf5f8; border: 2px solid #7a1440; border-radius: 12px; padding: 14px 18px; margin: 18px 0; font-weight: 800; color: #5c0f30; font-size: 1.05em; }
+  .tp-net { display: flex; justify-content: space-between; align-items: center; background: #fdf5f8; border: 2px solid #8a6518; border-radius: 12px; padding: 14px 18px; margin: 18px 0; font-weight: 800; color: #5c0f30; font-size: 1.05em; }
   .tp-net.negative { border-color: #b91c1c; color: #b91c1c; background: #fdf2f2; }
   .tp-net span:last-child { font-size: 1.3em; }
   .tp-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 26px; }
@@ -134,7 +134,7 @@ const TP_CSS = `
   .tp-paidon { text-align: end; margin-top: 14px; font-size: 0.85em; color: #4a4453; }
   .tp-tag { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 0.72em; font-weight: 700; margin-inline-start: 4px; }
   .tp-tag-warn { background: #fef3c7; color: #b45309; }
-  .tp-tag-mute { background: #f1f0f7; color: #5c567a; }
+  .tp-tag-mute { background: #f1f0f7; color: #59637a; }
   @media print { body { background: #fff; } }
 `;
 
@@ -288,7 +288,7 @@ export function buildTeacherMonthPayslip(data: TeacherMonthPayslipData): string 
             (d) => `<tr>
           <td style="text-align:start;">
             <strong>${esc(d.label)}</strong> <span class="tp-tag tp-tag-mute">${esc(kindLabel[d.kind] ?? d.kind)}</span>
-            ${d.description ? `<br/><span style="font-size:0.78em;color:#5c567a;">${esc(d.description)}</span>` : ""}
+            ${d.description ? `<br/><span style="font-size:0.78em;color:#59637a;">${esc(d.description)}</span>` : ""}
           </td>
           <td class="num">− ${da(d.amount)}</td>
         </tr>`,

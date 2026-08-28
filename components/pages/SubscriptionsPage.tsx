@@ -496,7 +496,7 @@ export function SubscriptionsPage() {
             Proposer aussi un abonnement par carte
           </strong>
           <span className="mt-0.5 block text-muted">
-            Un mois = un nombre de séances fixe, à un prix fixe. Il expire un mois après sa date de
+            Une carte = un nombre de séances fixe, à un prix fixe. Elle expire un mois après sa date de
             début, même s&apos;il reste des séances non utilisées.
           </span>
         </span>
@@ -507,7 +507,7 @@ export function SubscriptionsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted">
-                Séances comprises dans le mois *
+                Séances comprises dans la carte *
               </label>
               <Input
                 type="number"
@@ -519,7 +519,7 @@ export function SubscriptionsPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted">
-                Prix du mois (DA) *
+                Prix de la carte (DA) *
               </label>
               <Input
                 type="number"
@@ -551,7 +551,7 @@ export function SubscriptionsPage() {
               séance are always derived from it. */}
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">
-              Part du club sur le mois (DA) *
+              Part du club sur la carte (DA) *
             </label>
             <Input
               type="number"
@@ -565,7 +565,7 @@ export function SubscriptionsPage() {
               placeholder="Ex: 2000"
             />
             <p className="mt-1 text-[10px] text-muted">
-              Le reste du prix du mois revient à l&apos;entraîneur. Sa paie par séance est calculée
+              Le reste du prix de la carte revient à l&apos;entraîneur. Sa paie par séance est calculée
               automatiquement.
             </p>
           </div>
@@ -604,7 +604,7 @@ export function SubscriptionsPage() {
               <strong className="text-success">{formatDA(teacherMonthShare)}</strong>
             </div>
             <div className="flex justify-between border-t border-line pt-1">
-              <span className="font-semibold text-muted">Paie enseignant / séance :</span>
+              <span className="font-semibold text-muted">Paie entraîneur / séance :</span>
               <strong className="text-sm text-primary">
                 {formatDA(teacherPerSeanceCalc)}
                 <span className="ml-1 font-normal text-[10px] text-muted">
@@ -613,7 +613,7 @@ export function SubscriptionsPage() {
               </strong>
             </div>
             <p className="border-t border-line pt-1 text-[10px] leading-relaxed text-muted">
-              Les divisions gardent leurs <strong className="text-ink">décimales</strong> : un mois
+              Les divisions gardent leurs <strong className="text-ink">décimales</strong> : une carte
               qui ne tombe pas juste se répartit au centime près, jamais arrondi au dinar — sinon la
               paie de l&apos;entraîneur dérive de quelques dinars à chaque séance.
             </p>
@@ -694,7 +694,7 @@ export function SubscriptionsPage() {
                 <strong className="text-ink">{nameOf(groups, sib.groupId)}</strong>
                 <span className="flex items-center gap-1 text-muted">
                   <Clock className="h-3 w-3" />
-                  {formatDays(sib.days) || "—"} · {sib.startTime}-{sib.endTime} · Salle{" "}
+                  {formatDays(sib.days) || "—"} · {sib.startTime}-{sib.endTime} · Arène{" "}
                   {nameOf(salles, sib.salleId)}
                 </span>
                 <Badge tone={priced ? "success" : "warning"} className="text-[9px] px-1.5 py-0">
@@ -845,7 +845,7 @@ export function SubscriptionsPage() {
             {feeScope === "classes" && (
               <div className="max-h-44 space-y-1 overflow-y-auto rounded-xl border border-line bg-surface p-2">
                 {classes.length === 0 ? (
-                  <p className="p-1.5 text-[11px] italic text-muted">Aucune classe enregistrée.</p>
+                  <p className="p-1.5 text-[11px] italic text-muted">Aucune catégorie enregistrée.</p>
                 ) : (
                   classes.map((c) => {
                     const picked = feeClassIds.includes(c.id);
@@ -1073,7 +1073,7 @@ export function SubscriptionsPage() {
                     {hasMonthlyPlan(sub) && (
                       <>
                         <div className="flex justify-between text-muted">
-                          <span>Séances / mois:</span>
+                          <span>Séances / carte:</span>
                           <strong className="text-ink">{sub.monthlySeances}</strong>
                         </div>
                         <div className="flex justify-between text-muted">
@@ -1088,7 +1088,7 @@ export function SubscriptionsPage() {
                           </strong>
                         </div>
                         <div className="flex justify-between text-muted">
-                          <span>Club / Enseignant:</span>
+                          <span>Club / Entraîneur:</span>
                           <strong className="text-ink">
                             {schoolMonthShareOf(sub)} / <span className="text-success">{teacherMonthShareOf(sub)}</span> DA
                           </strong>
@@ -1107,7 +1107,7 @@ export function SubscriptionsPage() {
                         </div>
                         <div className="flex justify-between text-muted">
                           <span>Durée:</span>
-                          <strong className="text-ink">{sub.periodMonths ?? 0} mois</strong>
+                          <strong className="text-ink">{sub.periodMonths ?? 0} carte</strong>
                         </div>
                       </>
                     )}
@@ -1214,7 +1214,7 @@ export function SubscriptionsPage() {
                           )}
                         </strong>
                         <span className={isSelected ? "text-white/80" : "text-muted"}>
-                          Classe: {details.class} | Ens: {details.teacher}
+                          Catégorie: {details.class} | Ens: {details.teacher}
                         </span>
                         <span className={`block text-[10px] ${isSelected ? "text-white/70" : "text-muted"}`}>
                           {siblings.length} groupe{siblings.length > 1 ? "s" : ""}:{" "}
@@ -1230,7 +1230,7 @@ export function SubscriptionsPage() {
                           >
                             {formatDA(priced.pricePerSession)}
                             {hasMonthlyPlan(priced) &&
-                              ` · ${formatDA(monthlyPriceOf(priced))}/mois`}
+                              ` · ${formatDA(monthlyPriceOf(priced))}/carte`}
                           </span>
                         )}
                         {isSelected && <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded">Sélectionné</span>}
@@ -1275,7 +1275,7 @@ export function SubscriptionsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-muted mb-1">Durée de la formation (mois)</label>
+                  <label className="block text-xs font-semibold text-muted mb-1">Durée de la formation (carte)</label>
                   <Input
                     type="number"
                     value={periodMonths || ""}
@@ -1294,8 +1294,8 @@ export function SubscriptionsPage() {
 
           <div className="bg-primary-50/50 border border-line rounded-xl p-3 text-xs text-muted">
             💡 <strong className="text-ink">Un seul tarif par cours :</strong> le prix saisi ici est écrit sur
-            <strong className="text-ink"> tous les groupes </strong> du même cours (même classe, même module, même
-            enseignant) — inutile de les tarifer un par un. Un groupe créé plus tard hérite automatiquement de ce tarif.
+            <strong className="text-ink"> tous les groupes </strong> du même cours (même catégorie, même module, même
+            entraîneur) — inutile de les tarifer un par un. Un groupe créé plus tard hérite automatiquement de ce tarif.
           </div>
 
           <div className="bg-canvas/40 border border-line rounded-xl p-3 text-xs text-muted">
@@ -1360,7 +1360,7 @@ export function SubscriptionsPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1">Durée de la formation (mois)</label>
+                <label className="block text-xs font-semibold text-muted mb-1">Durée de la formation (carte)</label>
                 <Input
                   type="number"
                   value={periodMonths || ""}
@@ -1418,7 +1418,7 @@ export function SubscriptionsPage() {
                       <div className="flex justify-between items-center text-sm border-b border-line pb-2">
                         <span className="text-muted">Abonnement par carte:</span>
                         <strong className="text-ink font-bold">
-                          {selectedSub.monthlySeances} séances / mois
+                          {selectedSub.monthlySeances} séances / carte
                         </strong>
                       </div>
                       <div className="flex justify-between items-center text-sm border-b border-line pb-2">
@@ -1440,7 +1440,7 @@ export function SubscriptionsPage() {
                       </div>
                       <div className="flex justify-between items-center text-sm border-b border-line pb-2">
                         <span className="text-muted">Durée de la formation:</span>
-                        <strong className="text-ink font-bold">{selectedSub.periodMonths ?? 0} mois</strong>
+                        <strong className="text-ink font-bold">{selectedSub.periodMonths ?? 0} carte</strong>
                       </div>
                     </>
                   )}
@@ -1465,7 +1465,7 @@ export function SubscriptionsPage() {
                           </Badge>
                         </div>
                         <span className="mt-0.5 block text-[10px] text-muted">
-                          {formatDays(sib.days) || "—"} · {sib.startTime}-{sib.endTime} · Salle{" "}
+                          {formatDays(sib.days) || "—"} · {sib.startTime}-{sib.endTime} · Arène{" "}
                           {nameOf(salles, sib.salleId)}
                         </span>
                       </div>
@@ -1909,7 +1909,7 @@ function FreePeriodsPanel() {
           <div className="rounded-xl border border-line p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-muted">
-                Classes concernées ({selectedClassIds.length}/{classes.length})
+                Catégories concernées ({selectedClassIds.length}/{classes.length})
               </span>
               <div className="flex gap-2">
                 <Button
@@ -1926,7 +1926,7 @@ function FreePeriodsPanel() {
             </div>
 
             {classes.length === 0 ? (
-              <p className="px-1 text-xs italic text-muted">Aucune classe enregistrée.</p>
+              <p className="px-1 text-xs italic text-muted">Aucune catégorie enregistrée.</p>
             ) : (
               <div className="max-h-52 space-y-1 overflow-y-auto">
                 {classes.map((c) => {
@@ -1976,9 +1976,9 @@ function FreePeriodsPanel() {
             <span>
               <strong className="text-ink">Rémunérer les entraîneurs normalement</strong>
               <span className="mt-0.5 block text-muted">
-                Les enseignants payés au pourcentage touchent leur part sur le prix habituel de la
+                Les entraîneurs payés au pourcentage touchent leur part sur le prix habituel de la
                 séance, même si le chevalier n&apos;a rien payé. Décochez pour que la séance offerte
-                ne génère aucune part enseignant.
+                ne génère aucune part entraîneur.
               </span>
             </span>
           </label>
@@ -2064,11 +2064,11 @@ function FreePeriodsPanel() {
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <h4 className="mb-2 font-bold text-ink">🏫 Classes couvertes</h4>
+                <h4 className="mb-2 font-bold text-ink">🏫 Catégories couvertes</h4>
                 <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-line bg-surface p-3">
                   {viewing.allClasses && (
                     <p className="mb-1 text-[11px] font-semibold text-success">
-                      Toutes les classes (y compris celles créées plus tard).
+                      Toutes les catégories (y compris celles créées plus tard).
                     </p>
                   )}
                   {classesOf(viewing).map((c) => (

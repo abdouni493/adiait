@@ -230,7 +230,7 @@ describe("le partage club / entraîneur d'une séance", () => {
 
 describe("les arriérés de part entraîneur", () => {
   /**
-   * Le cas que la réception vit tous les cartes :
+   * Le cas que la réception vit toutes les cartess :
    *   M1 — le chevalier ne paie pas, la part de l'entraîneur est RETENUE ;
    *   l'entraîneur est réglé du M1 sans cette part ;
    *   le chevalier s'acquitte ensuite ;

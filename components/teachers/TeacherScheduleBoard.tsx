@@ -56,18 +56,18 @@ const WEEK_ORDER: Day[] = [
 ];
 
 const PALETTE = [
-  "#7c3aed",
+  "#1e293b",
   "#0ea5e9",
   "#16a34a",
   "#ea580c",
   "#db2777",
   "#0891b2",
   "#ca8a04",
-  "#4f46e5",
+  "#35506f",
   "#059669",
   "#e11d48",
   "#2563eb",
-  "#9333ea",
+  "#294059",
 ];
 
 function colorOf(id: string): string {

@@ -337,7 +337,7 @@ export function GroupSeanceSection() {
             {/* entraîneur */}
             <div className="space-y-2 rounded-xl border border-line bg-canvas/30 p-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                👨‍🏫 Enseignant
+                👨‍🏫 Entraîneur
               </span>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -351,7 +351,7 @@ export function GroupSeanceSection() {
               <div className="max-h-36 space-y-1 overflow-y-auto">
                 {shownTeachers.length === 0 ? (
                   <p className="py-3 text-center text-[11px] italic text-muted">
-                    Aucun enseignant ne correspond.
+                    Aucun entraîneur ne correspond.
                   </p>
                 ) : (
                   shownTeachers.map((t) => (

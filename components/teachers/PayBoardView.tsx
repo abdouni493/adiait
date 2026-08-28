@@ -89,11 +89,11 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
             {board.emploi} — Groupe {board.groupName}
           </strong>
           <span className="block text-[11px] text-muted">
-            {board.className} · Salle {board.salleName} · {board.daysLabel} ·{" "}
+            {board.className} · Arène {board.salleName} · {board.daysLabel} ·{" "}
             <span className="font-mono">{board.timeLabel}</span>
           </span>
           <span className="block text-[11px] text-muted">
-            Mois à {formatDA(board.monthPrice)} · part enseignant {formatDA(board.teacherMonthShare)}{" "}
+            Carte à {formatDA(board.monthPrice)} · part entraîneur {formatDA(board.teacherMonthShare)}{" "}
             ÷ {board.size} séances = <strong className="text-primary">{formatDA(board.perSeance)}</strong>{" "}
             la séance
           </span>
@@ -118,7 +118,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
         </div>
         {board.students.length === 0 ? (
           <p className="bg-surface px-3 py-5 text-center text-[11px] italic text-muted">
-            Aucun chevalier réglé sur ce mois.
+            Aucun chevalier réglé sur cette carte.
           </p>
         ) : (
           <div className="overflow-x-auto bg-surface">

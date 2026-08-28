@@ -333,7 +333,7 @@ function TeacherClassesView({ teacher }: { teacher: Teacher }) {
               <div className="bg-gradient-to-r from-primary-50/70 to-transparent p-4">
                 <strong className="block truncate text-sm text-ink">{e.title}</strong>
                 <span className="block truncate text-[10px] text-muted">
-                  Groupe {e.groupName} · {e.className} · Salle {e.salleName}
+                  Groupe {e.groupName} · {e.className} · Arène {e.salleName}
                 </span>
                 <span className="block truncate text-[10px] text-muted">
                   {e.daysLabel} · <span className="font-mono">{e.timeLabel}</span>

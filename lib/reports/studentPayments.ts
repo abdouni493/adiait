@@ -203,21 +203,21 @@ export function buildStudentPaymentsReport(data: StudentPaymentsData): string {
       <h3>${L.studentInfo}</h3>
       <table style="margin-top:0;">
         <tr>
-          <td style="width:18%; font-weight:bold; color:#5c567a;">${L.fullName}</td>
+          <td style="width:18%; font-weight:bold; color:#59637a;">${L.fullName}</td>
           <td style="width:32%; font-weight:bold; font-size:1.1em;">${student.lastName} ${student.firstName}</td>
-          <td style="width:18%; font-weight:bold; color:#5c567a;">${L.card}</td>
+          <td style="width:18%; font-weight:bold; color:#59637a;">${L.card}</td>
           <td style="width:32%; font-family:monospace;">${student.rfid || "-"}</td>
         </tr>
         <tr>
-          <td style="font-weight:bold; color:#5c567a;">${L.phone}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.phone}</td>
           <td style="font-family:monospace;">${student.phone || "-"}</td>
-          <td style="font-weight:bold; color:#5c567a;">${L.parent}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.parent}</td>
           <td>${parentObj ? `${parentObj.lastName} ${parentObj.firstName} (${parentObj.phone})` : "-"}</td>
         </tr>
         <tr>
-          <td style="font-weight:bold; color:#5c567a;">${L.classLevel}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.classLevel}</td>
           <td>${classLabels.size ? [...classLabels].join(" · ") : L.none}</td>
-          <td style="font-weight:bold; color:#5c567a;">${L.enrollments}</td>
+          <td style="font-weight:bold; color:#59637a;">${L.enrollments}</td>
           <td>${enrollmentLabels.length ? enrollmentLabels.join("<br/>") : L.none}</td>
         </tr>
       </table>
@@ -255,7 +255,7 @@ export function buildStudentPaymentsReport(data: StudentPaymentsData): string {
               <td class="ctr">${discountOf(p)}</td>
               <td class="num">${p.netTotal ? `${p.netTotal} ${L.da}` : "—"}</td>
               <td class="num" style="color:#15803d;">${p.amountPaid} ${L.da}</td>
-              <td class="num" style="color:${p.rest > 0 ? "#b91c1c" : "#5c567a"};">${p.rest} ${L.da}</td>
+              <td class="num" style="color:${p.rest > 0 ? "#b91c1c" : "#59637a"};">${p.rest} ${L.da}</td>
             </tr>`,
                   )
                   .join("")

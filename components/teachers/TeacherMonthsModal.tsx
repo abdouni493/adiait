@@ -201,7 +201,7 @@ export function TeacherMonthsModal({
         {tab === "emplois" ? (
           emplois.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-line py-10 text-center text-xs italic text-muted">
-              Cet enseignant n&apos;est affecté à aucun emploi du temps.
+              Cet entraîneur n&apos;est affecté à aucun emploi du temps.
             </p>
           ) : (
             <div className="space-y-3">
@@ -299,9 +299,9 @@ function EmploiCard({
             {emploi.timeLabel}
           </span>
           <span className="ms-5 block text-[10px] text-muted">
-            {emploi.size} séances / mois · séance à {formatDA(emploi.unitPrice)} ·{" "}
+            {emploi.size} séances / carte · séance à {formatDA(emploi.unitPrice)} ·{" "}
             {emploi.priced ? (
-              <>part enseignant {formatDA(emploi.perSeance)} / séance</>
+              <>part entraîneur {formatDA(emploi.perSeance)} / séance</>
             ) : (
               <span className="font-semibold text-warning">aucune part entraîneur définie</span>
             )}{" "}
@@ -347,7 +347,7 @@ function EmploiCard({
 
           {current && current.state === "running" && (
             <p className="rounded-xl border border-primary/30 bg-primary-50/60 p-2.5 text-[11px] text-primary">
-              <strong>Mois en cours ({current.code})</strong> : {current.held} séance(s) tenue(s) sur{" "}
+              <strong>Carte en cours ({current.code})</strong> : {current.held} séance(s) tenue(s) sur{" "}
               {current.size}. Il se fermera à la {current.size}
               <sup>e</sup> séance — c&apos;est à ce moment-là qu&apos;il sera proposé au règlement.
             </p>
@@ -493,7 +493,7 @@ function MonthRows({
                       <th className="px-2 py-1.5">Chevalier</th>
                       <th className="px-2 py-1.5 text-center">Séances</th>
                       <th className="px-2 py-1.5 text-center">P / A / An.</th>
-                      <th className="px-2 py-1.5 text-right">Dû (mois)</th>
+                      <th className="px-2 py-1.5 text-right">Dû (carte)</th>
                       <th className="px-2 py-1.5 text-right">Consommé</th>
                       <th className="px-2 py-1.5 text-right">Versé</th>
                       <th className="px-2 py-1.5 text-right">Reste dû</th>
@@ -505,7 +505,7 @@ function MonthRows({
                     {month.students.length === 0 ? (
                       <tr>
                         <td colSpan={10} className="px-2 py-4 text-center italic text-muted">
-                          Aucun chevalier n&apos;a encore atteint ce mois.
+                          Aucun chevalier n&apos;a encore atteint cette carte.
                         </td>
                       </tr>
                     ) : (
@@ -528,7 +528,7 @@ function MonthRows({
                               )}
                               {st.previousDebt > 0 && (
                                 <span className="block text-[9px] text-danger">
-                                  + {formatDA(st.previousDebt)} d&apos;arriérés des mois précédents
+                                  + {formatDA(st.previousDebt)} d&apos;arriérés des cartes précédentes
                                 </span>
                               )}
                               {st.otherDebt > 0 && (
@@ -637,7 +637,7 @@ function UnpaidTable({
 
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line py-10 text-center text-xs italic text-success">
-          Aucun impayé — tous les mois de cet enseignant sont réglés par les chevaliers. ✅
+          Aucun impayé — toutes les cartess de cet entraîneur sont réglés par les chevaliers. ✅
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-line">
