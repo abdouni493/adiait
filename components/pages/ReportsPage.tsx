@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatDA } from "@/lib/utils";
 import {
+  cashByCategory,
   carteShort,
   cycleSizeOf,
   formatDateFr,
@@ -27,7 +28,7 @@ import {
   teacherPerSeanceOf,
   totalRemainingSeances,
 } from "@/lib/helpers";
-import { AlertCircle, ArrowDownLeft, ArrowUpRight, Banknote, BookOpen, Calendar, CalendarClock, ChevronRight, CircleDollarSign, ClipboardList, DollarSign, FileSpreadsheet, FileText, Filter, GraduationCap, HandCoins, Layers, PieChart as PieIcon, PiggyBank, Puzzle, Receipt, RotateCcw, Search, Sparkles, Ticket, TrendingUp, UserCog, Users, Wallet, X } from "lucide-react";
+import { AlertCircle, ArrowDownLeft, ArrowUpRight, Banknote, BookOpen, Calendar, CalendarClock, ChevronRight, CircleDollarSign, ClipboardList, DollarSign, FileSpreadsheet, FileText, Filter, GraduationCap, HandCoins, Layers, PieChart as PieIcon, PiggyBank, Puzzle, Receipt, RotateCcw, Search, Sparkles, Tag, Ticket, TrendingUp, UserCog, Users, Wallet, X } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Types & small helpers                                               */
@@ -389,6 +390,7 @@ export function ReportsPage() {
   const db = useData();
   const {
     cash,
+    cashCategories,
     students,
     unpaidTeacher,
     expenses,
@@ -629,6 +631,33 @@ export function ReportsPage() {
 
     // Range-filtered raw sets — le périmètre des filtres compris.
     const fCash = cash.filter((t) => inRange(t.date));
+
+    /**
+     * LES MOUVEMENTS MANUELS DE LA PÉRIODE, RANGÉS PAR RUBRIQUE.
+     *
+     * Seuls les dépôts et les retraits en portent une : le reste — paiements,
+     * salaires, acomptes — est déjà classé par son `type`, et le mêler ici
+     * ferait deux classements concurrents pour la même somme.
+     */
+    const cashCategoryRows = cashByCategory(
+      fCash.filter((t) => t.type === "deposit" || t.type === "withdraw"),
+      cashCategories,
+    );
+
+    /** La pastille d'une rubrique dans un tableau — « — » quand il n'y en a pas. */
+    const cashCategoryCell = (categoryId?: string) => {
+      const cat = categoryId ? cashCategories.find((c) => c.id === categoryId) : undefined;
+      if (!cat) return <span className="text-muted/60">—</span>;
+      return (
+        <span className="inline-flex items-center gap-1.5 text-muted">
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: cat.color || "var(--accent)" }}
+          />
+          {cat.name}
+        </span>
+      );
+    };
     const fPay = payments
       .filter((p) => inRange(p.date))
       .filter((p) => inScopeStudent(p.studentId))
@@ -1574,6 +1603,7 @@ export function ReportsPage() {
             columns: [
               { label: "Date", render: (r) => dateCell(r.date) },
               { label: "Désignation", render: (r) => <span className="font-semibold text-ink">{r.description}</span> },
+              { label: "Rubrique", render: (r) => cashCategoryCell(r.categoryId) },
               { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.amount)}</strong> },
             ],
             rows: fCash.filter((t) => t.type === "deposit"),
@@ -1614,6 +1644,7 @@ export function ReportsPage() {
               { label: "Date", render: (r) => dateCell(r.date) },
               { label: "Type", render: (r) => <Badge tone={badgeTone(cashTypeLabel[r.type]?.tone ?? "neutral")}>{cashTypeLabel[r.type]?.label ?? r.type}</Badge> },
               { label: "Désignation", render: (r) => <span className="text-muted">{r.description}</span> },
+              { label: "Rubrique", render: (r) => cashCategoryCell(r.categoryId) },
               { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
             ],
             rows: fCash.filter((t) => t.type === "expense" || t.type === "withdraw"),
@@ -1621,6 +1652,47 @@ export function ReportsPage() {
             totalValue: outflow(cashExpenseWithdraw),
             totalTone: "danger",
             searchable: (r) => r.description,
+          },
+        },
+        {
+          /**
+           * LA CAISSE MANUELLE, RANGÉE PAR RUBRIQUE.
+           *
+           * Les autres cartes répondent « combien ? » ; celle-ci répond
+           * « à quoi ? ». Elle reprend exactement le regroupement de l'écran
+           * Caisse — même fonction, `cashByCategory` — pour que les deux
+           * écrans ne puissent pas afficher deux totaux différents.
+           */
+          label: "Dépôts & retraits par rubrique",
+          value: `${cashCategoryRows.length} rubrique(s)`,
+          tone: "neutral",
+          icon: <Tag className="h-5 w-5" />,
+          hint: "Les mouvements manuels, regroupés",
+          detail: {
+            columns: [
+              {
+                label: "Rubrique",
+                render: (r) => (
+                  <span className="flex items-center gap-2 font-semibold text-ink">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: r.color || "var(--text-muted)" }}
+                    />
+                    {r.name}
+                  </span>
+                ),
+              },
+              { label: "Mouvements", render: (r) => <span className="text-muted tabular-nums">{r.count}</span> },
+              { label: "Dépôts", align: "right", render: (r) => <span className="text-success tabular-nums">{r.inflow > 0 ? inflow(r.inflow) : "—"}</span> },
+              { label: "Retraits", align: "right", render: (r) => <span className="text-danger tabular-nums">{r.outflow > 0 ? outflow(-r.outflow) : "—"}</span> },
+              { label: "Net", align: "right", render: (r) => <strong className={`tabular-nums ${r.net >= 0 ? "text-success" : "text-danger"}`}>{signed(r.net)}</strong> },
+            ],
+            rows: cashCategoryRows,
+            totalLabel: "Net des mouvements manuels",
+            totalValue: signed(cashCategoryRows.reduce((n, r) => n + r.net, 0)),
+            totalTone: cashCategoryRows.reduce((n, r) => n + r.net, 0) >= 0 ? "success" : "danger",
+            empty: "Aucun dépôt ni retrait manuel sur la période.",
+            searchable: (r) => r.name,
           },
         },
         {

@@ -1,16 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { useData } from "@/lib/store/data";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AlertTriangle, ArrowDownLeft, ArrowUpDown, ArrowUpRight, BookOpen, Calendar, DollarSign, Edit, Filter, Landmark, Plus, Receipt, Search, Trash2, TrendingDown, TrendingUp, UserCheck, X } from "lucide-react";
+import { CashCategoryPicker } from "@/components/cash/CashCategoryPicker";
+import { AlertTriangle, ArrowDownLeft, ArrowUpDown, ArrowUpRight, BookOpen, Calendar, DollarSign, Edit, Filter, Landmark, Plus, Receipt, Search, Tag, Trash2, TrendingDown, TrendingUp, UserCheck, X } from "lucide-react";
 import type { CashTransaction, CashTxType, PaymentSource } from "@/lib/types";
+import type { CashCategoryTotal } from "@/lib/helpers";
 import {
   carteShort,
+  cashByCategory,
   formatDateFr,
   formatDays,
   groupName,
@@ -29,6 +33,7 @@ export function CashPage() {
   const db = useData();
   const {
     cash,
+    cashCategories,
     cashMove,
     deleteFrom,
     updateItem,
@@ -74,6 +79,8 @@ export function CashPage() {
   const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState("");
   const [txDate, setTxDate] = useState(getLocalDateString(new Date()));
+  /** la rubrique du mouvement en cours de saisie — "" = non classé */
+  const [categoryId, setCategoryId] = useState("");
 
   // Form states (Edit Transaction)
   const [selectedTx, setSelectedTx] = useState<CashTransaction | null>(null);
@@ -86,6 +93,7 @@ export function CashPage() {
     setAmount(0);
     setDescription("");
     setTxDate(getLocalDateString(new Date()));
+    setCategoryId("");
   };
 
   /**
@@ -205,6 +213,23 @@ export function CashPage() {
     .filter((t) => t.type === "expense" || t.type === "withdraw")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+  /**
+   * LES MOUVEMENTS MANUELS DE LA PÉRIODE, RANGÉS PAR RUBRIQUE.
+   *
+   * Seuls les dépôts et les retraits en portent une : tout le reste — paiements
+   * de chevaliers, règlements d'entraîneurs, acomptes — est déjà classé par son
+   * `type`, et le mêler aux rubriques ferait deux classements concurrents pour
+   * la même somme.
+   */
+  const categoryRows = useMemo(
+    () =>
+      cashByCategory(
+        filteredTx.filter((t) => t.type === "deposit" || t.type === "withdraw"),
+        cashCategories,
+      ),
+    [filteredTx, cashCategories],
+  );
+
   // Tab Filtering
   const getTabFilteredTransactions = () => {
     switch (activeTab) {
@@ -252,7 +277,7 @@ export function CashPage() {
       alert("Veuillez saisir un montant et une description valides.");
       return;
     }
-    cashMove("deposit", amount, description, txDate);
+    cashMove("deposit", amount, description, txDate, categoryId || undefined);
     setIsDepositOpen(false);
     resetForm();
   };
@@ -262,7 +287,7 @@ export function CashPage() {
       alert("Veuillez saisir un montant et une description valides.");
       return;
     }
-    cashMove("withdraw", amount, description, txDate);
+    cashMove("withdraw", amount, description, txDate, categoryId || undefined);
     setIsWithdrawOpen(false);
     resetForm();
   };
@@ -703,6 +728,12 @@ export function CashPage() {
           ))}
         </div>
 
+        {/* ---- LES RUBRIQUES DE LA PÉRIODE ----
+             Les dépôts et les retraits manuels rangés par rubrique, avec leur
+             total. C'est la lecture que le journal ne donne pas : une liste
+             chronologique dit ce qui s'est passé, pas où l'argent est parti. */}
+        <CashCategoryBreakdown rows={categoryRows} />
+
         {/* Le détail des versements de chevaliers — qui, quel emploi, quel carte. */}
         {(activeTab === "all" || activeTab === "students") && (
           <StudentPaymentsHistory
@@ -957,6 +988,7 @@ export function CashPage() {
               className="rounded-xl"
             />
           </div>
+          <CashCategoryPicker value={categoryId} onChange={setCategoryId} canManage={can("deposit") || can("withdraw")} />
           <div>
             <label className="block text-xs font-semibold text-muted mb-1">Date du dépôt *</label>
             <Input
@@ -999,6 +1031,7 @@ export function CashPage() {
               className="rounded-xl"
             />
           </div>
+          <CashCategoryPicker value={categoryId} onChange={setCategoryId} canManage={can("deposit") || can("withdraw")} />
           <div>
             <label className="block text-xs font-semibold text-muted mb-1">Date du retrait *</label>
             <Input
@@ -1289,3 +1322,93 @@ function StudentPaymentsHistory({
   );
 }
 
+
+
+/**
+ * LE TABLEAU DES RUBRIQUES.
+ *
+ * Une barre par rubrique, dimensionnée sur la plus lourde : le rapport entre
+ * les rubriques se saisit d'un coup d'œil, sans lire les chiffres. Les chiffres
+ * sont là quand même — la barre illustre, elle ne remplace pas.
+ */
+function CashCategoryBreakdown({ rows }: { rows: CashCategoryTotal[] }) {
+  if (rows.length === 0) return null;
+
+  const scale = Math.max(...rows.map((r) => Math.max(r.inflow, r.outflow)), 1);
+  const totalIn = rows.reduce((n, r) => n + r.inflow, 0);
+  const totalOut = rows.reduce((n, r) => n + r.outflow, 0);
+
+  return (
+    <div className="border-b border-line p-4">
+      <h4 className="mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
+        <Tag className="h-3.5 w-3.5 text-accent-ink" /> Dépôts &amp; retraits par rubrique ({rows.length})
+      </h4>
+
+      <div className="space-y-2">
+        {rows.map((r, i) => (
+          <motion.div
+            key={r.id || "unclassified"}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: Math.min(i * 0.03, 0.24), duration: 0.28 }}
+            className="rounded-xl border border-line bg-surface p-3"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-2 text-xs font-bold text-ink">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: r.color || "var(--text-muted)" }}
+                />
+                <span className="truncate">{r.name}</span>
+                <span className="shrink-0 font-normal text-muted">({r.count})</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-3 text-xs tabular-nums">
+                {r.inflow > 0 && (
+                  <span className="font-semibold text-success">+{formatDA(r.inflow)}</span>
+                )}
+                {r.outflow > 0 && (
+                  <span className="font-semibold text-danger">−{formatDA(r.outflow)}</span>
+                )}
+                <span
+                  className={`font-extrabold ${r.net >= 0 ? "text-ink" : "text-danger"}`}
+                  title="Net de la rubrique"
+                >
+                  {formatDA(r.net)}
+                </span>
+              </span>
+            </div>
+
+            {/* Les deux barres partagent la MÊME échelle que toutes les autres
+                rubriques : sans cela, deux barres pleines vaudraient des sommes
+                différentes et la comparaison mentirait. */}
+            <div className="mt-2 flex h-1.5 gap-1 overflow-hidden rounded-full bg-canvas">
+              <span
+                className="h-full rounded-full bg-success/70 transition-[width] duration-500"
+                style={{ width: `${(r.inflow / scale) * 50}%` }}
+              />
+              <span
+                className="h-full rounded-full bg-danger/70 transition-[width] duration-500"
+                style={{ width: `${(r.outflow / scale) * 50}%` }}
+              />
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-4 border-t border-line pt-2.5 text-xs">
+        <span className="text-muted">
+          Total dépôts <strong className="text-success tabular-nums">{formatDA(totalIn)}</strong>
+        </span>
+        <span className="text-muted">
+          Total retraits <strong className="text-danger tabular-nums">{formatDA(totalOut)}</strong>
+        </span>
+        <span className="text-muted">
+          Net{" "}
+          <strong className={`tabular-nums ${totalIn - totalOut >= 0 ? "text-ink" : "text-danger"}`}>
+            {formatDA(totalIn - totalOut)}
+          </strong>
+        </span>
+      </div>
+    </div>
+  );
+}

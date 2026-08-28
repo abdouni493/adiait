@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LE CATALOGUE DE LE CLUB DE DÉMONSTRATION.
+ * LE CATALOGUE DU CLUB DE DÉMONSTRATION.
  *
  * Tout ce qui ne dépend d'aucun chevalier : l'établissement, les matières, les
  * groupes, les arènes, les catégories, les entraîneurs, les travailleurs, les
@@ -13,6 +13,7 @@
  */
 
 import type {
+  CashCategory,
   ClassCategory,
   ExpenseCategory,
   Group,
@@ -115,6 +116,20 @@ export const CLASSES: SchoolClass[] = [
   { id: "cls-15", type: "formation", name: "Anglais Débutant", description: "Formation en anglais — premiers pas", formationLevel: "A2" },
 ];
 
+/**
+ * LES RUBRIQUES DE CAISSE de la démonstration.
+ *
+ * Elles rangent les dépôts et les retraits manuels, pour que la Caisse et les
+ * Rapports puissent en donner le total rubrique par rubrique plutôt qu'une
+ * longue liste plate.
+ */
+export const CASH_CATEGORIES: CashCategory[] = [
+  { id: "ccat-equipement", name: "Équipement & armement", color: "#b08328" },
+  { id: "ccat-entretien", name: "Entretien des arènes", color: "#35506f" },
+  { id: "ccat-tournoi", name: "Tournois & déplacements", color: "#15803d" },
+  { id: "ccat-apport", name: "Apports & fonds de roulement", color: "#b45309" },
+];
+
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   { id: "ecat-1", name: "Loyer" },
   { id: "ecat-2", name: "Électricité & Eau" },
@@ -163,7 +178,7 @@ export const WORKER_ROLES: WorkerJobRole[] = [
 /** Les écrans d'un travailleur de réception de plein exercice. */
 export const FULL_DESK_PAGES = [
   "dashboard", "classes", "planner", "subscriptions", "students", "attendance",
-  "subjects", "independent", "parents", "announcements", "expenses", "cash", "settings",
+  "independent", "parents", "announcements", "expenses", "cash", "settings",
 ];
 
 export const WORKERS: ReceptionStaff[] = [

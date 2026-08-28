@@ -97,18 +97,41 @@ export type ClassType = "cours" | "formation";
 export type CoursLevel = "maternelle" | "primaire" | "moyen" | "lycee";
 export type FormationLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
+/**
+ * UNE CATÉGORIE DE L'ORDRE.
+ *
+ * C'est ce que l'application appelait « une classe ». Une catégorie porte
+ * maintenant TROIS choses, et rien d'autre : un nom, une description, et la
+ * TRANCHE D'ÂGE qu'elle accueille — « de 18 à 25 ans ». Elle ne connaît plus
+ * ni cours ni formation ni niveau : un club de chevalerie range ses membres
+ * par âge, pas par année du du club.
+ *
+ * LES CHAMPS D'AVANT SONT GARDÉS, ET RESTENT FACULTATIFS. Les fiches déjà en
+ * base portent un `type`, un `coursLevel`, une `year` : les effacer ferait
+ * disparaître leur libellé et casserait le périmètre des droits d'entrée
+ * réglé par niveau. Ils ne sont plus DEMANDÉS à la création — c'est là toute
+ * la différence — mais ils sont toujours LUS quand ils sont là.
+ */
 export interface SchoolClass extends Authored {
   id: string;
-  type: ClassType;
   name: string;
   description: string;
-  // cours
+
+  /** âge minimum admis, en années révolues */
+  ageFrom?: number;
+  /** âge maximum admis, en années révolues */
+  ageTo?: number;
+
+  // ---- hérité : renseigné sur les fiches d'avant les catégories ----------
+  /** @deprecated la création ne le demande plus */
+  type?: ClassType;
+  /** @deprecated */
   coursLevel?: CoursLevel;
+  /** @deprecated */
   year?: string;
-  /** kindergarten only: optional category (e.g. "Petite section"), free-form
-   *  and created on the fly from the class screen */
+  /** @deprecated regroupement facultatif hérité de la maternelle */
   categoryId?: string;
-  // formation
+  /** @deprecated */
   formationLevel?: FormationLevel;
 }
 
@@ -1199,15 +1222,6 @@ export interface TeacherAbsence extends Authored {
   date: string;
 }
 
-export interface Subject extends Authored {
-  id: string;
-  title: string;
-  description: string;
-  image?: string;
-  sessionId: string;
-  date: string;
-}
-
 export type Audience = "students" | "teachers" | "parents" | "all";
 export interface Announcement extends Authored {
   id: string;
@@ -1246,12 +1260,39 @@ export type CashTxType =
   /** the school covered a student's debt from its own money: the outflow that
    *  balances the `student_payment` booked on that student */
   | "student_debt";
+/**
+ * LA RUBRIQUE D'UN MOUVEMENT DE CAISSE.
+ *
+ * « Équipement », « Entretien des arènes », « Tournoi » : de quoi ranger les
+ * dépôts et les retraits pour que la caisse et les rapports puissent en donner
+ * le total, rubrique par rubrique, plutôt qu'une longue liste plate.
+ *
+ * Elle se crée depuis le formulaire de dépôt ou de retrait lui-même : personne
+ * ne devrait avoir à quitter sa saisie pour aller déclarer une rubrique.
+ */
+export interface CashCategory extends Authored {
+  id: string;
+  name: string;
+  /** repère visuel de la rubrique dans les tableaux (jeton hexadécimal) */
+  color?: string;
+  createdAt?: string;
+}
+
 export interface CashTransaction extends Authored {
   id: string;
   type: CashTxType;
   amount: number; // signed
   date: string;
   description: string;
+  /**
+   * La rubrique, quand il y en a une.
+   *
+   * Absente = mouvement non classé. La colonne est une clé étrangère : on la
+   * laisse vide plutôt que de pointer une rubrique supprimée. Les mouvements
+   * automatiques — paiements, salaires, acomptes — n'en portent pas : ils sont
+   * déjà classés par leur `type`.
+   */
+  categoryId?: string;
 }
 
 export interface Parent extends Authored {

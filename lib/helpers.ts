@@ -3,6 +3,8 @@ import { money, positiveMoney, formatDA } from "@/lib/utils";
 import { DAYS } from "@/lib/types";
 import type {
   AttendanceRecord,
+  CashCategory,
+  CashTransaction,
   CoursLevel,
   Day,
   DayTime,
@@ -170,8 +172,63 @@ export function coursLevelLabel(level?: CoursLevel): string {
   return COURS_LEVELS.find((l) => l.value === level)?.label ?? "";
 }
 
+/**
+ * « de 18 à 25 ans » — la tranche d'âge d'une catégorie, telle qu'elle se lit.
+ *
+ * Une borne manquante n'est pas une tranche vide : une catégorie créée avant
+ * les âges n'en a tout simplement pas, et le dire est plus utile que d'inventer
+ * « de 0 à 120 ans ».
+ */
+export function ageRangeLabel(from?: number, to?: number): string {
+  if (from == null && to == null) return "Tous âges";
+  if (from != null && to == null) return `${from} ans et plus`;
+  if (from == null && to != null) return `jusqu'à ${to} ans`;
+  if (from === to) return `${from} ans`;
+  return `de ${from} à ${to} ans`;
+}
+
+/** L'âge, en années révolues, d'une date de naissance « AAAA-MM-JJ ». */
+export function ageFromBirthDate(birthDate?: string, on: Date = new Date()): number | null {
+  if (!birthDate) return null;
+  const b = new Date(birthDate);
+  if (Number.isNaN(b.getTime())) return null;
+  let age = on.getFullYear() - b.getFullYear();
+  const before =
+    on.getMonth() < b.getMonth() ||
+    (on.getMonth() === b.getMonth() && on.getDate() < b.getDate());
+  if (before) age -= 1;
+  return age >= 0 ? age : null;
+}
+
+/**
+ * CETTE CATÉGORIE ACCEPTE-T-ELLE CE CHEVALIER ?
+ *
+ * Rend `null` — et non `false` — quand la question ne peut pas être tranchée :
+ * pas de date de naissance sur la fiche, ou pas de tranche sur la catégorie.
+ * Un écran doit pouvoir distinguer « hors tranche » de « on ne sait pas », et
+ * ne signaler que le premier.
+ */
+export function categoryAccepts(cls: SchoolClass, birthDate?: string): boolean | null {
+  if (cls.ageFrom == null && cls.ageTo == null) return null;
+  const age = ageFromBirthDate(birthDate);
+  if (age == null) return null;
+  if (cls.ageFrom != null && age < cls.ageFrom) return false;
+  if (cls.ageTo != null && age > cls.ageTo) return false;
+  return true;
+}
+
+/** Les catégories dont la tranche d'âge accueille cette date de naissance. */
+export function categoriesForAge(db: Database, birthDate?: string): SchoolClass[] {
+  return db.classes.filter((c) => categoryAccepts(c, birthDate) !== false);
+}
+
 export function classLabel(db: Database, cls: SchoolClass): string {
+  // Les fiches d'avant les catégories gardent leur libellé d'origine ; les
+  // nouvelles se présentent par leur nom et la tranche qu'elles accueillent.
   if (cls.type === "formation") return `${cls.name} (${cls.formationLevel})`;
+  if (cls.ageFrom != null || cls.ageTo != null) {
+    return `${cls.name} · ${ageRangeLabel(cls.ageFrom, cls.ageTo)}`;
+  }
   const cat = categoryName(db, cls.categoryId);
   return [cls.name, cat].filter(Boolean).join(" · ");
 }
@@ -2267,4 +2324,73 @@ export function teacherChildDebtsOf(db: Database, teacherId: string) {
 /** Son total — ce que sa prochaine paie va lui coûter en cotisations. */
 export function teacherChildDebtTotal(db: Database, teacherId: string): number {
   return teacherChildDebtsOf(db, teacherId).reduce((s, d) => s + d.amount, 0);
+}
+
+// ---- Les rubriques de caisse ------------------------------------------------
+
+/** Le total d'une rubrique : ce qui y est entré, ce qui en est sorti, le net. */
+export interface CashCategoryTotal {
+  id: string;
+  name: string;
+  color?: string;
+  /** dépôts (montants positifs) */
+  inflow: number;
+  /** retraits et dépenses, rendus POSITIFS pour se lire comme une somme */
+  outflow: number;
+  /** inflow − outflow */
+  net: number;
+  count: number;
+}
+
+/**
+ * LES MOUVEMENTS DE CAISSE, RANGÉS PAR RUBRIQUE.
+ *
+ * La caisse et les rapports posaient la même question et n'y répondaient pas :
+ * « combien cette rubrique a-t-elle coûté sur la période ? ». Ce regroupement
+ * est donc écrit UNE fois, ici, et les deux écrans le lisent — sans quoi les
+ * deux totaux finiraient par diverger.
+ *
+ * LES MOUVEMENTS NON CLASSÉS NE DISPARAISSENT PAS : ils forment une rubrique
+ * à part, en fin de liste. Un total qui laisse tomber ce qu'il ne sait pas
+ * ranger ment sur la caisse.
+ *
+ * Les rubriques sont rendues de la plus lourde à la plus légère — c'est le
+ * poids qui intéresse, pas l'ordre alphabétique — et une rubrique sans aucun
+ * mouvement sur la période est omise plutôt qu'affichée à zéro.
+ */
+export function cashByCategory(
+  transactions: CashTransaction[],
+  categories: CashCategory[],
+): CashCategoryTotal[] {
+  const byId = new Map<string, CashCategory>(categories.map((c) => [c.id, c]));
+  const totals = new Map<string, CashCategoryTotal>();
+
+  for (const tx of transactions) {
+    const key = tx.categoryId && byId.has(tx.categoryId) ? tx.categoryId : "";
+    let row = totals.get(key);
+    if (!row) {
+      const cat = key ? byId.get(key) : undefined;
+      row = {
+        id: key,
+        name: cat?.name ?? "Non classé",
+        color: cat?.color,
+        inflow: 0,
+        outflow: 0,
+        net: 0,
+        count: 0,
+      };
+      totals.set(key, row);
+    }
+    if (tx.amount >= 0) row.inflow += tx.amount;
+    else row.outflow += -tx.amount;
+    row.net += tx.amount;
+    row.count += 1;
+  }
+
+  return [...totals.values()].sort((a, b) => {
+    // « Non classé » ferme la marche, quelle que soit sa taille.
+    if (a.id === "") return 1;
+    if (b.id === "") return -1;
+    return Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name);
+  });
 }

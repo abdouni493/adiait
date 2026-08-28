@@ -26,7 +26,7 @@ describe("le jeu de démonstration", () => {
       "students", "teachers", "reception", "sessions", "subscriptions",
       "enrollments", "payments", "attendance", "cash", "expenses",
       "teacherPayments", "workerPayments", "workerShifts", "independent",
-      "groupSeances", "parents", "announcements", "subjects", "notifications",
+      "groupSeances", "parents", "announcements", "notifications",
     ]) {
       expect((db as unknown as Record<string, unknown[]>)[key].length, key).toBeGreaterThan(0);
     }

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LE PREMIER COMPTE DE LE CLUB.
+ * LE PREMIER COMPTE DU CLUB.
  *
  * Une base fraîchement installée n'a AUCUN compte : personne ne peut se
  * connecter, donc personne ne peut créer le premier administrateur. C'est le

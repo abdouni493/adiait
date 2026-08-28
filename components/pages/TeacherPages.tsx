@@ -57,7 +57,6 @@ export function TeacherPages({ slug }: PageProps) {
     announcements,
     students,
     attendance,
-    subjects,
     push,
     deleteFrom,
     updateItem,
@@ -102,20 +101,9 @@ export function TeacherPages({ slug }: PageProps) {
           updateItem={updateItem}
         />
       );
-    case "subjects":
-      return (
-        <TeacherSubjectsView
-          teacher={teacher}
-          teacherSessions={teacherSessions}
-          getSessionInfo={getSessionInfo}
-          subjects={subjects}
-          push={push}
-          deleteFrom={deleteFrom}
-        />
-      );
     case "salary":
       return <TeacherPayCenterView teacher={teacher} />;
-    case "my-catégories":
+    case "my-classes":
       return <TeacherClassesView teacher={teacher} />;
     case "announcements":
       return <TeacherAnnouncementsView announcements={announcements} />;
@@ -268,204 +256,6 @@ function TeacherAttendanceView({
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ----------------------------------------------------
-// 4. SUBJECTS VIEW
-// ----------------------------------------------------
-function TeacherSubjectsView({
-  teacher,
-  teacherSessions,
-  getSessionInfo,
-  subjects,
-  push,
-  deleteFrom,
-}: {
-  teacher: Teacher;
-  teacherSessions: ScheduleSession[];
-  getSessionInfo: (s: ScheduleSession) => any;
-  subjects: any[];
-  push: any;
-  deleteFrom: any;
-}) {
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [sessionId, setSessionId] = useState("");
-  const [image, setImage] = useState("https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=300&auto=format&fit=crop&q=60");
-
-  const mySubjects = subjects.filter((s) =>
-    teacherSessions.some((ts) => ts.id === s.sessionId)
-  );
-
-  const handlePublish = () => {
-    if (!title || !sessionId) return;
-    push("subjects", {
-      id: `sbj-${Math.random()}`,
-      title,
-      description,
-      sessionId,
-      image: image || "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=300&auto=format&fit=crop&q=60",
-      date: new Date().toISOString(),
-    });
-    setIsAddOpen(false);
-    setTitle("");
-    setDescription("");
-    setSessionId("");
-    setImage("https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=300&auto=format&fit=crop&q=60");
-  };
-
-  return (
-    <div className="space-y-6 text-xs">
-      <div className="flex items-center justify-between">
-        <PageHeader icon={FileText} title="Mes Devoirs & Fiches" subtitle="Publier des ressources de révision et exercices" />
-        <Button onClick={() => setIsAddOpen(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" /> Nouveau document
-        </Button>
-      </div>
-
-      {mySubjects.length === 0 ? (
-        <Card className="p-8 text-center bg-canvas/30 border border-line">
-          <FileText className="h-10 w-10 text-muted mx-auto mb-2" />
-          <h3 className="font-bold text-ink">Aucun document partagé</h3>
-          <p className="text-xs text-muted mt-1 font-sans">Créez votre première fiche d'exercice.</p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mySubjects.map((sbj) => {
-            const info = getSessionInfo(teacherSessions.find((x) => x.id === sbj.sessionId)!);
-            return (
-              <Card key={sbj.id} className="overflow-hidden border border-line">
-                {sbj.image && (
-                  <div className="h-28 w-full bg-canvas border-b border-line overflow-hidden">
-                    <img src={sbj.image} alt={sbj.title} className="w-full h-full object-cover" />
-                  </div>
-                )}
-                <CardBody className="flex flex-col justify-between h-44">
-                  <div>
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-ink line-clamp-1">{sbj.title}</h4>
-                        <span className="text-[9px] text-muted block mt-0.5">Publié le {sbj.date.substring(0, 10)}</span>
-                      </div>
-                      <button onClick={() => deleteFrom("subjects", sbj.id)} className="p-1 rounded hover:bg-danger/10 text-danger shrink-0 animate-colors">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <p className="text-xs text-muted mt-2 line-clamp-2">{sbj.description}</p>
-                  </div>
-                  <div className="border-t border-line pt-2.5 mt-2.5 flex items-center justify-between">
-                    <Badge tone="neutral" className="text-[9px] truncate max-w-[150px]">
-                      {info?.moduleLabel} - {info?.groupLabel}
-                    </Badge>
-                  </div>
-                </CardBody>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add Document Modal */}
-      <Modal open={isAddOpen} onClose={() => setIsAddOpen(false)} title="Créer un sujet / exercice">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-muted mb-1">Titre de la fiche</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Devoir blanc Math" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-muted mb-1">Groupe ciblé</label>
-            <Select value={sessionId} onChange={(e) => setSessionId(e.target.value)} className="w-full">
-              <option value="">Sélectionner...</option>
-              {teacherSessions.map((s) => {
-                const info = getSessionInfo(s);
-                return (
-                  <option key={s.id} value={s.id}>
-                    {info.moduleLabel} - {info.groupLabel}
-                  </option>
-                );
-              })}
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted mb-2">Image d'illustration / Exercice</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Device upload zone */}
-              <div className="border-2 border-dashed border-line rounded-2xl p-4 bg-canvas/30 hover:bg-canvas/50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer relative group">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        if (typeof reader.result === "string") {
-                          setImage(reader.result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                />
-                <div className="space-y-1.5 pointer-events-none">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                    <Upload className="h-4 w-4" />
-                  </div>
-                  <span className="text-xs font-bold text-ink block">Téléverser depuis l'appareil</span>
-                  <span className="text-[10px] text-muted block">Sélectionner une photo</span>
-                </div>
-              </div>
-
-              {/* URL Input & Preview zone */}
-              <div className="border border-line rounded-2xl p-3 bg-surface flex flex-col justify-between gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-muted uppercase mb-1">Ou saisir l'adresse URL</label>
-                  <Input
-                    value={image}
-                    onChange={(e) => setImage(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                  />
-                </div>
-                
-                {image && (
-                  <div className="h-16 w-full rounded-xl overflow-hidden relative bg-canvas border border-line flex items-center justify-center">
-                    <img src={image} alt="Aperçu" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setImage("")}
-                      className="absolute top-1 right-1 p-1 rounded-md bg-danger text-white hover:bg-danger/90 text-[10px] font-bold z-20"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted mb-1">Description / Enoncé</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="w-full rounded-xl border border-line bg-surface p-3 text-sm text-ink outline-none focus:border-primary"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsAddOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handlePublish}>Publier</Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

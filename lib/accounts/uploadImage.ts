@@ -3,7 +3,7 @@
 /**
  * LES IMAGES — le logo du club et les illustrations des supports de cours.
  *
- * Le fichier part dans un dépôt Supabase Storage (`logos` ou `subjects`), et
+ * Le fichier part dans le dépôt Supabase Storage `logos`, et
  * c'est son URL PUBLIQUE qui est rangée sur la ligne (`school.logo`,
  * `subject.image`). Deux conséquences voulues :
  *
@@ -22,7 +22,7 @@ import { supabase, errorMessage } from "@/lib/supabase/client";
 /** Cinq mégaoctets : largement de quoi loger un logo ou une vignette. */
 const MAX_BYTES = 5 * 1024 * 1024;
 
-export type ImageBucket = "logos" | "subjects";
+export type ImageBucket = "logos";
 
 export async function uploadImage(bucket: ImageBucket, file: File): Promise<string> {
   if (!file.type.startsWith("image/")) {

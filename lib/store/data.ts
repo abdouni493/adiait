@@ -25,6 +25,7 @@ import type {
   Announcement,
   AttendanceRecord,
   AttendanceStatus,
+  CashCategory,
   CashTransaction,
   ClassCategory,
   Coursework,
@@ -52,7 +53,6 @@ import type {
   Student,
   StudentCharge,
   StudentCredential,
-  Subject,
   Subscription,
   SubscriptionDiscount,
   SubscriptionPlan,
@@ -122,11 +122,11 @@ export interface Database {
   /** cotisations d'enfants créditées d'avance et portées sur le salaire du père */
   teacherChildDebts: TeacherChildDebt[];
   absences: TeacherAbsence[];
-  subjects: Subject[];
   announcements: Announcement[];
   categories: ExpenseCategory[];
   expenses: Expense[];
   cash: CashTransaction[];
+  cashCategories: CashCategory[];
   parents: Parent[];
   notifications: Notification[];
   coursework: Coursework[];
@@ -915,6 +915,7 @@ interface DataActions {
     amount: number,
     description: string,
     date?: string,
+    categoryId?: string,
   ) => void;
   updateSchool: (updatedFields: Partial<School>) => void;
   restoreState: (dump: Partial<Database>) => void;
@@ -4239,7 +4240,7 @@ export const useData = create<DataStore>((set, get) => ({
     });
   },
 
-  cashMove: (type, amount, description, date) => {
+  cashMove: (type, amount, description, date, categoryId) => {
     let isoDate = new Date().toISOString();
     if (date) {
       isoDate =
@@ -4250,12 +4251,13 @@ export const useData = create<DataStore>((set, get) => ({
     const signedAmount = type === "withdraw" ? -Math.abs(amount) : Math.abs(amount);
     const item: CashTransaction = {
       ...authorStamp(),
-      ...authorStamp(),
       id: uid("csh"),
       type,
       amount: signedAmount,
       date: isoDate,
       description,
+      // Une rubrique vide reste ABSENTE : la colonne est une clé étrangère.
+      ...(categoryId ? { categoryId } : {}),
     };
     set((state) => ({ cash: [...state.cash, item] }));
   },

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TOUT LE RESTE DE LE CLUB DE DÉMONSTRATION : les supports de cours, les
+ * TOUT LE RESTE DU CLUB DE DÉMONSTRATION : les supports de cours, les
  * annonces, les dépenses, les périodes gratuites, les séances libres vendues à
  * l'unité ou au groupe, les notifications des parents et les stages.
  *
@@ -21,7 +21,6 @@ import type {
   Notification,
   Student,
   StudentCredential,
-  Subject,
 } from "@/lib/types";
 import { choose, pick, shiftDays, stamp, stampOn } from "./dates";
 
@@ -79,21 +78,6 @@ export const MODULE_ABSENCE_RULES: ModuleAbsenceRule[] = [
 // ---------------------------------------------------------------------------
 //  Les supports de cours
 // ---------------------------------------------------------------------------
-
-export const SUBJECTS: Subject[] = [
-  { id: "suj-1", title: "Série d'exercices — Suites numériques", description: "Exercices 1 à 12, à rendre pour la prochaine séance.", sessionId: "ses-1", date: stamp(-4, "18:00") },
-  { id: "suj-2", title: "TP — Lois de Newton", description: "Compte-rendu du TP réalisé en arène 1.", sessionId: "ses-3", date: stamp(-3, "17:00") },
-  { id: "suj-3", title: "Sujet type BAC — Analyse", description: "Sujet complet avec corrigé détaillé, 4 heures.", sessionId: "ses-2", date: stamp(-9, "19:00") },
-  { id: "suj-4", title: "Fiche de vocabulaire — Unit 6", description: "150 mots à mémoriser avant l'évaluation.", sessionId: "ses-5", date: stamp(-6, "18:30") },
-  { id: "suj-5", title: "Dictée préparée — Les accords", description: "Texte à travailler à la maison.", sessionId: "ses-4", date: stamp(-8, "12:00") },
-  { id: "suj-6", title: "Schéma bilan — La photosynthèse", description: "À compléter et à coller dans le cahier.", sessionId: "ses-7", date: stamp(-5, "11:00") },
-  { id: "suj-7", title: "Texte d'étude — La poésie moderne", description: "Lecture analytique, questions 1 à 8.", sessionId: "ses-8", date: stamp(-11, "12:00") },
-  { id: "suj-8", title: "Devoir surveillé n°3", description: "Sujet et barème du DS de mathématiques.", sessionId: "ses-9", date: stamp(-2, "16:30") },
-  { id: "suj-9", title: "Carte muette — Le Maghreb", description: "À compléter pour la prochaine séance.", sessionId: "ses-12", date: stamp(-7, "13:00") },
-  { id: "suj-10", title: "Support Excel — Formules de base", description: "Catégorieur d'exercices, à télécharger et à remplir.", sessionId: "ses-13", date: stamp(-10, "19:30") },
-  { id: "suj-11", title: "Dissertation — La conscience", description: "Plan détaillé attendu pour la séance suivante.", sessionId: "ses-11", date: stamp(-13, "18:00") },
-  { id: "suj-12", title: "Comptine de la semaine", description: "À réciter avec les parents.", sessionId: "ses-14", date: stamp(-1, "11:30") },
-];
 
 // ---------------------------------------------------------------------------
 //  Les annonces

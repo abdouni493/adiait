@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LES FAMILLES DE LE CLUB DE DÉMONSTRATION.
+ * LES FAMILLES DU CLUB DE DÉMONSTRATION.
  *
  * Les vingt premières fiches sont écrites à la main : ce sont les CAS, et
  * chacune existe pour montrer une situation de facturation que l'application

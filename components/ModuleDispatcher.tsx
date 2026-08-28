@@ -7,7 +7,6 @@ import { SubscriptionsPage } from "@/components/pages/SubscriptionsPage";
 import { StudentsPage } from "@/components/pages/StudentsPage";
 import { AttendancePage } from "@/components/pages/AttendancePage";
 import { TeachersPage } from "@/components/pages/TeachersPage";
-import { SubjectsPage } from "@/components/pages/SubjectsPage";
 import { AdministrationPage } from "@/components/pages/AdministrationPage";
 import { IndependentPage } from "@/components/pages/IndependentPage";
 import { ParentsPage } from "@/components/pages/ParentsPage";
@@ -74,8 +73,6 @@ export function ModuleDispatcher({ slug }: { slug: string[] }) {
       return <AttendancePage />;
     case "teachers":
       return <TeachersPage />;
-    case "subjects":
-      return <SubjectsPage />;
     case "workers":
     case "administration": // legacy slug — kept so old bookmarks keep working
       return <AdministrationPage />;

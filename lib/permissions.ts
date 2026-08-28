@@ -160,19 +160,6 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     ],
   },
   {
-    key: "subjects",
-    emoji: "📄",
-    label: "Matières & cours",
-    href: "/subjects",
-    hint: "Les supports de cours publiés aux chevaliers.",
-    actions: [
-      { id: "create", label: "Publier un support" },
-      { id: "view", label: "Voir un support" },
-      { id: "delete", label: "Supprimer un support" },
-      { id: "bulk_delete", label: "Suppression groupée" },
-    ],
-  },
-  {
     key: "workers",
     emoji: "👥",
     label: "Travailleurs",
@@ -323,7 +310,7 @@ export function allPageKeys(): string[] {
  */
 const LEGACY_RECEPTION_PAGES = [
   "dashboard", "classes", "planner", "subscriptions", "students", "attendance",
-  "subjects", "independent", "parents", "announcements", "expenses", "settings",
+  "independent", "parents", "announcements", "expenses", "settings",
 ];
 
 export interface AccessRights {

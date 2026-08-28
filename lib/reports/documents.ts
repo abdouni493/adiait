@@ -243,7 +243,7 @@ export interface TicketSummaryLine {
 }
 
 /**
- * LE MODÈLE PAPIER DE LE CLUB — le seul générateur visuel des reçus.
+ * LE MODÈLE PAPIER DU CLUB — le seul générateur visuel des reçus.
  *
  * Reçu de solde, reçu de frais, acompte d'un travailleur, fiche de paie d'un
  * travailleur : tous sortent d'ici, donc tous se ressemblent, et changer le

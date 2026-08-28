@@ -258,7 +258,7 @@ export function PresenceSheet({
    *     autres, plus les restes d'anciens paiements et les frais d'inscription ;
    *   * les FRAIS : un livre, une tenue, une sortie — tout ce qui a été porté à
    *     son compte hors cotisation ;
-   *   * les AVANCES DE LE CLUB : ce que la caisse a réglé À SA PLACE pour ne
+   *   * les AVANCES DU CLUB : ce que la caisse a réglé À SA PLACE pour ne
    *     pas faire attendre l'entraîneur. Cet argent est sorti sans jamais
    *     entrer : la famille le doit au club, et c'est ici qu'on le lui
    *     rappelle, en face de son nom, le jour où elle est là.

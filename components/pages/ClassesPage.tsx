@@ -1,547 +1,548 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import {
+  CalendarDays,
+  Edit,
+  Eye,
+  MoreVertical,
+  Plus,
+  Shield,
+  Swords,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useData, uid } from "@/lib/store/data";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Edit, Eye, MoreVertical, Plus, Shield, Trash2 } from "lucide-react";
-import type { SchoolClass, CoursLevel, FormationLevel } from "@/lib/types";
+import { useToast } from "@/lib/store/toast";
+import type { SchoolClass } from "@/lib/types";
 import {
-  COURS_LEVELS,
-  coursLevelLabel,
+  ageRangeLabel,
+  categoryAccepts,
   studentFullyFree,
   totalRemainingSeances,
 } from "@/lib/helpers";
-
 import { useCan } from "@/lib/usePermissions";
-/** Year options per school level. Kindergarten uses sections, the others the
- *  Algerian AP/AM/AS scale. */
-function yearOptionsFor(level: CoursLevel): string[] {
-  switch (level) {
-    case "maternelle":
-      return ["Petite section", "Moyenne section", "Grande section"];
-    case "primaire":
-      return ["1AP", "2AP", "3AP", "4AP", "5AP"];
-    case "moyen":
-      return ["1AM", "2AM", "3AM", "4AM"];
-    case "lycee":
-      return ["1AS", "2AS", "3AS"];
-    default:
-      return [];
-  }
-}
 
-type LevelFilter = "all" | CoursLevel | "formation";
+/** Les âges proposés par les deux listes. Un club de chevalerie accueille des
+ *  enfants comme des adultes : la fourchette va large. */
+const AGES = Array.from({ length: 68 }, (_, i) => i + 3); // 3 → 70 ans
+
+type AgeFilter = "all" | "child" | "teen" | "adult";
+
+const AGE_FILTERS: { value: AgeFilter; label: string; from: number; to: number }[] = [
+  { value: "child", label: "Enfants (3 – 12 ans)", from: 3, to: 12 },
+  { value: "teen", label: "Cadets (13 – 17 ans)", from: 13, to: 17 },
+  { value: "adult", label: "Adultes (18 ans et plus)", from: 18, to: 120 },
+];
 
 export function ClassesPage() {
   const can = useCan("classes");
   const db = useData();
-  const { classes, classCategories, students, subscriptions, sessions, push, deleteFrom, updateItem } = db;
+  const { classes, students, subscriptions, sessions, push, deleteFrom, updateItem } = db;
+  const addToast = useToast((s) => s.addToast);
 
-  // Modal states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<SchoolClass | null>(null);
-
-  // Form states
-  const [type, setType] = useState<"cours" | "formation">("cours");
-  const [coursLevel, setCoursLevel] = useState<CoursLevel>("primaire");
-  const [year, setYear] = useState("1AP");
-  const [categoryId, setCategoryId] = useState("");
-  const [formationLevel, setFormationLevel] = useState<FormationLevel>("A1");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-
-  // Inline creations
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [formationLevelsList, setFormationLevelsList] = useState<string[]>(["A1", "A2", "B1", "B2", "C1", "C2"]);
-  const [newLevelName, setNewLevelName] = useState("");
-  const [showAddLevel, setShowAddLevel] = useState(false);
-
-  // Active menu dropdown index
+  const [selected, setSelected] = useState<SchoolClass | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // List filter by level
-  const [filterLevel, setFilterLevel] = useState<LevelFilter>("all");
+  // ---- LE FORMULAIRE : trois champs, et c'est tout ------------------------
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [ageFrom, setAgeFrom] = useState(18);
+  const [ageTo, setAgeTo] = useState(25);
+  const [error, setError] = useState("");
 
-  // Helpers
-  const getCategoryName = (cid?: string) => classCategories.find((c) => c.id === cid)?.name ?? "-";
-
-  const derivedName = (): string => {
-    if (type === "formation") return name;
-    return [coursLevelLabel(coursLevel), year, coursLevel === "maternelle" ? getCategoryName(categoryId) : ""]
-      .filter((p) => p && p !== "-")
-      .join(" · ");
-  };
-
-  const handleCreateCategory = () => {
-    if (!newCategoryName.trim()) return;
-    const newId = uid("cat");
-    push("classCategories", { id: newId, name: newCategoryName.trim() });
-    setCategoryId(newId);
-    setNewCategoryName("");
-    setShowAddCategory(false);
-  };
-
-  const handleCreateLevel = () => {
-    if (!newLevelName.trim()) return;
-    if (!formationLevelsList.includes(newLevelName)) {
-      setFormationLevelsList([...formationLevelsList, newLevelName]);
-    }
-    setFormationLevel(newLevelName as FormationLevel);
-    setNewLevelName("");
-    setShowAddLevel(false);
-  };
-
-  const handleCreateClass = () => {
-    const classId = uid("cls");
-    const newClass: SchoolClass = {
-      id: classId,
-      type,
-      name: derivedName() || (type === "cours" ? "Classe" : name),
-      description,
-      ...(type === "cours"
-        ? { coursLevel, year, categoryId: coursLevel === "maternelle" ? categoryId || undefined : undefined }
-        : { formationLevel }),
-    };
-
-    push("classes", newClass);
-    setIsCreateOpen(false);
-    resetForm();
-  };
-
-  const handleEditClass = () => {
-    if (!selectedClass) return;
-    const updated: Partial<SchoolClass> = {
-      type,
-      name: derivedName() || selectedClass.name,
-      description,
-      coursLevel: type === "cours" ? coursLevel : undefined,
-      year: type === "cours" ? year : undefined,
-      categoryId: type === "cours" && coursLevel === "maternelle" ? categoryId || undefined : undefined,
-      formationLevel: type === "formation" ? formationLevel : undefined,
-    };
-    updateItem("classes", selectedClass.id, updated);
-    setIsEditOpen(false);
-    resetForm();
-  };
+  const [filter, setFilter] = useState<AgeFilter>("all");
 
   const resetForm = () => {
-    setType("cours");
-    setCoursLevel("primaire");
-    setYear("1AP");
-    setCategoryId("");
-    setFormationLevel("A1");
     setName("");
     setDescription("");
-    setSelectedClass(null);
-    setShowAddCategory(false);
-    setNewCategoryName("");
+    setAgeFrom(18);
+    setAgeTo(25);
+    setError("");
+  };
+
+  /**
+   * CE QUI EMPÊCHE D'ENREGISTRER.
+   *
+   * Deux choses seulement : une catégorie sans nom, et une tranche d'âge à
+   * l'envers. Le message est rendu ici plutôt que jeté au moment du clic, pour
+   * que le bouton puisse être désactivé et que la raison soit lisible AVANT.
+   */
+  const problem = useMemo(() => {
+    if (!name.trim()) return "Donnez un nom à la catégorie.";
+    if (ageTo < ageFrom) return "L'âge maximum ne peut pas être inférieur à l'âge minimum.";
+    return "";
+  }, [name, ageTo, ageFrom]);
+
+  const buildPayload = () => ({
+    name: name.trim(),
+    description: description.trim(),
+    ageFrom,
+    ageTo,
+  });
+
+  const handleCreate = () => {
+    if (problem) return setError(problem);
+    push("classes", { id: uid("cls"), ...buildPayload() } as SchoolClass);
+    addToast({
+      type: "success",
+      title: "Catégorie créée",
+      message: `${name.trim()} — ${ageRangeLabel(ageFrom, ageTo)}.`,
+    });
+    resetForm();
+    setIsCreateOpen(false);
+  };
+
+  const handleEdit = () => {
+    if (!selected) return;
+    if (problem) return setError(problem);
+    updateItem("classes", selected.id, buildPayload());
+    addToast({ type: "success", title: "Catégorie modifiée", message: name.trim() });
+    setIsEditOpen(false);
   };
 
   const openEdit = (cls: SchoolClass) => {
-    setSelectedClass(cls);
-    setShowAddCategory(false);
-    setNewCategoryName("");
-    setType(cls.type);
-    setDescription(cls.description);
-    if (cls.type === "cours") {
-      setCoursLevel(cls.coursLevel || "primaire");
-      setYear(cls.year || yearOptionsFor(cls.coursLevel || "primaire")[0]);
-      setCategoryId(cls.categoryId || "");
-    } else {
-      setName(cls.name);
-      setFormationLevel(cls.formationLevel || "A1");
-    }
-    setIsEditOpen(true);
+    setSelected(cls);
+    setName(cls.name);
+    setDescription(cls.description || "");
+    setAgeFrom(cls.ageFrom ?? 18);
+    setAgeTo(cls.ageTo ?? 25);
+    setError("");
     setActiveMenuId(null);
+    setIsEditOpen(true);
   };
 
   const openDetails = (cls: SchoolClass) => {
-    setSelectedClass(cls);
+    setSelected(cls);
+    setActiveMenuId(null);
     setIsDetailsOpen(true);
+  };
+
+  /**
+   * SUPPRIMER UNE CATÉGORIE QUI SERT ENCORE.
+   *
+   * Un emploi du temps pointe dessus, des chevaliers y sont inscrits : effacer
+   * la ligne les laisserait rattachés à un identifiant qui ne désigne plus
+   * rien. On refuse, et on dit précisément ce qui retient.
+   */
+  const handleDelete = (cls: SchoolClass) => {
+    const used = sessions.filter((s) => s.classId === cls.id || s.classIds?.includes(cls.id));
+    if (used.length > 0) {
+      addToast({
+        type: "danger",
+        title: "Suppression refusée",
+        message: `${used.length} emploi(s) du temps utilisent encore « ${cls.name} ».`,
+      });
+      setActiveMenuId(null);
+      return;
+    }
+    if (!confirm(`Supprimer la catégorie « ${cls.name} » ?`)) return;
+    deleteFrom("classes", cls.id);
     setActiveMenuId(null);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ?")) {
-      deleteFrom("classes", id);
-      setActiveMenuId(null);
-    }
-  };
-
-  // Filter students enrolled in selected class
-  const getClassStudents = (classId: string) => {
-    return students.filter((student) =>
-      student.subscriptionIds.some((subId) => {
-        const sub = subscriptions.find((s) => s.id === subId);
-        if (!sub) return false;
-        const session = sessions.find((s) => s.id === sub.sessionId);
-        return session?.classId === classId;
+  // ---- Les chevaliers et les créneaux d'une catégorie ---------------------
+  const classStudents = (classId: string) => {
+    const subIds = subscriptions
+      .filter((sub) => {
+        const ses = sessions.find((s) => s.id === sub.sessionId);
+        return ses && (ses.classId === classId || ses.classIds?.includes(classId));
       })
-    );
+      .map((s) => s.id);
+    return students.filter((st) => st.subscriptionIds?.some((id) => subIds.includes(id)));
   };
 
-  const getStudentCount = (classId: string) => getClassStudents(classId).length;
+  const classSessions = (classId: string) =>
+    sessions.filter((s) => s.classId === classId || s.classIds?.includes(classId));
 
-  // Filter sessions (emploi) associated with class
-  const getClassSessions = (classId: string) =>
-    sessions.filter((s) => s.classId === classId && !s.archivedAt);
+  const visible = useMemo(() => {
+    if (filter === "all") return classes;
+    const band = AGE_FILTERS.find((f) => f.value === filter);
+    if (!band) return classes;
+    // Une catégorie apparaît dès que sa tranche CHEVAUCHE la bande choisie.
+    return classes.filter(
+      (c) => (c.ageFrom ?? 0) <= band.to && (c.ageTo ?? 120) >= band.from,
+    );
+  }, [classes, filter]);
 
-  // Catégories shown in the grid, filtered by the selected level
-  const visibleClasses = classes.filter((c) => {
-    if (filterLevel === "all") return true;
-    if (filterLevel === "formation") return c.type === "formation";
-    return c.type === "cours" && c.coursLevel === filterLevel;
-  });
-
-  // The category / level block reused by the create and edit modals.
-  const CoursFields = (
-    <>
+  // ---- Les champs partagés par la création et la modification -------------
+  const FormFields = (
+    <div className="space-y-4">
       <div>
-        <label className="block text-xs font-semibold text-muted mb-1 font-sans">Niveau du club</label>
-        <Select
-          value={coursLevel}
-          onChange={(e) => {
-            const lvl = e.target.value as CoursLevel;
-            setCoursLevel(lvl);
-            setYear(yearOptionsFor(lvl)[0] ?? "");
-            if (lvl !== "maternelle") setCategoryId("");
-          }}
-          className="w-full"
-        >
-          {COURS_LEVELS.map((l) => (
-            <option key={l.value} value={l.value}>
-              {l.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="block text-xs font-semibold text-muted mb-1">
-          {coursLevel === "maternelle" ? "Section / Année" : "Année"}
+        <label htmlFor="cat-name" className="mb-1.5 block text-xs font-semibold text-muted">
+          Nom de la catégorie <span className="text-danger">*</span>
         </label>
-        <Select value={year} onChange={(e) => setYear(e.target.value)} className="w-full">
-          {yearOptionsFor(coursLevel).map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </Select>
+        <Input
+          id="cat-name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setError("");
+          }}
+          placeholder="Ex. Chevaliers d'Or, Écuyers, Novices…"
+          autoFocus
+        />
       </div>
 
-      {/* Kindergarten only: an optional category, created inline. */}
-      {coursLevel === "maternelle" && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-xs font-semibold text-muted">Catégorie (optionnel)</label>
-            <button
-              onClick={() => setShowAddCategory(!showAddCategory)}
-              className="text-xs text-primary hover:underline"
+      <div>
+        <label htmlFor="cat-desc" className="mb-1.5 block text-xs font-semibold text-muted">
+          Description
+        </label>
+        <textarea
+          id="cat-desc"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Ce que cette catégorie regroupe, son niveau d'exigence…"
+          rows={3}
+          className="w-full rounded-xl border border-line bg-surface p-3 text-sm text-ink outline-none"
+        />
+      </div>
+
+      {/* ---- La tranche d'âge ---- */}
+      <fieldset className="rounded-xl border border-line bg-canvas/60 p-4">
+        <legend className="px-1.5 text-xs font-bold text-accent-ink">Tranche d&apos;âge</legend>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[110px] flex-1">
+            <label htmlFor="cat-from" className="mb-1.5 block text-[11px] font-semibold text-muted">
+              De
+            </label>
+            <Select
+              id="cat-from"
+              className="w-full"
+              value={ageFrom}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setAgeFrom(v);
+                // Remonter le plancher au-dessus du plafond n'a pas de sens :
+                // on pousse le plafond plutôt que de refuser la saisie.
+                if (v > ageTo) setAgeTo(v);
+                setError("");
+              }}
             >
-              {showAddCategory ? "Choisir existante" : "+ Nouvelle catégorie"}
-            </button>
-          </div>
-          {showAddCategory ? (
-            <div className="flex gap-2">
-              <Input
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateCategory()}
-                placeholder="Nom de la catégorie (ex: Groupe Matin)"
-                className="flex-1"
-              />
-              <Button size="sm" onClick={handleCreateCategory}>
-                Créer
-              </Button>
-            </div>
-          ) : (
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full">
-              <option value="">Aucune catégorie</option>
-              {classCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              {AGES.map((a) => (
+                <option key={a} value={a}>
+                  {a} ans
                 </option>
               ))}
             </Select>
-          )}
-        </div>
-      )}
-    </>
-  );
-
-  const FormationFields = (
-    <>
-      <div>
-        <label className="block text-xs font-semibold text-muted mb-1">Nom de la catégorie</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Anglais débutants A1" />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs font-semibold text-muted">Niveau de formation</label>
-          <button onClick={() => setShowAddLevel(!showAddLevel)} className="text-xs text-primary hover:underline">
-            {showAddLevel ? "Choisir existant" : "+ Nouveau niveau"}
-          </button>
-        </div>
-        {showAddLevel ? (
-          <div className="flex gap-2">
-            <Input
-              value={newLevelName}
-              onChange={(e) => setNewLevelName(e.target.value)}
-              placeholder="Nom du niveau (ex: C2)"
-              className="flex-1"
-            />
-            <Button size="sm" onClick={handleCreateLevel}>
-              Créer
-            </Button>
           </div>
-        ) : (
-          <Select
-            value={formationLevel}
-            onChange={(e) => setFormationLevel(e.target.value as FormationLevel)}
-            className="w-full"
-          >
-            {formationLevelsList.map((lvl) => (
-              <option key={lvl} value={lvl}>
-                Niveau {lvl}
-              </option>
-            ))}
-          </Select>
-        )}
-      </div>
-    </>
-  );
+          <span className="pb-2.5 text-sm font-semibold text-muted">à</span>
+          <div className="min-w-[110px] flex-1">
+            <label htmlFor="cat-to" className="mb-1.5 block text-[11px] font-semibold text-muted">
+              Jusqu&apos;à
+            </label>
+            <Select
+              id="cat-to"
+              className="w-full"
+              value={ageTo}
+              onChange={(e) => {
+                setAgeTo(Number(e.target.value));
+                setError("");
+              }}
+            >
+              {AGES.filter((a) => a >= ageFrom).map((a) => (
+                <option key={a} value={a}>
+                  {a} ans
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        <p className="mt-2.5 text-[11px] text-muted">
+          Cette catégorie accueillera les chevaliers{" "}
+          <strong className="text-accent-ink">{ageRangeLabel(ageFrom, ageTo)}</strong>.
+        </p>
+      </fieldset>
 
-  const TypePicker = (
-    <div>
-      <label className="block text-xs font-semibold text-muted mb-1">Type de catégorie</label>
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant={type === "cours" ? "primary" : "outline"} onClick={() => setType("cours")} className="w-full text-center">
-          Cours (Soutien scolaire)
-        </Button>
-        <Button variant={type === "formation" ? "primary" : "outline"} onClick={() => setType("formation")} className="w-full text-center">
-          Formation (Langues, Pro)
-        </Button>
-      </div>
-    </div>
-  );
-
-  const DescriptionField = (
-    <div>
-      <label className="block text-xs font-semibold text-muted mb-1">Description</label>
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Description ou détails additionnels..."
-        rows={3}
-        className="w-full rounded-xl border border-line bg-surface p-3 text-sm text-ink outline-none transition-colors focus:border-primary"
-      />
+      {error && (
+        <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-xs font-semibold text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <PageHeader icon={Shield} title="Classes" subtitle="Gérer les catégories et formations" />
-        {can("create") && (
-          <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" /> Nouvelle Catégorie
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        icon={Shield}
+        title="Catégories"
+        subtitle="Les catégories de l'Ordre et la tranche d'âge que chacune accueille"
+        actions={
+          can("create") ? (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsCreateOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" /> Nouvelle catégorie
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {/* Filter by level */}
+      {/* ---- Filtre par tranche d'âge ---- */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-muted">Filtrer par niveau :</span>
-        <Select value={filterLevel} onChange={(e) => setFilterLevel(e.target.value as LevelFilter)} className="min-w-[200px]">
-          <option value="all">Tous les niveaux</option>
-          {COURS_LEVELS.map((l) => (
-            <option key={l.value} value={l.value}>
-              {l.label}
-            </option>
-          ))}
-          <option value="formation">Formations</option>
-        </Select>
-        {filterLevel !== "all" && (
-          <button onClick={() => setFilterLevel("all")} className="text-xs text-primary hover:underline">
-            Réinitialiser
+        <span className="text-xs font-semibold text-muted">Filtrer par âge :</span>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setFilter("all")}
+            className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              filter === "all"
+                ? "border-accent/40 bg-accent/15 text-accent-ink"
+                : "border-line text-muted hover:border-accent/30 hover:text-ink"
+            }`}
+          >
+            Toutes
           </button>
-        )}
+          {AGE_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                filter === f.value
+                  ? "border-accent/40 bg-accent/15 text-accent-ink"
+                  : "border-line text-muted hover:border-accent/30 hover:text-ink"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         <span className="ms-auto text-xs text-muted">
-          {visibleClasses.length} classe{visibleClasses.length > 1 ? "s" : ""}
+          {visible.length} catégorie{visible.length > 1 ? "s" : ""}
         </span>
       </div>
 
-      {/* Grid of catégories */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {visibleClasses.map((cls) => {
-          const studentCount = getStudentCount(cls.id);
-          const levelText = cls.type === "cours" ? coursLevelLabel(cls.coursLevel) : cls.formationLevel;
-          return (
-            <Card key={cls.id} className="relative overflow-visible">
-              <CardBody className="flex flex-col justify-between h-48">
-                <div>
-                  <div className="flex items-start justify-between">
+      {visible.length === 0 ? (
+        <EmptyState
+          icon={Shield}
+          message={
+            classes.length === 0
+              ? "Aucune catégorie pour le moment."
+              : "Aucune catégorie sur cette tranche d'âge."
+          }
+          hint={
+            classes.length === 0
+              ? "Créez-en une : un nom, une description, et les âges qu'elle accueille."
+              : undefined
+          }
+          action={
+            classes.length === 0 && can("create") ? (
+              <Button
+                onClick={() => {
+                  resetForm();
+                  setIsCreateOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" /> Nouvelle catégorie
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {visible.map((cls, i) => {
+            const count = classStudents(cls.id).length;
+            return (
+              <motion.div
+                key={cls.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.035, 0.35), duration: 0.3 }}
+              >
+                <Card className="relative h-full overflow-visible">
+                  <CardBody className="flex h-full min-h-[13rem] flex-col justify-between">
                     <div>
-                      <Badge tone={cls.type === "cours" ? "primary" : "success"}>
-                        {cls.type === "cours" ? "Cours" : "Formation"}
-                      </Badge>
-                      <h3 className="text-xl font-bold mt-2 text-ink truncate max-w-[200px]">{cls.name}</h3>
-                    </div>
-                    {/* Action Menu (Three dots) */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setActiveMenuId(activeMenuId === cls.id ? null : cls.id)}
-                        className="p-1 rounded-lg hover:bg-primary-50 text-muted hover:text-ink transition-colors"
-                      >
-                        <MoreVertical className="h-5 w-5" />
-                      </button>
-                      {activeMenuId === cls.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
-                          <div className="absolute right-0 mt-1 w-36 bg-surface border border-line rounded-xl shadow-lg z-20 overflow-hidden">
-                            {can("view") && (
-                              <button onClick={() => openDetails(cls)} className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink hover:bg-primary-50 text-left">
-                                <Eye className="h-4 w-4" /> Détails
-                              </button>
-                            )}
-                            {can("edit") && (
-                              <button onClick={() => openEdit(cls)} className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink hover:bg-primary-50 text-left">
-                                <Edit className="h-4 w-4" /> Modifier
-                              </button>
-                            )}
-                            {can("delete") && (
-                              <button onClick={() => handleDelete(cls.id)} className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-danger/10 text-left">
-                                <Trash2 className="h-4 w-4" /> Supprimer
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted mt-2 line-clamp-2">{cls.description || "Aucune description"}</p>
-                </div>
-                <div className="border-t border-line pt-3 mt-3 flex items-center justify-between text-xs text-muted">
-                  <span>
-                    Niveau: <strong className="text-ink font-semibold">{levelText}</strong>
-                  </span>
-                  <span className="text-primary font-bold text-sm bg-primary-50 px-2 py-1 rounded-lg">
-                    {studentCount} {studentCount > 1 ? "Chevaliers" : "Chevalier"}
-                  </span>
-                </div>
-              </CardBody>
-            </Card>
-          );
-        })}
-      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Badge tone="accent">{ageRangeLabel(cls.ageFrom, cls.ageTo)}</Badge>
+                          <h3 className="font-display mt-2 truncate text-lg font-bold text-ink">
+                            {cls.name}
+                          </h3>
+                        </div>
 
-      {visibleClasses.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-line py-14 text-center">
-          <p className="text-sm text-muted">Aucune classe pour ce niveau.</p>
+                        <div className="relative shrink-0">
+                          <button
+                            onClick={() => setActiveMenuId(activeMenuId === cls.id ? null : cls.id)}
+                            aria-label={`Actions sur ${cls.name}`}
+                            aria-expanded={activeMenuId === cls.id}
+                            className="cursor-pointer rounded-lg p-1 text-muted transition-colors hover:bg-primary-50 hover:text-ink"
+                          >
+                            <MoreVertical className="h-5 w-5" />
+                          </button>
+                          {activeMenuId === cls.id && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+                              <div className="absolute end-0 z-20 mt-1 w-40 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
+                                {can("view") && (
+                                  <button
+                                    onClick={() => openDetails(cls)}
+                                    className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-start text-sm text-ink hover:bg-primary-50"
+                                  >
+                                    <Eye className="h-4 w-4" /> Détails
+                                  </button>
+                                )}
+                                {can("edit") && (
+                                  <button
+                                    onClick={() => openEdit(cls)}
+                                    className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-start text-sm text-ink hover:bg-primary-50"
+                                  >
+                                    <Edit className="h-4 w-4" /> Modifier
+                                  </button>
+                                )}
+                                {can("delete") && (
+                                  <button
+                                    onClick={() => handleDelete(cls)}
+                                    className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-start text-sm text-danger hover:bg-danger/10"
+                                  >
+                                    <Trash2 className="h-4 w-4" /> Supprimer
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm text-muted">
+                        {cls.description || "Aucune description"}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-xs text-muted">
+                      <span className="inline-flex items-center gap-1.5">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {classSessions(cls.id).length} emploi(s)
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-2 py-1 text-sm font-bold text-primary">
+                        <Swords className="h-3.5 w-3.5" />
+                        {count}
+                      </span>
+                    </div>
+                  </CardBody>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
-      {/* Creation Modal */}
-      <Modal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Créer une nouvelle catégorie">
-        <div className="space-y-4">
-          {TypePicker}
-          {type === "cours" ? CoursFields : FormationFields}
-          {DescriptionField}
-          <div className="flex justify-end gap-2 pt-4">
+      {/* ---- Création ---- */}
+      <Modal
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Nouvelle catégorie"
+        footer={
+          <>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleCreateClass}>Créer</Button>
-          </div>
-        </div>
+            <Button onClick={handleCreate} disabled={!!problem}>
+              Créer la catégorie
+            </Button>
+          </>
+        }
+      >
+        {FormFields}
       </Modal>
 
-      {/* Edit Modal */}
-      <Modal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier la catégorie">
-        <div className="space-y-4">
-          {TypePicker}
-          {type === "cours" ? CoursFields : FormationFields}
-          {DescriptionField}
-          <div className="flex justify-end gap-2 pt-4">
+      {/* ---- Modification ---- */}
+      <Modal
+        open={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title="Modifier la catégorie"
+        footer={
+          <>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleEditClass}>Enregistrer</Button>
-          </div>
-        </div>
+            <Button onClick={handleEdit} disabled={!!problem}>
+              Enregistrer
+            </Button>
+          </>
+        }
+      >
+        {FormFields}
       </Modal>
 
-      {/* Details Modal */}
-      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Détails de la catégorie" wide>
-        {selectedClass && (
+      {/* ---- Détails ---- */}
+      <Modal
+        open={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        title={selected ? selected.name : "Détails"}
+        wide
+        footer={<Button onClick={() => setIsDetailsOpen(false)}>Fermer</Button>}
+      >
+        {selected && (
           <div className="space-y-6">
-            {/* Header info */}
-            <div className="bg-primary-50/50 rounded-xl p-4 border border-line grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 rounded-xl border border-line bg-canvas/60 p-4 md:grid-cols-4">
               <div>
-                <span className="text-xs text-muted block">Nom / Année</span>
-                <span className="font-bold text-ink">{selectedClass.name}</span>
+                <span className="block text-xs text-muted">Nom</span>
+                <span className="font-bold text-ink">{selected.name}</span>
               </div>
               <div>
-                <span className="text-xs text-muted block">Type</span>
-                <Badge tone={selectedClass.type === "cours" ? "primary" : "success"}>
-                  {selectedClass.type === "cours" ? "Cours" : "Formation"}
-                </Badge>
+                <span className="block text-xs text-muted">Tranche d&apos;âge</span>
+                <Badge tone="accent">{ageRangeLabel(selected.ageFrom, selected.ageTo)}</Badge>
               </div>
               <div>
-                <span className="text-xs text-muted block">Niveau</span>
-                <span className="font-semibold text-ink">
-                  {selectedClass.type === "cours" ? coursLevelLabel(selectedClass.coursLevel) : selectedClass.formationLevel}
-                </span>
+                <span className="block text-xs text-muted">Emplois du temps</span>
+                <span className="font-semibold text-ink">{classSessions(selected.id).length}</span>
               </div>
-              {selectedClass.type === "cours" && selectedClass.coursLevel === "maternelle" && selectedClass.categoryId && (
-                <div>
-                  <span className="text-xs text-muted block">Catégorie</span>
-                  <span className="font-semibold text-ink">{getCategoryName(selectedClass.categoryId)}</span>
-                </div>
-              )}
+              <div>
+                <span className="block text-xs text-muted">Chevaliers</span>
+                <span className="font-semibold text-ink">{classStudents(selected.id).length}</span>
+              </div>
             </div>
 
             <div>
-              <span className="text-xs text-muted block font-semibold mb-1">Description</span>
-              <p className="text-sm text-ink bg-surface border border-line rounded-xl p-3">
-                {selectedClass.description || "Aucune description fournie."}
+              <span className="mb-1 block text-xs font-semibold text-muted">Description</span>
+              <p className="rounded-xl border border-line bg-surface p-3 text-sm text-ink">
+                {selected.description || "Aucune description fournie."}
               </p>
             </div>
 
-            {/* Grid of Sessions & Students tabs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Sessions List */}
-              <div className="border border-line rounded-xl p-4 bg-surface/50">
-                <h4 className="font-bold text-ink mb-3 flex items-center gap-2">
-                  📅 Emploi du temps ({getClassSessions(selectedClass.id).length})
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="rounded-xl border border-line bg-surface/50 p-4">
+                <h4 className="mb-3 flex items-center gap-2 font-bold text-ink">
+                  <CalendarDays className="h-4 w-4 text-accent-ink" />
+                  Emplois du temps ({classSessions(selected.id).length})
                 </h4>
-                {getClassSessions(selectedClass.id).length === 0 ? (
-                  <p className="text-xs text-muted italic">Aucun emploi du temps affecté à cette classe.</p>
+                {classSessions(selected.id).length === 0 ? (
+                  <p className="text-xs italic text-muted">
+                    Aucun emploi du temps affecté à cette catégorie.
+                  </p>
                 ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {getClassSessions(selectedClass.id).map((s) => {
-                      const modName = db.modules.find((m) => m.id === s.moduleId)?.name ?? "Module";
-                      const tName = db.teachers.find((t) => t.id === s.teacherId);
+                  <div className="max-h-60 space-y-2 overflow-y-auto">
+                    {classSessions(selected.id).map((s) => {
+                      const modName = db.modules.find((m) => m.id === s.moduleId)?.name ?? "Discipline";
+                      const t = db.teachers.find((x) => x.id === s.teacherId);
                       return (
-                        <div key={s.id} className="text-xs bg-surface border border-line p-2.5 rounded-lg space-y-1">
+                        <div key={s.id} className="space-y-1 rounded-lg border border-line bg-surface p-2.5 text-xs">
                           <div className="flex justify-between font-bold text-ink">
                             <span>{s.title || modName}</span>
-                            <span>{s.startTime} - {s.endTime}</span>
+                            <span className="tabular-nums">
+                              {s.startTime} – {s.endTime}
+                            </span>
                           </div>
-                          <div className="text-muted flex justify-between">
-                            <span>Ens: {tName ? `${tName.firstName} ${tName.lastName}` : "-"}</span>
-                            <span>Salle: {db.salles.find((sl) => sl.id === s.salleId)?.name ?? "-"}</span>
+                          <div className="flex justify-between text-muted">
+                            <span>Entraîneur : {t ? `${t.firstName} ${t.lastName}` : "-"}</span>
+                            <span>
+                              Arène : {db.salles.find((sl) => sl.id === s.salleId)?.name ?? "-"}
+                            </span>
                           </div>
-                          <div className="text-[10px] text-primary font-semibold">
+                          <div className="text-[10px] font-semibold text-accent-ink">
                             {s.days.map((d) => d.substring(0, 3).toUpperCase()).join(", ")}
                           </div>
                         </div>
@@ -551,35 +552,54 @@ export function ClassesPage() {
                 )}
               </div>
 
-              {/* Students List */}
-              <div className="border border-line rounded-xl p-4 bg-surface/50">
-                <h4 className="font-bold text-ink mb-3 flex items-center gap-2">
-                  🎓 Chevaliers Inscrits ({getClassStudents(selectedClass.id).length})
+              <div className="rounded-xl border border-line bg-surface/50 p-4">
+                <h4 className="mb-3 flex items-center gap-2 font-bold text-ink">
+                  <Users className="h-4 w-4 text-accent-ink" />
+                  Chevaliers inscrits ({classStudents(selected.id).length})
                 </h4>
-                {getClassStudents(selectedClass.id).length === 0 ? (
-                  <p className="text-xs text-muted italic">Aucun chevalier inscrit dans cette classe.</p>
+                {classStudents(selected.id).length === 0 ? (
+                  <p className="text-xs italic text-muted">
+                    Aucun chevalier inscrit dans cette catégorie.
+                  </p>
                 ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {getClassStudents(selectedClass.id).map((stu) => (
-                      <div key={stu.id} className="flex justify-between items-center text-xs bg-surface border border-line p-2.5 rounded-lg">
-                        <div>
-                          <strong className="text-ink block">{stu.firstName} {stu.lastName}</strong>
-                          <span className="text-[10px] text-muted">{stu.phone}</span>
+                  <div className="max-h-60 space-y-2 overflow-y-auto">
+                    {classStudents(selected.id).map((stu) => {
+                      const fits = categoryAccepts(selected, stu.birthDate);
+                      return (
+                        <div
+                          key={stu.id}
+                          className="flex items-center justify-between rounded-lg border border-line bg-surface p-2.5 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <strong className="block truncate text-ink">
+                              {stu.firstName} {stu.lastName}
+                            </strong>
+                            <span className="text-[10px] text-muted">
+                              {/* Un chevalier hors tranche n'est pas une erreur —
+                                  il a pu grandir depuis son inscription — mais
+                                  cela se voit plutôt que de rester tu. */}
+                              {fits === false ? "Hors tranche d'âge" : stu.phone}
+                            </span>
+                          </div>
+                          <Badge
+                            tone={
+                              studentFullyFree(stu)
+                                ? "success"
+                                : totalRemainingSeances(db, stu.id) === 0
+                                  ? "danger"
+                                  : "primary"
+                            }
+                          >
+                            {studentFullyFree(stu)
+                              ? "Gratuit"
+                              : `${totalRemainingSeances(db, stu.id)} séance(s)`}
+                          </Badge>
                         </div>
-                        <Badge tone={studentFullyFree(stu) ? "success" : totalRemainingSeances(db, stu.id) === 0 ? "danger" : "primary"}>
-                          {studentFullyFree(stu)
-                            ? "Gratuit"
-                            : `${totalRemainingSeances(db, stu.id)} séance(s)`}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button onClick={() => setIsDetailsOpen(false)}>Fermer</Button>
             </div>
           </div>
         )}
