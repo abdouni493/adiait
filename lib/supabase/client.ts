@@ -54,6 +54,82 @@ export function supabase(): SupabaseClient {
 }
 
 /**
+ * UN APPEL DE FONCTION QUI NE DÉPEND PAS D'UNE SESSION.
+ *
+ * POURQUOI NE PAS PASSER PAR LE CLIENT. Avant chaque requête, `supabase-js`
+ * attend `auth.getSession()` — il faut bien savoir quel jeton poser. Cette
+ * attente met en jeu le stockage du navigateur et un verrou inter-onglets, et
+ * elle peut échouer ou ne jamais revenir : navigation privée, stockage
+ * désactivé, jeton illisible laissé par une version antérieure, deuxième onglet
+ * qui garde le verrou.
+ *
+ * Or les trois fonctions dont la page de connexion a besoin — « y a-t-il un
+ * administrateur ? », « crée le premier », « quel email derrière ce nom
+ * d'utilisateur ? » — sont ouvertes à `anon` et n'ont besoin d'AUCUNE session.
+ * Les faire dépendre de la couche d'authentification, c'est risquer une page de
+ * connexion muette pour une raison qui n'a rien à voir avec elle.
+ *
+ * Elles passent donc par un `fetch` direct : la clé publique, et rien d'autre.
+ * Avec un DÉLAI MAXIMUM, pour qu'un serveur qui ne répond pas produise un
+ * message plutôt qu'une page qui réfléchit indéfiniment.
+ */
+export interface RpcResult<T> {
+  data: T | null;
+  error: { code: string; message: string } | null;
+}
+
+const RPC_TIMEOUT = 12_000;
+
+export async function rpcAnon<T>(
+  fn: string,
+  args: Record<string, unknown> = {},
+): Promise<RpcResult<T>> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RPC_TIMEOUT);
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    const payload: unknown = text ? JSON.parse(text) : null;
+
+    if (!response.ok) {
+      const body = (payload ?? {}) as { code?: string; message?: string };
+      return {
+        data: null,
+        error: {
+          code: body.code ?? String(response.status),
+          message: body.message ?? `HTTP ${response.status}`,
+        },
+      };
+    }
+    return { data: payload as T, error: null };
+  } catch (err) {
+    const aborted = err instanceof Error && err.name === "AbortError";
+    return {
+      data: null,
+      error: {
+        code: aborted ? "TIMEOUT" : "NETWORK",
+        message: aborted
+          ? "Le serveur n'a pas répondu à temps."
+          : "Impossible de joindre le serveur.",
+      },
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Le message d'une erreur Supabase, dit en français quand on le peut.
  *
  * Les messages de la couche d'authentification arrivent en anglais et parlent

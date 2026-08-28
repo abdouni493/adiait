@@ -25,7 +25,7 @@
  */
 
 import { create } from "zustand";
-import { supabase, errorMessage } from "@/lib/supabase/client";
+import { rpcAnon, supabase, errorMessage } from "@/lib/supabase/client";
 
 export type Role = "admin" | "reception" | "student" | "teacher" | "parent";
 
@@ -87,7 +87,9 @@ async function emailForLogin(login: string): Promise<string> {
   const clean = login.trim();
   if (clean.includes("@")) return clean.toLowerCase();
 
-  const { data, error } = await supabase().rpc("login_email", { p_login: clean });
+  // `rpcAnon` plutôt que le client : traduire un nom d'utilisateur se fait AVANT
+  // toute session, et ne doit pas dépendre de la couche d'authentification.
+  const { data, error } = await rpcAnon<string>("login_email", { p_login: clean });
   if (error || !data) {
     // Personne ne répond à cet identifiant. On ne le dit PAS : le message est
     // le même que pour un mot de passe faux, et rien ne se déduit de l'écart.

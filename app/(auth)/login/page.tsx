@@ -12,7 +12,12 @@ import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useData } from "@/lib/store/data";
 import { useSession } from "@/lib/store/session";
 import { roleHome } from "@/lib/nav";
-import { bootstrapAdmin, schemaState, type SchemaState } from "@/lib/supabase/auth";
+import {
+  bootstrapAdmin,
+  lastSchemaError,
+  schemaState,
+  type SchemaState,
+} from "@/lib/supabase/auth";
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -43,7 +48,20 @@ export default function LoginPage() {
    * retirer le bouton ferait clignoter la page.
    */
   const [state, setState] = useState<SchemaState | null>(null);
-  const needsAdmin = state === "no-admin";
+
+  /**
+   * QUAND PROPOSE-T-ON L'AMORÇAGE ?
+   *
+   * Dès qu'on n'a pas la preuve qu'un administrateur existe — donc aussi quand
+   * l'interrogation a échoué. C'est la BASE qui tranche : `bootstrap_admin()`
+   * refuse un second amorçage et le dit. Faire dépendre le bouton d'un
+   * aller-retour réussi, c'était offrir une page muette au premier hoquet de
+   * réseau, sans rien pour comprendre.
+   *
+   * `null` = on interroge encore. La page l'affiche, plutôt que de laisser un
+   * blanc que personne ne sait interpréter.
+   */
+  const needsAdmin = state === "no-admin" || state === "unreachable";
   const [creating, setCreating] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -60,7 +78,14 @@ export default function LoginPage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const found = await schemaState();
+      // Quoi qu'il arrive, la page doit sortir de l'attente : une exception ici
+      // laisserait `state` à `null` pour toujours, et l'écran sans explication.
+      let found: SchemaState = "unreachable";
+      try {
+        found = await schemaState();
+      } catch (err) {
+        console.error("[supabase] état du schéma", err);
+      }
       if (!cancelled) setState(found);
     })();
     return () => {
@@ -210,14 +235,28 @@ export default function LoginPage() {
           question est reposée à la base à chaque chargement de la page, et la
           base elle-même refuse un second amorçage.
         */}
+        {state === null && (
+          <p className="mt-6 text-center text-xs text-muted">Vérification de l&apos;école…</p>
+        )}
+
         {needsAdmin && (
           <div className="mt-6 border-t border-line pt-6">
             {!creating ? (
               <>
                 <p className="text-center text-xs leading-relaxed text-muted">
-                  Cette école n&apos;a encore aucun compte. Créez celui de
-                  l&apos;administration pour commencer — il n&apos;est proposé
-                  qu&apos;une fois.
+                  {state === "unreachable" ? (
+                    <>
+                      Impossible de vérifier si cette école a déjà un compte
+                      d&apos;administration ({lastSchemaError()}). Vous pouvez essayer de le
+                      créer&nbsp;: s&apos;il en existe déjà un, la base le dira.
+                    </>
+                  ) : (
+                    <>
+                      Cette école n&apos;a encore aucun compte. Créez celui de
+                      l&apos;administration pour commencer — il n&apos;est proposé qu&apos;une
+                      fois.
+                    </>
+                  )}
                 </p>
                 <Button
                   type="button"
@@ -307,12 +346,6 @@ export default function LoginPage() {
             La base de cette école n&apos;est pas encore installée. Exécutez{" "}
             <code className="font-bold">supabase/schema.sql</code> dans le SQL Editor de votre
             projet Supabase, puis rechargez cette page.
-          </p>
-        )}
-
-        {state === "unreachable" && (
-          <p className="mt-6 rounded-2xl border border-danger/30 bg-danger/10 p-3 text-center text-xs font-medium leading-relaxed text-danger">
-            Le serveur ne répond pas. Vérifiez la connexion, puis rechargez cette page.
           </p>
         )}
 
