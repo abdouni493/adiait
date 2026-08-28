@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
+import { CarteLedger, SlotLegend } from "@/components/portal/CarteLedger";
 import { Modal } from "@/components/ui/Modal";
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, BookOpen, Calendar, CalendarDays, Clock, DollarSign, Download, Eye, FileText, Filter, Home, MapPin, Megaphone, Search, User, UserCheck, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, BookOpen, Calendar, CalendarDays, CalendarX2, Check, Clock, DollarSign, Download, Eye, FileText, Filter, Home, MapPin, Megaphone, Search, Ticket, User, UserCheck, Wallet, X } from "lucide-react";
 import type {
   AbsencePenalty,
   AttendanceRecord,
@@ -648,7 +650,13 @@ function StudentAttendanceView({
 
   const rows = [...attRows, ...penRows].sort((a, b) => b.when.getTime() - a.when.getTime());
 
-  const presentCount = myAtt.filter((a) => a.status !== "absent").length;
+  // Une séance ANNULÉE n'est ni une présence ni une absence : elle n'a rien
+  // coûté et n'a pas fait avancer la carte. La compter d'un côté ou de l'autre
+  // fausserait les deux chiffres.
+  const cancelledCount = myAtt.filter((a) => a.status === "cancelled").length;
+  const presentCount = myAtt.filter(
+    (a) => a.status !== "absent" && a.status !== "cancelled",
+  ).length;
   const lateCount = myAtt.filter((a) => a.status === "late").length;
   const absentCount = myPen.length + myAtt.filter((a) => a.status === "absent").length;
   const absentCost = myPen.reduce((sum, p) => sum + p.amount, 0);
@@ -657,35 +665,42 @@ function StudentAttendanceView({
     <div className="space-y-6 text-xs">
       <PageHeader
         icon={UserCheck}
-        title="Mes présences et absences"
-        subtitle="Chaque passage de carte, et chaque semaine facturée comme absence"
+        title="Mes présences"
+        subtitle="Carte par carte : les séances tenues, les absences et les séances annulées"
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardBody className="space-y-1 p-4">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-muted">Présences</span>
-            <strong className="text-lg text-success">{presentCount}</strong>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="space-y-1 p-4">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-muted">Dont retards</span>
-            <strong className="text-lg text-warning">{lateCount}</strong>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="space-y-1 p-4">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-muted">Absences</span>
-            <strong className="text-lg text-danger">{absentCount}</strong>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="space-y-1 p-4">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-muted">Absences facturées</span>
-            <strong className="text-lg text-danger">{formatDA(absentCost)}</strong>
-          </CardBody>
-        </Card>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <StatCard icon={Check} tone="success" label="Présences" value={presentCount} index={0} />
+        <StatCard icon={Clock} tone="warning" label="Dont retards" value={lateCount} index={1} />
+        <StatCard icon={X} tone="danger" label="Absences" value={absentCount} index={2} />
+        <StatCard
+          icon={CalendarX2}
+          tone="primary"
+          label="Séances annulées"
+          value={cancelledCount}
+          index={3}
+        />
+        <StatCard
+          icon={Banknote}
+          tone="danger"
+          label="Absences facturées"
+          value={formatDA(absentCost)}
+          index={4}
+        />
+      </div>
+
+      {/* ---- LE RELEVÉ PAR CARTE ----
+           La liste chronologique plus bas dit CE QUI S'EST PASSÉ ; celui-ci dit
+           OÙ J'EN SUIS. C'est la question qu'un chevalier se pose d'abord, donc
+           elle passe devant. */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-display flex items-center gap-2 text-sm font-bold text-ink">
+            <Ticket className="h-4 w-4 text-accent-ink" /> Mes cartes
+          </h2>
+          <SlotLegend />
+        </div>
+        <CarteLedger studentId={student.id} />
       </div>
 
       <Card>

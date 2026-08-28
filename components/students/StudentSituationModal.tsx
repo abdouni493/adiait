@@ -364,7 +364,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={() => setStudent(null)}>
-                    Changer d&apos;chevalier
+                    Changer de chevalier
                   </Button>
                 </div>
               </div>

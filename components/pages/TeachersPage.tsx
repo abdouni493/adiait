@@ -340,14 +340,14 @@ export function TeachersPage() {
         <p className="text-[11px] leading-relaxed text-muted">
           Avec cette formule l&apos;entraîneur n&apos;a pas de taux sur sa fiche : chaque emploi du
           temps le rémunère au tarif défini dans son <strong className="text-ink">abonnement</strong>{" "}
-          (prix du mois → part de l&apos;club → le reste revient à l&apos;enseignant, divisé par le
+          (prix du mois → part du club → le reste revient à l&apos;entraîneur, divisé par le
           nombre de séances). Une séance lui rapporte exactement ce tarif, quel que soit le nombre
-          d&apos;chevaliers présents.
+          de chevaliers présents.
         </p>
 
         {!tid ? (
           <p className="text-[11px] leading-relaxed text-muted bg-surface border border-line rounded-xl p-3">
-            Créez d&apos;abord l&apos;enseignant, affectez-le à ses emplois du temps, puis réglez la
+            Créez d&apos;abord l&apos;entraîneur, affectez-le à ses emplois du temps, puis réglez la
             part club / enseignant depuis <strong className="text-ink">Emploi du temps</strong> ou{" "}
             <strong className="text-ink">Abonnements</strong>. Ses tarifs apparaîtront ici.
           </p>
@@ -1137,7 +1137,7 @@ export function TeachersPage() {
         <p className="text-[11px] leading-relaxed text-muted bg-canvas border border-line rounded-xl p-3 mb-4">
           Seul le <strong className="text-ink">nom</strong> est demandé. Le téléphone, l&apos;email et
           le mot de passe sont facultatifs : laissez l&apos;email et le mot de passe vides pour créer
-          l&apos;enseignant <strong className="text-ink">sans compte de connexion</strong> — vous
+          l&apos;entraîneur <strong className="text-ink">sans compte de connexion</strong> — vous
           pourrez les ajouter plus tard depuis « Modifier ».
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

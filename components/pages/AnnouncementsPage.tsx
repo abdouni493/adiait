@@ -240,7 +240,7 @@ export function AnnouncementsPage() {
           )}
         </div>
         <p className="text-[10px] text-muted mt-1 leading-relaxed">
-          Aucun groupe coché = l&apos;annonce est visible par toute l&apos;club. Sinon, seuls les chevaliers de
+          Aucun groupe coché = l&apos;annonce est visible par toute le club. Sinon, seuls les chevaliers de
           ces groupes (et leurs parents si l&apos;option ci-dessous est active) la verront.
         </p>
       </div>
@@ -323,7 +323,7 @@ export function AnnouncementsPage() {
               <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Groupe ciblé</label>
               <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-full">
                 <option value="all">Tous</option>
-                <option value="school">Toute l&apos;club (sans groupe)</option>
+                <option value="school">Toute le club (sans groupe)</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -390,7 +390,7 @@ export function AnnouncementsPage() {
                     {/* Targeted groups */}
                     <div className="mt-2.5 flex flex-wrap gap-1">
                       {targets.length === 0 ? (
-                        <Badge tone="neutral" className="text-[9px]">Toute l&apos;club</Badge>
+                        <Badge tone="neutral" className="text-[9px]">Toute le club</Badge>
                       ) : (
                         <>
                           {groupNames(targets).slice(0, 3).map((n) => (

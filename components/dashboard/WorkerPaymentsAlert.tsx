@@ -145,7 +145,7 @@ export function WorkerPaymentsAlert() {
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-canvas/40 p-3">
             <p className="max-w-lg text-[11px] leading-relaxed text-muted">
               Les versements encaissés par un travailleur — depuis une feuille de présence, une
-              fiche d&apos;chevalier ou le comptoir — apparaissent ici jusqu&apos;à ce que vous les
+              fiche de chevalier ou le comptoir — apparaissent ici jusqu&apos;à ce que vous les
               marquiez comme lus.
             </p>
             <div className="flex gap-1.5">

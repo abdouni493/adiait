@@ -220,7 +220,7 @@ export function GroupSeanceSection() {
                 <UsersRound className="h-5 w-5 text-primary" /> Sorties libres de groupe
               </h3>
               <p className="text-[11px] text-muted">
-                Une séance ponctuelle vendue à un groupe entier — on saisit le nombre d&apos;chevaliers,
+                Une séance ponctuelle vendue à un groupe entier — on saisit le nombre de chevaliers,
                 pas leurs noms.
               </p>
             </div>
@@ -436,7 +436,7 @@ export function GroupSeanceSection() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted">
-                    Nombre total d&apos;chevaliers *
+                    Nombre total de chevaliers *
                   </label>
                   <Input
                     type="number"
@@ -467,7 +467,7 @@ export function GroupSeanceSection() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted">
-                    Part de l&apos;club / chevalier *
+                    Part du club / chevalier *
                   </label>
                   <Input
                     type="number"
@@ -497,7 +497,7 @@ export function GroupSeanceSection() {
               </div>
               {totals.schoolPerStudent >= totals.pricePerStudent && totals.pricePerStudent > 0 && (
                 <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-                  L&apos;club garde tout : cette séance ne rapporte rien à l&apos;enseignant.
+                  Le club garde tout : cette séance ne rapporte rien à l&apos;entraîneur.
                 </p>
               )}
             </div>
@@ -576,7 +576,7 @@ export function GroupSeanceSection() {
               {teacherName(printAsk.teacherId)} ?
             </p>
             <p className="text-[11px] text-muted">
-              La fiche remise à l&apos;enseignant n&apos;affiche jamais la part de l&apos;club :
+              La fiche remise à l&apos;entraîneur n&apos;affiche jamais la part du club :
               seulement les chevaliers, sa part par chevalier et son total.
             </p>
             <div className="flex justify-end gap-2">

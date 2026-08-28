@@ -517,7 +517,7 @@ export function CashPage() {
                   </strong>
                   {coveredDebtsPeriod > 0 && (
                     <span className="text-[10px] text-danger font-bold block mt-0.5">
-                      dont {formatDA(coveredDebtsPeriod)} de dettes avancées par l&apos;club
+                      dont {formatDA(coveredDebtsPeriod)} de dettes avancées par le club
                     </span>
                   )}
                 </div>
@@ -747,7 +747,7 @@ export function CashPage() {
         {(activeTab === "all" || activeTab === "teachers") && periodSettlements.length > 0 && (
           <div className="border-b border-line p-4">
             <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
-              <UserCheck className="h-3.5 w-3.5 text-warning" /> Règlements d&apos;enseignants (
+              <UserCheck className="h-3.5 w-3.5 text-warning" /> Règlements d&apos;entraîneurs (
               {periodSettlements.length})
             </h4>
             <div className="overflow-x-auto rounded-xl border border-line">
@@ -1215,7 +1215,7 @@ function StudentPaymentsHistory({
             <option value="cash">Famille (caisse)</option>
             <option value="teacher_salary">Retenu sur un salaire</option>
             <option value="teacher_debt">Porté sur un salaire</option>
-            <option value="school_cash">Avancé par l&apos;club</option>
+            <option value="school_cash">Avancé par le club</option>
           </Select>
           <span className="rounded-xl border border-success/30 bg-success/10 px-2.5 py-1 text-[10px] font-bold text-success">
             {formatDA(cashedIn)} encaissés
@@ -1245,7 +1245,7 @@ function StudentPaymentsHistory({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center italic text-muted">
-                  Aucun paiement d&apos;chevalier sur cette période.
+                  Aucun paiement de chevalier sur cette période.
                 </td>
               </tr>
             ) : (

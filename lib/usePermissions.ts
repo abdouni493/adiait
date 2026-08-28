@@ -4,7 +4,7 @@
  * Les droits du compte connecté, tels que les écrans les consultent.
  *
  *   const can = useCan("students");
- *   {can("create") && <Button …>Nouvel chevalier</Button>}
+ *   {can("create") && <Button …>Nouveau chevalier</Button>}
  *
  * L'administration renvoie toujours `true` : rien n'est masqué pour elle. Un
  * travailleur ne voit que ce que sa fiche autorise.

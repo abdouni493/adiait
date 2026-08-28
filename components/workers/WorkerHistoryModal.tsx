@@ -185,7 +185,7 @@ export function WorkerHistoryModal({
         id: s.id,
         kind: "student",
         at,
-        title: "Nouvel chevalier inscrit",
+        title: "Nouveau chevalier inscrit",
         subject: studentName(s),
         detail: `${s.subscriptionIds.length} emploi(s) du temps souscrit(s)`,
       });

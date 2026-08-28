@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "Nouvel chevalier" — the ONE student screen of the app, for creating AND for
+ * "Nouveau chevalier" — the ONE student screen of the app, for creating AND for
  * editing. Passing a `student` turns it into "Modifier le chevalier": exactly the
  * same fields, pre-filled, with the identity, the cas, les emplois du temps et
  * les soldes tous modifiables, plus l'identifiant et le mot de passe du
@@ -41,7 +41,17 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/SearchInput";
 import { Badge } from "@/components/ui/Badge";
-import { BookOpen, Building2, Check, Gift, Trash2, Wallet } from "lucide-react";
+import {
+  BookOpen,
+  Building2,
+  Check,
+  Gift,
+  KeyRound,
+  Trash2,
+  Users,
+  Wallet,
+} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { createRoleUser, resetUserPassword, updateUserEmail } from "@/lib/accounts/users";
 import { formatDA } from "@/lib/utils";
 import {
@@ -228,6 +238,40 @@ function StudentFiche({
   /** Ce que la famille règle TOUT DE SUITE sur les frais d'inscription. */
   const [feePaidNow, setFeePaidNow] = useState<number>(0);
   const [busy, setBusy] = useState(false);
+
+  /**
+   * LE COMPTE DE CONNEXION DU CHEVALIER — un CHOIX, plus un automatisme.
+   *
+   * La fiche fabriquait jusqu'ici un email et un mot de passe en silence, pour
+   * tout le monde : un chevalier de six ans repartait avec des identifiants que
+   * personne ne lui donnerait jamais, et le club portait un compte de plus à
+   * chaque inscription.
+   *
+   * Le guichet décide donc maintenant. SANS compte, la fiche porte un
+   * identifiant fabriqué par l'application (« stu-… ») et vit très bien ainsi :
+   * présences, soldes, paiements, tout fonctionne. AVEC compte, l'email et le
+   * mot de passe saisis ouvrent une ligne dans `auth.users` avec le rôle
+   * chevalier, et il se connecte par la porte normale — sans autre formalité.
+   */
+  const [wantAccount, setWantAccount] = useState(false);
+  const [accEmail, setAccEmail] = useState("");
+  const [accPassword, setAccPassword] = useState("");
+
+  /**
+   * LE PARENT DU CHEVALIER, RATTACHÉ OU CRÉÉ DEPUIS CETTE FICHE.
+   *
+   * Trois cas : aucun parent, un parent qui existe déjà, ou un parent qu'on
+   * crée ici même — avec les mêmes champs que l'écran Parents, et la même
+   * possibilité de lui ouvrir un compte de connexion.
+   */
+  const [parentMode, setParentMode] = useState<"none" | "existing" | "new">("none");
+  const [parentId, setParentId] = useState(editing?.parentId ?? "");
+  const [pFirstName, setPFirstName] = useState("");
+  const [pLastName, setPLastName] = useState("");
+  const [pPhone, setPPhone] = useState("");
+  const [pEmail, setPEmail] = useState("");
+  const [pWantAccount, setPWantAccount] = useState(false);
+  const [pPassword, setPPassword] = useState("");
 
   // edit only: the portal login, which a fiche being created does not have yet
   const [editEmail, setEditEmail] = useState(editing?.email ?? "");
@@ -507,18 +551,66 @@ function StudentFiche({
       return;
     }
 
-    // Credentials and badge are minted silently — the desk types a name and
-    // nothing else is needed. The registration number closes the login, so two
-    // namesakes without phone nor birth date never collide on the same email.
-    const base =
-      `${firstName}${lastName}`
-        .normalize("NFD") // "Aménée" -> "Amenee" once the marks are filtered out
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "") || "eleve";
-    const suffix =
-      birthDate.replace(/-/g, "") || phone.replace(/\D/g, "").slice(-4) || nextNumber;
-    const email = `${base}${suffix}@elilm.com`;
-    const password = `${base}${suffix}`;
+    /**
+     * CE QUI EST REFUSÉ AVANT D'ÉCRIRE QUOI QUE CE SOIT.
+     *
+     * Un compte à moitié saisi ne doit pas produire une fiche à moitié créée :
+     * les deux comptes — celui du chevalier et celui du parent — sont donc
+     * contrôlés AVANT la première écriture, pas au milieu.
+     */
+    if (wantAccount) {
+      if (!accEmail.trim()) {
+        addToast({
+          type: "danger",
+          title: "Compte incomplet",
+          message:
+            "Saisissez l'email de connexion du chevalier, ou décochez la création du compte.",
+        });
+        return;
+      }
+      if (accPassword.length < 6) {
+        addToast({
+          type: "danger",
+          title: "Mot de passe trop court",
+          message: "Le mot de passe du chevalier doit contenir au moins 6 caractères.",
+        });
+        return;
+      }
+    }
+    if (parentMode === "new") {
+      if (!pFirstName.trim() && !pLastName.trim()) {
+        addToast({
+          type: "danger",
+          title: "Parent incomplet",
+          message: "Indiquez au moins un nom ou un prénom pour le parent.",
+        });
+        return;
+      }
+      if (pWantAccount) {
+        if (!pEmail.trim()) {
+          addToast({
+            type: "danger",
+            title: "Compte parent incomplet",
+            message:
+              "Saisissez l'email de connexion du parent, ou décochez la création de son compte.",
+          });
+          return;
+        }
+        if (pPassword.length < 6) {
+          addToast({
+            type: "danger",
+            title: "Mot de passe trop court",
+            message: "Le mot de passe du parent doit contenir au moins 6 caractères.",
+          });
+          return;
+        }
+      }
+    }
+
+    // L'email de la FICHE n'est pas forcément celui d'un compte : sans compte,
+    // il reste un moyen de joindre la famille, et rien de plus.
+    const email = wantAccount ? accEmail.trim().toLowerCase() : "";
+    const password = accPassword;
     const rfid = uid("rfid");
 
     const subscriptionDates: Record<string, SubscriptionDates> = {};
@@ -545,19 +637,60 @@ function StudentFiche({
 
     setBusy(true);
     try {
-      const { id: studentId } = await createRoleUser({
-        role: "student",
-        email,
-        password,
-        firstName,
-        lastName,
-        phone,
-        birthDate,
-        rfid,
-        isFree,
-        subscriptionIds: subIds,
-        registrationDue,
-      });
+      /**
+       * L'IDENTIFIANT DE LA FICHE.
+       *
+       * Avec un compte, c'est celui du COMPTE : c'est ce qui relie une session
+       * ouverte à ses données. Sans compte, la fiche fabrique le sien — et la
+       * base l'accepte, sa colonne est du texte précisément pour cela.
+       */
+      const studentId = wantAccount
+        ? (
+            await createRoleUser({
+              role: "student",
+              email,
+              password,
+              firstName,
+              lastName,
+              phone,
+              birthDate,
+              rfid,
+              isFree,
+              subscriptionIds: subIds,
+              registrationDue,
+            })
+          ).id
+        : uid("stu");
+
+      /**
+       * LE PARENT, ÉCRIT AVANT LA FICHE DE L'ENFANT.
+       *
+       * Son identifiant est nécessaire pour poser `parentId` sur le chevalier.
+       * Un parent existant est repris tel quel ; un parent nouveau naît ici,
+       * avec ou sans compte de connexion selon ce qui a été coché.
+       */
+      let linkedParentId = parentMode === "existing" ? parentId : "";
+      if (parentMode === "new") {
+        const parentBase = {
+          firstName: pFirstName.trim(),
+          lastName: pLastName.trim(),
+          phone: pPhone.trim(),
+          email: pEmail.trim(),
+        };
+        linkedParentId = pWantAccount
+          ? (
+              await createRoleUser({
+                role: "parent",
+                email: pEmail.trim().toLowerCase(),
+                password: pPassword,
+                firstName: parentBase.firstName,
+                lastName: parentBase.lastName,
+                phone: parentBase.phone,
+              })
+            ).id
+          : uid("par");
+        push("parents", { id: linkedParentId, ...parentBase, childIds: [studentId] });
+      }
 
       const student: Student = {
         id: studentId,
@@ -589,9 +722,23 @@ function StudentFiche({
         subscriptionIds: subIds,
         subscriptionDates,
         registrationDue,
+        parentId: linkedParentId || undefined,
       };
       push("students", student);
-      await setStudentPassword(studentId, password);
+
+      // Un parent DÉJÀ EN BASE doit voir le nouvel enfant apparaître chez lui :
+      // le lien se pose des deux côtés, sinon son portail reste vide.
+      if (parentMode === "existing" && linkedParentId) {
+        const parent = db.parents.find((x) => x.id === linkedParentId);
+        if (parent && !parent.childIds.includes(studentId)) {
+          updateItem("parents", linkedParentId, {
+            childIds: [...parent.childIds, studentId],
+          });
+        }
+      }
+
+      // Le mot de passe n'est mémorisé que s'il y a un compte à ouvrir avec.
+      if (wantAccount) await setStudentPassword(studentId, password);
 
       // L'AVANCE est créditée sur son propre emploi, à la carte où le chevalier ENTRE :
       // un enfant inscrit en M2 paie pour M2, jamais pour une carte qu'il a
@@ -699,7 +846,7 @@ function StudentFiche({
 
   return (
     <>
-      <Modal open onClose={onClose} title={isEdit ? "Modifier le chevalier" : "Nouvel chevalier"} wide>
+      <Modal open onClose={onClose} title={isEdit ? "Modifier le chevalier" : "Nouveau chevalier"} wide>
         <div className="space-y-4">
           {/* identity */}
           <div className="rounded-xl border border-line bg-canvas/30 p-3">
@@ -738,7 +885,7 @@ function StudentFiche({
                   placeholder="0661 98 76 54"
                 />
                 <p className="mt-1 text-[10px] text-muted">
-                  Numéro de secours — il s&apos;affiche sur la fiche de l&apos;chevalier à côté du
+                  Numéro de secours — il s&apos;affiche sur la fiche du chevalier à côté du
                   premier.
                 </p>
               </div>
@@ -782,10 +929,246 @@ function StudentFiche({
             </div>
           )}
 
+
+          {/* ---------------------------------------------------------------
+              LE COMPTE DE CONNEXION DU CHEVALIER — à la création seulement.
+              Une fiche existante gère le sien dans le bloc « Compte du portail
+              & badge » un peu plus haut.
+              --------------------------------------------------------------- */}
+          {!isEdit && (
+            <div className="space-y-3 rounded-xl border border-line bg-canvas/30 p-3">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={wantAccount}
+                  onChange={(e) => setWantAccount(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
+                />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+                    <KeyRound className="h-3.5 w-3.5" /> Ouvrir un compte de connexion
+                  </span>
+                  <span className="mt-0.5 block text-[10px] leading-relaxed text-muted">
+                    Le chevalier pourra se connecter à son portail et y suivre ses
+                    présences, ses absences et ses paiements. Sans compte, sa fiche
+                    fonctionne exactement pareil — elle n&apos;a simplement pas
+                    d&apos;accès.
+                  </span>
+                </span>
+              </label>
+
+              <AnimatePresence initial={false}>
+                {wantAccount && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                    className="overflow-hidden"
+                  >
+                    <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">
+                          Email de connexion <span className="text-danger">*</span>
+                        </label>
+                        <Input
+                          type="email"
+                          autoComplete="off"
+                          value={accEmail}
+                          onChange={(e) => setAccEmail(e.target.value)}
+                          placeholder="chevalier@exemple.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">
+                          Mot de passe <span className="text-danger">*</span>
+                        </label>
+                        <Input
+                          type="text"
+                          autoComplete="off"
+                          value={accPassword}
+                          onChange={(e) => setAccPassword(e.target.value)}
+                          placeholder="6 caractères au minimum"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* ---------------------------------------------------------------
+              LE PARENT — rattaché à un parent existant, ou créé ici même.
+              --------------------------------------------------------------- */}
+          {!isEdit && (
+            <div className="space-y-3 rounded-xl border border-line bg-canvas/30 p-3">
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+                <Users className="h-3.5 w-3.5" /> Parent du chevalier
+              </span>
+
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { value: "none", label: "Aucun" },
+                    { value: "existing", label: "Parent existant" },
+                    { value: "new", label: "Nouveau parent" },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setParentMode(opt.value)}
+                    className={`cursor-pointer rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                      parentMode === opt.value
+                        ? "border-accent/45 bg-accent/15 text-accent-ink"
+                        : "border-line bg-surface text-muted hover:border-accent/30 hover:text-ink"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <AnimatePresence initial={false} mode="wait">
+                {parentMode === "existing" && (
+                  <motion.div
+                    key="existing"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-1">
+                      <label className="mb-1 block text-xs font-semibold text-muted">
+                        Choisir le parent
+                      </label>
+                      <select
+                        value={parentId}
+                        onChange={(e) => setParentId(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none"
+                      >
+                        <option value="">— Sélectionner —</option>
+                        {db.parents.map((par) => (
+                          <option key={par.id} value={par.id}>
+                            {[par.firstName, par.lastName].filter(Boolean).join(" ")}
+                            {par.phone ? ` · ${par.phone}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {db.parents.length === 0 && (
+                        <p className="mt-1.5 text-[10px] text-muted">
+                          Aucun parent enregistré — choisissez « Nouveau parent ».
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {parentMode === "new" && (
+                  <motion.div
+                    key="new"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-3 pt-1">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-muted">
+                            Prénom du parent
+                          </label>
+                          <Input
+                            value={pFirstName}
+                            onChange={(e) => setPFirstName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-muted">
+                            Nom du parent
+                          </label>
+                          <Input
+                            value={pLastName}
+                            onChange={(e) => setPLastName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-muted">
+                            Téléphone
+                          </label>
+                          <Input
+                            type="tel"
+                            value={pPhone}
+                            onChange={(e) => setPPhone(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-muted">
+                            Email
+                          </label>
+                          <Input
+                            type="email"
+                            value={pEmail}
+                            onChange={(e) => setPEmail(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <label className="flex cursor-pointer items-start gap-2.5 border-t border-line pt-3">
+                        <input
+                          type="checkbox"
+                          checked={pWantAccount}
+                          onChange={(e) => setPWantAccount(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
+                        />
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+                            <KeyRound className="h-3.5 w-3.5" /> Ouvrir un compte au parent
+                          </span>
+                          <span className="mt-0.5 block text-[10px] leading-relaxed text-muted">
+                            Il suivra depuis son portail les présences, les absences et
+                            les paiements de chacun de ses chevaliers.
+                          </span>
+                        </span>
+                      </label>
+
+                      <AnimatePresence initial={false}>
+                        {pWantAccount && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-1">
+                              <label className="mb-1 block text-xs font-semibold text-muted">
+                                Mot de passe du parent <span className="text-danger">*</span>
+                              </label>
+                              <Input
+                                type="text"
+                                autoComplete="off"
+                                value={pPassword}
+                                onChange={(e) => setPPassword(e.target.value)}
+                                placeholder="6 caractères au minimum"
+                              />
+                              <p className="mt-1 text-[10px] text-muted">
+                                Il se connectera avec l&apos;email saisi ci-dessus.
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
           {/* billing case */}
           <div className="space-y-2 rounded-xl border border-line bg-canvas/30 p-3">
             <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              🎫 Cas de l&apos;chevalier
+              🎫 Cas du chevalier
             </span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {STUDENT_CASE_OPTIONS.map((opt) => (
@@ -807,9 +1190,9 @@ function StudentFiche({
             {studentCase === "special" && (
               <p className="rounded-lg bg-primary-50/50 p-2 text-[10px] leading-relaxed text-muted">
                 Études gratuites, <strong className="text-ink">emploi du temps par emploi du
-                temps</strong> : chaque emploi coché ci-dessous arrive « Offert » — ni l&apos;club
-                ni l&apos;enseignant ne sont payés pour lui. Décochez « Offert » sur un emploi et
-                l&apos;chevalier le paie normalement.
+                temps</strong> : chaque emploi coché ci-dessous arrive « Offert » — ni le club
+                ni l&apos;entraîneur ne sont payés pour lui. Décochez « Offert » sur un emploi et
+                le chevalier le paie normalement.
                 {subIds.length > 0 && (
                   <>
                     {" "}
@@ -824,10 +1207,10 @@ function StudentFiche({
 
             {studentCase === "school_only" && (
               <p className="rounded-lg bg-warning/10 p-2 text-[10px] leading-relaxed text-muted">
-                Seule l&apos;club est payée, <strong className="text-ink">emploi du temps par
+                Seule le club est payée, <strong className="text-ink">emploi du temps par
                 emploi du temps</strong> : chaque emploi coché plus bas arrive avec l&apos;option
-                ACTIVE — la famille n&apos;y verse que la part de l&apos;club, l&apos;enseignant
-                n&apos;est pas payé pour lui et l&apos;chevalier ne figure même pas sur son écran de
+                ACTIVE — la famille n&apos;y verse que la part du club, l&apos;entraîneur
+                n&apos;est pas payé pour lui et le chevalier ne figure même pas sur son écran de
                 paie pour cet emploi. Désactivez-la sur un emploi et tout s&apos;y calcule
                 normalement.
                 {subIds.length > 0 && (
@@ -950,7 +1333,7 @@ function StudentFiche({
           <div className="space-y-3 rounded-xl border border-line bg-canvas/30 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                <BookOpen className="h-3.5 w-3.5" /> Emplois du temps de l&apos;chevalier
+                <BookOpen className="h-3.5 w-3.5" /> Emplois du temps du chevalier
               </span>
               <span className="text-[10px] font-semibold text-muted">
                 {subIds.length} sélectionné(s)
@@ -1073,22 +1456,22 @@ function StudentFiche({
                             <span className="block text-[9px] leading-relaxed text-muted">
                               {schoolOnlyOn(subId) ? (
                                 <>
-                                  La famille ne verse que la part de l&apos;club (
+                                  La famille ne verse que la part du club (
                                   <strong className="text-ink">
                                     {formatDA(schoolPerSeanceOf(sub))}
                                   </strong>{" "}
                                   la séance au lieu de {formatDA(sub?.pricePerSession ?? 0)}).
-                                  L&apos;enseignant n&apos;est pas payé pour ce chevalier, et
-                                  l&apos;chevalier <strong className="text-ink">n&apos;apparaît pas</strong>{" "}
+                                  L&apos;entraîneur n&apos;est pas payé pour ce chevalier, et
+                                  le chevalier <strong className="text-ink">n&apos;apparaît pas</strong>{" "}
                                   sur son écran de paie pour cet emploi du temps.
                                 </>
                               ) : (
                                 <>
-                                  L&apos;chevalier paie le tarif entier —{" "}
+                                  Le chevalier paie le tarif entier —{" "}
                                   <strong className="text-ink">
                                     {formatDA(sub?.pricePerSession ?? 0)}
                                   </strong>{" "}
-                                  la séance — et l&apos;enseignant touche sa part
+                                  la séance — et l&apos;entraîneur touche sa part
                                   ({formatDA(teacherPerSeanceOf(sub))} / séance). Il figure sur
                                   l&apos;écran de paie de cet enseignant.
                                 </>
@@ -1184,13 +1567,13 @@ function StudentFiche({
                     🧾 Après la création, l&apos;écran proposera d&apos;imprimer le{" "}
                     <strong>reçu de cette avance</strong> puis le{" "}
                     <strong>bon d&apos;inscription</strong>. L&apos;avance entre dans la caisse et
-                    apparaît aussitôt dans l&apos;historique des paiements de l&apos;chevalier, emploi
+                    apparaît aussitôt dans l&apos;historique des paiements du chevalier, emploi
                     du temps et mois compris.
                   </p>
                 )}
 
                 <p className="text-[10px] text-muted">
-                  ℹ️ L&apos;chevalier entre sur chaque emploi du temps LÀ OÙ EN EST LE GROUPE : son
+                  ℹ️ Le chevalier entre sur chaque emploi du temps LÀ OÙ EN EST LE GROUPE : son
                   solde est versé sur ce mois-là, les séances déjà tenues avant lui restent vides
                   sur sa ligne et les mois précédents ne le comptent pas.
                 </p>
@@ -1217,7 +1600,7 @@ function StudentFiche({
                     </div>
                     <p className="text-[10px] leading-relaxed text-muted">
                       {feeSubIds.length} emploi(s) du temps coché(s) entrent dans le périmètre défini
-                      par l&apos;club :{" "}
+                      par le club :{" "}
                       <strong className="text-ink">
                         {feeSubIds.map((id) => subLabel(id)).join(", ")}
                       </strong>

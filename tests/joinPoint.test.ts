@@ -85,7 +85,7 @@ async function groupOnM2Seance3(): Promise<string[]> {
   return days;
 }
 
-/** Le nouvel chevalier, tel que la fiche de création l'écrit. */
+/** Le nouveau chevalier, tel que la fiche de création l'écrit. */
 function registerNew(monthCode: string, slotIndex: number, day: string) {
   const student: Student = {
     id: NEW,

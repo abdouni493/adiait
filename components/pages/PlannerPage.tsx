@@ -618,7 +618,7 @@ export function PlannerPage() {
 
         <p className="text-[10px] leading-relaxed text-muted">
           Cochez chaque niveau réuni sur ce créneau, puis les groupes que ce niveau amène. Ils
-          partagent l&apos;heure, la salle et l&apos;enseignant — c&apos;est un seul emploi du
+          partagent l&apos;heure, la salle et l&apos;entraîneur — c&apos;est un seul emploi du
           temps — mais chacun garde ses propres groupes.
         </p>
 
@@ -1689,7 +1689,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             }),
           )}
           <p className="pt-1 text-[10px] leading-relaxed text-muted">
-            Une salle occupée reste sélectionnable — l&apos;club peut vouloir doubler un créneau —
+            Une salle occupée reste sélectionnable — le club peut vouloir doubler un créneau —
             mais le conflit est affiché avant l&apos;enregistrement.
           </p>
         </div>
@@ -2319,7 +2319,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                       ))}
                   </div>
                   <p className="text-[10px] text-muted leading-relaxed">
-                    L&apos;enseignant est rémunéré sur cette séance libre exactement comme sur ses autres
+                    L&apos;entraîneur est rémunéré sur cette séance libre exactement comme sur ses autres
                     séances (sa part est calculée à chaque présence selon son contrat).
                   </p>
                 </div>
@@ -2611,7 +2611,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Part de l&apos;club sur le mois (DA)
+                Part du club sur le mois (DA)
               </label>
               <Input
                 type="number"
@@ -2625,7 +2625,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Reste pour l&apos;enseignant (calculé)
+                Reste pour l&apos;entraîneur (calculé)
               </label>
               <div className="flex h-10 items-center rounded-xl border border-success/40 bg-success/10 px-3 text-sm font-black text-success">
                 {formatDA(teacherShare)}
@@ -2633,7 +2633,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Séance payée à l&apos;enseignant (calculé)
+                Séance payée à l&apos;entraîneur (calculé)
               </label>
               <div className="flex h-10 items-center rounded-xl border border-success/40 bg-success/10 px-3 text-sm font-black text-success">
                 {formatDA(teacherPerSeance)}
@@ -2645,11 +2645,11 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
               Un mois = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
               <strong className="text-ink">{formatDA(monthPrice)}</strong> →{" "}
-              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. L&apos;club
+              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. Le club
               garde <strong className="text-ink">{formatDA(Math.min(schoolShare, monthPrice))}</strong>,
               l&apos;entraîneur reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
               soit <strong className="text-success">{formatDA(teacherPerSeance)}</strong> par séance
-              assurée — et l&apos;club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
+              assurée — et le club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
               par séance. Les divisions gardent leurs décimales : un mois qui ne tombe pas juste se
               répartit au centime, jamais arrondi au dinar.
             </p>
@@ -2786,7 +2786,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Part de l&apos;club sur le mois (DA)
+                Part du club sur le mois (DA)
               </label>
               <Input
                 type="number"
@@ -2800,7 +2800,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Reste pour l&apos;enseignant (calculé)
+                Reste pour l&apos;entraîneur (calculé)
               </label>
               <div className="flex h-10 items-center rounded-xl border border-success/40 bg-success/10 px-3 text-sm font-black text-success">
                 {formatDA(teacherShare)}
@@ -2808,7 +2808,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-                Séance payée à l&apos;enseignant (calculé)
+                Séance payée à l&apos;entraîneur (calculé)
               </label>
               <div className="flex h-10 items-center rounded-xl border border-success/40 bg-success/10 px-3 text-sm font-black text-success">
                 {formatDA(teacherPerSeance)}
@@ -2820,11 +2820,11 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
               Un mois = <strong className="text-ink">{monthSeances} séances</strong> à{" "}
               <strong className="text-ink">{formatDA(monthPrice)}</strong> →{" "}
-              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. L&apos;club
+              <strong className="text-primary">{formatDA(pricePerSeance)} la séance</strong>. Le club
               garde <strong className="text-ink">{formatDA(Math.min(schoolShare, monthPrice))}</strong>,
               l&apos;entraîneur reçoit <strong className="text-success">{formatDA(teacherShare)}</strong>{" "}
               soit <strong className="text-success">{formatDA(teacherPerSeance)}</strong> par séance
-              assurée — et l&apos;club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
+              assurée — et le club <strong className="text-primary">{formatDA(schoolPerSeance)}</strong>{" "}
               par séance. Les divisions gardent leurs décimales : un mois qui ne tombe pas juste se
               répartit au centime, jamais arrondi au dinar.
             </p>

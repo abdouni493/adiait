@@ -695,7 +695,7 @@ export function PresenceSheet({
           </div>
           {onCreateStudent && (
             <Button size="sm" variant="outline" onClick={onCreateStudent} className="gap-1.5">
-              <UserPlus className="h-3.5 w-3.5" /> Nouvel chevalier
+              <UserPlus className="h-3.5 w-3.5" /> Nouveau chevalier
             </Button>
           )}
           {/* Déjà dans la base : on l'ajoute au groupe sans ressaisir sa fiche. */}
@@ -811,7 +811,7 @@ export function PresenceSheet({
                   {alerts.rows.length} chevalier(s) de ce groupe doivent de l&apos;argent
                 </strong>
                 <span className="block text-[10px] text-muted">
-                  Cotisation, frais divers et dettes avancées par l&apos;club — encaissables ici
+                  Cotisation, frais divers et dettes avancées par le club — encaissables ici
                   même, à la date de votre choix, en totalité ou en partie.
                 </span>
               </div>
@@ -828,7 +828,7 @@ export function PresenceSheet({
               {alerts.advances > 0 && (
                 <Badge tone="warning" className="gap-1 font-mono text-[10px]">
                   <Landmark className="h-3 w-3" /> {formatDA(alerts.advances)} avancés par
-                  l&apos;club
+                  le club
                 </Badge>
               )}
             </div>
@@ -956,8 +956,8 @@ export function PresenceSheet({
             <span className="block text-[11px] leading-relaxed text-muted">
               Ils ne sont pas inscrits : ils paient la séance sur place et n&apos;apparaissent que
               sur <strong className="text-ink">cette feuille-ci</strong>. La séance suivante repart
-              sans eux — s&apos;ils reviennent, on les ressaisit. Ce que l&apos;club ne garde pas
-              revient à l&apos;enseignant et se règle avec {monthCodeLabel(monthCode)}.
+              sans eux — s&apos;ils reviennent, on les ressaisit. Ce que le club ne garde pas
+              revient à l&apos;entraîneur et se règle avec {monthCodeLabel(monthCode)}.
             </span>
           </div>
           <Button size="sm" onClick={() => setPassagerOpen(true)} className="gap-1.5">
@@ -1375,7 +1375,7 @@ export function PresenceSheet({
             </div>
             <p className="text-xs leading-relaxed text-ink">
               Sa séance disparaît de cette feuille, et la part qu&apos;elle rapportait à
-              l&apos;enseignant s&apos;en va avec elle. Le mouvement de caisse déjà écrit,{" "}
+              l&apos;entraîneur s&apos;en va avec elle. Le mouvement de caisse déjà écrit,{" "}
               <strong>lui, reste</strong> : l&apos;argent a bien été encaissé — corrigez-le depuis
               la page <strong>Caisse</strong> si la séance n&apos;a jamais été payée.
             </p>
@@ -1477,7 +1477,7 @@ function PassagerModal({
           <span className="mt-1 block text-[11px] leading-relaxed text-muted">
             Ces chevaliers ne sont <strong className="text-ink">pas inscrits</strong> : aucune fiche
             n&apos;est créée, aucun solde n&apos;est ouvert. Ils figureront sur la feuille de cette
-            séance et sur aucune autre, et la part de l&apos;enseignant se règlera avec{" "}
+            séance et sur aucune autre, et la part de l&apos;entraîneur se règlera avec{" "}
             <strong className="text-ink">{monthLabel}</strong>.
           </span>
         </div>
@@ -1562,7 +1562,7 @@ function PassagerModal({
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted">
-                Part de l&apos;club / passager *
+                Part du club / passager *
               </label>
               <Input
                 type="number"
@@ -1574,7 +1574,7 @@ function PassagerModal({
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted">
-                Part de l&apos;enseignant / passager
+                Part de l&apos;entraîneur / passager
               </label>
               <div className="flex h-9 items-center rounded-xl border border-primary/40 bg-surface px-3 font-mono text-sm font-black text-primary">
                 {formatDA(unitTeacher)}
@@ -1593,7 +1593,7 @@ function PassagerModal({
 
           {price > 0 && unitTeacher === 0 && (
             <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-              L&apos;club garde tout : ces séances ne rapporteront rien à l&apos;enseignant.
+              Le club garde tout : ces séances ne rapporteront rien à l&apos;entraîneur.
             </p>
           )}
         </div>
@@ -2581,7 +2581,7 @@ function StudentRow({
         </div>
         {advanceDebt > 0 && (
           <span className="mt-0.5 block text-[9px] font-semibold text-warning">
-            dont {formatDA(advanceDebt)} avancés par l&apos;club
+            dont {formatDA(advanceDebt)} avancés par le club
           </span>
         )}
       </td>
@@ -2757,7 +2757,7 @@ function RemovePresenceModal({
 
         <p className="text-xs leading-relaxed text-ink">
           Cette séance sera <strong>effacée de sa ligne</strong> : elle cesse d&apos;être
-          consommée, et la part qu&apos;elle devait à l&apos;enseignant s&apos;en va avec elle tant
+          consommée, et la part qu&apos;elle devait à l&apos;entraîneur s&apos;en va avec elle tant
           qu&apos;elle n&apos;a pas été réglée.
         </p>
 
@@ -3000,7 +3000,7 @@ function TeacherChildPayModal({
                 <HandCoins className="h-4 w-4" /> La famille paie maintenant
               </strong>
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
-                Un versement d&apos;chevalier ordinaire : l&apos;argent <strong>entre en caisse</strong>{" "}
+                Un versement de chevalier ordinaire : l&apos;argent <strong>entre en caisse</strong>{" "}
                 et le salaire de son père n&apos;est <strong>pas amputé</strong>. Sa paie affichera
                 le mois « payé par la famille », pour que personne ne le retienne une seconde fois.
               </p>
@@ -3023,7 +3023,7 @@ function TeacherChildPayModal({
               </strong>
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
                 L&apos;enfant est soldé <strong>tout de suite</strong> — la part que ses séances
-                rapportent à l&apos;enseignant se débloque — et le montant part{" "}
+                rapportent à l&apos;entraîneur se débloque — et le montant part{" "}
                 <strong>en attente sur la fiche de son père</strong> : aucun mouvement de caisse
                 aujourd&apos;hui, et son prochain règlement le retient sur son net, une seule fois.
               </p>
@@ -3163,7 +3163,7 @@ function DebtDrill({
             {summary.registrationDue > 0
               ? ` ${formatDA(summary.registrationDue)} de frais d'inscription`
               : ""}
-            . Ils se règlent depuis la fiche de l&apos;chevalier.
+            . Ils se règlent depuis la fiche du chevalier.
           </p>
         )}
         <div className="flex justify-end border-t border-line pt-3">

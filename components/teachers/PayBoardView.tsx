@@ -161,7 +161,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                         )}
                         {r.schoolCovered && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-danger px-2 py-0.5 text-[8px] font-bold text-white">
-                            <AlertTriangle className="h-2.5 w-2.5" /> avancé par l&apos;club
+                            <AlertTriangle className="h-2.5 w-2.5" /> avancé par le club
                           </span>
                         )}
                       </div>

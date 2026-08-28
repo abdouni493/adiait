@@ -489,7 +489,7 @@ function AdminDashboard() {
           {isAdmin && <WorkerPaymentsAlert />}
           {can("create_student") && (
             <Button onClick={() => openCreateFor([])} className="gap-2">
-              <UserPlus className="h-4 w-4" /> Nouvel chevalier
+              <UserPlus className="h-4 w-4" /> Nouveau chevalier
             </Button>
           )}
           {/* « Il en est où ? » — la question du parent au comptoir, tous ses
@@ -968,9 +968,9 @@ function AdminDashboard() {
                 ne compte que les séances pointées aujourd&apos;hui.
                 <br />
                 Prix d&apos;une séance = <strong className="text-ink">prix de la carte ÷ séances du
-                carte</strong>, décimales comprises. La part de l&apos;club et celle de
-                l&apos;enseignant se divisent de la même façon : c&apos;est exactement ce que
-                l&apos;chevalier paie et ce que l&apos;enseignant touche sur son écran de règlement.
+                carte</strong>, décimales comprises. La part du club et celle de
+                l&apos;entraîneur se divisent de la même façon : c&apos;est exactement ce que
+                le chevalier paie et ce que l&apos;entraîneur touche sur son écran de règlement.
               </p>
             </div>
           )}

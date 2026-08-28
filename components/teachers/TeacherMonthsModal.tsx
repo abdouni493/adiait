@@ -692,8 +692,8 @@ function UnpaidTable({
       <p className="flex items-start gap-1.5 rounded-xl border border-warning/30 bg-warning/5 p-2.5 text-[10px] text-warning">
         <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Ces montants sont <strong>reportés sur la carte suivante</strong> de l&apos;emploi du temps
-        concerné : le solde de l&apos;chevalier reste négatif tant qu&apos;il n&apos;a pas payé, et la
-        part de l&apos;enseignant correspondante reste en attente au lieu d&apos;être versée.
+        concerné : le solde du chevalier reste négatif tant qu&apos;il n&apos;a pas payé, et la
+        part de l&apos;entraîneur correspondante reste en attente au lieu d&apos;être versée.
       </p>
     </div>
   );

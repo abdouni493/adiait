@@ -127,7 +127,7 @@ export function SubscriptionsPage() {
    * Tout le monde ne les paie pas forcément : le club peut ne les réclamer
    * qu'aux catégories du secondaire, à trois catégories précises, ou seulement aux
    * chevaliers inscrits sur certains emplois du temps. Le périmètre choisi ici est
-   * exactement celui que l'écran « Nouvel chevalier » interroge avant de réclamer
+   * exactement celui que l'écran « Nouveau chevalier » interroge avant de réclamer
    * quoi que ce soit à la famille.
    */
   const [feeScope, setFeeScope] = useState<RegistrationFeeScope>(
@@ -551,7 +551,7 @@ export function SubscriptionsPage() {
               séance are always derived from it. */}
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">
-              Part de l&apos;club sur le mois (DA) *
+              Part du club sur le mois (DA) *
             </label>
             <Input
               type="number"
@@ -565,7 +565,7 @@ export function SubscriptionsPage() {
               placeholder="Ex: 2000"
             />
             <p className="mt-1 text-[10px] text-muted">
-              Le reste du prix du mois revient à l&apos;enseignant. Sa paie par séance est calculée
+              Le reste du prix du mois revient à l&apos;entraîneur. Sa paie par séance est calculée
               automatiquement.
             </p>
           </div>
@@ -591,7 +591,7 @@ export function SubscriptionsPage() {
               </strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted">Part de l&apos;club :</span>
+              <span className="text-muted">Part du club :</span>
               <strong className="text-ink">
                 {formatDA(schoolMonthShare || 0)}
                 <span className="ml-1 font-normal text-[10px] text-muted">
@@ -615,7 +615,7 @@ export function SubscriptionsPage() {
             <p className="border-t border-line pt-1 text-[10px] leading-relaxed text-muted">
               Les divisions gardent leurs <strong className="text-ink">décimales</strong> : un mois
               qui ne tombe pas juste se répartit au centime près, jamais arrondi au dinar — sinon la
-              paie de l&apos;enseignant dérive de quelques dinars à chaque séance.
+              paie de l&apos;entraîneur dérive de quelques dinars à chaque séance.
             </p>
             {monthSaving !== 0 && monthlySeances > 0 && (
               <div className="flex justify-between">
@@ -1254,7 +1254,7 @@ export function SubscriptionsPage() {
             />
             <p className="mt-1 text-[11px] text-muted">
               C&apos;est ce prix qui est multiplié par le nombre de séances lors du paiement de
-              l&apos;chevalier, et qui sert de base à la part de l&apos;enseignant.
+              le chevalier, et qui sert de base à la part de l&apos;entraîneur.
             </p>
           </div>
 
@@ -1686,10 +1686,10 @@ function FreePeriodsPanel() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-xl text-xs text-muted">
-          Pendant une période gratuite, l&apos;chevalier badge normalement et sa{" "}
+          Pendant une période gratuite, le chevalier badge normalement et sa{" "}
           <strong className="text-ink">présence est enregistrée</strong>, mais{" "}
           <strong className="text-ink">aucune séance n&apos;est décomptée</strong>. Le prix non
-          facturé est mémorisé : c&apos;est le coût réel de la période pour l&apos;club.
+          facturé est mémorisé : c&apos;est le coût réel de la période pour le club.
         </p>
         <Button onClick={openCreate} className="flex items-center gap-2">
           <Plus className="h-4 w-4" /> Nouvelle période gratuite
@@ -1977,7 +1977,7 @@ function FreePeriodsPanel() {
               <strong className="text-ink">Rémunérer les entraîneurs normalement</strong>
               <span className="mt-0.5 block text-muted">
                 Les enseignants payés au pourcentage touchent leur part sur le prix habituel de la
-                séance, même si l&apos;chevalier n&apos;a rien payé. Décochez pour que la séance offerte
+                séance, même si le chevalier n&apos;a rien payé. Décochez pour que la séance offerte
                 ne génère aucune part enseignant.
               </span>
             </span>
@@ -2000,7 +2000,7 @@ function FreePeriodsPanel() {
 
           <div className="rounded-xl border border-line bg-primary-50/50 p-3 text-xs text-muted">
             🎁 <strong className="text-ink">Effet au scan :</strong> la carte est acceptée
-            normalement, la présence est enregistrée (et compte pour l&apos;enseignant et les
+            normalement, la présence est enregistrée (et compte pour l&apos;entraîneur et les
             statistiques), mais <strong className="text-ink">aucune séance n&apos;est décomptée</strong>{" "}
             de son abonnement. Les absences hebdomadaires ne sont pas décomptées non plus sur
             les semaines couvertes.
@@ -2094,7 +2094,7 @@ function FreePeriodsPanel() {
                     <strong className="text-ink">{statOf(viewing.id).students}</strong>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-muted">Coût pour l&apos;club:</span>
+                    <span className="font-semibold text-muted">Coût pour le club:</span>
                     <strong className="text-lg font-extrabold text-warning">
                       {formatDA(statOf(viewing.id).waived)}
                     </strong>

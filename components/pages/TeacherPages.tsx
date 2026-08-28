@@ -69,7 +69,7 @@ export function TeacherPages({ slug }: PageProps) {
       <div className="p-8 text-center text-xs">
         <AlertTriangle className="h-8 w-8 text-danger mx-auto mb-2" />
         <h3 className="font-bold text-ink">Erreur de Profil</h3>
-        <p className="text-muted mt-1">Impossible de charger le profil de l&apos;enseignant. Veuillez vous reconnecter.</p>
+        <p className="text-muted mt-1">Impossible de charger le profil de l&apos;entraîneur. Veuillez vous reconnecter.</p>
       </div>
     );
   }

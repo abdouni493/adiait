@@ -1105,7 +1105,7 @@ function MonthBoard({
             l&apos;entraîneur reste <strong className="text-ink">retenue</strong>. Deux issues, et
             elles s&apos;écrivent ici sans quitter l&apos;écran :{" "}
             <strong className="text-ink">Encaisser</strong> (la famille paie maintenant, au
-            guichet) ou <strong className="text-ink">Payer de la caisse</strong> (l&apos;club
+            guichet) ou <strong className="text-ink">Payer de la caisse</strong> (le club
             avance et se fera rembourser). Un chevalier laissé tel quel n&apos;empêche rien : sa part
             reviendra toute seule dans les <em>retards de paiement</em> du mois suivant, le jour où
             il s&apos;acquittera.
@@ -1176,8 +1176,8 @@ function MonthBoard({
             payé les séances de <strong>{carteShort(monthCode)}</strong> sur cet emploi du temps, la part que ces
             séances rapportent ne se règle donc pas aujourd&apos;hui — elle reviendra dès
             qu&apos;ils se seront acquittés. Une dette sur un AUTRE groupe, ou des frais
-            d&apos;inscription, ne retiennent rien ici. L&apos;club peut aussi ne pas faire attendre
-            l&apos;enseignant : « Payer de la caisse » avance ce mois-là et débloque la part
+            d&apos;inscription, ne retiennent rien ici. Le club peut aussi ne pas faire attendre
+            l&apos;entraîneur : « Payer de la caisse » avance ce mois-là et débloque la part
             immédiatement.
           </span>
         </div>
@@ -1195,7 +1195,7 @@ function MonthBoard({
               Part enseignant : {formatDA(board.teacherMonthShare)} le mois ÷ {board.size} séances ={" "}
               <strong className="text-primary">{formatDA(board.perSeance)}</strong> la séance. La
               colonne « Part enseignant » multiplie ce tarif par les séances payables de chaque
-              chevalier, au centime — une séance ne devient payable que lorsque l&apos;chevalier l&apos;a
+              chevalier, au centime — une séance ne devient payable que lorsque le chevalier l&apos;a
               payée sur ce mois.
             </span>
           </div>
@@ -1328,7 +1328,7 @@ function MonthBoard({
               Deux natures, un même principe : ce que ce règlement doit à
               l&apos;entraîneur <strong className="text-ink">en dehors des chevaliers de la carte</strong>.
               Les <strong className="text-ink">retards</strong> appartiennent à des mois déjà
-              réglés — la part avait été retenue, l&apos;chevalier s&apos;est acquitté depuis. Les{" "}
+              réglés — la part avait été retenue, le chevalier s&apos;est acquitté depuis. Les{" "}
               <strong className="text-ink">séances libres</strong> sont celles des chevaliers de
               passage : payées d&apos;avance, elles reviennent au mois où elles sont tombées.
             </span>
@@ -1369,7 +1369,7 @@ function MonthBoard({
                   <th className="px-2 py-2 text-center">Carte d&apos;origine</th>
                   <th className="px-2 py-2 text-center">Séances</th>
                   <th className="px-2 py-2">Dates concernées</th>
-                  <th className="px-2 py-2 text-right">Versé par l&apos;chevalier</th>
+                  <th className="px-2 py-2 text-right">Versé par le chevalier</th>
                   <th className="px-2 py-2 text-right">Part / séance</th>
                   <th className="px-2 py-2 text-right">Part rattrapée</th>
                 </tr>
@@ -1450,11 +1450,11 @@ function MonthBoard({
               {board.passagers.length} passager(s)
             </strong>
             <span className="block text-[10px] text-muted">
-              Prix payé par le passager − part de l&apos;club ={" "}
+              Prix payé par le passager − part du club ={" "}
               <strong className="text-primary">part de l&apos;entraîneur</strong>. Encaissé :{" "}
-              {formatDA(board.passagersRevenue)} · pour l&apos;club{" "}
+              {formatDA(board.passagersRevenue)} · pour le club{" "}
               {formatDA(money(board.passagersRevenue - board.passagersTotal))} · pour
-              l&apos;enseignant {formatDA(board.passagersTotal)}.
+              l&apos;entraîneur {formatDA(board.passagersTotal)}.
             </span>
           </div>
           {board.passagers.length > 0 && !locked && (
@@ -1569,7 +1569,7 @@ function MonthBoard({
               <Receipt className="h-4 w-4" /> 3. Retenues sur cette paie ({board.deductions.length})
             </strong>
             <span className="block text-[11px] leading-relaxed text-muted">
-              Les dépenses que l&apos;club a avancées pour lui, ses acomptes, la cotisation{" "}
+              Les dépenses que le club a avancées pour lui, ses acomptes, la cotisation{" "}
               <strong className="text-ink">encore due</strong> de ses enfants sur leurs emplois du
               temps, et celle que le guichet a{" "}
               <strong className="text-ink">déjà créditée en la portant sur ce salaire</strong>. Les
@@ -1880,7 +1880,7 @@ function StudentLine({
               className="inline-flex items-center gap-1 rounded-full bg-danger px-2 py-0.5 text-[8px] font-bold text-white"
               title="Le club a avancé la dette de ce chevalier sur sa propre caisse"
             >
-              <AlertTriangle className="h-2.5 w-2.5" /> avancé par l&apos;club
+              <AlertTriangle className="h-2.5 w-2.5" /> avancé par le club
             </motion.span>
           )}
           {row.phone && <span className="text-[9px] text-muted">{row.phone}</span>}
@@ -2278,12 +2278,12 @@ function CashInModal({
           {rest > 0 ? (
             <>
               Il restera <strong>{formatDA(rest)}</strong> à payer sur {carteShort(monthCode)} : la part de
-              l&apos;enseignant se débloquera séance par séance, dans l&apos;ordre où elles ont été
+              l&apos;entraîneur se débloquera séance par séance, dans l&apos;ordre où elles ont été
               tenues.
             </>
           ) : (
             <>
-              {carteShort(monthCode)} sera soldé et la part de l&apos;enseignant devient réglable
+              {carteShort(monthCode)} sera soldé et la part de l&apos;entraîneur devient réglable
               immédiatement.
             </>
           )}
@@ -2357,9 +2357,9 @@ function CoverModal({
 
         <p className="text-xs leading-relaxed text-ink">
           Les séances que ce chevalier n&apos;a pas payées sur <strong>{emploiTitle}</strong> retiennent
-          la part qu&apos;elles rapportent à l&apos;enseignant. L&apos;club peut la débloquer en
+          la part qu&apos;elles rapportent à l&apos;entraîneur. Le club peut la débloquer en
           avançant elle-même ces mois : deux mouvements entrent dans la caisse — le paiement porté
-          au crédit de l&apos;chevalier, et la sortie qui l&apos;a financé.
+          au crédit du chevalier, et la sortie qui l&apos;a financé.
         </p>
 
         <div className="space-y-1.5 rounded-xl border border-line bg-canvas/40 p-3 text-[11px]">
@@ -2393,8 +2393,8 @@ function CoverModal({
         )}
 
         <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[11px] leading-relaxed text-warning">
-          L&apos;chevalier apparaîtra ensuite en rouge sur la table des chevaliers, et l&apos;écran{" "}
-          <strong>Chevaliers</strong> le signalera en alerte tant que l&apos;club n&apos;aura pas
+          Le chevalier apparaîtra ensuite en rouge sur la table des chevaliers, et l&apos;écran{" "}
+          <strong>Chevaliers</strong> le signalera en alerte tant que le club n&apos;aura pas
           récupéré son avance.
         </p>
 

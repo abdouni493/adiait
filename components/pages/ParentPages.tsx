@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { useData } from "@/lib/store/data";
 import { useSession } from "@/lib/store/session";
 import { changeOwnPassword } from "@/lib/accounts/users";
@@ -9,9 +10,13 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { CarteLedger, SlotLegend } from "@/components/portal/CarteLedger";
 import { Modal } from "@/components/ui/Modal";
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, Bell, BookOpen, Calendar, CalendarDays, Clock, DollarSign, Download, Eye, FileText, Home, MapPin, Megaphone, Search, Swords, User, Users, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, Bell, BookOpen, Calendar, CalendarDays, CalendarX2, Check, Clock, DollarSign, Download, Eye, FileText, Home, MapPin, Megaphone, Search, Swords, Ticket, User, Users, Wallet, X } from "lucide-react";
 import type {
+  AttendanceRecord,
   Enrollment,
   Parent,
   Payment,
@@ -20,6 +25,7 @@ import type {
   Subscription,
 } from "@/lib/types";
 import {
+  carteShort,
   discountLabel,
   enrollmentExpiryStatus,
   enrollmentLabel,
@@ -56,6 +62,7 @@ export function ParentPages({ slug }: PageProps) {
     groups,
     announcements,
     notifications,
+    attendance,
     updateItem,
   } = db;
 
@@ -111,7 +118,16 @@ export function ParentPages({ slug }: PageProps) {
         />
       );
     case "my-children":
-      return <ParentChildrenView myChildren={myChildren} getSessionInfo={getSessionInfo} subscriptions={subscriptions} childInfo={childInfo} />;
+      return (
+        <ParentChildrenView
+          myChildren={myChildren}
+          getSessionInfo={getSessionInfo}
+          subscriptions={subscriptions}
+          childInfo={childInfo}
+          payments={childPayments}
+          attendance={attendance}
+        />
+      );
     case "schedule":
       return <ParentScheduleView myChildren={myChildren} getSessionInfo={getSessionInfo} subscriptions={subscriptions} />;
     case "payments":
@@ -288,109 +304,276 @@ function ParentHomeView({
 // ----------------------------------------------------
 // 2. CHILDREN LIST VIEW
 // ----------------------------------------------------
+/**
+ * « MES CHEVALIERS » — un enfant à la fois, et TOUT sur lui.
+ *
+ * L'écran alignait des vignettes : un parent de trois enfants lisait trois
+ * résumés partiels et n'avait le détail d'aucun. Il choisit désormais SON
+ * chevalier, et l'écran ne parle plus que de celui-là — ses cartes séance par
+ * séance, ses présences, ses absences, ses séances annulées, ses paiements.
+ *
+ * Le relevé par carte est exactement celui que l'enfant voit sur son propre
+ * portail (`CarteLedger`) : le père et le fils ne peuvent pas lire deux comptes
+ * différents du même mois.
+ */
 function ParentChildrenView({
   myChildren,
   getSessionInfo,
   subscriptions,
   childInfo,
+  payments,
+  attendance,
 }: {
   myChildren: Student[];
   getSessionInfo: (id: string) => any;
   subscriptions: Subscription[];
   childInfo: (id: string) => ChildSeanceInfo;
+  payments: Payment[];
+  attendance: AttendanceRecord[];
 }) {
+  const [selectedId, setSelectedId] = useState(myChildren[0]?.id ?? "");
+  const [tab, setTab] = useState<"cartes" | "payments" | "schedule">("cartes");
+
+  const child = myChildren.find((c) => c.id === selectedId) ?? myChildren[0];
+
+  if (!child) {
+    return (
+      <div className="space-y-6 text-xs">
+        <PageHeader
+          icon={Swords}
+          title="Mes chevaliers"
+          subtitle="Cartes, présences et paiements de chacun"
+        />
+        <EmptyState
+          icon={Swords}
+          message="Aucun chevalier rattaché à votre compte."
+          hint="Contactez l'intendance du club pour faire le rattachement."
+        />
+      </div>
+    );
+  }
+
+  const info = childInfo(child.id);
+  const childSubs = subscriptions.filter((sub) => child.subscriptionIds.includes(sub.id));
+  const myAtt = attendance.filter((a) => a.studentId === child.id);
+  const myPayments = payments
+    .filter((pay) => pay.studentId === child.id)
+    .slice()
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  const cancelled = myAtt.filter((a) => a.status === "cancelled").length;
+  const present = myAtt.filter((a) => a.status !== "absent" && a.status !== "cancelled").length;
+  const absent = myAtt.filter((a) => a.status === "absent").length;
+  const paidTotal = myPayments.reduce((n, pay) => n + pay.amountPaid, 0);
+
+  const TABS = [
+    { id: "cartes" as const, label: "Cartes & présences", icon: Ticket },
+    { id: "payments" as const, label: "Paiements", icon: Banknote },
+    { id: "schedule" as const, label: "Emploi du temps", icon: CalendarDays },
+  ];
+
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader icon={Swords} title="Mes Enfants" subtitle="Profils, séances restantes et inscriptions" />
+      <PageHeader
+        icon={Swords}
+        title="Mes chevaliers"
+        subtitle="Cartes, présences et paiements — un chevalier à la fois"
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {myChildren.map((c) => {
-          const childSubs = subscriptions.filter((sub) => c.subscriptionIds.includes(sub.id));
-          const info = childInfo(c.id);
+      {/* ---- Le choix du chevalier ---- */}
+      {myChildren.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {myChildren.map((c) => {
+            const on = c.id === child.id;
+            const ci = childInfo(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelectedId(c.id)}
+                aria-pressed={on}
+                className={`relative cursor-pointer rounded-xl border px-3.5 py-2.5 text-start transition-colors ${
+                  on
+                    ? "border-accent/45 bg-accent/10"
+                    : "border-line bg-surface hover:border-accent/30"
+                }`}
+              >
+                <span className={`block text-xs font-bold ${on ? "text-ink" : "text-muted"}`}>
+                  {c.firstName} {c.lastName}
+                </span>
+                <span className="mt-0.5 block text-[10px] text-muted">
+                  {c.isFree ? "Gratuit" : `${ci.remaining} séance(s)`}
+                  {ci.debt > 0 && <span className="text-danger"> · dette {formatDA(ci.debt)}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
+      {/* ---- Les chiffres du chevalier choisi ---- */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <StatCard
+          icon={Ticket}
+          tone={child.isFree ? "success" : info.remaining === 0 ? "danger" : "primary"}
+          label="Séances restantes"
+          value={child.isFree ? "Gratuit" : info.remaining}
+          index={0}
+        />
+        <StatCard icon={Check} tone="success" label="Présences" value={present} index={1} />
+        <StatCard icon={X} tone="danger" label="Absences" value={absent} index={2} />
+        <StatCard
+          icon={CalendarX2}
+          tone="primary"
+          label="Séances annulées"
+          value={cancelled}
+          index={3}
+        />
+        <StatCard
+          icon={Banknote}
+          tone={info.debt > 0 ? "danger" : "accent"}
+          label={info.debt > 0 ? "Dette" : "Total versé"}
+          value={formatDA(info.debt > 0 ? info.debt : paidTotal)}
+          index={4}
+        />
+      </div>
+
+      {/* ---- Les onglets ---- */}
+      <div
+        role="tablist"
+        className="flex flex-wrap gap-1 rounded-xl border border-line bg-canvas p-1"
+      >
+        {TABS.map((t) => {
+          const on = tab === t.id;
+          const Icon = t.icon;
           return (
-            <Card key={c.id}>
-              <CardBody className="space-y-4">
-                <div className="flex justify-between items-start border-b border-line pb-3">
-                  <div>
-                    <h3 className="font-bold text-sm text-ink">{c.firstName} {c.lastName}</h3>
-                    <span className="text-[10px] text-muted font-mono block">RFID: {c.rfid}</span>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge
-                      tone={c.isFree ? "success" : info.remaining === 0 ? "danger" : "primary"}
-                    >
-                      {c.isFree ? "Gratuit" : `${info.remaining} séance(s)`}
-                    </Badge>
-                    {info.debt > 0 && <Badge tone="danger">Dette : {formatDA(info.debt)}</Badge>}
-                  </div>
-                </div>
-
-                {/* Séances left, inscription by inscription */}
-                <div className="space-y-2">
-                  <span className="font-bold text-ink text-[10px] block uppercase">
-                    Séances par inscription :
-                  </span>
-                  {info.enrollments.length === 0 ? (
-                    <p className="text-[10px] text-muted italic">Aucune inscription enregistrée.</p>
-                  ) : (
-                    info.enrollments.map((e) => {
-                      const left = remainingSeances(e);
-                      const status = enrollmentExpiryStatus(e);
-                      return (
-                        <div
-                          key={e.id}
-                          className={`flex items-center justify-between gap-2 rounded-lg border p-2.5 text-[10px] ${
-                            left === 0 || status === "expired"
-                              ? "border-danger/40 bg-danger/5"
-                              : left <= 2 || status === "soon"
-                                ? "border-warning/40 bg-warning/5"
-                                : "border-line bg-canvas/30"
-                          }`}
-                        >
-                          <div className="min-w-0">
-                            <strong className="block truncate text-ink">{info.labelOf(e)}</strong>
-                            <span className="block text-muted">
-                              {e.paidSeances} payée(s) · {e.consumedSeances} consommée(s)
-                              {e.expiryDate ? ` · expire le ${formatDateFr(e.expiryDate)}` : ""}
-                            </span>
-                          </div>
-                          <Badge
-                            tone={left === 0 ? "danger" : left <= 2 ? "warning" : "success"}
-                            className="shrink-0 font-mono"
-                          >
-                            {left}
-                          </Badge>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <span className="font-bold text-ink text-[10px] block uppercase">Cours & Groupes :</span>
-                  {childSubs.length === 0 ? (
-                    <p className="text-[10px] text-muted italic">Aucun abonnement de groupe actif.</p>
-                  ) : (
-                    childSubs.map((sub) => {
-                      const sess = getSessionInfo(sub.sessionId);
-                      return (
-                        <div key={sub.id} className="p-2.5 bg-canvas/30 rounded-lg border border-line flex justify-between items-center text-[10px]">
-                          <div>
-                            <strong className="text-ink block">{sess?.moduleLabel}</strong>
-                            <span className="text-muted block">{sess?.classLabel} ({sess?.groupLabel})</span>
-                          </div>
-                          <span className="font-mono text-primary font-bold">{sess?.startTime} - {sess?.endTime}</span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </CardBody>
-            </Card>
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={on}
+              onClick={() => setTab(t.id)}
+              className={`relative flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold transition-colors ${
+                on ? "text-white" : "text-muted hover:text-ink"
+              }`}
+            >
+              {on && (
+                <motion.span
+                  layoutId="parent-child-tab"
+                  className="absolute inset-0 -z-10 rounded-lg bg-gradient-primary"
+                  transition={{ type: "spring", stiffness: 440, damping: 36 }}
+                />
+              )}
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
           );
         })}
       </div>
+
+      {tab === "cartes" && (
+        <div className="space-y-3">
+          <SlotLegend />
+          <CarteLedger studentId={child.id} />
+        </div>
+      )}
+
+      {tab === "payments" && (
+        <Card>
+          <CardBody className="p-0">
+            {myPayments.length === 0 ? (
+              <div className="p-4">
+                <EmptyState
+                  icon={Banknote}
+                  message="Aucun paiement enregistré pour ce chevalier."
+                />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px]">
+                  <thead className="border-b border-line bg-canvas/60 text-start">
+                    <tr className="text-[10px] uppercase tracking-wider text-muted">
+                      <th className="px-4 py-2.5 text-start font-bold">Date</th>
+                      <th className="px-4 py-2.5 text-start font-bold">Emploi du temps</th>
+                      <th className="px-4 py-2.5 text-start font-bold">Carte</th>
+                      <th className="px-4 py-2.5 text-start font-bold">Motif</th>
+                      <th className="px-4 py-2.5 text-end font-bold">Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {myPayments.map((pay) => {
+                      const sub = subscriptions.find((x) => x.id === pay.subscriptionId);
+                      const sess = sub ? getSessionInfo(sub.sessionId) : null;
+                      return (
+                        <tr key={pay.id} className="transition-colors hover:bg-canvas/50">
+                          <td className="whitespace-nowrap px-4 py-2.5 text-muted">
+                            {formatDateFr(pay.date)}
+                          </td>
+                          <td className="px-4 py-2.5 font-semibold text-ink">
+                            {sess?.moduleLabel ?? "—"}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {pay.monthCode ? (
+                              <Badge tone="accent">{carteShort(pay.monthCode)}</Badge>
+                            ) : (
+                              <span className="text-muted/60">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted">{pay.description || "—"}</td>
+                          <td className="px-4 py-2.5 text-end font-bold tabular-nums text-success">
+                            {formatDA(pay.amountPaid)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="border-t border-line bg-canvas/60">
+                    <tr>
+                      <td colSpan={4} className="px-4 py-2.5 text-end font-bold text-ink">
+                        Total versé
+                      </td>
+                      <td className="px-4 py-2.5 text-end font-extrabold tabular-nums text-success">
+                        {formatDA(paidTotal)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
+      {tab === "schedule" && (
+        <Card>
+          <CardBody className="space-y-2">
+            {childSubs.length === 0 ? (
+              <EmptyState
+                icon={CalendarDays}
+                message="Aucun emploi du temps pour ce chevalier."
+              />
+            ) : (
+              childSubs.map((sub) => {
+                const sess = getSessionInfo(sub.sessionId);
+                return (
+                  <div
+                    key={sub.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-line bg-canvas/30 p-3"
+                  >
+                    <div className="min-w-0">
+                      <strong className="block truncate text-ink">{sess?.moduleLabel}</strong>
+                      <span className="block text-[10px] text-muted">
+                        {sess?.classLabel} ({sess?.groupLabel})
+                      </span>
+                    </div>
+                    <span className="shrink-0 font-bold tabular-nums text-accent-ink">
+                      {sess?.startTime} – {sess?.endTime}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </CardBody>
+        </Card>
+      )}
     </div>
   );
 }

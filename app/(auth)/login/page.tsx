@@ -236,7 +236,7 @@ export default function LoginPage() {
           base elle-même refuse un second amorçage.
         */}
         {state === null && (
-          <p className="mt-6 text-center text-xs text-muted">Vérification de l&apos;club…</p>
+          <p className="mt-6 text-center text-xs text-muted">Vérification du club…</p>
         )}
 
         {needsAdmin && (
@@ -352,7 +352,7 @@ export default function LoginPage() {
         {created && (
           <p className="mt-6 rounded-2xl border border-success/30 bg-success/10 p-3 text-center text-xs font-medium leading-relaxed text-success">
             Le compte administrateur est créé. Ses identifiants sont déjà
-            saisis&nbsp;: connectez-vous pour ouvrir l&apos;club.
+            saisis&nbsp;: connectez-vous pour ouvrir le club.
           </p>
         )}
       </motion.div>

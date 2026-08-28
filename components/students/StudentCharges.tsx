@@ -181,9 +181,9 @@ export function ChargeFormModal({
         )}
 
         <p className="rounded-xl border border-line bg-canvas/50 p-2.5 text-[10px] leading-relaxed text-muted">
-          Un frais s&apos;affiche en alerte sur la fiche de l&apos;chevalier et sur la feuille de
+          Un frais s&apos;affiche en alerte sur la fiche du chevalier et sur la feuille de
           présence de ses groupes, et se règle en une ou plusieurs fois. Il ne retient{" "}
-          <strong className="text-ink">pas</strong> la paie de l&apos;enseignant : seule la
+          <strong className="text-ink">pas</strong> la paie de l&apos;entraîneur : seule la
           cotisation le fait.
         </p>
 
@@ -396,7 +396,7 @@ export function ChargeSettlementPanel({
                         className="gap-1 text-[9px]"
                         title="Le club a réglé cette dette de sa propre caisse pour débloquer la part de l'entraîneur — la famille la lui doit."
                       >
-                        <Landmark className="h-3 w-3" /> Avancé par l&apos;club
+                        <Landmark className="h-3 w-3" /> Avancé par le club
                       </Badge>
                     )}
                     <Badge tone="danger" className="font-mono text-[10px]">
@@ -649,7 +649,7 @@ export function ChargeCard({
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {advance && (
             <Badge tone="warning" className="gap-1 text-[9px]">
-              <Landmark className="h-3 w-3" /> Avancé par l&apos;club
+              <Landmark className="h-3 w-3" /> Avancé par le club
             </Badge>
           )}
           <Badge tone={left > 0 ? "danger" : "success"} className="font-mono text-[10px]">

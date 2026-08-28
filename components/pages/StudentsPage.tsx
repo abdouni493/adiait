@@ -1592,16 +1592,16 @@ export function StudentsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-bold text-ink">
-                      Dettes avancées par l&apos;club ({advances.length})
+                      Dettes avancées par le club ({advances.length})
                     </h3>
                     <Badge tone="danger" className="font-mono text-[11px]">
                       {formatDA(total)} à récupérer
                     </Badge>
                   </div>
                   <p className="mt-0.5 text-xs text-muted">
-                    L&apos;club a réglé à la place de ces familles pour ne pas faire attendre
-                    l&apos;enseignant. Cet argent est sorti de la caisse sans jamais y entrer : il
-                    reste à récupérer auprès de l&apos;chevalier. Chaque avance est portée à son compte
+                    Le club a réglé à la place de ces familles pour ne pas faire attendre
+                    l&apos;entraîneur. Cet argent est sorti de la caisse sans jamais y entrer : il
+                    reste à récupérer auprès du chevalier. Chaque avance est portée à son compte
                     comme un frais — <strong className="text-ink">« Rembourser »</strong>{" "}
                     l&apos;encaisse, en totalité ou en partie, et la ligne disparaît d&apos;ici
                     quand elle est soldée.
@@ -1899,7 +1899,7 @@ export function StudentsPage() {
                           onClick={() => handleDelete(stu.id)}
                           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-danger py-2 text-[11px] font-bold hover:bg-danger/80"
                         >
-                          <Trash2 className="h-3.5 w-3.5" /> Supprimer l&apos;chevalier
+                          <Trash2 className="h-3.5 w-3.5" /> Supprimer le chevalier
                         </button>
                       )}
                     </div>
@@ -2940,8 +2940,8 @@ export function StudentsPage() {
                   onChange={(e) => setAttEditAmount(Number(e.target.value))}
                 />
                 <p className="mt-1 text-[10px] text-muted">
-                  Aucun montant n&apos;est débité à l&apos;chevalier : ce prix sert uniquement à calculer
-                  la part due à l&apos;enseignant. Mettez <strong>0</strong> pour une séance offerte.
+                  Aucun montant n&apos;est débité au chevalier : ce prix sert uniquement à calculer
+                  la part due à l&apos;entraîneur. Mettez <strong>0</strong> pour une séance offerte.
                 </p>
               </div>
 
@@ -2969,7 +2969,7 @@ export function StudentsPage() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
                 <p className="text-xs leading-relaxed text-ink">
                   La présence sera supprimée, la séance consommée sera recréditée sur son
-                  inscription et la part due à l&apos;enseignant pour cette séance sera annulée.
+                  inscription et la part due à l&apos;entraîneur pour cette séance sera annulée.
                 </p>
               </div>
 
@@ -3004,7 +3004,7 @@ export function StudentsPage() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
                 <p className="text-xs leading-relaxed text-ink">
                   L&apos;absence hebdomadaire sera supprimée et la séance décomptée sera recréditée
-                  sur l&apos;inscription de l&apos;chevalier.
+                  sur l&apos;inscription du chevalier.
                 </p>
               </div>
 
@@ -3076,7 +3076,7 @@ export function StudentsPage() {
           <p className="text-xs text-muted">
             Les chevaliers suivants ont au moins une inscription presque épuisée (2 séances ou moins).
             Chaque chevalier sélectionné reçoit une notification dans l&apos;application et un message
-            WhatsApp personnalisé — envoyé au parent rattaché, ou à l&apos;chevalier à défaut.
+            WhatsApp personnalisé — envoyé au parent rattaché, ou au chevalier à défaut.
           </p>
 
           {/* Automatic alert settings (Email & WhatsApp toggles) */}

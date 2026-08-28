@@ -334,7 +334,7 @@ export function SettingsPage() {
                           <label className="block text-xs font-bold text-ink">Facturation automatique des absences</label>
                           <p className="text-[10px] text-muted mt-0.5 leading-relaxed">
                             La semaine court d&apos;un <strong className="text-ink">vendredi au vendredi suivant</strong>.
-                            Pour chaque module, si l&apos;chevalier n&apos;a ni scanné sa carte (sur son groupe ou sur
+                            Pour chaque module, si le chevalier n&apos;a ni scanné sa carte (sur son groupe ou sur
                             n&apos;importe quel autre groupe du même cours) ni été marqué présent de toute la semaine,
                             une séance de ce module est décomptée de son abonnement.
                           </p>
@@ -766,12 +766,12 @@ export function SettingsPage() {
                       <RotateCcw className="h-5 w-5 text-primary" /> Recharger depuis la base
                     </h3>
                     <p className="text-xs text-muted mt-1">
-                      Relire l&apos;club telle qu&apos;elle est enregistrée en ce moment.
+                      Relire le club telle qu&apos;elle est enregistrée en ce moment.
                     </p>
                   </div>
 
                   <p className="text-xs text-muted/80 leading-relaxed">
-                    L&apos;application charge toute l&apos;club à la connexion, puis calcule sur
+                    L&apos;application charge toute le club à la connexion, puis calcule sur
                     cet instantané : c&apos;est ce qui rend les écrans instantanés. Ce que{" "}
                     <strong>un autre poste</strong> a saisi depuis n&apos;y est donc pas encore.
                     Recharger jette cet instantané et relit la base — rien n&apos;est perdu, tout

@@ -59,7 +59,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
       { id: "open_presence", label: "Ouvrir une feuille de présence", hint: "Cliquer un créneau du jour pour l'ouvrir." },
       { id: "mark_presence", label: "Pointer les présences", hint: "Présent / absent / annulé, et corriger un pointage." },
       { id: "collect_payment", label: "Encaisser un paiement de chevalier", hint: "Recharger un solde depuis la feuille de présence." },
-      { id: "create_student", label: "Créer un chevalier", hint: "Le bouton « Nouvel chevalier »." },
+      { id: "create_student", label: "Créer un chevalier", hint: "Le bouton « Nouveau chevalier »." },
       { id: "student_situation", label: "Situation d'un chevalier", hint: "Le tableau récapitulatif d'un chevalier." },
       { id: "cash_deposit", label: "Dépôt en caisse" },
       { id: "cash_expense", label: "Saisir une dépense" },

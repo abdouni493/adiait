@@ -1061,7 +1061,7 @@ export function IndependentPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-muted mb-1">
-                      Part de l&apos;club / chevalier *
+                      Part du club / chevalier *
                     </label>
                     <Input
                       type="number"
@@ -1072,7 +1072,7 @@ export function IndependentPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-muted mb-1">
-                      Part de l&apos;enseignant / chevalier
+                      Part de l&apos;entraîneur / chevalier
                     </label>
                     <div className="flex h-9 items-center rounded-xl border border-primary/40 bg-surface px-3 font-mono text-sm font-black text-primary">
                       {formatDA(unitTeacherShare)}
@@ -1087,7 +1087,7 @@ export function IndependentPage() {
                   Tarif chargé depuis{" "}
                   {selectedItem.kind === "timing" ? "le créneau" : "l'abonnement"} :{" "}
                   <strong>{formatDA(selectedItem.price)}</strong>. Modifiable pour cette séance
-                  uniquement. La part de l&apos;enseignant se réglera avec le{" "}
+                  uniquement. La part de l&apos;entraîneur se réglera avec le{" "}
                   <strong>carte de cet emploi du temps</strong> où la date tombe, dans sa table
                   « Retards de paiement &amp; séances libres ».
                 </p>
@@ -1119,7 +1119,7 @@ export function IndependentPage() {
 
                 {effectivePrice > 0 && unitTeacherShare === 0 && (
                   <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-                    L&apos;club garde tout : cette séance ne rapportera rien à l&apos;enseignant.
+                    Le club garde tout : cette séance ne rapportera rien à l&apos;entraîneur.
                   </p>
                 )}
               </div>
@@ -1217,7 +1217,7 @@ export function IndependentPage() {
                           <strong className="text-success">{formatDA(split.price)}</strong>
                         </div>
                         <div className="flex justify-between border-b border-line/50 pb-1.5">
-                          <span className="text-muted">Part de l&apos;club :</span>
+                          <span className="text-muted">Part du club :</span>
                           <strong className="text-ink">{formatDA(split.school)}</strong>
                         </div>
                         <div className="flex justify-between border-b border-line/50 pb-1.5">

@@ -2642,7 +2642,7 @@ export function ReportsPage() {
               { label: "Part / séance", align: "right", render: (r) => <span className="font-mono text-muted">{formatDA(r.perSeance)}</span> },
               { label: "Statut", render: (r) => (
                 r.schoolCovered ? (
-                  <Badge tone="danger" className="text-[9px]">avancé par l&apos;club</Badge>
+                  <Badge tone="danger" className="text-[9px]">avancé par le club</Badge>
                 ) : r.withheld ? (
                   <Badge tone="warning" className="text-[9px]">retenu</Badge>
                 ) : (

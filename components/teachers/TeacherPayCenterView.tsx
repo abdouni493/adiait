@@ -868,7 +868,7 @@ function MonthBoardView({
             Tant que la séance qui l&apos;a produite n&apos;est pas payée, la part qu&apos;elle vous
             rapporte reste <strong className="text-ink">retenue</strong>. Elle ne se perd pas : elle
             vous revient automatiquement, dans les <em>retards de paiement</em> du règlement
-            suivant, le jour où l&apos;chevalier s&apos;acquitte. L&apos;encaissement se fait au guichet
+            suivant, le jour où le chevalier s&apos;acquitte. L&apos;encaissement se fait au guichet
             — vous n&apos;avez rien à faire depuis cet écran.
           </p>
           <div className="overflow-x-auto rounded-xl border border-danger/25 bg-surface">
@@ -928,7 +928,7 @@ function MonthBoardView({
             Votre part : {formatDA(board.teacherMonthShare)} le mois ÷ {board.size} séances ={" "}
             <strong className="text-primary">{formatDA(board.perSeance)}</strong> la séance. La
             colonne « Ma part » multiplie ce tarif par les séances payables de chaque chevalier, au
-            centime — une séance ne devient payable que lorsque l&apos;chevalier l&apos;a payée sur ce
+            centime — une séance ne devient payable que lorsque le chevalier l&apos;a payée sur ce
             mois.
           </span>
         </div>
@@ -1008,7 +1008,7 @@ function MonthBoardView({
             Deux natures, un même principe : ce que ce règlement vous doit{" "}
             <strong className="text-ink">en dehors des chevaliers de la carte</strong>. Les{" "}
             <strong className="text-ink">retards</strong> appartiennent à des mois déjà réglés — la
-            part avait été retenue, l&apos;chevalier s&apos;est acquitté depuis. Les{" "}
+            part avait été retenue, le chevalier s&apos;est acquitté depuis. Les{" "}
             <strong className="text-ink">séances libres</strong> sont celles des chevaliers de passage :
             payées d&apos;avance, elles reviennent au mois où elles sont tombées.
           </span>
@@ -1036,7 +1036,7 @@ function MonthBoardView({
                   <th className="px-2 py-2 text-center">Carte d&apos;origine</th>
                   <th className="px-2 py-2 text-center">Séances</th>
                   <th className="px-2 py-2">Dates concernées</th>
-                  <th className="px-2 py-2 text-right">Versé par l&apos;chevalier</th>
+                  <th className="px-2 py-2 text-right">Versé par le chevalier</th>
                   <th className="px-2 py-2 text-right">Part / séance</th>
                   <th className="px-2 py-2 text-right">Part rattrapée</th>
                 </tr>
@@ -1095,9 +1095,9 @@ function MonthBoardView({
             {board.passagers.length} passager(s)
           </strong>
           <span className="block text-[10px] text-muted">
-            Prix payé par le passager − part de l&apos;club ={" "}
+            Prix payé par le passager − part du club ={" "}
             <strong className="text-primary">votre part</strong>. Encaissé :{" "}
-            {formatDA(board.passagersRevenue)} · pour l&apos;club{" "}
+            {formatDA(board.passagersRevenue)} · pour le club{" "}
             {formatDA(money(board.passagersRevenue - board.passagersTotal))} · pour vous{" "}
             {formatDA(board.passagersTotal)}.
           </span>
@@ -1178,7 +1178,7 @@ function MonthBoardView({
             <Receipt className="h-4 w-4" /> 3. Retenues sur cette paie ({board.deductions.length})
           </strong>
           <span className="block text-[11px] leading-relaxed text-muted">
-            Les dépenses que l&apos;club a avancées pour vous, vos acomptes, la cotisation{" "}
+            Les dépenses que le club a avancées pour vous, vos acomptes, la cotisation{" "}
             <strong className="text-ink">encore due</strong> de vos enfants sur leurs emplois du
             temps, et celle que le guichet a{" "}
             <strong className="text-ink">déjà créditée en la portant sur ce salaire</strong>. Les
@@ -1353,7 +1353,7 @@ function StudentLine({ row, size }: { row: BoardStudent; size: number }) {
               className="inline-flex items-center gap-1 rounded-full bg-danger px-2 py-0.5 text-[8px] font-bold text-white"
               title="Le club a avancé la dette de ce chevalier sur sa propre caisse — votre part a été débloquée par elle"
             >
-              <AlertTriangle className="h-2.5 w-2.5" /> avancé par l&apos;club
+              <AlertTriangle className="h-2.5 w-2.5" /> avancé par le club
             </span>
           )}
           {row.phone && <span className="text-[9px] text-muted">{row.phone}</span>}
@@ -1566,7 +1566,7 @@ function LedgerView({
       </div>
 
       <p className="rounded-2xl border border-warning/40 bg-warning/10 p-3 text-[11px] leading-relaxed text-warning">
-        Voici, en clair, tout ce que l&apos;club reprend sur votre paie. Une ligne{" "}
+        Voici, en clair, tout ce que le club reprend sur votre paie. Une ligne{" "}
         <strong>« déjà reprise »</strong> a été déduite d&apos;un règlement précédent et ne
         reviendra jamais sur le suivant — c&apos;est ce qui garantit qu&apos;on ne vous retient rien
         deux fois. Une ligne <strong>« à reprendre »</strong> tombera sur votre prochain règlement.

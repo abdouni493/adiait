@@ -20,7 +20,7 @@ export function WhatsAppSettingsPanel() {
             </h3>
             <p className="mt-1 text-xs text-muted">
               Alertes de séances et de dette aux chevaliers et aux parents via le numéro WhatsApp
-              officiel de l&apos;club.
+              officiel du club.
             </p>
           </div>
           <Badge tone="warning">Désactivé en mode démo</Badge>
