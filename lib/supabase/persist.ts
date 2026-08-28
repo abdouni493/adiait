@@ -219,9 +219,13 @@ async function push(db: Database): Promise<void> {
 
 function schedule(): void {
   if (timer) return;
-  settled = new Promise((resolve) => {
-    resolveSettled = resolve;
-  });
+  // Une attente déjà en cours est CONSERVÉE : la remplacer laisserait le
+  // promesse précédente pendante à jamais, et celui qui l'attendait avec elle.
+  if (!resolveSettled) {
+    settled = new Promise((resolve) => {
+      resolveSettled = resolve;
+    });
+  }
   timer = setTimeout(() => void flush(), FLUSH_DELAY);
 }
 
