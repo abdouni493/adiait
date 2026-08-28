@@ -436,7 +436,7 @@ export function IndependentPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <PageHeader
           icon={Swords}
-          title="Séances Libres"
+          title="Séances libres"
           subtitle="Enregistrer les séances ponctuelles des chevaliers inscrits et des passagers"
         />
         {can("create") && (

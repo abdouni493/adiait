@@ -128,7 +128,7 @@ export function ExpensesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageHeader icon={Receipt} title="Dépenses" subtitle="Suivi des frais de fonctionnement de l'établissement" />
+        <PageHeader icon={Receipt} title="Dépenses" subtitle="Suivi des frais de fonctionnement du club" />
         {can("create") && (
           <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Nouvelle Dépense

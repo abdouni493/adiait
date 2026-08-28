@@ -752,7 +752,7 @@ export function AnalyticsPage() {
     <div className="space-y-6">
       <PageHeader
         icon={BarChart3}
-        title="Analytique"
+        title="Statistiques"
         subtitle="Suivi de l'affluence des chevaliers par catégorie et par entraîneur"
         actions={
           hasGenerated && can("print") ? (

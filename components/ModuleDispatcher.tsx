@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/store/session";
 import { ClassesPage } from "@/components/pages/ClassesPage";
 import { PlannerPage } from "@/components/pages/PlannerPage";
@@ -27,6 +29,22 @@ import { canSeePage } from "@/lib/permissions";
 /** Client-side role+slug dispatch for every module route. Kept separate from
  *  the route file so the page itself can stay a server component and export
  *  `generateStaticParams` (prerendered shells -> instant sidebar navigation). */
+/** Les adresses d'écrans supprimés — voir `RetiredModule`. */
+const RETIRED_SLUGS = new Set(["subjects"]);
+
+/** Ce qu'on affiche à qui arrive sur l'adresse d'un écran retiré. */
+function RetiredModule({ slug }: { slug: string }) {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/dashboard");
+  }, [router]);
+  return (
+    <p className="p-8 text-center text-sm text-muted">
+      L&apos;écran « {slug} » a été retiré de l&apos;application. Retour au tableau de bord…
+    </p>
+  );
+}
+
 export function ModuleDispatcher({ slug }: { slug: string[] }) {
   const { user } = useSession();
   const rights = useAccessRights();
@@ -55,6 +73,18 @@ export function ModuleDispatcher({ slug }: { slug: string[] }) {
   // ne lui montre déjà pas les autres, mais une adresse tapée à la main, un
   // signet ou un lien reçu contourneraient le menu : le garde-fou est ici, sur
   // la route elle-même.
+  /**
+   * LES ÉCRANS RETIRÉS.
+   *
+   * « Sujets & exercices » n'existe plus. Son adresse, elle, survit dans des
+   * signets et des liens envoyés : sans cette liste, elle tomberait sur l'écran
+   * générique « bientôt disponible », qui promettrait le retour d'un module
+   * supprimé. On renvoie à l'accueil, ce qui est la vérité.
+   */
+  if (RETIRED_SLUGS.has(pageSlug)) {
+    return <RetiredModule slug={pageSlug} />;
+  }
+
   const guardKey = pageSlug === "administration" ? "workers" : pageSlug;
   if (guardKey && !canSeePage(rights, guardKey)) {
     return <AccessDenied />;

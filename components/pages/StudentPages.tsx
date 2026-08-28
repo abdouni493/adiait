@@ -202,7 +202,7 @@ function StudentHomeView({
       <PageHeader
         icon={Home}
         title={`Bienvenue, ${student.firstName}`}
-        subtitle="Accédez à votre espace chevalier et vos cours"
+        subtitle="Accédez à votre espace chevalier et à vos entraînements"
       />
 
       {debt > 0 && (

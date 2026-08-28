@@ -1,5 +1,5 @@
 -- =============================================================================
---  ÉCOLE PRIVÉE — SCHÉMA COMPLET SUPABASE
+--  ORDRE DES CHEVALIERS — SCHÉMA COMPLET SUPABASE
 -- =============================================================================
 --
 --  Ce fichier est le SEUL script à exécuter sur un projet Supabase neuf.
@@ -11,8 +11,8 @@
 --
 --   1. Les extensions (pgcrypto : c'est lui qui chiffre les mots de passe).
 --   2. `public.profiles` — le pont entre `auth.users` et les fiches métier.
---   3. LE CATALOGUE DES DROITS : `app_pages` (les 17 écrans) et
---      `app_page_actions` (les 79 boutons), recopiés de `lib/permissions.ts`.
+--   3. LE CATALOGUE DES DROITS : `app_pages` (les 16 écrans) et
+--      `app_page_actions` (les 85 boutons), recopiés de `lib/permissions.ts`.
 --      C'est la table de vérité que l'écran « Droits d'accès » présente.
 --   4. Les 40 tables métier — une par collection du magasin (`lib/store/data.ts`),
 --      avec TOUTES leurs relations.
@@ -21,7 +21,7 @@
 --   7. LES COMPTES : créer l'administrateur, créer un travailleur, changer un
 --      mot de passe — le tout DIRECTEMENT dans `auth.users`, pour que la
 --      connexion Supabase normale (email + mot de passe) fonctionne.
---   8. Les buckets de stockage (`logos`, `subjects`) et leurs politiques.
+--   8. Le bucket de stockage `logos` et ses politiques.
 --
 --  UNE CONVENTION IMPORTANTE : LES DATES SONT DU TEXTE.
 --
@@ -97,7 +97,7 @@ comment on column public.profiles.entity_id is 'La fiche métier que ce compte p
 -- =============================================================================
 --
 --  CE QUE CES DEUX TABLES SONT : la liste complète de ce qu'un travailleur peut
---  se voir ouvrir. 17 écrans, 89 boutons. C'est exactement le contenu de
+--  se voir ouvrir. 16 écrans, 85 boutons. C'est exactement le contenu de
 --  `lib/permissions.ts` — l'application le lit depuis son code (pour ne pas
 --  faire un aller-retour réseau avant de dessiner un bouton), et la base le
 --  garde ici pour que les droits stockés soient VÉRIFIABLES et que la RLS
@@ -135,28 +135,27 @@ create table if not exists public.app_page_actions (
   primary key (page_key, action_id)
 );
 
-comment on table public.app_pages is 'Les 17 écrans de l''application, dans l''ordre de la barre latérale.';
-comment on table public.app_page_actions is 'Les 89 boutons, écran par écran. Clé stockée : « écran:action ».';
+comment on table public.app_pages is 'Les 16 écrans de l''application, dans l''ordre de la barre latérale.';
+comment on table public.app_page_actions is 'Les 85 boutons, écran par écran. Clé stockée : « écran:action ».';
 
 -- ---- Les écrans -------------------------------------------------------------
 insert into public.app_pages (key, position, emoji, label, href, hint) values
   ('dashboard', 1, '📊', 'Tableau de bord', '/dashboard', 'Les emplois du temps du jour, les feuilles de présence et la caisse.'),
-  ('classes', 2, '🏫', 'Classes', '/classes', 'Les niveaux, les classes et leurs catégories.'),
-  ('planner', 3, '📅', 'Emplois du temps', '/planner', 'La grille des créneaux, les séances libres et les salles.'),
-  ('subscriptions', 4, '🎫', 'Tarifs & abonnements', '/subscriptions', 'Le prix de la séance et du mois, emploi du temps par emploi du temps.'),
-  ('students', 5, '🎓', 'Élèves', '/students', 'Les fiches des élèves, leurs inscriptions, leurs paiements et leurs dettes.'),
+  ('classes', 2, '🛡️', 'Catégories', '/classes', 'Les catégories de l''Ordre et la tranche d''âge de chacune.'),
+  ('planner', 3, '📅', 'Emplois du temps', '/planner', 'La grille des créneaux, les séances libres et les arènes.'),
+  ('subscriptions', 4, '🎫', 'Cartes & tarifs', '/subscriptions', 'Le prix de la séance et de la carte, emploi du temps par emploi du temps.'),
+  ('students', 5, '⚔️', 'Chevaliers', '/students', 'Les fiches des chevaliers, leurs inscriptions, leurs paiements et leurs dettes.'),
   ('attendance', 6, '✅', 'Présences', '/attendance', 'Les feuilles de présence et l''historique des pointages.'),
-  ('teachers', 7, '👨‍🏫', 'Enseignants', '/teachers', 'Les fiches des enseignants, leurs parts et leur paie.'),
-  ('subjects', 8, '📄', 'Matières & cours', '/subjects', 'Les supports de cours publiés aux élèves.'),
-  ('workers', 9, '👥', 'Travailleurs', '/workers', 'Le personnel : métiers, comptes, droits, acomptes, absences et paie.'),
-  ('independent', 10, '🧩', 'Séances libres', '/independent', 'Les séances vendues à l''unité et les séances de groupe.'),
+  ('teachers', 7, '🏅', 'Entraîneurs', '/teachers', 'Les fiches des entraîneurs, leurs parts et leur paie.'),
+  ('workers', 9, '💼', 'Personnel', '/workers', 'Le personnel : métiers, comptes, droits, acomptes, absences et paie.'),
+  ('independent', 10, '🚩', 'Séances libres', '/independent', 'Les séances vendues à l''unité et les sorties libres de groupe.'),
   ('parents', 11, '👨‍👩‍👧', 'Parents', '/parents', 'Les fiches des parents et leurs comptes.'),
-  ('announcements', 12, '📢', 'Annonces', '/announcements', 'Les annonces publiées aux élèves et aux parents.'),
-  ('expenses', 13, '🧾', 'Dépenses', '/expenses', 'Les dépenses de l''école et leurs catégories.'),
-  ('analytics', 14, '📈', 'Statistiques', '/analytics', 'L''affluence des élèves par classe et par enseignant.'),
-  ('cash', 15, '💵', 'Caisse', '/cash', 'Les mouvements de caisse : dépôts, retraits, dépenses.'),
-  ('reports', 16, '💰', 'Rapports', '/reports', 'Le bilan de l''école sur une période. Cet écran se consulte ; il n''écrit rien.'),
-  ('settings', 17, '⚙️', 'Paramètres', '/settings', 'L''établissement, la sécurité, WhatsApp et les sauvegardes.')
+  ('announcements', 12, '📢', 'Annonces', '/announcements', 'Les annonces publiées aux chevaliers et aux parents.'),
+  ('expenses', 13, '🧾', 'Dépenses', '/expenses', 'Les dépenses du club et leurs catégories.'),
+  ('analytics', 14, '📈', 'Statistiques', '/analytics', 'L''affluence des chevaliers par catégorie et par entraîneur.'),
+  ('cash', 15, '💵', 'Caisse', '/cash', 'Les mouvements de caisse : dépôts, retraits, dépenses — et leurs rubriques.'),
+  ('reports', 16, '💰', 'Rapports', '/reports', 'Le bilan du club sur une période. Cet écran se consulte ; il n''écrit rien.'),
+  ('settings', 17, '⚙️', 'Paramètres', '/settings', 'Le club, la sécurité, WhatsApp et les sauvegardes.')
 on conflict (key) do update set
   position = excluded.position,
   emoji    = excluded.emoji,
@@ -213,10 +212,6 @@ insert into public.app_page_actions (page_key, action_id, position, label, hint)
   ('teachers', 'absence', 8, 'Enregistrer une absence', null),
   ('teachers', 'expense', 9, 'Porter une dépense', null),
   ('teachers', 'print', 10, 'Imprimer un rapport de paie', null),
-  ('subjects', 'create', 1, 'Publier un support', null),
-  ('subjects', 'view', 2, 'Voir un support', null),
-  ('subjects', 'delete', 3, 'Supprimer un support', null),
-  ('subjects', 'bulk_delete', 4, 'Suppression groupée', null),
   ('workers', 'create', 1, 'Créer un travailleur', null),
   ('workers', 'view', 2, 'Voir la fiche d''un travailleur', null),
   ('workers', 'edit', 3, 'Modifier un travailleur', null),
@@ -368,11 +363,20 @@ create table if not exists public.salles (
   created_by_role  text
 );
 
+-- UNE CATÉGORIE DE L'ORDRE — ce que l'application appelait « une classe ».
+--
+-- Elle porte un nom, une description et la TRANCHE D'ÂGE qu'elle accueille.
+-- Les colonnes d'avant (`type`, `cours_level`, `year`, `formation_level`) sont
+-- GARDÉES et rendues facultatives : des fiches les portent déjà, et le
+-- périmètre des droits d'entrée réglé par niveau les lit encore. Elles ne sont
+-- simplement plus DEMANDÉES à la création.
 create table if not exists public.classes (
   id               text primary key,
-  type             text not null default 'cours' check (type in ('cours','formation')),
+  type             text check (type in ('cours','formation')),
   name             text not null,
   description      text not null default '',
+  age_from         integer check (age_from is null or age_from between 0 and 120),
+  age_to           integer check (age_to is null or age_to between 0 and 120),
   cours_level      text check (cours_level in ('maternelle','primaire','moyen','lycee')),
   year             text,
   category_id      text references public.class_categories (id) on delete set null,
@@ -856,18 +860,6 @@ create table if not exists public.module_absence_rules (
 );
 
 -- ---- La vie de l'école ------------------------------------------------------
-create table if not exists public.subjects (
-  id               text primary key,
-  title            text not null default '',
-  description      text not null default '',
-  image            text,
-  session_id       text references public.schedule_sessions (id) on delete cascade,
-  date             text not null default '',
-  created_by       text,
-  created_by_name  text,
-  created_by_role  text
-);
-create index if not exists subjects_session_idx on public.subjects (session_id);
 
 create table if not exists public.announcements (
   id                text primary key,
@@ -919,6 +911,23 @@ create index if not exists expenses_category_idx on public.expenses (category_id
 create index if not exists expenses_date_idx     on public.expenses (date);
 
 -- `amount` est SIGNÉ : un retrait, une dépense ou une paie sont négatifs.
+-- LES RUBRIQUES DE CAISSE — « Équipement », « Entretien des arènes ».
+--
+-- Elles rangent les dépôts et les retraits manuels pour que la Caisse et les
+-- Rapports puissent en donner le total rubrique par rubrique. Elles se créent
+-- et se suppriment depuis le formulaire de saisie lui-même.
+create table if not exists public.cash_categories (
+  id               text primary key,
+  name             text not null,
+  color            text,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create unique index if not exists cash_categories_name_key
+  on public.cash_categories (lower(name));
+
 create table if not exists public.cash_transactions (
   id               text primary key,
   type             text not null check (type in (
@@ -927,11 +936,15 @@ create table if not exists public.cash_transactions (
   amount           numeric not null default 0,
   date             text not null default '',
   description      text not null default '',
+  -- `on delete set null` : supprimer une rubrique ne doit jamais faire
+  -- disparaître un mouvement de caisse. Il redevient « non classé ».
+  category_id      text references public.cash_categories (id) on delete set null,
   created_by       text,
   created_by_name  text,
   created_by_role  text
 );
-create index if not exists cash_date_idx on public.cash_transactions (date);
+create index if not exists cash_date_idx     on public.cash_transactions (date);
+create index if not exists cash_category_idx on public.cash_transactions (category_id);
 
 create table if not exists public.notifications (
   id               text primary key,
@@ -1048,7 +1061,7 @@ as $$
          from public.reception_staff w
         where w.id = public.my_entity_id() and w.nav_keys is not null),
       array['dashboard','classes','planner','subscriptions','students','attendance',
-            'subjects','independent','parents','announcements','expenses','settings']
+            'independent','parents','announcements','expenses','settings']
     )
     else array[]::text[]
   end;
@@ -1168,7 +1181,6 @@ begin
       ('worker_job_roles',            any_signed,                           $w$public.can_write(array['workers'])$w$),
       ('teachers',                    any_signed,                           $w$public.can_write(array['teachers'])$w$),
       ('announcements',               any_signed,                           $w$public.can_write(array['announcements'])$w$),
-      ('subjects',                    any_signed,                           $w$public.can_write(array['subjects'])$w$),
       ('coursework',                  any_signed,                           $w$public.can_write(array['teachers','planner'])$w$),
 
       -- Les élèves et leur scolarité : le comptoir et l'enseignant voient tout,
@@ -1236,6 +1248,7 @@ begin
 
       -- La caisse et les dépenses : le comptoir seul.
       ('expense_categories',          staff_read,                           $w$public.can_write(array['expenses'])$w$),
+      ('cash_categories',             staff_read,                           $w$public.can_write(array['cash','dashboard','expenses'])$w$),
       ('expenses',                    staff_read,                           $w$public.can_write(array['expenses','dashboard'])$w$),
       -- La caisse est alimentée par presque tous les écrans qui encaissent.
       ('cash_transactions',           staff_read,
@@ -1759,15 +1772,16 @@ grant execute on function public.can_action(text, text) to authenticated;
 --  8. LE STOCKAGE DES IMAGES
 -- =============================================================================
 --
---  DEUX DÉPÔTS, ET RIEN D'AUTRE :
+--  UN SEUL DÉPÔT :
 --
---    `logos`    — le logo de l'établissement, affiché sur la page de connexion,
---                 dans la barre latérale et en tête de chaque document imprimé.
---    `subjects` — les illustrations des supports de cours publiés aux élèves.
+--    `logos` — l'écusson du club, affiché sur la page de connexion, dans la
+--              barre latérale et en tête de chaque document imprimé.
 --
---  ILS SONT PUBLICS EN LECTURE, et c'est voulu : l'application range l'URL
---  publique du fichier dans la ligne (`schools.logo`, `subjects.image`) et la
---  rend telle quelle dans un `<img>`. Une page de connexion doit pouvoir
+--  (`subjects` a disparu avec l'écran « Sujets & exercices ».)
+--
+--  IL EST PUBLIC EN LECTURE, et c'est voulu : l'application range l'URL
+--  publique du fichier dans la ligne (`schools.logo`) et la rend telle quelle
+--  dans un `<img>`. Une page de connexion doit pouvoir
 --  afficher le logo AVANT que quiconque soit connecté, et un document imprimé
 --  doit pouvoir l'afficher sans jeton.
 --
@@ -1778,9 +1792,7 @@ grant execute on function public.can_action(text, text) to authenticated;
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
   ('logos',    'logos',    true, 5242880,
-   array['image/png','image/jpeg','image/jpg','image/webp','image/gif','image/svg+xml']),
-  ('subjects', 'subjects', true, 10485760,
-   array['image/png','image/jpeg','image/jpg','image/webp','image/gif'])
+   array['image/png','image/jpeg','image/jpg','image/webp','image/gif','image/svg+xml'])
 on conflict (id) do update set
   public             = excluded.public,
   file_size_limit    = excluded.file_size_limit,
@@ -1802,27 +1814,27 @@ begin
 
   create policy "app images are publicly readable" on storage.objects
     for select to public
-    using (bucket_id in ('logos', 'subjects'));
+    using (bucket_id = 'logos');
 
   create policy "staff upload app images" on storage.objects
     for insert to authenticated
     with check (
-      bucket_id in ('logos', 'subjects')
-      and (public.can_write(array['settings','subjects']) or public.is_teacher())
+      bucket_id = 'logos'
+      and public.can_write(array['settings'])
     );
 
   create policy "staff update app images" on storage.objects
     for update to authenticated
     using (
-      bucket_id in ('logos', 'subjects')
-      and (public.can_write(array['settings','subjects']) or public.is_teacher())
+      bucket_id = 'logos'
+      and public.can_write(array['settings'])
     );
 
   create policy "staff delete app images" on storage.objects
     for delete to authenticated
     using (
-      bucket_id in ('logos', 'subjects')
-      and (public.can_write(array['settings','subjects']) or public.is_teacher())
+      bucket_id = 'logos'
+      and public.can_write(array['settings'])
     );
 exception
   when insufficient_privilege then
@@ -1875,7 +1887,7 @@ grant select on public.schools to anon;
 --    select tablename, rowsecurity from pg_tables
 --     where schemaname = 'public' order by tablename;
 --
---    -- Le catalogue des droits (17 écrans, 89 boutons)
+--    -- Le catalogue des droits (16 écrans, 85 boutons)
 --    select page_key, action_id, permission_key from public.app_permission_catalog;
 --
 --    -- Les comptes existants, et la fiche que chacun pilote
@@ -1889,5 +1901,5 @@ select
   (select count(*) from public.app_pages)        as ecrans,
   (select count(*) from public.app_page_actions) as boutons,
   (select count(*) from pg_tables where schemaname = 'public') as tables,
-  (select count(*) from storage.buckets where id in ('logos','subjects')) as buckets,
+  (select count(*) from storage.buckets where id = 'logos') as buckets,
   public.admin_exists() as administrateur_existe;

@@ -28,7 +28,7 @@ import {
 import type { ReceptionStaff } from "@/lib/types";
 import { workerName } from "@/lib/workers";
 
-import { navIcon } from "@/lib/icons";
+import { NavIcon } from "@/components/ui/NavIcon";
 export function WorkerPermissionsModal({
   worker,
   onClose,
@@ -196,7 +196,7 @@ export function WorkerPermissionsModal({
                       onClick={() => setFocused(p.key)}
                       className="flex min-w-0 flex-1 items-center gap-2 text-start"
                     >
-                      {(() => { const I = navIcon(p.key); return <I className="h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.9} aria-hidden="true" />; })()}
+                      <NavIcon navKey={p.key} className="h-4 w-4 shrink-0 text-accent-ink" />
                       <span className="min-w-0 flex-1">
                         <span
                           className={`block truncate text-xs font-semibold ${
@@ -226,7 +226,7 @@ export function WorkerPermissionsModal({
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-canvas px-3 py-2">
               <div className="min-w-0">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                  {(() => { const I = navIcon(page.key); return <I className="h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.9} aria-hidden="true" />; })()}
+                  <NavIcon navKey={page.key} className="h-4 w-4 shrink-0 text-accent-ink" />
                   {page.label}
                 </span>
                 <span className="mt-0.5 block text-[10px] leading-snug text-muted">{page.hint}</span>

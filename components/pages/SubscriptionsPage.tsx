@@ -1152,7 +1152,7 @@ export function SubscriptionsPage() {
     <div>
       <PageHeader
         icon={Ticket}
-        title="Abonnements"
+        title="Cartes & tarifs"
         subtitle="Un tarif par cours (à la séance et/ou à la carte), appliqué à tous ses groupes — et les périodes offertes"
       />
 

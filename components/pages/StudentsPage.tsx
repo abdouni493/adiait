@@ -1502,7 +1502,7 @@ export function StudentsPage() {
   return (
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <PageHeader icon={Swords} title="Chevaliers" subtitle="Gérer les inscriptions et abonnements des chevaliers" />
+        <PageHeader icon={Swords} title="Chevaliers" subtitle="Gérer les inscriptions et les cartes des chevaliers" />
 
         <div className="flex items-center gap-2">
           <Button

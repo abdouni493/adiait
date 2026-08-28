@@ -2875,7 +2875,7 @@ export function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         icon={Wallet}
-        title="Rapports Financiers"
+        title="Rapports financiers"
         subtitle="Chaque interface de l'application, dans le détail : les chiffres, leur calcul, et la liste derrière chaque chiffre"
       />
 

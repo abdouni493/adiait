@@ -482,7 +482,7 @@ function AdminDashboard() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <PageHeader
           icon={Home}
-          title="Tableau de Bord"
+          title="Tableau de bord"
           subtitle="Emplois du temps du jour, fiches de présence et caisse"
         />
         <div className="flex flex-wrap gap-2">

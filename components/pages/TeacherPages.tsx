@@ -300,7 +300,7 @@ function TeacherClassesView({ teacher }: { teacher: Teacher }) {
       <PageHeader
         icon={Users}
         title="Mes catégories & groupes"
-        subtitle="Consultez la liste des chevaliers inscrits à chacun de vos cours"
+        subtitle="Les chevaliers inscrits à chacun de vos groupes"
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -391,7 +391,7 @@ function TeacherAnnouncementsView({ announcements }: { announcements: any[] }) {
 
   return (
     <div className="space-y-6 text-xs">
-      <PageHeader icon={Megaphone} title="Annonces pour le corps Entraîneur" subtitle="Informations du club importantes" />
+      <PageHeader icon={Megaphone} title="Annonces pour le corps Entraîneur" subtitle="Informations importantes du club" />
 
       {activeAnn.length === 0 ? (
         <Card className="p-8 text-center bg-canvas/30 border border-line">
