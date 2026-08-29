@@ -38,6 +38,7 @@ import { PresenceSheet } from "@/components/attendance/PresenceSheet";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
 import { StudentSituationModal } from "@/components/students/StudentSituationModal";
 import { WorkerPaymentsAlert } from "@/components/dashboard/WorkerPaymentsAlert";
+import { AccountRequestsAlert } from "@/components/accounts/AccountRequests";
 import { AccessDenied } from "@/components/layout/AccessDenied";
 import { useAccessRights, useCan } from "@/lib/usePermissions";
 import { canSeePage } from "@/lib/permissions";
@@ -107,8 +108,18 @@ function AdminDashboard() {
   const { addToast } = useToast();
   const can = useCan("dashboard");
   const { user } = useSession();
+  const rights = useAccessRights();
   /** La cloche des encaissements des travailleurs ne regarde que la direction. */
   const isAdmin = user?.role === "admin";
+  /**
+   * QUI VOIT LES COMPTES EN ATTENTE.
+   *
+   * Les traiter écrit dans les fiches des chevaliers et des parents : proposer
+   * le bouton à un travailleur qui n'a ni l'un ni l'autre lui offrirait un
+   * écran dont chaque action serait refusée par la base.
+   */
+  const canReviewAccounts =
+    canSeePage(rights, "students") || canSeePage(rights, "parents");
 
   const isoOf = (d: Date) => d.toLocaleDateString("fr-CA");
   const todayIso = isoOf(new Date());
@@ -487,6 +498,12 @@ function AdminDashboard() {
         />
         <div className="flex flex-wrap gap-2">
           {isAdmin && <WorkerPaymentsAlert />}
+          {/* LES COMPTES QUE LES FAMILLES ONT CRÉÉS ELLES-MÊMES.
+              Ils se connectent déjà, mais ne voient qu'un écran d'attente tant
+              que personne ne les a rattachés à une fiche. Le tableau de bord est
+              le seul écran qu'on ouvre tous les matins : c'est donc ici que
+              l'alerte doit sonner, ou elle ne sonnera jamais. */}
+          {canReviewAccounts && <AccountRequestsAlert />}
           {can("create_student") && (
             <Button onClick={() => openCreateFor([])} className="gap-2">
               <UserPlus className="h-4 w-4" /> Nouveau chevalier

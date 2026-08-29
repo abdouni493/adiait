@@ -19,7 +19,7 @@ fois. Un seul fichier, idempotent — le relancer sur une base déjà installée
 | | |
 | --- | --- |
 | **40 tables métier** | une par collection du magasin, avec toutes leurs relations |
-| **le catalogue des droits** | les 17 écrans et les 89 boutons de l'application (`app_pages`, `app_page_actions`) |
+| **le catalogue des droits** | les 15 écrans et les 84 boutons de l'application (`app_pages`, `app_page_actions`) |
 | **la RLS** | une politique de lecture et une d'écriture par table |
 | **les fonctions de comptes** | créer, renommer, supprimer un compte **dans `auth.users`** |
 | **deux buckets** | `logos` et `subjects`, publics en lecture |
@@ -80,7 +80,7 @@ emails, et `login_email()` traduit l'un en l'autre avant une connexion tout à f
 Un travailleur qui se connecte ne voit pas « l'écran de la réception » : il voit **exactement** ce
 que l'administration a coché pour lui.
 
-- **Travailleurs → Droits d'accès** présente à gauche les 17 écrans, et à droite les boutons de
+- **Travailleurs → Droits d'accès** présente à gauche les 15 écrans, et à droite les boutons de
   l'écran sélectionné. Cocher un écran n'ouvre **aucun** bouton : on peut très bien consulter les
   élèves sans pouvoir en créer un.
 - Ce qui est coché est stocké sur sa fiche : `nav_keys` (les écrans) et `action_keys` (les boutons,
@@ -167,7 +167,14 @@ présence en consomme une.
 
 ### Abonnements
 
-Le prix se règle **par séance** dans **Abonnements** (`pricePerSession`). Un cours peut en plus être
+> **L'écran « Cartes & tarifs » n'existe plus.** Le tarif d'un emploi du temps se règle désormais
+> **sur l'emploi du temps lui-même**, au moment où on le crée ou qu'on le modifie (écran *Emplois
+> du temps*) — c'est là qu'on saisit les séances de la carte, son prix, la part du club et, depuis
+> cette version, l'**engagement**. Les **périodes offertes** ont rejoint *Paramètres → Périodes
+> offertes*, et le **périmètre des droits d'entrée** *Paramètres → Établissement*. Tout ce qui suit
+> reste vrai du modèle de données ; seul l'endroit où on le saisit a changé.
+
+Le prix se règle **par séance** (`pricePerSession`). Un cours peut en plus être
 vendu **au mois** : on saisit le nombre de séances comprises dans le mois (`monthlySeances`) et le
 prix de ce mois (`monthlyPrice`, pré-rempli avec le total calculé `séances × prix unitaire` et
 librement modifiable — un pack est souvent moins cher que ses séances à l'unité). Les formations

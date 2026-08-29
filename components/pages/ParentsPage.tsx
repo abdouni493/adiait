@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { AccountRequestsPanel, usePendingRequests } from "@/components/accounts/AccountRequests";
 import { Check, Edit, Eye, MessageCircle, MoreVertical, Phone, Plus, Search, Send, Trash2, Users } from "lucide-react";
 import type { Parent, Student } from "@/lib/types";
 import {
@@ -45,6 +46,18 @@ export function ParentsPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  /** Le second numéro : celui qu'on compose quand le premier ne répond pas. */
+  const [phone2, setPhone2] = useState("");
+  /**
+   * SA DATE DE NAISSANCE — facultative, mais elle manquait.
+   *
+   * Un parent est une personne, pas un simple numéro de téléphone accroché à
+   * des enfants : sa fiche porte désormais sa date de naissance, comme celle
+   * d'un chevalier ou d'un entraîneur.
+   */
+  const [birthDate, setBirthDate] = useState("");
+  /** Son adresse — facultative, elle ne commande rien. */
+  const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
@@ -105,6 +118,9 @@ export function ParentsPage() {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       phone: phone.trim(),
+      phone2: phone2.trim() || undefined,
+      birthDate: birthDate || undefined,
+      address: address.trim() || undefined,
       email: email.trim(),
       childIds: selectedChildIds,
     };
@@ -169,6 +185,9 @@ export function ParentsPage() {
       firstName,
       lastName,
       phone,
+      phone2: phone2.trim() || undefined,
+      birthDate: birthDate || undefined,
+      address: address.trim() || undefined,
       email,
     });
 
@@ -215,6 +234,9 @@ export function ParentsPage() {
     setFirstName("");
     setLastName("");
     setPhone("");
+    setPhone2("");
+    setBirthDate("");
+    setAddress("");
     setEmail("");
     setPassword("");
     setSelectedChildIds([]);
@@ -227,6 +249,9 @@ export function ParentsPage() {
     setFirstName(p.firstName);
     setLastName(p.lastName);
     setPhone(p.phone);
+    setPhone2(p.phone2 ?? "");
+    setBirthDate(p.birthDate ?? "");
+    setAddress(p.address ?? "");
     setEmail(p.email);
     setPassword("");
     setSelectedChildIds(p.childIds);
@@ -290,6 +315,9 @@ export function ParentsPage() {
     }
   };
 
+  /** Les comptes de PARENTS créés depuis la page de connexion, en attente. */
+  const pendingParents = usePendingRequests("parent");
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -300,6 +328,20 @@ export function ParentsPage() {
           </Button>
         )}
       </div>
+
+      {/* ---- LES COMPTES DE PARENTS CRÉÉS DEPUIS LA PAGE DE CONNEXION.
+           Un parent qui s'inscrit à 22 h attend qu'on le rattache à sa fiche —
+           ou qu'on la crée, avec ses fils. Sa demande s'affiche donc AU-DESSUS
+           de la liste, et s'en retire d'elle-même une fois traitée. */}
+      {pendingParents.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-warning/40 bg-warning/5 p-3">
+          <AccountRequestsPanel
+            kind="parent"
+            title="Comptes parents en attente d'activation"
+            emptyHint="Aucun parent n'a créé de compte depuis la page de connexion."
+          />
+        </div>
+      )}
 
       {/* Search panel */}
       <div className="relative mb-6">
@@ -443,6 +485,29 @@ export function ParentsPage() {
             </div>
 
             <div>
+              <label className="block text-xs font-semibold text-muted mb-1">
+                Deuxième téléphone (optionnel)
+              </label>
+              <Input value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="0661 98 76 54" />
+            </div>
+
+            {/* SA DATE DE NAISSANCE. Un parent est une personne : sa fiche la
+                porte, comme celle d'un chevalier ou d'un entraîneur. */}
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1">
+                Date de naissance
+              </label>
+              <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1">
+                Adresse (optionnel)
+              </label>
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Cité, rue, ville" />
+            </div>
+
+            <div>
               <label className="block text-xs font-semibold text-muted mb-1">Email (Identifiant)</label>
               <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="parent@ecole.com" />
             </div>
@@ -514,6 +579,24 @@ export function ParentsPage() {
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
+              <label className="block text-xs font-semibold text-muted mb-1">
+                Deuxième téléphone (optionnel)
+              </label>
+              <Input value={phone2} onChange={(e) => setPhone2(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1">
+                Date de naissance
+              </label>
+              <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1">
+                Adresse (optionnel)
+              </label>
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+            <div>
               <label className="block text-xs font-semibold text-muted mb-1 font-sans">Email</label>
               <Input value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
@@ -579,6 +662,17 @@ export function ParentsPage() {
               <div>
                 <span className="text-muted block font-semibold mb-0.5 font-sans">Téléphone</span>
                 <span className="font-semibold text-ink">{selectedParent.phone}</span>
+                {selectedParent.phone2 && (
+                  <span className="block text-[10px] text-muted">2e : {selectedParent.phone2}</span>
+                )}
+              </div>
+              <div>
+                <span className="text-muted block font-semibold mb-0.5">Naissance</span>
+                <span className="font-semibold text-ink">{selectedParent.birthDate || "—"}</span>
+              </div>
+              <div>
+                <span className="text-muted block font-semibold mb-0.5">Adresse</span>
+                <span className="font-semibold text-ink">{selectedParent.address || "—"}</span>
               </div>
               <div>
                 <span className="text-muted block font-semibold mb-0.5">Email</span>

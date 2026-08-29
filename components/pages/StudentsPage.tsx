@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { AccountRequestsPanel, usePendingRequests } from "@/components/accounts/AccountRequests";
 import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, MessageCircle, MoreVertical, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Swords, Trash2, User, Wallet } from "lucide-react";
 import type {
   AbsencePenalty,
@@ -1499,6 +1500,9 @@ export function StudentsPage() {
     printHtmlDocument(html);
   };
 
+  /** Les comptes de CHEVALIERS créés depuis la page de connexion, en attente. */
+  const pendingStudents = usePendingRequests("student");
+
   return (
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -1542,6 +1546,21 @@ export function StudentsPage() {
           )}
         </div>
       </div>
+
+      {/* ---- LES COMPTES DE CHEVALIERS CRÉÉS DEPUIS LA PAGE DE CONNEXION.
+           Ils ne sont pas encore des fiches : ce sont des demandes. Elles
+           s'affichent AU-DESSUS de la liste, parce qu'un compte qui attend est
+           une personne qui attend — et elles disparaissent d'elles-mêmes dès
+           qu'elles sont traitées. */}
+      {pendingStudents.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-warning/40 bg-warning/5 p-3">
+          <AccountRequestsPanel
+            kind="student"
+            title="Comptes chevaliers en attente d'activation"
+            emptyHint="Aucun chevalier n'a créé de compte depuis la page de connexion."
+          />
+        </div>
+      )}
 
       {/* Filter panel */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-surface border border-line p-3 rounded-2xl">

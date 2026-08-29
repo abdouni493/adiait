@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Calendar as CalendarIcon, CalendarDays, Clock, Edit, Eye, Filter, MapPin, Plus, Printer, Search, Sparkles, Trash2, User, Users, X } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Clock, Edit, Eye, Filter, LayoutGrid, MapPin, Plus, Printer, Search, ShieldCheck, Sparkles, Trash2, User, Users, X } from "lucide-react";
 import type { DayTime, ScheduleSession, Day, Subscription, Teacher } from "@/lib/types";
 import {
   activeSessions,
@@ -19,6 +19,7 @@ import {
   monthlyPriceOf,
   schoolMonthShareOf,
   schoolPerSeanceOf,
+  groupsOfClass,
   isMultiLevelSession,
   sessionClassIds,
   sessionGroupIds,
@@ -28,6 +29,7 @@ import {
   sessionTimeLabel,
   sessionTimesOn,
   soldFor,
+  unassignedGroups,
   teacherMonthShareOf,
   teacherPerSeanceOf,
 } from "@/lib/helpers";
@@ -206,6 +208,21 @@ export function PlannerPage() {
   const [schoolShare, setSchoolShare] = useState<number>(0);
 
   /**
+   * L'ENGAGEMENT — ce qu'on verse pour REJOINDRE ce créneau.
+   *
+   * Ce n'est ni la cotisation (qui se paie carte après carte) ni les droits
+   * d'entrée du club (qui se règlent une fois pour toutes, tous emplois
+   * confondus) : c'est le frais propre à CET emploi du temps — la tenue,
+   * l'équipement, l'assurance du groupe. Il est porté au compte du chevalier
+   * le jour de son inscription, sous la forme d'un frais ordinaire qu'il
+   * règle en une ou plusieurs fois.
+   *
+   * 0 = ce créneau ne demande aucun engagement, et rien n'est écrit.
+   */
+  const [engagementFee, setEngagementFee] = useState<number>(0);
+  const [engagementDescription, setEngagementDescription] = useState<string>("");
+
+  /**
    * LE PRIX D'UNE SÉANCE GARDE SES DÉCIMALES.
    *
    * Une carte à 4 000 DA sur 3 séances vaut 1 333,33 DA la séance — pas 1 333. Et
@@ -224,6 +241,8 @@ export function PlannerPage() {
     setMonthSeances(0);
     setMonthPrice(0);
     setSchoolShare(0);
+    setEngagementFee(0);
+    setEngagementDescription("");
   };
 
   /** Un montant saisi à la main : les décimales sont acceptées (1 333,33). */
@@ -232,14 +251,52 @@ export function PlannerPage() {
   /** Writes the tariff of the emploi du temps (and of every group of the same
    *  cours) once the créneau itself is saved. */
   const savePricing = (sessionId: string) => {
-    if (monthSeances <= 0 || monthPrice <= 0) return;
+    /**
+     * L'ENGAGEMENT SEUL NE FABRIQUE PAS DE TARIF.
+     *
+     * Un emploi du temps sans tarif n'entre pas au catalogue d'inscription —
+     * c'est ce qui empêche d'y inscrire quelqu'un à un prix que personne n'a
+     * fixé. Lui écrire un tarif à 0 DA pour loger l'engagement l'y ferait
+     * entrer par la bande, à zéro dinar la séance. On ne modifie donc
+     * l'engagement seul que sur un emploi qui a DÉJÀ son tarif.
+     */
+    if (monthSeances <= 0 || monthPrice <= 0) {
+      const existing = subscriptions.find((su) => su.sessionId === sessionId);
+      if (existing) {
+        void setSubscriptionPrice(sessionId, existing.pricePerSession, {
+          monthlySeances: existing.monthlySeances,
+          monthlyPrice: existing.monthlyPrice,
+          schoolMonthShare: existing.schoolMonthShare,
+          teacherPerSeance: existing.teacherPerSeance,
+          engagementFee,
+          engagementDescription: engagementDescription.trim(),
+        });
+      }
+      return;
+    }
     void setSubscriptionPrice(sessionId, pricePerSeance, {
       monthlySeances: monthSeances,
       monthlyPrice: monthPrice,
       schoolMonthShare: Math.min(schoolShare, monthPrice),
       teacherPerSeance,
+      engagementFee,
+      engagementDescription: engagementDescription.trim(),
     });
   };
+
+  /**
+   * L'ATELIER DES GROUPES — ouvert sans créer le moindre emploi du temps.
+   *
+   * On y choisit une catégorie, on lit les groupes qu'elle possède déjà, on en
+   * ajoute, on en renomme, on en retire. Rien d'autre : ni horaire, ni arène,
+   * ni entraîneur. C'est le travail de début de saison, et il n'a aucune raison
+   * d'exiger qu'on invente un créneau pour se faire.
+   */
+  const [isGroupsOpen, setIsGroupsOpen] = useState(false);
+  const [manageClassId, setManageClassId] = useState("");
+  const [manageGroupName, setManageGroupName] = useState("");
+  const [renamingGroupId, setRenamingGroupId] = useState("");
+  const [renameGroupName, setRenameGroupName] = useState("");
 
   // Inline creations
   const [newModuleName, setNewModuleName] = useState("");
@@ -275,7 +332,14 @@ export function PlannerPage() {
   // "Vue" filter: all timings / regular courses only / séances libres only
   const [kindFilter, setKindFilter] = useState<"all" | "cours" | "open">("all");
 
-  // Helper: consistent coloring by module ID
+  /**
+   * LA COULEUR D'UN CRÉNEAU.
+   *
+   * Elle se tirait du MODULE, qui n'est plus demandé : tous les nouveaux
+   * emplois se seraient donc peints de la même couleur. Elle se tire désormais
+   * de l'identifiant de l'emploi lui-même — stable d'un rendu à l'autre et
+   * d'un jour à l'autre, ce qui est tout ce qu'on lui demande.
+   */
   const getSessionColor = (modId: string) => {
     let hash = 0;
     for (let i = 0; i < modId.length; i++) {
@@ -308,6 +372,32 @@ export function PlannerPage() {
     const t = teachers.find((te) => te.id === tid);
     return t ? `${t.firstName} ${t.lastName}` : "-";
   };
+
+  /**
+   * LE NOM D'UN CRÉNEAU, quand personne ne lui en a donné.
+   *
+   * Le nom saisi l'emporte toujours. À défaut, le créneau se nomme par ce qui
+   * le définit vraiment maintenant que le module a disparu du formulaire : sa
+   * ou ses CATÉGORIES, et ses GROUPES. Les emplois d'avant gardent leur module
+   * comme repli, pour qu'aucune grille déjà remplie ne se vide de ses noms.
+   */
+  const autoTitle = (s: ScheduleSession) => {
+    const cats = sessionClassIds(s)
+      .map((cid) => classes.find((c) => c.id === cid)?.name)
+      .filter(Boolean)
+      .join(" + ");
+    const grps = sessionGroupIds(s).map(getGroupName).filter((n) => n !== "-").join(" · ");
+    const legacy = s.moduleId ? getModuleName(s.moduleId) : "";
+    return (
+      [cats, grps].filter(Boolean).join(" — ") ||
+      (legacy !== "-" ? legacy : "") ||
+      "Emploi du temps"
+    );
+  };
+
+  const sessionTitle = (s: ScheduleSession) =>
+    s.isOpen ? s.title || `Séance Libre — ${autoTitle(s)}` : s.title || autoTitle(s);
+
 
   const DEFAULT_DAY_TIME: DayTime = { startTime: "08:00", endTime: "10:00" };
 
@@ -419,7 +509,7 @@ export function PlannerPage() {
         .filter(({ days }) => days.length > 0)
         .map(({ other, days }) => ({
           sessionId: other.id,
-          label: other.title || getModuleName(other.moduleId),
+          label: sessionTitle(other),
           days,
           timeLabel: days
             .map((d) => {
@@ -458,92 +548,108 @@ export function PlannerPage() {
   const daysWithoutSalle = orderedDays.filter((d) => !(daySalles[d] || salleId));
 
   /**
-   * LE CHOIX DES GROUPES — plusieurs cases à cocher, pas une liste déroulante.
+   * LE CHOIX DES GROUPES — CEUX DE LA CATÉGORIE, et d'elle seule.
    *
-   * Un emploi du temps peut réunir deux demi-groupes sur le même créneau. Le
-   * champ se cherche par le nom quand le club en compte beaucoup, et le premier
-   * groupe coché reste celui que la base garde en colonne `group_id`.
+   * Un groupe appartient désormais à une catégorie : « Groupe A » des 8-10 ans
+   * n'est pas « Groupe A » des 15-18 ans. Le champ ne propose donc plus la
+   * liste entière du club — qui mélangeait des groupes n'ayant rien à faire
+   * ensemble — mais uniquement ceux de la catégorie choisie, et il en crée de
+   * nouveaux DANS cette catégorie.
+   *
+   * Tant qu'aucune catégorie n'est choisie, il n'y a rien à proposer : le champ
+   * le dit, au lieu d'afficher une liste vide qu'on croirait cassée.
    */
   const renderGroupField = () => {
     const q = groupSearch.trim().toLowerCase();
-    const shown = q ? groups.filter((g) => g.name.toLowerCase().includes(q)) : groups;
+    const available = classId ? groupsOfClass(db, classId) : [];
+    const shown = q ? available.filter((g) => g.name.toLowerCase().includes(q)) : available;
     return (
       <div>
         <div className="mb-1 flex items-center justify-between">
           <label className="block text-xs font-semibold text-muted font-sans">
             Groupe(s){" "}
             <span className="text-[10px] font-normal text-muted">
-              — plusieurs groupes possibles
+              — ceux de la catégorie choisie
             </span>
           </label>
           <button
             onClick={() => setShowAddGroup(!showAddGroup)}
-            className="text-xs text-primary hover:underline"
+            disabled={!classId}
+            className="text-xs text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
           >
             + Nouveau groupe
           </button>
         </div>
 
-        {showAddGroup && (
-          <div className="mb-2 flex gap-2">
-            <Input
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              placeholder="Nom du groupe (ex: Groupe C)"
-              className="flex-1"
-            />
-            <Button size="sm" onClick={handleCreateGroup}>
-              Créer
-            </Button>
-          </div>
-        )}
+        {!classId ? (
+          <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] leading-relaxed text-warning">
+            Choisissez d&apos;abord une catégorie : les groupes lui appartiennent, et c&apos;est
+            elle qui décide lesquels sont proposés ici.
+          </p>
+        ) : (
+          <>
+            {showAddGroup && (
+              <div className="mb-2 flex gap-2">
+                <Input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Nom du groupe (ex: Groupe C)"
+                  className="flex-1"
+                />
+                <Button size="sm" onClick={handleCreateGroup}>
+                  Créer
+                </Button>
+              </div>
+            )}
 
-        {groups.length > 6 && (
-          <div className="relative mb-2">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-            <Input
-              value={groupSearch}
-              onChange={(e) => setGroupSearch(e.target.value)}
-              placeholder="Rechercher un groupe…"
-              className="pl-9"
-            />
-          </div>
-        )}
+            {available.length > 6 && (
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                <Input
+                  value={groupSearch}
+                  onChange={(e) => setGroupSearch(e.target.value)}
+                  placeholder="Rechercher un groupe…"
+                  className="pl-9"
+                />
+              </div>
+            )}
 
-        <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line bg-canvas/30 p-2">
-          {shown.length === 0 ? (
-            <p className="p-1.5 text-[11px] italic text-muted">
-              Aucun groupe — créez-en un avec « + Nouveau groupe ».
-            </p>
-          ) : (
-            shown.map((g) => {
-              const picked = groupIds.includes(g.id);
-              const first = groupIds[0] === g.id;
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  onClick={() => toggleGroup(g.id)}
-                  className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
-                    picked
-                      ? "border-primary bg-primary text-white"
-                      : "border-line bg-surface text-ink hover:bg-primary-50"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" /> {g.name}
-                    {first && groupIds.length > 1 && (
-                      <span className="rounded bg-white/25 px-1 py-0.5 text-[8px] font-bold">
-                        principal
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line bg-canvas/30 p-2">
+              {shown.length === 0 ? (
+                <p className="p-1.5 text-[11px] italic text-muted">
+                  Aucun groupe dans cette catégorie — créez-en un avec « + Nouveau groupe ».
+                </p>
+              ) : (
+                shown.map((g) => {
+                  const picked = groupIds.includes(g.id);
+                  const first = groupIds[0] === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => toggleGroup(g.id)}
+                      className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                        picked
+                          ? "border-primary bg-primary text-white"
+                          : "border-line bg-surface text-ink hover:bg-primary-50"
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" /> {g.name}
+                        {first && groupIds.length > 1 && (
+                          <span className="rounded bg-white/25 px-1 py-0.5 text-[8px] font-bold">
+                            principal
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <input type="checkbox" checked={picked} readOnly className="h-3.5 w-3.5" />
-                </button>
-              );
-            })
-          )}
-        </div>
+                      <input type="checkbox" checked={picked} readOnly className="h-3.5 w-3.5" />
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
 
         <p className="mt-1 text-[10px] text-muted">
           {groupIds.length === 0
@@ -588,11 +694,16 @@ export function PlannerPage() {
       };
     });
 
-  /** Crée un groupe et l'affecte tout de suite au niveau qui le demande. */
+  /** Crée un groupe DANS une catégorie précise, et l'y coche aussitôt. */
   const handleCreateGroupForClass = (cid: string) => {
-    if (!newGroupName.trim()) return;
+    if (!newGroupName.trim() || !cid) return;
     const newId = uid("grp");
-    push("groups", { id: newId, name: newGroupName });
+    push("groups", {
+      id: newId,
+      name: newGroupName.trim(),
+      classId: cid,
+      createdAt: new Date().toISOString(),
+    });
     toggleClassGroup(cid, newId);
     setNewGroupName("");
     setShowAddGroup(false);
@@ -600,7 +711,11 @@ export function PlannerPage() {
 
   const renderLevelsField = () => {
     const q = groupSearch.trim().toLowerCase();
-    const shownGroups = q ? groups.filter((g) => g.name.toLowerCase().includes(q)) : groups;
+    /** Les groupes d'UNE catégorie, filtrés par la recherche en cours. */
+    const groupsFor = (cid: string) => {
+      const own = groupsOfClass(db, cid);
+      return q ? own.filter((g) => g.name.toLowerCase().includes(q)) : own;
+    };
     return (
       <div className="space-y-3 rounded-xl border border-primary/25 bg-primary-50/25 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -677,7 +792,7 @@ export function PlannerPage() {
           </div>
         )}
 
-        {groups.length > 6 && multiClassIds.length > 0 && (
+        {multiClassIds.length > 0 && (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
             <Input
@@ -705,13 +820,13 @@ export function PlannerPage() {
                       {picked.length} groupe(s)
                     </Badge>
                   </div>
-                  {shownGroups.length === 0 ? (
+                  {groupsFor(cid).length === 0 ? (
                     <p className="text-[10px] italic text-muted">
-                      Aucun groupe — créez-en un avec « + Nouveau groupe ».
+                      Aucun groupe dans cette catégorie — créez-en un avec « + Nouveau groupe ».
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
-                      {shownGroups.map((g) => {
+                      {groupsFor(cid).map((g) => {
                         const on = picked.includes(g.id);
                         return (
                           <button
@@ -779,22 +894,74 @@ export function PlannerPage() {
     </div>
   );
 
-  const handleCreateModule = () => {
-    if (!newModuleName.trim()) return;
-    const newId = uid("mod");
-    push("modules", { id: newId, name: newModuleName });
-    setModuleId(newId);
-    setNewModuleName("");
-    setShowAddModule(false);
-  };
-
+  /** Crée un groupe DANS la catégorie choisie, et le coche aussitôt. */
   const handleCreateGroup = () => {
-    if (!newGroupName.trim()) return;
+    if (!newGroupName.trim() || !classId) return;
     const newId = uid("grp");
-    push("groups", { id: newId, name: newGroupName });
+    push("groups", {
+      id: newId,
+      name: newGroupName.trim(),
+      classId,
+      createdAt: new Date().toISOString(),
+    });
     setGroupIds((prev) => [...prev, newId]);
     setNewGroupName("");
     setShowAddGroup(false);
+  };
+
+  // ---- L'atelier des groupes ----------------------------------------------
+
+  /** Crée un groupe dans la catégorie ouverte dans l'atelier. */
+  const handleManageCreateGroup = () => {
+    const name = manageGroupName.trim();
+    if (!name || !manageClassId) return;
+    if (groupsOfClass(db, manageClassId).some((g) => g.name.trim().toLowerCase() === name.toLowerCase())) {
+      alert(`Le groupe « ${name} » existe déjà dans cette catégorie.`);
+      return;
+    }
+    push("groups", {
+      id: uid("grp"),
+      name,
+      classId: manageClassId,
+      createdAt: new Date().toISOString(),
+    });
+    setManageGroupName("");
+  };
+
+  /**
+   * SUPPRIMER UN GROUPE, mais jamais sous les pieds d'un emploi du temps.
+   *
+   * Un groupe qu'un créneau amène porte des présences, des inscriptions et des
+   * soldes : l'effacer laisserait tout cela sans nom. On refuse donc, et on dit
+   * lesquels le retiennent — c'est là qu'il faut agir d'abord.
+   */
+  const handleDeleteGroup = (groupId: string) => {
+    const holders = sessions.filter((se) => sessionGroupIds(se).includes(groupId));
+    if (holders.length > 0) {
+      alert(
+        `Ce groupe est utilisé par ${holders.length} emploi(s) du temps :\n` +
+          holders.map((se) => `• ${sessionTitle(se)}`).join("\n") +
+          "\n\nRetirez-le d'abord de ces créneaux.",
+      );
+      return;
+    }
+    if (!confirm("Supprimer ce groupe ?")) return;
+    db.deleteFrom("groups", groupId);
+  };
+
+  /** Renomme un groupe — son nom seul change, tout ce qui s'y accroche reste. */
+  const handleRenameGroup = () => {
+    const name = renameGroupName.trim();
+    if (!renamingGroupId || !name) return;
+    updateItem("groups", renamingGroupId, { name });
+    setRenamingGroupId("");
+    setRenameGroupName("");
+  };
+
+  /** Range un groupe orphelin dans une catégorie. */
+  const handleAssignGroup = (groupId: string, cid: string) => {
+    if (!cid) return;
+    updateItem("groups", groupId, { classId: cid });
   };
 
   /** Cocher / décocher un groupe de l'emploi du temps. */
@@ -1248,6 +1415,8 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
     setMonthSeances(sub?.monthlySeances ?? 0);
     setMonthPrice(monthlyPriceOf(sub));
     setSchoolShare(sub ? schoolMonthShareOf(sub) : 0);
+    setEngagementFee(sub?.engagementFee ?? 0);
+    setEngagementDescription(sub?.engagementDescription ?? "");
     setIsEditOpen(true);
     setIsDetailsOpen(false);
   };
@@ -1275,7 +1444,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           <tr>
             <td style="font-weight:bold;">${L.days[day]}</td>
             <td style="font-family:monospace; font-weight:700;">${sessionTimesOn(s, day).startTime} – ${sessionTimesOn(s, day).endTime}</td>
-            <td>${getModuleName(s.moduleId)}</td>
+            <td>${sessionTitle(s)}</td>
             <td>${sessionGroupIds(s).map(getGroupName).join(" · ")}</td>
             <td>${getClassName(s.classId)}</td>
             <td>${getTeacherName(s.teacherId)}</td>
@@ -1293,7 +1462,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
         <table style="margin-top:0;">
           <tr>
             <td style="width:18%; font-weight:bold; color:#59637a;">${L.module} :</td>
-            <td style="width:32%; font-weight:bold; font-size:1.1em;">${getModuleName(s.moduleId)}</td>
+            <td style="width:32%; font-weight:bold; font-size:1.1em;">${sessionTitle(s)}</td>
             <td style="width:18%; font-weight:bold; color:#59637a;">${L.group} :</td>
             <td style="width:32%;">${sessionGroupIds(s).map(getGroupName).join(" · ")}</td>
           </tr>
@@ -1336,7 +1505,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
 
     printHtmlDocument(
       printDocument({
-        title: `${L.docTitle} - ${getModuleName(s.moduleId)} ${getGroupName(s.groupId)}`,
+        title: `${L.docTitle} - ${sessionTitle(s)} ${getGroupName(s.groupId)}`,
         lang: language,
         bodyHtml,
       }),
@@ -1765,13 +1934,6 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
     return true;
   });
 
-  /** Label shown on the cards / calendar for any timing. A manually entered
-   *  name always wins; otherwise we fall back to the module name. */
-  const sessionTitle = (s: ScheduleSession) =>
-    s.isOpen
-      ? s.title || `Séance Libre — ${getModuleName(s.moduleId)}`
-      : s.title || getModuleName(s.moduleId);
-
   const openSessionPrice = (s: ScheduleSession) =>
     subscriptions.find((su) => su.sessionId === s.id)?.pricePerSession ?? s.openPrice ?? 0;
 
@@ -1796,6 +1958,21 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
               className="flex items-center gap-2 border-primary/30 text-primary hover:bg-primary-50"
             >
               <Sparkles className="h-4 w-4" /> Créneau Séance Libre
+            </Button>
+          )}
+          {/* LES GROUPES SE CRÉENT SANS EMPLOI DU TEMPS.
+              Un club prépare ses groupes en début de saison — « 8-10 ans :
+              Groupe A, Groupe B » — bien avant de savoir qui les entraînera et
+              à quelle heure. Les enfermer dans le formulaire de création d'un
+              créneau obligeait à inventer un emploi du temps pour poser un
+              simple nom. */}
+          {can("create") && (
+            <Button
+              variant="outline"
+              onClick={() => setIsGroupsOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <LayoutGrid className="h-4 w-4 text-primary" /> Groupes des catégories
             </Button>
           )}
           {can("create") && (
@@ -1964,7 +2141,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                             key={s.id}
                             onClick={() => openDetails(s)}
                             className={`p-3 rounded-xl border cursor-pointer hover:shadow-sm hover:scale-[1.01] transition-all duration-200 space-y-2 ${getSessionColor(
-                              s.moduleId
+                              s.id
                             )}`}
                           >
                             {/* Timings */}
@@ -2027,7 +2204,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
               {filteredSessions.map((s) => {
                 const enrolledCount = getSessionStudents(s.id).length;
                 return (
-                  <Card key={s.id} className={`hover:shadow-md transition-all duration-200 ${getSessionColor(s.moduleId)}`}>
+                  <Card key={s.id} className={`hover:shadow-md transition-all duration-200 ${getSessionColor(s.id)}`}>
                     <CardBody className="p-4 space-y-3 flex flex-col justify-between h-full">
                       <div className="space-y-2">
                         {/* Header: Module + Group Badge */}
@@ -2168,6 +2345,200 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
       )}
 
       {/* ---------------------------------------------------------------- */}
+      {/* ---- L'ATELIER DES GROUPES ------------------------------------
+           On y prépare les groupes de chaque catégorie SANS créer le moindre
+           emploi du temps : c'est le travail de début de saison, et il n'a
+           aucune raison d'exiger un créneau pour poser un nom.            */}
+      <Modal
+        open={isGroupsOpen}
+        onClose={() => {
+          setIsGroupsOpen(false);
+          setRenamingGroupId("");
+        }}
+        title="Groupes des catégories"
+        wide
+      >
+        <div className="space-y-4">
+          <p className="rounded-xl border border-line bg-canvas/40 p-3 text-[11px] leading-relaxed text-muted">
+            Un groupe appartient à UNE catégorie : « Groupe A » des 8-10 ans n&apos;est pas
+            « Groupe A » des 15-18 ans. Préparez-les ici, en début de saison, et
+            l&apos;écran de création d&apos;un emploi du temps — comme celui d&apos;inscription
+            d&apos;un chevalier — ne proposera plus que les groupes de la catégorie choisie.
+          </p>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted">Catégorie</label>
+            <Select
+              value={manageClassId}
+              onChange={(e) => {
+                setManageClassId(e.target.value);
+                setRenamingGroupId("");
+              }}
+              className="w-full"
+            >
+              <option value="">Choisir une catégorie…</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {getClassName(c.id)} — {groupsOfClass(db, c.id).length} groupe(s)
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {!manageClassId ? (
+            <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-[11px] text-warning">
+              Choisissez une catégorie pour voir ses groupes et en ajouter.
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  value={manageGroupName}
+                  onChange={(e) => setManageGroupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleManageCreateGroup();
+                  }}
+                  placeholder="Nom du nouveau groupe (ex: Groupe A)"
+                  className="min-w-[200px] flex-1"
+                />
+                <Button onClick={handleManageCreateGroup} className="gap-2">
+                  <Plus className="h-4 w-4" /> Ajouter à cette catégorie
+                </Button>
+              </div>
+
+              <div className="space-y-1.5 rounded-xl border border-line bg-canvas/30 p-2">
+                {groupsOfClass(db, manageClassId).length === 0 ? (
+                  <p className="p-2 text-[11px] italic text-muted">
+                    Cette catégorie n&apos;a encore aucun groupe.
+                  </p>
+                ) : (
+                  groupsOfClass(db, manageClassId).map((g) => {
+                    const used = sessions.filter((se) => sessionGroupIds(se).includes(g.id)).length;
+                    const members = students.filter((st) =>
+                      st.subscriptionIds.some((subId) => {
+                        const sub = subscriptions.find((x) => x.id === subId);
+                        const se = sub && sessions.find((x) => x.id === sub.sessionId);
+                        return !!se && sessionGroupIds(se).includes(g.id);
+                      }),
+                    ).length;
+                    return (
+                      <div
+                        key={g.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface px-2.5 py-2"
+                      >
+                        {renamingGroupId === g.id ? (
+                          <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+                            <Input
+                              value={renameGroupName}
+                              onChange={(e) => setRenameGroupName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRenameGroup();
+                              }}
+                              className="min-w-[160px] flex-1"
+                            />
+                            <Button size="sm" onClick={handleRenameGroup}>
+                              Renommer
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setRenamingGroupId("")}>
+                              Annuler
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-ink">
+                              <Users className="h-3.5 w-3.5 text-primary" /> {g.name}
+                              <Badge tone={used > 0 ? "primary" : "neutral"} className="text-[9px]">
+                                {used} emploi(s)
+                              </Badge>
+                              <Badge tone={members > 0 ? "success" : "neutral"} className="text-[9px]">
+                                {members} chevalier(s)
+                              </Badge>
+                              {!g.classId && (
+                                <Badge tone="warning" className="text-[9px]">
+                                  rattaché par ses créneaux
+                                </Badge>
+                              )}
+                            </span>
+                            <span className="flex shrink-0 items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  setRenamingGroupId(g.id);
+                                  setRenameGroupName(g.name);
+                                }}
+                                className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary-50"
+                                title="Renommer"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteGroup(g.id)}
+                                className="rounded-lg p-1.5 text-danger transition-colors hover:bg-danger/10"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+
+          {/* LES GROUPES QUE PERSONNE NE RÉCLAME.
+              Ce sont ceux d'avant que les groupes appartiennent à une
+              catégorie, qu'aucun créneau n'utilise. Les cacher les rendrait
+              introuvables : on les range d'ici, ou on les supprime. */}
+          {unassignedGroups(db).length > 0 && (
+            <div className="space-y-1.5 rounded-xl border border-warning/40 bg-warning/10 p-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-warning">
+                Groupes sans catégorie ({unassignedGroups(db).length})
+              </span>
+              <p className="text-[10px] leading-relaxed text-muted">
+                Ils datent d&apos;avant que les groupes appartiennent à une catégorie et
+                aucun emploi du temps ne les utilise. Rangez-les, ou supprimez-les.
+              </p>
+              {unassignedGroups(db).map((g) => (
+                <div
+                  key={g.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface px-2.5 py-2"
+                >
+                  <span className="text-[11px] font-semibold text-ink">{g.name}</span>
+                  <span className="flex items-center gap-1.5">
+                    <Select
+                      value=""
+                      onChange={(e) => handleAssignGroup(g.id, e.target.value)}
+                      className="text-[11px]"
+                    >
+                      <option value="">Ranger dans…</option>
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {getClassName(c.id)}
+                        </option>
+                      ))}
+                    </Select>
+                    <button
+                      onClick={() => handleDeleteGroup(g.id)}
+                      className="rounded-lg p-1.5 text-danger transition-colors hover:bg-danger/10"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end border-t border-line pt-4">
+          <Button onClick={() => setIsGroupsOpen(false)}>Fermer</Button>
+        </div>
+      </Modal>
+
       {/* Séance libre: create / edit a timing                             */}
       {/* ---------------------------------------------------------------- */}
       <Modal
@@ -2469,7 +2840,8 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                 placeholder="Ex: Maths — Groupe A (Samedi matin)"
               />
               <p className="mt-1 text-[10px] text-muted">
-                Laissez vide pour utiliser le nom du module. Ce nom apparaît partout où l&apos;emploi du temps est listé.
+                Laissez vide pour composer le nom à partir de la catégorie et du groupe. Ce nom
+                apparaît partout où l&apos;emploi du temps est listé.
               </p>
             </div>
             {/* UN SEUL NIVEAU, OU PLUSIEURS.
@@ -2494,35 +2866,6 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
               </div>
             )}
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-muted font-sans">Module</label>
-                <button onClick={() => setShowAddModule(!showAddModule)} className="text-xs text-primary hover:underline">
-                  + Nouveau module
-                </button>
-              </div>
-              {showAddModule ? (
-                <div className="flex gap-2">
-                  <Input
-                    value={newModuleName}
-                    onChange={(e) => setNewModuleName(e.target.value)}
-                    placeholder="Nom du module"
-                    className="flex-1"
-                  />
-                  <Button size="sm" onClick={handleCreateModule}>Créer</Button>
-                </div>
-              ) : (
-                <Select value={moduleId} onChange={(e) => setModuleId(e.target.value)} className="w-full">
-                  <option value="">Sélectionner un module</option>
-                  {modules.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </div>
-
             {multiLevel ? renderLevelsField() : renderGroupField()}
 
             {renderSalleField()}
@@ -2538,13 +2881,13 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
             <div className="bg-canvas/50 border border-line rounded-xl p-3 text-xs">
               <span className="text-[10px] text-muted block font-semibold mb-1 font-sans">Nom suggéré de l&apos;emploi du temps</span>
               <div className="font-bold text-ink line-clamp-2">
-                {effectiveClassIds.length
-                  ? effectiveClassIds
-                      .map((cid) => classes.find((c) => c.id === cid)?.name ?? "?")
-                      .join(" + ")
-                  : "?"}{" "}
-                -{" "}
-                {moduleId ? getModuleName(moduleId) : "?"} (Gr:{" "}
+                {title.trim() ||
+                  (effectiveClassIds.length
+                    ? effectiveClassIds
+                        .map((cid) => classes.find((c) => c.id === cid)?.name ?? "?")
+                        .join(" + ")
+                    : "?")}{" "}
+                (Gr:{" "}
                 {effectiveGroupIds.length
                   ? effectiveGroupIds.map(getGroupName).join(" · ")
                   : "?"}{" "}
@@ -2656,7 +2999,67 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           ) : (
             <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] text-warning">
               Sans nombre de séances ni prix de la carte, l&apos;emploi du temps est créé sans tarif : aucun
-              chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
+              chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un — et l&apos;engagement
+              ci-dessous ne sera enregistré qu&apos;une fois le tarif posé.
+            </p>
+          )}
+        </div>
+
+        {/* ---- L'ENGAGEMENT ------------------------------------------------
+             Le frais d'entrée propre à CE créneau : la tenue, l'équipement,
+             l'assurance du groupe. Ce n'est ni la cotisation — qui se paie
+             carte après carte — ni les droits d'entrée du club, qui se règlent
+             une fois pour toutes. Il est porté au compte du chevalier le jour
+             de son inscription sur cet emploi, comme un frais ordinaire qu'il
+             solde en une ou plusieurs fois. */}
+        <div className="mt-4 space-y-3 rounded-2xl border border-accent/35 bg-accent-wash/50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+              <ShieldCheck className="h-3.5 w-3.5" /> Engagement
+            </span>
+            <span className="text-[10px] text-muted">
+              Le frais d&apos;entrée de CE créneau — laisser 0 s&apos;il n&apos;y en a pas.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+                Montant de l&apos;engagement (DA)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={engagementFee || ""}
+                onChange={(e) => setEngagementFee(readMoney(e.target.value))}
+                placeholder="Ex: 3000"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+                Description de l&apos;engagement
+              </label>
+              <Input
+                value={engagementDescription}
+                onChange={(e) => setEngagementDescription(e.target.value)}
+                placeholder="Ex: tenue, protections et assurance de la saison"
+              />
+            </div>
+          </div>
+
+          {engagementFee > 0 ? (
+            <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
+              Chaque chevalier inscrit sur cet emploi du temps se verra porter un frais
+              « <strong className="text-ink">Engagement</strong> » de{" "}
+              <strong className="text-accent-ink">{formatDA(engagementFee)}</strong>, réglable en une
+              ou plusieurs fois depuis sa fiche ou la feuille de présence de son groupe. Il
+              n&apos;entre PAS dans son solde de séances et ne retient la part d&apos;aucun
+              entraîneur.
+            </p>
+          ) : (
+            <p className="text-[10px] text-muted">
+              Aucun engagement : rejoindre ce créneau ne coûte que la cotisation.
             </p>
           )}
         </div>
@@ -2681,7 +3084,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                 placeholder="Ex: Maths — Groupe A (Samedi matin)"
               />
               <p className="mt-1 text-[10px] text-muted">
-                Laissez vide pour utiliser le nom du module.
+                Laissez vide pour composer le nom à partir de la catégorie et du groupe.
               </p>
             </div>
             {/* UN SEUL NIVEAU, OU PLUSIEURS.
@@ -2705,18 +3108,6 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                 </Select>
               </div>
             )}
-
-            <div>
-              <label className="block text-xs font-semibold text-muted mb-1 font-sans">Module</label>
-              <Select value={moduleId} onChange={(e) => setModuleId(e.target.value)} className="w-full">
-                <option value="">Sélectionner un module</option>
-                {modules.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
 
             {multiLevel ? renderLevelsField() : renderGroupField()}
 
@@ -2831,7 +3222,67 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
           ) : (
             <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] text-warning">
               Sans nombre de séances ni prix de la carte, l&apos;emploi du temps est créé sans tarif : aucun
-              chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un.
+              chevalier ne pourra y être inscrit tant qu&apos;il n&apos;en a pas un — et l&apos;engagement
+              ci-dessous ne sera enregistré qu&apos;une fois le tarif posé.
+            </p>
+          )}
+        </div>
+
+        {/* ---- L'ENGAGEMENT ------------------------------------------------
+             Le frais d'entrée propre à CE créneau : la tenue, l'équipement,
+             l'assurance du groupe. Ce n'est ni la cotisation — qui se paie
+             carte après carte — ni les droits d'entrée du club, qui se règlent
+             une fois pour toutes. Il est porté au compte du chevalier le jour
+             de son inscription sur cet emploi, comme un frais ordinaire qu'il
+             solde en une ou plusieurs fois. */}
+        <div className="mt-4 space-y-3 rounded-2xl border border-accent/35 bg-accent-wash/50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+              <ShieldCheck className="h-3.5 w-3.5" /> Engagement
+            </span>
+            <span className="text-[10px] text-muted">
+              Le frais d&apos;entrée de CE créneau — laisser 0 s&apos;il n&apos;y en a pas.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+                Montant de l&apos;engagement (DA)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={engagementFee || ""}
+                onChange={(e) => setEngagementFee(readMoney(e.target.value))}
+                placeholder="Ex: 3000"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+                Description de l&apos;engagement
+              </label>
+              <Input
+                value={engagementDescription}
+                onChange={(e) => setEngagementDescription(e.target.value)}
+                placeholder="Ex: tenue, protections et assurance de la saison"
+              />
+            </div>
+          </div>
+
+          {engagementFee > 0 ? (
+            <p className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
+              Chaque chevalier inscrit sur cet emploi du temps se verra porter un frais
+              « <strong className="text-ink">Engagement</strong> » de{" "}
+              <strong className="text-accent-ink">{formatDA(engagementFee)}</strong>, réglable en une
+              ou plusieurs fois depuis sa fiche ou la feuille de présence de son groupe. Il
+              n&apos;entre PAS dans son solde de séances et ne retient la part d&apos;aucun
+              entraîneur.
+            </p>
+          ) : (
+            <p className="text-[10px] text-muted">
+              Aucun engagement : rejoindre ce créneau ne coûte que la cotisation.
             </p>
           )}
         </div>
@@ -2895,10 +3346,14 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
                   <span className="font-bold text-ink">{selectedSession.title}</span>
                 </div>
               )}
-              <div>
-                <span className="text-[10px] text-muted block uppercase font-sans">Module / Matière</span>
-                <span className="font-bold text-ink">{getModuleName(selectedSession.moduleId)}</span>
-              </div>
+              {/* Le module n'est plus demandé à la création : il ne s'affiche
+                  donc que sur les emplois qui en portent encore un. */}
+              {selectedSession.moduleId && (
+                <div>
+                  <span className="text-[10px] text-muted block uppercase font-sans">Module / Matière</span>
+                  <span className="font-bold text-ink">{getModuleName(selectedSession.moduleId)}</span>
+                </div>
+              )}
               <div>
                 <span className="text-[10px] text-muted block uppercase font-sans">Catégorie & Niveau</span>
                 <span className="font-semibold text-ink">

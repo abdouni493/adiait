@@ -11,6 +11,7 @@ import { useSidebar } from "@/lib/store/ui";
 import { useData } from "@/lib/store/data";
 import { landingRoute, roleHome } from "@/lib/nav";
 import { useAccessRights } from "@/lib/usePermissions";
+import { PendingActivation } from "./PendingActivation";
 
 import { GlobalRFIDListener } from "@/components/controls/GlobalRFIDListener";
 
@@ -54,6 +55,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // momentarily-null user made pages that read the user/school once at
   // mount (e.g. Settings) latch onto empty defaults on every refresh.
   if (!hydrated || !user) return null;
+
+  /**
+   * UN COMPTE QUI ATTEND SON ACTIVATION NE VOIT AUCUN ÉCRAN.
+   *
+   * Une famille qui a créé son compte depuis la page de connexion n'est encore
+   * rattachée à aucune fiche : ni chevalier, ni parent. Les écrans existent,
+   * mais ils n'auraient rien à lui montrer — une barre latérale complète et des
+   * tableaux vides sont plus déroutants qu'une phrase claire. Le garde est ICI,
+   * au-dessus de la coquille : aucune adresse tapée à la main ne le contourne.
+   */
+  if (user.active === false) return <PendingActivation />;
 
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">

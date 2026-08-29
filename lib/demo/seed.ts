@@ -647,6 +647,9 @@ export function buildDemoDatabase(): Database {
     coursework: COURSEWORK.map((c) => ({ ...c })),
     independent,
     groupSeances,
+    // La démonstration ne fabrique aucune demande de compte : elles naissent
+    // de la page de connexion, jamais d'un jeu de données.
+    accountRequests: [],
   };
 }
 

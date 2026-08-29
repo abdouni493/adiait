@@ -1200,5 +1200,6 @@ function rawSeed(): Database {
     ],
     // Séances libres vendues à un groupe entier : la base démarre sans aucune.
     groupSeances: [],
+    accountRequests: [],
   };
 }

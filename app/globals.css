@@ -359,6 +359,130 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ============================================================
+   LA CHEVAUCHÉE — le fond de la page de connexion
+   ------------------------------------------------------------
+   Trois chevaux en silhouette, sur trois plans de profondeur, qui
+   traversent l'écran à trois vitesses. Tout est dessiné en SVG
+   (`components/auth/HeraldicBackdrop.tsx`) : la couleur vient du
+   thème, donc la chevauchée reste juste de jour comme de nuit.
+   ============================================================ */
+.heraldic-backdrop {
+  color: var(--primary);
+}
+[data-theme="dark"] .heraldic-backdrop,
+[data-theme="dark-red"] .heraldic-backdrop {
+  color: var(--accent);
+}
+
+/* ---- Les nappes de couleur, qui respirent ---- */
+.heraldic-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  will-change: transform, opacity;
+}
+.heraldic-glow-steel {
+  inset-inline-start: -14rem;
+  top: -12rem;
+  height: 34rem;
+  width: 34rem;
+  background: var(--gradient-primary);
+  opacity: 0.28;
+  animation: heraldic-breathe 11s ease-in-out infinite;
+}
+.heraldic-glow-gold {
+  inset-inline-end: -16rem;
+  bottom: -14rem;
+  height: 38rem;
+  width: 38rem;
+  background: var(--gradient-accent);
+  opacity: 0.24;
+  animation: heraldic-breathe 14s ease-in-out infinite reverse;
+}
+@keyframes heraldic-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(2rem, 1.5rem, 0) scale(1.12); }
+}
+
+/* ---- Les lices : un parchemin réglé d'or très pâle ---- */
+.heraldic-lists {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image: repeating-linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--accent) 8%, transparent) 0 1px,
+    transparent 1px 84px
+  );
+  animation: heraldic-lists-drift 26s linear infinite;
+}
+@keyframes heraldic-lists-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 168px 0; }
+}
+
+/* ---- La chevauchée ---- */
+.heraldic-charge {
+  will-change: transform;
+}
+.heraldic-charge-far {
+  opacity: 0.07;
+  animation: heraldic-gallop-far 34s linear infinite;
+}
+.heraldic-charge-mid {
+  opacity: 0.09;
+  animation: heraldic-gallop-mid 24s linear infinite;
+}
+.heraldic-charge-near {
+  opacity: 0.11;
+  animation: heraldic-gallop-near 18s linear infinite;
+}
+
+/* Chaque plan traverse l'écran de gauche à droite, avec la SUSPENSION du
+   galop : le cheval monte et redescend deux fois par foulée. */
+@keyframes heraldic-gallop-far {
+  0%   { transform: translate(-16vw, 6vh) scaleX(-1); }
+  100% { transform: translate(112vw, 6vh) scaleX(-1); }
+}
+@keyframes heraldic-gallop-mid {
+  0%   { transform: translate(112vw, 22vh); }
+  100% { transform: translate(-26vw, 22vh); }
+}
+@keyframes heraldic-gallop-near {
+  0%   { transform: translate(-38vw, 40vh); }
+  100% { transform: translate(118vw, 40vh); }
+}
+
+/* ---- La poussière soulevée ---- */
+.heraldic-dust {
+  position: absolute;
+  inset: 0;
+}
+.heraldic-mote {
+  position: absolute;
+  bottom: -2rem;
+  height: 4px;
+  width: 4px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--accent) 65%, transparent);
+  opacity: 0;
+  animation: heraldic-mote-rise 15s ease-in infinite;
+}
+.heraldic-mote-0 { left: 6%;  animation-delay: 0s;    height: 3px; width: 3px; }
+.heraldic-mote-1 { left: 19%; animation-delay: 2.1s; }
+.heraldic-mote-2 { left: 33%; animation-delay: 4.4s;  height: 6px; width: 6px; }
+.heraldic-mote-3 { left: 47%; animation-delay: 6.2s; }
+.heraldic-mote-4 { left: 63%; animation-delay: 8.5s;  height: 3px; width: 3px; }
+.heraldic-mote-5 { left: 78%; animation-delay: 10.3s; }
+.heraldic-mote-6 { left: 91%; animation-delay: 12.6s; height: 5px; width: 5px; }
+@keyframes heraldic-mote-rise {
+  0%   { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
+  12%  { opacity: 0.5; }
+  70%  { opacity: 0.28; }
+  100% { transform: translate3d(3rem, -105vh, 0) scale(1.1); opacity: 0; }
+}
+
+/* ============================================================
    MOUVEMENT RÉDUIT
    Une seule règle, globale : le système annonce la préférence,
    l'application la respecte partout — y compris dans les animations

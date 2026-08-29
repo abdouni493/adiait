@@ -10,8 +10,12 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AlertTriangle, Coins, DollarSign, Download, FileText, Globe, Image, Lock, Mail, MapPin, MessageCircle, Phone, RotateCcw, Save, School as SchoolIcon, Settings, Shield, Upload, User } from "lucide-react";
+import { AlertTriangle, Coins, DollarSign, Download, FileText, Gift, Globe, Image, Lock, Mail, MapPin, MessageCircle, Phone, RotateCcw, Save, School as SchoolIcon, Search, Settings, Shield, Upload, User } from "lucide-react";
 import { WhatsAppSettingsPanel } from "@/components/whatsapp/WhatsAppSettingsPanel";
+import { FreePeriodsPanel } from "@/components/settings/FreePeriodsPanel";
+import { Badge } from "@/components/ui/Badge";
+import { registrationFeeScopeLabel, sessionTitleOf } from "@/lib/helpers";
+import type { RegistrationFeeScope } from "@/lib/types";
 
 import { useCan } from "@/lib/usePermissions";
 export function SettingsPage() {
@@ -27,9 +31,13 @@ export function SettingsPage() {
    * L'écran s'ouvre sur le PREMIER onglet auquel ce compte a droit. Il n'a pas
    * à tomber sur « Établissement » pour découvrir qu'il ne peut pas l'ouvrir.
    */
-  const [activeTab, setActiveTab] = useState<"school" | "security" | "whatsapp" | "backup">(
+  const [activeTab, setActiveTab] = useState<
+    "school" | "security" | "whatsapp" | "free_periods" | "backup"
+  >(
     () =>
-      (["school", "security", "whatsapp", "backup"] as const).find((t) => can(t)) ?? "school",
+      (["school", "security", "whatsapp", "free_periods", "backup"] as const).find((t) =>
+        can(t),
+      ) ?? "school",
   );
 
   // School Form State
@@ -44,6 +52,22 @@ export function SettingsPage() {
   const [nif, setNif] = useState(school?.nif || "");
   const [nis, setNis] = useState(school?.nis || "");
   const [registrationFee, setRegistrationFee] = useState<number>(school?.registrationFee || 0);
+  /**
+   * QUI DOIT LES DROITS D'ENTRÉE — le périmètre, venu de « Cartes & tarifs ».
+   *
+   * Tout le monde ne les paie pas forcément : le club peut ne les réclamer
+   * qu'à certaines catégories, ou qu'aux chevaliers inscrits sur certains
+   * emplois du temps. Le réglage vivait sur l'écran des tarifs, qui a été
+   * retiré ; il a donc rejoint le seul endroit qui règle l'établissement.
+   */
+  const [feeScope, setFeeScope] = useState<RegistrationFeeScope>(
+    school?.registrationFeeScope ?? "all",
+  );
+  const [feeClassIds, setFeeClassIds] = useState<string[]>(school?.registrationFeeClassIds ?? []);
+  const [feeSessionIds, setFeeSessionIds] = useState<string[]>(
+    school?.registrationFeeSessionIds ?? [],
+  );
+  const [feeSessionSearch, setFeeSessionSearch] = useState("");
   const [absencePenaltyEnabled, setAbsencePenaltyEnabled] = useState<boolean>(school?.absencePenaltyEnabled ?? true);
   const [absencePenaltySince, setAbsencePenaltySince] = useState<string>(school?.absencePenaltySince || "");
   const [absenceWeekStartDay, setAbsenceWeekStartDay] = useState<number>(school?.absenceWeekStartDay ?? 5);
@@ -64,6 +88,9 @@ export function SettingsPage() {
     setNif(school.nif || "");
     setNis(school.nis || "");
     setRegistrationFee(school.registrationFee || 0);
+    setFeeScope(school.registrationFeeScope ?? "all");
+    setFeeClassIds(school.registrationFeeClassIds ?? []);
+    setFeeSessionIds(school.registrationFeeSessionIds ?? []);
     setAbsencePenaltyEnabled(school.absencePenaltyEnabled ?? true);
     setAbsencePenaltySince(school.absencePenaltySince || "");
     setAbsenceWeekStartDay(school.absenceWeekStartDay ?? 5);
@@ -112,6 +139,13 @@ export function SettingsPage() {
       nif,
       nis,
       registrationFee: Number(registrationFee) || 0,
+      // Le périmètre part avec le montant : les deux ne veulent rien dire l'un
+      // sans l'autre. Les listes que le périmètre choisi n'utilise pas sont
+      // VIDÉES, pour qu'un ancien réglage ne dorme pas sous le nouveau.
+      registrationFeeScope: feeScope,
+      registrationFeeLevels: [],
+      registrationFeeClassIds: feeScope === "classes" ? feeClassIds : [],
+      registrationFeeSessionIds: feeScope === "sessions" ? feeSessionIds : [],
     });
   };
 
@@ -257,6 +291,20 @@ export function SettingsPage() {
             </button>
           )}
 
+          {can("free_periods") && (
+            <button
+              onClick={() => setActiveTab("free_periods")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+                activeTab === "free_periods"
+                  ? "bg-primary-50 text-primary border border-primary/20 shadow-sm"
+                  : "text-muted hover:text-ink hover:bg-canvas/50 border border-transparent"
+              }`}
+            >
+              <Gift className="h-4.5 w-4.5" />
+              <span>Périodes offertes</span>
+            </button>
+          )}
+
           {can("backup") && (
 <button
               onClick={() => setActiveTab("backup")}
@@ -325,6 +373,139 @@ export function SettingsPage() {
                         placeholder="Ex: 1000"
                         className="rounded-xl"
                       />
+                    </div>
+
+                    {/* QUI DOIT CES DROITS D'ENTRÉE ?
+                        Tout le monde ne les paie pas forcément : le club peut
+                        ne les réclamer qu'à certaines catégories, ou qu'aux
+                        chevaliers inscrits sur certains créneaux. L'écran
+                        « Nouveau chevalier » interroge exactement ce périmètre. */}
+                    <div className="sm:col-span-2 space-y-3 rounded-2xl border border-primary/25 bg-primary-50/25 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          🎯 Qui doit payer ces droits d&apos;entrée ?
+                        </span>
+                        <Badge tone="primary" className="text-[9px]">
+                          {registrationFeeScopeLabel(dataStore, {
+                            ...(school ?? ({} as never)),
+                            registrationFeeScope: feeScope,
+                            registrationFeeLevels: [],
+                            registrationFeeClassIds: feeClassIds,
+                            registrationFeeSessionIds: feeSessionIds,
+                          })}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        {(
+                          [
+                            { value: "all", label: "Tous les chevaliers", hint: "Aucune exception" },
+                            { value: "classes", label: "Par catégorie", hint: "Catégories choisies" },
+                            { value: "sessions", label: "Par emploi du temps", hint: "Créneaux choisis" },
+                          ] as { value: RegistrationFeeScope; label: string; hint: string }[]
+                        ).map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setFeeScope(opt.value)}
+                            className={`rounded-xl border p-2.5 text-start transition-colors ${
+                              feeScope === opt.value
+                                ? "border-primary bg-primary text-white"
+                                : "border-line bg-surface text-ink hover:bg-primary-50"
+                            }`}
+                          >
+                            <strong className="block text-[11px]">{opt.label}</strong>
+                            <span
+                              className={`text-[9px] ${
+                                feeScope === opt.value ? "text-white/80" : "text-muted"
+                              }`}
+                            >
+                              {opt.hint}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {feeScope === "classes" && (
+                        <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line bg-surface p-2">
+                          {dataStore.classes.length === 0 ? (
+                            <p className="p-1.5 text-[11px] italic text-muted">
+                              Aucune catégorie — créez-en depuis l&apos;écran Catégories.
+                            </p>
+                          ) : (
+                            dataStore.classes.map((c) => {
+                              const on = feeClassIds.includes(c.id);
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setFeeClassIds((prev) =>
+                                      prev.includes(c.id)
+                                        ? prev.filter((x) => x !== c.id)
+                                        : [...prev, c.id],
+                                    )
+                                  }
+                                  className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                                    on
+                                      ? "border-primary bg-primary text-white"
+                                      : "border-line bg-surface text-ink hover:bg-primary-50"
+                                  }`}
+                                >
+                                  <span>{c.name}</span>
+                                  <input type="checkbox" checked={on} readOnly className="h-3.5 w-3.5" />
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+
+                      {feeScope === "sessions" && (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                            <Input
+                              value={feeSessionSearch}
+                              onChange={(e) => setFeeSessionSearch(e.target.value)}
+                              placeholder="Rechercher un emploi du temps…"
+                              className="pl-9"
+                            />
+                          </div>
+                          <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line bg-surface p-2">
+                            {dataStore.sessions
+                              .filter((se) => !se.archivedAt)
+                              .filter((se) => {
+                                const q = feeSessionSearch.trim().toLowerCase();
+                                return !q || sessionTitleOf(dataStore, se).toLowerCase().includes(q);
+                              })
+                              .map((se) => {
+                                const on = feeSessionIds.includes(se.id);
+                                return (
+                                  <button
+                                    key={se.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setFeeSessionIds((prev) =>
+                                        prev.includes(se.id)
+                                          ? prev.filter((x) => x !== se.id)
+                                          : [...prev, se.id],
+                                      )
+                                    }
+                                    className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                                      on
+                                        ? "border-primary bg-primary text-white"
+                                        : "border-line bg-surface text-ink hover:bg-primary-50"
+                                    }`}
+                                  >
+                                    <span className="truncate">{sessionTitleOf(dataStore, se)}</span>
+                                    <input type="checkbox" checked={on} readOnly className="h-3.5 w-3.5" />
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="sm:col-span-2 border border-line/60 bg-canvas/10 p-4 rounded-2xl space-y-3">
@@ -677,6 +858,13 @@ export function SettingsPage() {
 
           {/* TAB 3: WhatsApp gateway */}
           {activeTab === "whatsapp" && can("whatsapp") && <WhatsAppSettingsPanel />}
+
+          {/* TAB : LES PÉRIODES OFFERTES.
+              Elles vivaient sur « Cartes & tarifs », qui a été retiré de
+              l'application. Elles n'ont rien à voir avec un tarif — ce sont des
+              fenêtres de gratuité — et rien d'autre ne les réglait : elles ont
+              donc suivi ici, telles quelles. */}
+          {activeTab === "free_periods" && can("free_periods") && <FreePeriodsPanel />}
 
           {/* TAB 4: Backup & Restore */}
           {activeTab === "backup" && can("backup") && (

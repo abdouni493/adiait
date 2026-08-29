@@ -40,6 +40,18 @@ export interface SessionUser {
   /** La ligne que ce compte pilote dans students / teachers / parents /
    *  reception_staff. */
   entityId?: string;
+  /**
+   * LE COMPTE EST-IL ACTIVÉ ?
+   *
+   * Un compte créé au comptoir l'est d'office. Un compte que la famille a créé
+   * ELLE-MÊME depuis la page de connexion ne l'est pas : il se connecte, mais
+   * il ne pilote encore aucune fiche, donc il n'a rien à lire. L'application
+   * lui affiche « votre compte attend son activation » — pas une barre
+   * latérale vide dont il ne comprendrait rien.
+   *
+   * Absent = actif : les comptes d'avant cette colonne ne changent pas de sens.
+   */
+  active: boolean;
 }
 
 interface Profile {
@@ -49,6 +61,8 @@ interface Profile {
   email: string;
   username: string;
   full_name: string;
+  /** `false` pour une demande de compte pas encore rattachée à une fiche */
+  active?: boolean | null;
 }
 
 function toSessionUser(profile: Profile): SessionUser {
@@ -59,22 +73,41 @@ function toSessionUser(profile: Profile): SessionUser {
     email: profile.email,
     role: profile.role,
     entityId: profile.entity_id || profile.id,
+    active: profile.active !== false,
   };
 }
 
-/** La fiche de compte du connecté. */
+/**
+ * La fiche de compte du connecté.
+ *
+ * `active` est une colonne RÉCENTE : une base sur laquelle la migration n'a pas
+ * encore été passée la refuserait, et refuser la colonne ferait échouer TOUTE
+ * la requête — donc la connexion. On retente donc sans elle, et le compte est
+ * alors traité comme actif, ce qu'il est : il n'existe pas de demande en
+ * attente sur une base qui ne connaît pas encore les demandes.
+ */
 async function loadProfile(userId: string): Promise<Profile | null> {
+  const base = "id, entity_id, role, email, username, full_name";
+
   const { data, error } = await supabase()
     .from("profiles")
-    .select("id, entity_id, role, email, username, full_name")
+    .select(`${base}, active`)
     .eq("id", userId)
     .maybeSingle();
 
-  if (error) {
-    console.error("[supabase] profil", error.message);
+  if (!error) return (data as Profile | null) ?? null;
+
+  const legacy = await supabase()
+    .from("profiles")
+    .select(base)
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (legacy.error) {
+    console.error("[supabase] profil", legacy.error.message);
     return null;
   }
-  return (data as Profile | null) ?? null;
+  return (legacy.data as Profile | null) ?? null;
 }
 
 /**

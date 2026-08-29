@@ -110,6 +110,17 @@ export interface StudentFicheProps {
   joinDate?: string;
   /** an existing fiche: the very same screen, in edit mode */
   student?: Student | null;
+  /**
+   * LES CATÉGORIES À OUVRIR D'EMBLÉE dans le catalogue d'inscription.
+   *
+   * L'activation d'un compte créé depuis la page de connexion s'en sert : elle
+   * sait déjà dans quelle catégorie l'intendance range le nouveau venu, et
+   * l'écran s'ouvre dessus au lieu de la lui faire rechercher.
+   */
+  defaultOpenClassIds?: string[];
+  /** ce que la fiche porte à sa création, quand on la préremplit (activation
+   *  d'un compte : le nom, le téléphone et la date de naissance sont connus) */
+  prefill?: Partial<Student>;
   onCreated?: (student: Student) => void;
 }
 
@@ -155,6 +166,8 @@ function StudentFiche({
   defaultSubIds = [],
   joinDate,
   student: editing,
+  defaultOpenClassIds,
+  prefill,
   onCreated,
   onPrintOffers,
 }: StudentFicheProps & { onPrintOffers: (offers: PrintOffer[]) => void }) {
@@ -176,12 +189,20 @@ function StudentFiche({
   const { subLabel } = useClassTimings();
 
   // identity — a creation starts blank, an edit starts on the fiche
-  const [firstName, setFirstName] = useState(editing?.firstName ?? "");
-  const [lastName, setLastName] = useState(editing?.lastName ?? "");
-  const [birthDate, setBirthDate] = useState(editing?.birthDate ?? "");
-  const [phone, setPhone] = useState(editing?.phone ?? "");
+  const [firstName, setFirstName] = useState(editing?.firstName ?? prefill?.firstName ?? "");
+  const [lastName, setLastName] = useState(editing?.lastName ?? prefill?.lastName ?? "");
+  const [birthDate, setBirthDate] = useState(editing?.birthDate ?? prefill?.birthDate ?? "");
+  const [phone, setPhone] = useState(editing?.phone ?? prefill?.phone ?? "");
   /** Le SECOND numéro : celui qu'on compose quand le premier ne répond pas. */
-  const [phone2, setPhone2] = useState(editing?.phone2 ?? "");
+  const [phone2, setPhone2] = useState(editing?.phone2 ?? prefill?.phone2 ?? "");
+  /**
+   * L'ADRESSE — facultative, et elle ne commande rien.
+   *
+   * Elle ne décide ni d'un tarif, ni d'un groupe, ni d'un document : elle sert
+   * à retrouver une famille, et c'est déjà beaucoup. Une fiche sans adresse est
+   * une fiche complète.
+   */
+  const [address, setAddress] = useState(editing?.address ?? prefill?.address ?? "");
 
   // billing case
   const [studentCase, setStudentCase] = useState<StudentCase>(
@@ -235,6 +256,23 @@ function StudentFiche({
    */
   const [enrollLevel, setEnrollLevel] = useState<string>(editing?.enrollmentLevel ?? "");
   const [enrollYear, setEnrollYear] = useState<string>(editing?.enrollmentYear ?? "");
+  /**
+   * LES CATÉGORIES OUVERTES D'EMBLÉE dans le catalogue.
+   *
+   * Celles qu'on impose (l'activation d'un compte en désigne une), puis celle
+   * que la fiche a retenue la dernière fois. Le catalogue y ajoute de lui-même
+   * les catégories des inscriptions en cours : un chevalier retrouve donc
+   * toujours ses créneaux sous les yeux.
+   */
+  const openedKey = (defaultOpenClassIds ?? []).join("|");
+  const defaultClassIds = useMemo(
+    () =>
+      [...new Set([...(defaultOpenClassIds ?? []), editing?.enrollmentLevel ?? ""])].filter(
+        (id) => !!id && db.classes.some((c) => c.id === id),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openedKey, editing?.enrollmentLevel, db.classes],
+  );
   /** Ce que la famille règle TOUT DE SUITE sur les frais d'inscription. */
   const [feePaidNow, setFeePaidNow] = useState<number>(0);
   const [busy, setBusy] = useState(false);
@@ -363,6 +401,7 @@ function StudentFiche({
     setLastName("");
     setBirthDate("");
     setPhone("");
+    setAddress("");
     setStudentCase("normal");
     setTeacherFatherId("");
     setTeacherSearch("");
@@ -483,6 +522,7 @@ function StudentFiche({
           birthDate,
           phone: phone.trim(),
           phone2: phone2.trim() || undefined,
+          address: address.trim() || undefined,
           email: editEmail.trim() || editing.email,
           rfid: editRfid.trim() || editing.rfid,
           isFree,
@@ -700,6 +740,7 @@ function StudentFiche({
         birthDate,
         phone: phone.trim(),
         phone2: phone2.trim() || undefined,
+        address: address.trim() || undefined,
         email,
         rfid,
         isFree,
@@ -739,6 +780,17 @@ function StudentFiche({
 
       // Le mot de passe n'est mémorisé que s'il y a un compte à ouvrir avec.
       if (wantAccount) await setStudentPassword(studentId, password);
+
+      /**
+       * L'ENGAGEMENT DE CHAQUE CRÉNEAU REJOINT.
+       *
+       * La création écrit `subscriptionIds` directement, sans passer par
+       * `subscribeStudent` : le frais d'entrée de chaque emploi du temps doit
+       * donc être porté ici, faute de quoi un chevalier créé de zéro
+       * n'en devrait aucun là où un chevalier inscrit après coup les devrait
+       * tous. Les emplois OFFERTS sont sautés par l'action elle-même.
+       */
+      const engagements = await db.applyEngagementCharges(studentId, subIds, arrivalDay);
 
       // L'AVANCE est créditée sur son propre emploi, à la carte où le chevalier ENTRE :
       // un enfant inscrit en M2 paie pour M2, jamais pour une carte qu'il a
@@ -783,7 +835,10 @@ function StudentFiche({
           subIds.length > 0
             ? `${subIds.length} emploi(s) du temps · ${formatDA(totalSold)} versés · inscrit à partir de ${
                 joinPointOf(subIds[0]).monthCode
-              } · séance ${joinPointOf(subIds[0]).slotIndex + 1}.`
+              } · séance ${joinPointOf(subIds[0]).slotIndex + 1}.` +
+              (engagements.written > 0
+                ? ` Engagement de ${formatDA(engagements.total)} porté à sa fiche.`
+                : "")
             : "Aucun emploi du temps pour le moment.",
         studentName: `${firstName} ${lastName}`,
       });
@@ -889,11 +944,23 @@ function StudentFiche({
                   premier.
                 </p>
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <label className="mb-1 block text-xs font-semibold text-muted">
                   Date de naissance (optionnel)
                 </label>
                 <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+              </div>
+              {/* L'ADRESSE — facultative. Elle ne commande rien : ni tarif, ni
+                  groupe, ni document. Elle sert à retrouver une famille. */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-muted">
+                  Adresse (optionnel)
+                </label>
+                <Input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Cité, rue, ville"
+                />
               </div>
             </div>
           </div>
@@ -1356,14 +1423,13 @@ function StudentFiche({
               student={editing}
               savedSubIds={editing?.subscriptionIds}
               showCurrent
-              /* La catégorie et l'année sont RETENUES même sans emploi du temps
-                 coché : une fiche créée « 4AP, on verra le créneau plus tard »
-                 rouvre sur 4AP, et non sur un primaire/1AP arbitraire. */
-              initialLevel={editing?.enrollmentLevel}
-              initialYear={editing?.enrollmentYear}
+              /* Les CATÉGORIES ouvertes sont retenues même sans créneau coché :
+                 une fiche créée « les 8-10 ans, on verra l'horaire plus tard »
+                 rouvre sur cette catégorie, et non sur une autre au hasard. */
+              initialClassIds={defaultClassIds}
               onScopeChange={(scope: TimingScope) => {
-                setEnrollLevel(scope.level);
-                setEnrollYear(scope.year);
+                setEnrollLevel(scope.classIds[0] ?? "");
+                setEnrollYear("");
               }}
             />
 

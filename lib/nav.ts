@@ -62,7 +62,6 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { key: "dashboard", href: "/dashboard", section: "order" },
     { key: "classes", href: "/classes", section: "order" },
     { key: "planner", href: "/planner", section: "order" },
-    { key: "subscriptions", href: "/subscriptions", section: "order" },
 
     { key: "students", href: "/students", section: "company" },
     { key: "attendance", href: "/attendance", section: "company" },
@@ -84,7 +83,6 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { key: "dashboard", href: "/dashboard", section: "order" },
     { key: "classes", href: "/classes", section: "order" },
     { key: "planner", href: "/planner", section: "order" },
-    { key: "subscriptions", href: "/subscriptions", section: "order" },
 
     { key: "students", href: "/students", section: "company" },
     { key: "attendance", href: "/attendance", section: "company" },

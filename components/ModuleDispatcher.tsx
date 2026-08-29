@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/store/session";
 import { ClassesPage } from "@/components/pages/ClassesPage";
 import { PlannerPage } from "@/components/pages/PlannerPage";
-import { SubscriptionsPage } from "@/components/pages/SubscriptionsPage";
 import { StudentsPage } from "@/components/pages/StudentsPage";
 import { AttendancePage } from "@/components/pages/AttendancePage";
 import { TeachersPage } from "@/components/pages/TeachersPage";
@@ -30,7 +29,7 @@ import { canSeePage } from "@/lib/permissions";
  *  the route file so the page itself can stay a server component and export
  *  `generateStaticParams` (prerendered shells -> instant sidebar navigation). */
 /** Les adresses d'écrans supprimés — voir `RetiredModule`. */
-const RETIRED_SLUGS = new Set(["subjects"]);
+const RETIRED_SLUGS = new Set(["subjects", "subscriptions"]);
 
 /** Ce qu'on affiche à qui arrive sur l'adresse d'un écran retiré. */
 function RetiredModule({ slug }: { slug: string }) {
@@ -76,10 +75,14 @@ export function ModuleDispatcher({ slug }: { slug: string[] }) {
   /**
    * LES ÉCRANS RETIRÉS.
    *
-   * « Sujets & exercices » n'existe plus. Son adresse, elle, survit dans des
-   * signets et des liens envoyés : sans cette liste, elle tomberait sur l'écran
-   * générique « bientôt disponible », qui promettrait le retour d'un module
-   * supprimé. On renvoie à l'accueil, ce qui est la vérité.
+   * « Sujets & exercices » n'existe plus, et « Cartes & tarifs » non plus : le
+   * tarif d'un emploi du temps se fixe désormais SUR l'emploi du temps, au
+   * moment où on le crée, et les périodes offertes ont rejoint les Paramètres.
+   *
+   * Leurs adresses, elles, survivent dans des signets et des liens envoyés :
+   * sans cette liste, elles tomberaient sur l'écran générique « bientôt
+   * disponible », qui promettrait le retour d'un module supprimé. On renvoie à
+   * l'accueil, ce qui est la vérité.
    */
   if (RETIRED_SLUGS.has(pageSlug)) {
     return <RetiredModule slug={pageSlug} />;
@@ -95,8 +98,6 @@ export function ModuleDispatcher({ slug }: { slug: string[] }) {
       return <ClassesPage />;
     case "planner":
       return <PlannerPage />;
-    case "subscriptions":
-      return <SubscriptionsPage />;
     case "students":
       return <StudentsPage />;
     case "attendance":

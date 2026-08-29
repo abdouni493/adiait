@@ -18,10 +18,12 @@ import {
   studentDebtSummary,
   studentHasDebt,
   studentListPrice,
+  subscriptionTitleOf,
 } from "@/lib/helpers";
 import { money, positiveMoney, formatDA } from "@/lib/utils";
 import type {
   AbsencePenalty,
+  AccountRequest,
   Announcement,
   AttendanceRecord,
   AttendanceStatus,
@@ -133,6 +135,12 @@ export interface Database {
   independent: IndependentSession[];
   /** séances libres vendues à un GROUPE de chevaliers, sans nommer personne */
   groupSeances: GroupSeance[];
+  /**
+   * LES DEMANDES DE COMPTE VENUES DE LA PAGE DE CONNEXION — un chevalier ou un
+   * parent qui s'est inscrit lui-même et attend que l'intendance le rattache à
+   * une fiche.
+   */
+  accountRequests: AccountRequest[];
 }
 
 // =============================================================================
@@ -472,6 +480,25 @@ interface DataActions {
   /** Efface un frais et TOUS ses règlements — la caisse est reculée d'autant. */
   deleteStudentCharge: (id: string) => Promise<{ ok: boolean }>;
   /**
+   * PORTE L'ENGAGEMENT DES EMPLOIS DU TEMPS AU COMPTE D'UN CHEVALIER.
+   *
+   * L'engagement est le frais d'entrée propre à UN créneau — la tenue,
+   * l'équipement, l'assurance du groupe — fixé sur son tarif. Il naît le jour
+   * où le chevalier rejoint ce créneau, sous la forme d'un frais ordinaire
+   * qu'il règle en une ou plusieurs fois.
+   *
+   * IL NE NAÎT QU'UNE FOIS PAR EMPLOI : rejoindre, quitter puis rejoindre à
+   * nouveau le même créneau ne le fait pas payer deux fois. C'est pour cela que
+   * la fonction est idempotente, et qu'on peut l'appeler sans compter.
+   *
+   * Rend le nombre de frais réellement écrits.
+   */
+  applyEngagementCharges: (
+    studentId: string,
+    subscriptionIds: string[],
+    date?: string,
+  ) => Promise<{ ok: boolean; written: number; total: number }>;
+  /**
    * LA FAMILLE RÈGLE UN OU PLUSIEURS FRAIS, au guichet.
    *
    * Chaque ligne dit COMBIEN on verse sur CE frais-là — jamais plus que ce
@@ -606,6 +633,13 @@ interface DataActions {
       schoolMonthShare?: number;
       /** teacher pay for one séance (teacher month share / monthlySeances) */
       teacherPerSeance?: number;
+      /**
+       * L'ENGAGEMENT — le frais d'entrée propre à cet emploi du temps, porté au
+       * compte du chevalier le jour de son inscription. 0 = aucun engagement.
+       */
+      engagementFee?: number;
+      /** ce que l'engagement dit sur la fiche du chevalier */
+      engagementDescription?: string;
     },
   ) => Promise<{ ok: boolean; groups?: number; created?: number; updated?: number }>;
   /**
@@ -1971,6 +2005,55 @@ export const useData = create<DataStore>((set, get) => ({
    * Corriger un frais NE TOUCHE PAS ce qui a déjà été versé dessus : baisser le
    * montant sous ce qui est encaissé le solde simplement, et l'alerte s'éteint.
    */
+  applyEngagementCharges: async (studentId, subscriptionIds, date) => {
+    const db = get();
+    if (!db.students.some((s) => s.id === studentId)) return { ok: false, written: 0, total: 0 };
+
+    const day = date || dateKey(new Date());
+    const rows: StudentCharge[] = [];
+    let total = 0;
+
+    for (const subId of [...new Set(subscriptionIds)]) {
+      const sub = db.subscriptions.find((s) => s.id === subId);
+      const fee = positiveMoney(sub?.engagementFee ?? 0);
+      if (!sub || fee <= 0) continue;
+
+      // Déjà porté pour ce créneau : on ne le repose pas. Un chevalier qui
+      // revient sur un groupe qu'il avait quitté ne rachète pas sa tenue.
+      const already = db.studentCharges.some(
+        (c) => c.studentId === studentId && c.origin === "engagement" && c.subscriptionId === subId,
+      );
+      if (already) continue;
+
+      // Un emploi OFFERT n'engage à rien : la gratuité d'un cas spécial couvre
+      // le créneau entier, frais d'entrée compris.
+      const student = db.students.find((s) => s.id === studentId);
+      if (student && isFreeSub(student, subId)) continue;
+
+      total += fee;
+      rows.push({
+        ...authorStamp(),
+        id: uid("chg"),
+        studentId,
+        name: "Engagement",
+        amount: fee,
+        description:
+          sub.engagementDescription?.trim() || `Engagement — ${subscriptionTitleOf(db, subId)}`,
+        date: day,
+        origin: "engagement",
+        subscriptionId: subId,
+        paidAmount: 0,
+        paid: false,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    if (rows.length === 0) return { ok: true, written: 0, total: 0 };
+
+    set((state) => ({ studentCharges: [...state.studentCharges, ...rows] }));
+    return { ok: true, written: rows.length, total };
+  },
+
   saveStudentCharge: async ({ id, studentId, name, amount, description, date }) => {
     const db = get();
     if (!db.students.some((s) => s.id === studentId)) {
@@ -2628,6 +2711,17 @@ export const useData = create<DataStore>((set, get) => ({
           // reste de la carte — décimales comprises.
           ? positiveMoney((monthlyPrice - schoolMonthShare) / monthlySeances)
           : undefined;
+    /**
+     * L'ENGAGEMENT SE RÈGLE À PART DU TARIF.
+     *
+     * Un club peut ouvrir un créneau sans en fixer le prix mais en réclamant
+     * déjà la tenue, et inversement. La valeur n'est donc conditionnée à rien :
+     * elle vaut ce qu'on a tapé, et 0 la retire.
+     */
+    const engagementFee = positiveMoney(opts?.engagementFee ?? 0) || undefined;
+    const engagementDescription = engagementFee
+      ? opts?.engagementDescription?.trim() || undefined
+      : undefined;
     let created = 0;
     let updated = 0;
     const additions: Subscription[] = [];
@@ -2646,6 +2740,8 @@ export const useData = create<DataStore>((set, get) => ({
           monthlyPrice,
           schoolMonthShare,
           teacherPerSeance,
+          engagementFee,
+          engagementDescription,
         });
       }
     }
@@ -2665,6 +2761,8 @@ export const useData = create<DataStore>((set, get) => ({
                 monthlyPrice,
                 schoolMonthShare,
                 teacherPerSeance,
+                engagementFee,
+                engagementDescription,
               }
             : s,
         ),
@@ -3890,6 +3988,10 @@ export const useData = create<DataStore>((set, get) => ({
           : st,
       ),
     }));
+
+    // Rejoindre un créneau, c'est s'y ENGAGER : le frais d'entrée de cet emploi
+    // du temps est porté au compte du chevalier, une fois et une seule.
+    await get().applyEngagementCharges(studentId, [subscriptionId], day);
 
     return { ok: true, monthCode: point.monthCode, slotIndex: point.slotIndex };
   },

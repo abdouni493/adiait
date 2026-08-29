@@ -9,6 +9,7 @@ import type {
   Day,
   DayTime,
   Enrollment,
+  Group,
   GroupSeance,
   IndependentSession,
   Payment,
@@ -371,6 +372,50 @@ export function sessionHasGroup(session: ScheduleSession, groupId: string): bool
   return sessionGroupIds(session).includes(groupId);
 }
 
+// ---- Les groupes d'UNE catégorie ------------------------------------------
+/**
+ * LES GROUPES QUE CETTE CATÉGORIE PROPOSE.
+ *
+ * Un groupe porte désormais SA catégorie (`Group.classId`) : « Groupe A » des
+ * 8-10 ans n'est plus le même objet que « Groupe A » des 15-18 ans. C'est cette
+ * colonne qui commande.
+ *
+ * MAIS les groupes créés AVANT elle n'en ont pas, et ils sont pourtant bel et
+ * bien utilisés par des emplois du temps de la catégorie. On les rattrape donc
+ * en lisant les créneaux : un groupe qu'un emploi de cette catégorie amène
+ * appartient à cette catégorie, quoi qu'en dise (ou n'en dise pas) sa fiche.
+ *
+ * L'ordre est celui du magasin, sans doublon.
+ */
+export function groupsOfClass(db: Database, classId: string): Group[] {
+  if (!classId) return [];
+  const used = new Set<string>();
+  for (const session of db.sessions) {
+    if (!sessionHasClass(session, classId)) continue;
+    for (const gid of sessionGroupsOfClass(session, classId)) used.add(gid);
+  }
+  // Un groupe QU'UN CRÉNEAU DE CETTE CATÉGORIE AMÈNE en fait partie, quoi que
+  // dise (ou ne dise pas) sa fiche : le cacher ferait disparaître de l'écran un
+  // groupe pourtant coché sur l'emploi du temps qu'on est en train de modifier.
+  return db.groups.filter((g) => g.classId === classId || used.has(g.id));
+}
+
+/**
+ * LES GROUPES QU'AUCUNE CATÉGORIE NE RÉCLAME.
+ *
+ * Ce sont les groupes d'avant la colonne `classId` que personne n'a encore
+ * rangés, et qu'aucun emploi du temps n'utilise. Les cacher les rendrait
+ * introuvables ; l'écran des emplois du temps les propose donc à part, pour
+ * qu'on puisse les ranger ou les supprimer.
+ */
+export function unassignedGroups(db: Database): Group[] {
+  const claimed = new Set<string>();
+  for (const cls of db.classes) {
+    for (const g of groupsOfClass(db, cls.id)) claimed.add(g.id);
+  }
+  return db.groups.filter((g) => !claimed.has(g.id));
+}
+
 // ---- Frais d'inscription : qui les doit ? ---------------------------------
 /**
  * CET EMPLOI DU TEMPS EST-IL SOUMIS AUX FRAIS D'INSCRIPTION ?
@@ -455,9 +500,41 @@ export function registrationFeeScopeLabel(db: Database, school?: School): string
   return list
     .map((id) => {
       const session = db.sessions.find((x) => x.id === id);
-      return session ? session.title || moduleName(db, session.moduleId) : "—";
+      return sessionTitleOf(db, session);
     })
     .join(", ");
+}
+
+/**
+ * LE NOM D'UN EMPLOI DU TEMPS, sans son module.
+ *
+ * Le module n'est plus demandé quand on crée un créneau : le nommer par lui
+ * rendait « — » tous les emplois créés depuis. Un créneau se nomme donc par le
+ * nom qu'on lui a donné, à défaut par ses CATÉGORIES et ses GROUPES, et le
+ * module ne reste que comme dernier repli pour les emplois d'avant.
+ */
+export function sessionTitleOf(db: Database, session?: ScheduleSession): string {
+  if (!session) return "—";
+  if (session.title) return session.title;
+  const cats = sessionClassIds(session)
+    .map((id) => db.classes.find((c) => c.id === id)?.name)
+    .filter(Boolean)
+    .join(" + ");
+  const grps = sessionGroupIds(session)
+    .map((id) => groupName(db, id))
+    .filter((n) => n !== "—")
+    .join(" · ");
+  const label = [cats, grps].filter(Boolean).join(" — ");
+  if (label) return label;
+  const legacy = session.moduleId ? moduleName(db, session.moduleId) : "";
+  return legacy && legacy !== "—" ? legacy : "Emploi du temps";
+}
+
+/** Le nom de l'emploi du temps qu'un ABONNEMENT tarife. */
+export function subscriptionTitleOf(db: Database, subscriptionId?: string): string {
+  const sub = db.subscriptions.find((s) => s.id === subscriptionId);
+  if (!sub) return "—";
+  return sessionTitleOf(db, db.sessions.find((s) => s.id === sub.sessionId));
 }
 
 /** Full session label. `withGroup=false` drops the group (used by the
@@ -477,7 +554,9 @@ export function sessionLabel(
       : cls
         ? classLabel(db, cls)
         : "",
-    moduleName(db, session.moduleId),
+    // Le module n'est plus demandé à la création : il n'apparaît dans
+    // l'intitulé que sur les emplois qui en portent encore un.
+    session.moduleId ? moduleName(db, session.moduleId) : session.title || "",
     // Un emploi du temps peut réunir PLUSIEURS groupes : l'intitulé les porte
     // tous, sinon deux demi-groupes du même créneau se lisent à l'identique.
     opts.withGroup === false ? "" : sessionGroupsLabel(db, session),
@@ -816,7 +895,7 @@ export function studentModules(db: Database, student: Student): string[] {
     .filter(Boolean)
     .map((sub) => {
       const session = db.sessions.find((s) => s.id === sub!.sessionId);
-      return session ? moduleName(db, session.moduleId) : "";
+      return session ? sessionTitleOf(db, session) : "";
     })
     .filter(Boolean);
 }
@@ -1762,9 +1841,7 @@ export function enrollmentLabel(db: Database, enrollment: Enrollment): string {
   if (!sub) return "—";
   const session = db.sessions.find((s) => s.id === sub.sessionId);
   if (!session) return "—";
-  return session.isOpen && session.title
-    ? session.title
-    : `${moduleName(db, session.moduleId)} · ${groupName(db, session.groupId)}`;
+  return sessionTitleOf(db, session);
 }
 
 // ---- Teacher dues ----

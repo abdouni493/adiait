@@ -79,6 +79,14 @@ create table if not exists public.profiles (
   email       text not null,
   username    text not null,
   full_name   text not null default '',
+  -- LE COMPTE EST-IL ACTIVÉ ?
+  --
+  -- Un compte créé au comptoir l'est d'office. Un compte que la famille a créé
+  -- ELLE-MÊME depuis la page de connexion ne l'est PAS : il se connecte, mais
+  -- il ne pilote encore aucune fiche, donc il n'a rien à lire. L'application
+  -- lui affiche « votre compte attend son activation », et l'intendance le
+  -- rattache à une fiche depuis l'écran des demandes.
+  active      boolean not null default true,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -90,6 +98,8 @@ create index        if not exists profiles_role_idx     on public.profiles (role
 
 comment on table  public.profiles is 'Le reflet lisible de auth.users : rôle, fiche pilotée, nom d''utilisateur.';
 comment on column public.profiles.entity_id is 'La fiche métier que ce compte pilote (students.id, teachers.id, …).';
+comment on column public.profiles.active is
+  'false = compte créé depuis la page de connexion, en attente d''être rattaché à une fiche.';
 
 
 -- =============================================================================
@@ -97,7 +107,7 @@ comment on column public.profiles.entity_id is 'La fiche métier que ce compte p
 -- =============================================================================
 --
 --  CE QUE CES DEUX TABLES SONT : la liste complète de ce qu'un travailleur peut
---  se voir ouvrir. 16 écrans, 85 boutons. C'est exactement le contenu de
+--  se voir ouvrir. 15 écrans, 84 boutons. C'est exactement le contenu de
 --  `lib/permissions.ts` — l'application le lit depuis son code (pour ne pas
 --  faire un aller-retour réseau avant de dessiner un bouton), et la base le
 --  garde ici pour que les droits stockés soient VÉRIFIABLES et que la RLS
@@ -135,15 +145,14 @@ create table if not exists public.app_page_actions (
   primary key (page_key, action_id)
 );
 
-comment on table public.app_pages is 'Les 16 écrans de l''application, dans l''ordre de la barre latérale.';
-comment on table public.app_page_actions is 'Les 85 boutons, écran par écran. Clé stockée : « écran:action ».';
+comment on table public.app_pages is 'Les 15 écrans de l''application, dans l''ordre de la barre latérale.';
+comment on table public.app_page_actions is 'Les 84 boutons, écran par écran. Clé stockée : « écran:action ».';
 
 -- ---- Les écrans -------------------------------------------------------------
 insert into public.app_pages (key, position, emoji, label, href, hint) values
   ('dashboard', 1, '📊', 'Tableau de bord', '/dashboard', 'Les emplois du temps du jour, les feuilles de présence et la caisse.'),
   ('classes', 2, '🛡️', 'Catégories', '/classes', 'Les catégories de l''Ordre et la tranche d''âge de chacune.'),
   ('planner', 3, '📅', 'Emplois du temps', '/planner', 'La grille des créneaux, les séances libres et les arènes.'),
-  ('subscriptions', 4, '🎫', 'Cartes & tarifs', '/subscriptions', 'Le prix de la séance et de la carte, emploi du temps par emploi du temps.'),
   ('students', 5, '⚔️', 'Chevaliers', '/students', 'Les fiches des chevaliers, leurs inscriptions, leurs paiements et leurs dettes.'),
   ('attendance', 6, '✅', 'Présences', '/attendance', 'Les feuilles de présence et l''historique des pointages.'),
   ('teachers', 7, '🏅', 'Entraîneurs', '/teachers', 'Les fiches des entraîneurs, leurs parts et leur paie.'),
@@ -162,6 +171,13 @@ on conflict (key) do update set
   label    = excluded.label,
   href     = excluded.href,
   hint     = excluded.hint;
+
+-- L'ÉCRAN « CARTES & TARIFS » A ÉTÉ RETIRÉ DE L'APPLICATION. Le tarif d'un
+-- emploi du temps se fixe désormais SUR l'emploi du temps, au moment où on le
+-- crée, et les périodes offertes ont rejoint les Paramètres. Le laisser au
+-- catalogue proposerait un écran qui n'existe plus.
+delete from public.app_page_actions where page_key = 'subscriptions';
+delete from public.app_pages        where key      = 'subscriptions';
 
 -- ---- Les boutons ------------------------------------------------------------
 insert into public.app_page_actions (page_key, action_id, position, label, hint) values
@@ -183,9 +199,7 @@ insert into public.app_page_actions (page_key, action_id, position, label, hint)
   ('planner', 'edit', 4, 'Modifier un emploi du temps', null),
   ('planner', 'delete', 5, 'Archiver un emploi du temps', null),
   ('planner', 'print', 6, 'Imprimer un horaire', null),
-  ('subscriptions', 'view', 1, 'Voir le détail d''un abonnement', null),
-  ('subscriptions', 'edit_price', 2, 'Créer / modifier un tarif', null),
-  ('subscriptions', 'archive', 3, 'Supprimer un abonnement', null),
+  ('planner', 'groups', 7, 'Créer / renommer les groupes d''une catégorie', 'Sans avoir à créer le moindre créneau.'),
   ('students', 'create', 1, 'Créer un élève', null),
   ('students', 'view', 2, 'Voir la fiche d''un élève', null),
   ('students', 'edit', 3, 'Modifier un élève', null),
@@ -249,7 +263,8 @@ insert into public.app_page_actions (page_key, action_id, position, label, hint)
   ('settings', 'school', 1, 'Établissement', 'Nom, logo, coordonnées, identifiants fiscaux.'),
   ('settings', 'security', 2, 'Identifiants & sécurité', 'Son propre mot de passe.'),
   ('settings', 'whatsapp', 3, 'Paramètres WhatsApp', null),
-  ('settings', 'backup', 4, 'Sauvegarde & données', null)
+  ('settings', 'free_periods', 4, 'Périodes offertes', 'Les fenêtres de gratuité, venues de l''ancien écran « Cartes & tarifs ».'),
+  ('settings', 'backup', 5, 'Sauvegarde & données', null)
 on conflict (page_key, action_id) do update set
   position = excluded.position,
   label    = excluded.label,
@@ -347,13 +362,24 @@ create table if not exists public.modules (
   created_by_role  text
 );
 
+-- UN GROUPE APPARTIENT À UNE CATÉGORIE.
+--
+-- « Groupe A » des 8-10 ans n'est pas « Groupe A » des 15-18 ans : un groupe
+-- flottant, valable pour tout le club, mélangeait à l'écran d'inscription des
+-- groupes n'ayant rien à faire ensemble. `class_id` tranche.
+--
+-- La colonne est NULLABLE : les groupes créés avant elle n'en portent pas, et
+-- l'application les rattache alors par les emplois du temps qui les utilisent.
 create table if not exists public.groups (
   id               text primary key,
   name             text not null,
+  class_id         text,
+  created_at       text,
   created_by       text,
   created_by_name  text,
   created_by_role  text
 );
+create index if not exists groups_class_idx on public.groups (class_id);
 
 create table if not exists public.salles (
   id               text primary key,
@@ -386,6 +412,21 @@ create table if not exists public.classes (
   created_by_role  text
 );
 create index if not exists classes_category_idx on public.classes (category_id);
+
+-- La clé étrangère des groupes se pose ICI, et non à la création de la table :
+-- `groups` est déclarée avant `classes`, faute de quoi la référence pointerait
+-- une table qui n'existe pas encore.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.groups'::regclass and conname = 'groups_class_id_fkey'
+  ) then
+    alter table public.groups
+      add constraint groups_class_id_fkey
+      foreign key (class_id) references public.classes (id) on delete set null;
+  end if;
+end $$;
 
 -- ---- Le personnel -----------------------------------------------------------
 create table if not exists public.teachers (
@@ -452,6 +493,9 @@ create table if not exists public.parents (
   first_name       text not null default '',
   last_name        text not null default '',
   phone            text not null default '',
+  phone2           text,
+  birth_date       text,
+  address          text,
   email            text not null default '',
   child_ids        jsonb not null default '[]'::jsonb,
   created_by       text,
@@ -499,6 +543,12 @@ create table if not exists public.subscriptions (
   monthly_price       numeric,
   school_month_share  numeric,
   teacher_per_seance  numeric,
+  -- L'ENGAGEMENT : le frais d'entrée propre à CE créneau (tenue, équipement,
+  -- assurance du groupe). Ni la cotisation, ni les droits d'entrée du club : il
+  -- est porté au compte du chevalier le jour où il rejoint l'emploi du temps,
+  -- sous la forme d'un `student_charges` d'origine « engagement ».
+  engagement_fee          numeric,
+  engagement_description  text,
   archived_at         text,
   created_by          text,
   created_by_name     text,
@@ -516,6 +566,7 @@ create table if not exists public.students (
   phone                        text not null default '',
   phone2                       text,
   email                        text not null default '',
+  address                      text,
   rfid                         text not null default '',
   is_free                      boolean not null default false,
   student_case                 text check (student_case in ('normal','special','teacher_child','reduction','school_only')),
@@ -609,7 +660,7 @@ create table if not exists public.student_charges (
   amount             numeric not null default 0,
   description        text,
   date               text not null default '',
-  origin             text check (origin in ('manual','school_advance')),
+  origin             text check (origin in ('manual','school_advance','engagement')),
   source_payment_id  text,
   subscription_id    text references public.subscriptions (id) on delete set null,
   month_code         text,
@@ -1003,6 +1054,54 @@ create table if not exists public.group_seances (
 );
 create index if not exists group_seances_teacher_idx on public.group_seances (teacher_id);
 
+-- ---- Les demandes de compte -------------------------------------------------
+--
+-- CE QUE C'EST : un compte que la FAMILLE a créé elle-même depuis la page de
+-- connexion. Il existe vraiment dans `auth.users` et se connecte tout de suite,
+-- mais son profil est INACTIF et ne pointe aucune fiche : l'application ne lui
+-- montre qu'un écran d'attente.
+--
+-- L'intendance ouvre la demande depuis le tableau de bord, l'écran des
+-- chevaliers ou celui des parents, et la referme de deux façons :
+--   • en RATTACHANT le compte à une fiche qui existe déjà (le numéro de
+--     téléphone la désigne le plus souvent tout seul) ;
+--   • en CRÉANT cette fiche depuis la demande — avec, pour un parent, celles de
+--     ses fils, et la catégorie et le groupe de chacun.
+create table if not exists public.account_requests (
+  id                   text primary key,
+  account_id           uuid not null references auth.users (id) on delete cascade,
+  kind                 text not null check (kind in ('student','parent')),
+  first_name           text not null default '',
+  last_name            text not null default '',
+  phone                text not null default '',
+  phone2               text,
+  birth_date           text,
+  address              text,
+  email                text not null default '',
+  -- « je suis déjà inscrit au club, je veux seulement mon accès »
+  existing_member      boolean not null default false,
+  -- parent : ses fils sont-ils déjà inscrits au club ?
+  children_subscribed  boolean,
+  -- parent : les fils déclarés, quand ils ne le sont pas encore
+  children             jsonb not null default '[]'::jsonb,
+  status               text not null default 'pending'
+                       check (status in ('pending','linked','rejected')),
+  linked_entity_id     text,
+  linked_child_ids     jsonb,
+  reviewed_at          text,
+  reviewed_by          text,
+  reviewed_by_name     text,
+  created_at           text not null default '',
+  created_by           text,
+  created_by_name      text,
+  created_by_role      text
+);
+create index if not exists account_requests_status_idx  on public.account_requests (status);
+create index if not exists account_requests_account_idx on public.account_requests (account_id);
+
+comment on table public.account_requests is
+  'Les comptes créés depuis la page de connexion, en attente d''être rattachés à une fiche.';
+
 
 -- =============================================================================
 --  5. QUI SUIS-JE, ET QU'AI-JE LE DROIT D'ÉCRIRE
@@ -1261,7 +1360,15 @@ begin
         $w$public.can_write(array['independent','dashboard'])$w$),
       ('group_seances',
         $r$public.is_staff() or (public.is_teacher() and teacher_id = public.my_entity_id())$r$,
-        $w$public.can_write(array['independent','teachers'])$w$)
+        $w$public.can_write(array['independent','teachers'])$w$),
+
+      -- Les demandes de compte : le comptoir les traite, et chacun voit la
+      -- sienne — c'est ce qui permet à un compte en attente de savoir où il en
+      -- est. PERSONNE ne les INSÈRE d'ici : elles naissent de
+      -- `request_account()`, qui vérifie tout elle-même.
+      ('account_requests',
+        $r$public.is_staff() or account_id = auth.uid()$r$,
+        $w$public.can_write(array['dashboard','students','parents'])$w$)
     ) as t(tbl, read_using, write_using)
   loop
     execute format('alter table public.%I enable row level security', r.tbl);
@@ -1730,6 +1837,171 @@ $$;
 -- Elle rend NULL quand personne ne répond à cet identifiant — la page de
 -- connexion affiche alors le même message que pour un mot de passe faux, et
 -- rien ne se déduit de la différence.
+
+-- ---- LA FAMILLE QUI CRÉE SON PROPRE COMPTE ----------------------------------
+--
+-- La page de connexion propose « créer mon compte » à un chevalier ou à un
+-- parent. Personne au comptoir n'a rien saisi : c'est la famille qui remplit le
+-- formulaire, depuis son téléphone, et elle n'est par définition PAS connectée.
+-- La fonction est donc ouverte à `anon` — mais elle ne donne aucun pouvoir :
+--
+--   • le rôle est FORCÉ à 'student' ou 'parent'. Aucun paramètre ne permet de
+--     se fabriquer une intendance, encore moins une administration ;
+--   • le profil naît INACTIF (`active = false`) et pointe son propre
+--     identifiant, donc AUCUNE fiche : la RLS ne lui rend rien, et
+--     l'application lui montre un écran d'attente ;
+--   • la demande est enregistrée pour que l'intendance la traite.
+--
+-- Autrement dit : le compte existe et se connecte, mais il ne voit rien tant
+-- qu'un humain du club ne l'a pas rattaché à une fiche.
+create or replace function public.request_account(
+  p_email                text,
+  p_password             text,
+  p_kind                 text,
+  p_first_name           text default '',
+  p_last_name            text default '',
+  p_phone                text default '',
+  p_phone2               text default null,
+  p_birth_date           text default null,
+  p_address              text default null,
+  p_existing_member      boolean default false,
+  p_children_subscribed  boolean default null,
+  p_children             jsonb default '[]'::jsonb
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id    uuid;
+  v_email text := lower(trim(p_email));
+  v_role  public.app_role;
+  v_name  text := nullif(trim(coalesce(p_first_name, '') || ' ' || coalesce(p_last_name, '')), '');
+begin
+  -- LE RÔLE EST FORCÉ. C'est la garantie de tout le reste : quoi qu'on envoie,
+  -- on ne peut sortir d'ici qu'avec un compte de chevalier ou de parent.
+  if p_kind = 'student' then
+    v_role := 'student';
+  elsif p_kind = 'parent' then
+    v_role := 'parent';
+  else
+    raise exception 'Type de compte invalide.' using errcode = '22023';
+  end if;
+
+  if v_email is null or v_email = '' then
+    raise exception 'L''email est obligatoire.' using errcode = '22023';
+  end if;
+  if p_password is null or length(p_password) < 6 then
+    raise exception 'Le mot de passe doit contenir au moins 6 caractères.' using errcode = '22023';
+  end if;
+  if v_name is null then
+    raise exception 'Indiquez au moins un nom ou un prénom.' using errcode = '22023';
+  end if;
+  if exists (select 1 from public.profiles p where lower(p.username) = v_email) then
+    raise exception 'Cet email est déjà utilisé par un autre compte.' using errcode = '23505';
+  end if;
+
+  v_id := public.raw_create_auth_user(v_email, p_password, v_role, v_name);
+
+  -- LE PROFIL NAÎT INACTIF, et pointe son propre identifiant : il ne pilote
+  -- donc AUCUNE fiche, et la RLS ne lui rend ni chevalier, ni paiement, ni
+  -- présence. C'est exactement ce qu'on veut avant qu'un humain ait vérifié.
+  insert into public.profiles (id, entity_id, role, email, username, full_name, active)
+  values (v_id, v_id::text, v_role, v_email, v_email, v_name, false);
+
+  insert into public.account_requests (
+    id, account_id, kind, first_name, last_name, phone, phone2, birth_date, address,
+    email, existing_member, children_subscribed, children, status, created_at
+  ) values (
+    'req-' || replace(v_id::text, '-', ''),
+    v_id,
+    p_kind,
+    coalesce(trim(p_first_name), ''),
+    coalesce(trim(p_last_name), ''),
+    coalesce(trim(p_phone), ''),
+    nullif(trim(coalesce(p_phone2, '')), ''),
+    nullif(trim(coalesce(p_birth_date, '')), ''),
+    nullif(trim(coalesce(p_address, '')), ''),
+    v_email,
+    coalesce(p_existing_member, false),
+    p_children_subscribed,
+    coalesce(p_children, '[]'::jsonb),
+    'pending',
+    to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SSOF')
+  );
+
+  return v_id::text;
+end;
+$$;
+
+
+-- ---- RATTACHER UN COMPTE EN ATTENTE À SA FICHE, ET L'ACTIVER ---------------
+--
+-- Le geste que l'intendance pose au bout du traitement d'une demande : le
+-- profil pointe désormais la fiche (chevalier ou parent) et devient ACTIF. À sa
+-- prochaine ouverture, la famille voit exactement ce qu'elle verrait si le
+-- comptoir avait tout saisi lui-même.
+--
+-- Elle refuse tout ce qui n'est pas ce geste-là : seul un compte du comptoir
+-- peut l'appeler, et seul un profil de chevalier ou de parent peut en être la
+-- cible. On ne se sert pas de cette porte pour déplacer une administration.
+create or replace function public.link_account_entity(
+  p_account_id text,
+  p_entity_id  text,
+  p_role       text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_account uuid;
+  v_role    public.app_role;
+begin
+  if not (public.is_admin() or public.can_write(array['dashboard','students','parents'])) then
+    raise exception 'Vous n''avez pas le droit d''activer un compte.' using errcode = '42501';
+  end if;
+
+  if p_role = 'student' then
+    v_role := 'student';
+  elsif p_role = 'parent' then
+    v_role := 'parent';
+  else
+    raise exception 'Type de compte invalide.' using errcode = '22023';
+  end if;
+
+  begin
+    v_account := p_account_id::uuid;
+  exception when others then
+    raise exception 'Compte introuvable.' using errcode = '22023';
+  end;
+
+  if nullif(trim(coalesce(p_entity_id, '')), '') is null then
+    raise exception 'La fiche à rattacher est obligatoire.' using errcode = '22023';
+  end if;
+
+  -- On ne touche qu'aux comptes de familles : une intendance ou une
+  -- administration ne se rattache pas à une fiche de chevalier.
+  update public.profiles
+     set entity_id  = p_entity_id,
+         role       = v_role,
+         active     = true,
+         updated_at = now()
+   where id = v_account
+     and role in ('student', 'parent');
+
+  if not found then
+    raise exception 'Ce compte n''existe pas, ou n''est pas un compte de famille.'
+      using errcode = '42501';
+  end if;
+
+  return true;
+end;
+$$;
+
+
 create or replace function public.login_email(p_login text)
 returns text
 language sql
@@ -1749,6 +2021,12 @@ $$;
 grant execute on function public.admin_exists()                       to anon, authenticated;
 grant execute on function public.bootstrap_admin(text, text, text)    to anon, authenticated;
 grant execute on function public.login_email(text)                    to anon, authenticated;
+-- La création de compte par la famille elle-même : ouverte à qui n'est pas
+-- encore connecté, puisque c'est précisément son cas. Le rôle y est FORCÉ et le
+-- profil naît inactif — voir la fonction.
+grant execute on function public.request_account(text, text, text, text, text, text, text, text, text, boolean, boolean, jsonb) to anon, authenticated;
+grant execute on function public.link_account_entity(text, text, text)  to authenticated;
+
 
 grant execute on function public.create_app_user(text, text, text, text, text, text) to authenticated;
 grant execute on function public.account_id_for_entity(text)          to authenticated;

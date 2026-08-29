@@ -18,6 +18,11 @@
  *  3. Ce que la table ne connaît pas ne part pas non plus (`columns`) : un
  *     champ calculé posé sur une ligne par un écran ne fait pas échouer
  *     l'enregistrement de toute la ligne.
+ *  4. Sur une CLÉ ÉTRANGÈRE (`emptyAsNull`), la chaîne vide devient `null`.
+ *     Un formulaire qui n'a rien à donner pose `""` ; PostgreSQL, lui, y verrait
+ *     un identifiant à chercher — et refuserait toute la ligne pour un champ
+ *     facultatif laissé vide. « Vide » veut dire « aucun », et « aucun »
+ *     s'écrit `null`.
  */
 
 import type { TableSpec } from "./schema";
@@ -43,12 +48,14 @@ export type Row = Record<string, unknown>;
  */
 export function toRow(model: Record<string, unknown>, spec: TableSpec): Row {
   const known = new Set(spec.columns);
+  const nullable = new Set(spec.emptyAsNull ?? []);
   const row: Row = {};
   for (const [key, value] of Object.entries(model)) {
     if (value === undefined) continue;
     const column = toSnake(key);
     if (!known.has(column)) continue;
-    row[column] = value;
+    // Une clé étrangère vide n'est pas une chaîne vide : c'est une absence.
+    row[column] = value === "" && nullable.has(column) ? null : value;
   }
   return row;
 }

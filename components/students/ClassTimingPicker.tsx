@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Clock, GraduationCap, MapPin, Search, Users, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { Input, Select } from "@/components/ui/SearchInput";
+import { Input } from "@/components/ui/SearchInput";
 import { useData } from "@/lib/store/data";
 import {
-  COURS_LEVELS,
+  classLabel,
   courseKeyOf,
   coursLevelLabel,
   formatDays,
   groupName,
   hasMonthlyPlan,
   isFreeSub,
-  moduleName,
   monthlyPriceOf,
+  groupsOfClass,
   salleName,
+  sessionTitleOf,
+  sessionGroupsOfClass,
   sessionTimeLabel,
   soldFor,
   teacherName,
@@ -31,12 +33,23 @@ import type { CoursLevel, Student } from "@/lib/types";
 export interface ClassTimingOption {
   /** subscription id — this is what gets stored on the student */
   subId: string;
+  /** the emploi du temps this tariff prices */
+  sessionId: string;
   /** identity of the cours: same class, same module, same teacher */
   courseKey: string;
   /** every timing of that cours, this one included */
   siblingSubIds: string[];
   className: string;
   classId: string;
+  /**
+   * LES GROUPES QUE CETTE CATÉGORIE AMÈNE SUR CE CRÉNEAU.
+   *
+   * C'est par eux que l'écran d'inscription se lit maintenant : on choisit une
+   * catégorie, elle montre SES groupes, et chaque groupe montre les créneaux
+   * qu'il tient. Un emploi multi-niveaux ne présente donc à la 8-10 ans que les
+   * groupes de la 8-10 ans, jamais ceux de l'autre catégorie.
+   */
+  groupIds: string[];
   moduleName: string;
   groupName: string;
   salleName: string;
@@ -56,10 +69,15 @@ export interface ClassTimingOption {
 /** Level filter values: the four school levels plus formations. */
 export type LevelValue = CoursLevel | "formation";
 
-/** Où la réception en est dans le catalogue : le niveau et l'année affichés. */
+/**
+ * OÙ LE COMPTOIR EN EST DANS LE CATALOGUE : les CATÉGORIES qu'il a ouvertes.
+ *
+ * C'était « le niveau et l'année affichés » — deux notions d'école qu'un club
+ * de chevalerie n'emploie plus. La fiche s'en sert pour rouvrir là où le
+ * chevalier a été inscrit, même quand aucun créneau n'a encore été coché.
+ */
 export interface TimingScope {
-  level: string;
-  year: string;
+  classIds: string[];
 }
 
 /** Un niveau lu depuis une fiche : tout ce qui n'est pas connu retombe sur
@@ -102,7 +120,8 @@ export function toggleTimingSelection(
 /** Timings and catégories, ready to be listed. Shared by every screen that
  *  enrolls a student, so they all read the same catalogue. */
 export function useClassTimings() {
-  const { sessions, subscriptions, classes, modules, teachers, groups, salles, students } = useData();
+  const db = useData();
+  const { sessions, subscriptions, classes, modules, teachers, groups, salles, students } = db;
 
   /** Every timing of ONE class, séances libres opened to it included. */
   const timingsOf = (classId: string): ClassTimingOption[] => {
@@ -122,12 +141,28 @@ export function useClassTimings() {
         return [
           {
             subId: sub.id,
+            sessionId: s.id,
             courseKey: courseKeyOf(s),
             siblingSubIds: [] as string[],
             className: cls0?.name ?? cls?.name ?? "-",
             classId,
-            moduleName: s.isOpen && s.title ? s.title : s.title || mod,
-            groupName: groups.find((g) => g.id === s.groupId)?.name ?? "-",
+            groupIds: sessionGroupsOfClass(s, classId),
+            // Le module n'est plus demandé à la création d'un emploi du temps :
+            // le nom saisi l'emporte, et à défaut ce sont les GROUPES qui
+            // nomment le créneau. Le module reste le dernier repli, pour les
+            // emplois d'avant qui en portent encore un.
+            moduleName:
+              s.title ||
+              sessionGroupsOfClass(s, classId)
+                .map((gid) => groups.find((g) => g.id === gid)?.name)
+                .filter(Boolean)
+                .join(" · ") ||
+              mod,
+            groupName:
+              sessionGroupsOfClass(s, classId)
+                .map((gid) => groups.find((g) => g.id === gid)?.name)
+                .filter(Boolean)
+                .join(" · ") || "-",
             salleName: salles.find((sl) => sl.id === s.salleId)?.name ?? "-",
             teacherName: t ? `${t.firstName} ${t.lastName}` : "-",
             daysLabel: formatDays(s.days) || "—",
@@ -226,7 +261,46 @@ export function useClassTimings() {
     return grp ? `${mod} · ${grp}` : mod;
   };
 
-  return { timingsOf, timingsForLevelYear, timingOf, levelYearOf, subCost, subLabel };
+  /**
+   * LES GROUPES D'UNE CATÉGORIE, chacun avec les créneaux qu'il tient.
+   *
+   * C'est la vue dont le comptoir a besoin : « la 8-10 ans, qu'est-ce qu'elle
+   * propose ? » — Groupe A le samedi matin, Groupe B le mardi soir. Un groupe
+   * sans créneau tarifé apparaît quand même, avec zéro créneau : c'est une
+   * information, pas un oubli.
+   */
+  const groupsWithTimings = (classId: string) => {
+    const all = timingsOf(classId);
+    const rows = groupsOfClass(db, classId).map((g) => ({
+      group: g,
+      timings: all.filter((t) => t.groupIds.includes(g.id)),
+    }));
+    // Les créneaux qu'aucun groupe ne réclame — un emploi créé sans groupe.
+    const orphans = all.filter((t) => t.groupIds.length === 0);
+    return { rows, orphans };
+  };
+
+  /** Combien de créneaux tarifés une catégorie propose-t-elle ? */
+  const timingCountOf = (classId: string) => timingsOf(classId).length;
+
+  /** LA CATÉGORIE d'un abonnement — le point d'entrée du nouveau catalogue. */
+  const classIdOf = (subId: string): string | null => {
+    const sub = subscriptions.find((s) => s.id === subId);
+    const session = sub && sessions.find((se) => se.id === sub.sessionId);
+    return session?.classId || null;
+  };
+
+  return {
+    timingsOf,
+    timingsForLevelYear,
+    timingOf,
+    levelYearOf,
+    subCost,
+    subLabel,
+    groupsWithTimings,
+    timingCountOf,
+    classIdOf,
+  };
 }
 
 /**
@@ -272,7 +346,7 @@ export function CurrentInscriptions({
     return [
       {
         subId,
-        label: session.title || moduleName(db, session.moduleId) || "Emploi du temps",
+        label: sessionTitleOf(db, session),
         className: cls?.name ?? "—",
         levelLabel:
           cls?.type === "formation"
@@ -293,6 +367,29 @@ export function CurrentInscriptions({
     ];
   });
 
+  /**
+   * CE QUE LA FICHE A RETENU quand elle ne porte encore aucun créneau.
+   *
+   * `enrollmentLevel` désigne aujourd'hui une CATÉGORIE : c'est par elles que
+   * l'écran d'inscription se lit. Les fiches d'avant y portent encore un niveau
+   * d'école (« primaire », « lycee ») — on lit donc la catégorie d'abord, et on
+   * retombe sur l'ancien libellé quand ce n'en est pas une.
+   */
+  const cls0 = db.classes.find((c) => c.id === student?.enrollmentLevel);
+  const lastScopeLabel = cls0
+    ? classLabel(db, cls0)
+    : student?.enrollmentLevel || student?.enrollmentYear
+      ? [
+          student?.enrollmentLevel === "formation"
+            ? "Formation"
+            : coursLevelLabel(student?.enrollmentLevel as CoursLevel) ||
+              student?.enrollmentLevel,
+          student?.enrollmentYear,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "";
+
   return (
     <div className="rounded-xl border border-primary/25 bg-primary-50/25 p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -309,19 +406,12 @@ export function CurrentInscriptions({
           {/* Une fiche créée SANS emploi du temps garde tout de même sa catégorie
               et son année : les rappeler ici évite de chercher où le chevalier a
               été inscrit avant de pouvoir lui choisir un créneau. */}
-          {student?.enrollmentLevel || student?.enrollmentYear ? (
+          {lastScopeLabel ? (
             <>
-              <strong className="block text-ink">
-                Inscrit en{" "}
-                {student.enrollmentLevel === "formation"
-                  ? "Formation"
-                  : coursLevelLabel(student.enrollmentLevel as CoursLevel) ||
-                    student.enrollmentLevel}
-                {student.enrollmentYear ? ` · ${student.enrollmentYear}` : ""}
-              </strong>
+              <strong className="block text-ink">Inscrit en {lastScopeLabel}</strong>
               <span className="italic">
                 Aucun emploi du temps choisi pour l&apos;instant — la liste ci-dessous s&apos;ouvre
-                déjà sur cette classe.
+                déjà sur cette catégorie.
               </span>
             </>
           ) : (
@@ -414,10 +504,27 @@ export function CurrentInscriptions({
 }
 
 /**
- * Enrollment picker following your flow: pick the class LEVEL, then the YEAR,
- * then every timing of that level/year is listed — searchable by name — and one
- * or several can be ticked. The running total cost of what is ticked is shown
- * so reception knows what to charge (or leave to pay after the séances).
+ * L'ÉCRAN D'INSCRIPTION — PAR CATÉGORIE, PUIS PAR GROUPE.
+ *
+ * Il demandait autrefois un NIVEAU (« Primaire ») puis une ANNÉE (« 1AP ») :
+ * deux notions d'école qui n'existent plus dans un club de chevalerie, où l'on
+ * range ses membres par tranche d'âge. On cherchait donc un enfant de 9 ans
+ * dans « Primaire / 4AP », ce qui ne voulait plus rien dire.
+ *
+ * Le comptoir choisit désormais ce qu'il a réellement sous les yeux :
+ *
+ *   1. une ou PLUSIEURS CATÉGORIES — cherchées par leur nom, cochées d'un clic ;
+ *   2. dans chacune, un ou PLUSIEURS GROUPES — ceux de cette catégorie, et
+ *      d'elle seule ;
+ *   3. et, quand un groupe tient plusieurs créneaux, LEQUEL on prend.
+ *
+ * Un groupe qui ne tient QU'UN créneau se coche donc d'un seul clic : c'est le
+ * cas courant, et il ne demande rien de plus.
+ *
+ * CE QUI EST ENREGISTRÉ N'A PAS CHANGÉ : ce sont toujours des abonnements
+ * (`subId`), un par emploi du temps suivi. Seule la façon de les trouver a
+ * changé — et un chevalier suit toujours un cours par UN seul de ses groupes,
+ * cocher un autre groupe du même cours l'y DÉPLACE.
  */
 export function ClassTimingPicker({
   selectedSubIds,
@@ -426,8 +533,7 @@ export function ClassTimingPicker({
   student,
   savedSubIds,
   showCurrent = false,
-  initialLevel,
-  initialYear,
+  initialClassIds,
   onScopeChange,
 }: {
   selectedSubIds: string[];
@@ -439,77 +545,133 @@ export function ClassTimingPicker({
   student?: Student | null;
   /** ce que la fiche porte DÉJÀ en base, pour marquer les ajouts en attente */
   savedSubIds?: string[];
-  /** rappeler EN HAUT la catégorie, l'année et les emplois du temps actuels */
+  /** rappeler EN HAUT les emplois du temps actuels du chevalier */
   showCurrent?: boolean;
-  /**
-   * OÙ ROUVRIR LE CATALOGUE quand le chevalier n'a AUCUN emploi du temps.
-   *
-   * Une fiche peut très bien avoir été créée « 4AP, on verra le créneau plus
-   * tard » : sans ces deux valeurs, l'écran de modification rouvrait sur un
-   * primaire/1AP qui ne le concernait pas, et la réception devait retrouver sa
-   * catégorie à la main avant de pouvoir lui choisir un emploi du temps.
-   */
-  initialLevel?: string;
-  initialYear?: string;
-  /** remonte le niveau et l'année affichés, pour que la fiche les enregistre */
+  /** les catégories à ouvrir d'emblée (une activation de compte les impose) */
+  initialClassIds?: string[];
+  /** remonte les catégories ouvertes, pour que la fiche s'en souvienne */
   onScopeChange?: (scope: TimingScope) => void;
 }) {
-  const { timingsForLevelYear, timingOf, levelYearOf, subCost, subLabel } = useClassTimings();
+  const db = useData();
+  const { classes } = db;
+  const { timingOf, subCost, subLabel, groupsWithTimings, timingCountOf, classIdOf } =
+    useClassTimings();
+
   /**
-   * L'écran s'ouvre LÀ OÙ LE CHEVALIER EST DÉJÀ : le niveau et l'année de sa première
-   * inscription. En modification, ses emplois du temps sont donc visibles et
-   * décochables tout de suite, au lieu d'être cachés derrière un primaire/1AP
-   * qui ne le concerne pas.
+   * L'ÉCRAN S'OUVRE LÀ OÙ LE CHEVALIER EST DÉJÀ : les catégories de ses
+   * inscriptions en cours. En modification, ses créneaux sont donc visibles et
+   * décochables tout de suite, au lieu d'être cachés derrière une catégorie
+   * arbitraire qui ne le concerne pas.
    */
-  const start = useMemo(
-    () => {
-      // La première inscription décide d'abord ; à défaut, la catégorie et
-      // l'année RETENUES sur la fiche ; à défaut seulement, le repli habituel.
-      const fromSubs = selectedSubIds.length ? levelYearOf(selectedSubIds[0]) : null;
-      if (fromSubs) return fromSubs;
-      if (initialLevel) {
-        return { level: asLevelValue(initialLevel), year: initialYear ?? "" };
-      }
-      return null;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-  const [level, setLevel] = useState<LevelValue>(start?.level ?? "primaire");
-  const [year, setYear] = useState<string>(
-    start?.year || timingYearOptions(start?.level ?? "primaire")[0] || "",
-  );
+  const [openClassIds, setOpenClassIds] = useState<string[]>(() => {
+    const fromSubs = selectedSubIds.map(classIdOf).filter(Boolean) as string[];
+    const start = [...new Set([...(initialClassIds ?? []), ...fromSubs])];
+    return start;
+  });
+  const [classSearch, setClassSearch] = useState("");
   const [search, setSearch] = useState("");
+  /** Les groupes DÉPLIÉS : ceux dont on regarde les créneaux un par un. */
+  const [openGroupIds, setOpenGroupIds] = useState<string[]>([]);
 
-  // Le niveau et l'année affichés remontent à la fiche, qui les enregistre —
-  // c'est ce qui permet de rouvrir ici même un chevalier sans emploi du temps.
+  // Les catégories ouvertes remontent à la fiche, qui les enregistre.
   useEffect(() => {
-    onScopeChange?.({ level, year });
+    onScopeChange?.({ classIds: openClassIds });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, year]);
+  }, [openClassIds.join("|")]);
 
-  const years = timingYearOptions(level);
-  const timings = useMemo(
-    () => timingsForLevelYear(level, level === "formation" ? "" : year),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [level, year],
-  );
+  const toggleClass = (id: string) =>
+    setOpenClassIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+
+  const toggleGroupOpen = (id: string) =>
+    setOpenGroupIds((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
+
+  const cq = classSearch.trim().toLowerCase();
+  const shownClasses = cq
+    ? classes.filter((c) => `${c.name} ${c.description ?? ""}`.toLowerCase().includes(cq))
+    : classes;
 
   const q = search.trim().toLowerCase();
-  const shown = q
-    ? timings.filter((t) =>
-        `${t.moduleName} ${t.groupName} ${t.teacherName} ${t.salleName} ${t.className} ${t.daysLabel} ${t.time}`
-          .toLowerCase()
-          .includes(q),
-      )
-    : timings;
+  const matches = (t: ClassTimingOption) =>
+    !q ||
+    `${t.moduleName} ${t.groupName} ${t.teacherName} ${t.salleName} ${t.className} ${t.daysLabel} ${t.time}`
+      .toLowerCase()
+      .includes(q);
 
-  const totalCost = selectedSubIds.reduce((s, id) => s + subCost(id), 0);
+  const totalCost = selectedSubIds.reduce((sum, id) => sum + subCost(id), 0);
+
+  /** Une ligne de créneau, cochable — la même partout dans l'écran. */
+  const renderTiming = (t: ClassTimingOption) => {
+    const picked = selectedSubIds.includes(t.subId);
+    const moves =
+      !picked && t.siblingSubIds.some((id) => id !== t.subId && selectedSubIds.includes(id));
+    return (
+      <button
+        key={t.subId}
+        type="button"
+        onClick={() => onToggle(t)}
+        className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border p-2 text-start text-[11px] transition-colors ${
+          picked
+            ? "border-primary bg-primary text-white"
+            : "border-line bg-surface text-ink hover:bg-primary-50"
+        }`}
+      >
+        <span className="min-w-0">
+          <strong className="block">
+            {t.moduleName}
+            {t.isOpen && (
+              <span
+                className={`ml-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                  picked ? "bg-white/20 text-white" : "bg-success/15 text-success"
+                }`}
+              >
+                Séance libre
+              </span>
+            )}
+            {moves && (
+              <span className="ml-1.5 rounded bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
+                Change de groupe
+              </span>
+            )}
+          </strong>
+          <span
+            className={`mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 ${
+              picked ? "text-white/85" : "text-muted"
+            }`}
+          >
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" /> {t.daysLabel} · {t.time}
+            </span>
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> {t.salleName}
+            </span>
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" /> {t.enrolled} inscrit(s)
+            </span>
+            <span>Ens: {t.teacherName}</span>
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="text-end">
+            <strong className="block">
+              {formatDA(t.price)}
+              {t.isFormation ? ` / ${t.periodMonths} carte` : " / séance"}
+            </strong>
+            {t.hasMonthly && (
+              <span className={picked ? "text-white/80" : "text-warning"}>
+                {t.monthlySeances} séances · {formatDA(t.monthlyPrice)} / carte
+              </span>
+            )}
+          </span>
+          <input type="checkbox" checked={picked} readOnly className="h-4 w-4" />
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-3">
-      {/* Ce qu'il suit DÉJÀ — catégorie, année, créneaux — avant de toucher à quoi
-          que ce soit. Sans ce rappel, on coche à l'aveugle. */}
+      {/* Ce qu'il suit DÉJÀ — catégorie, groupe, créneaux — avant de toucher à
+          quoi que ce soit. Sans ce rappel, on coche à l'aveugle. */}
       {showCurrent && (
         <CurrentInscriptions
           subIds={selectedSubIds}
@@ -522,143 +684,207 @@ export function ClassTimingPicker({
         />
       )}
 
-      {/* Step 1 + 2: level and year */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-            1. Niveau
-          </label>
-          <Select
-            value={level}
-            onChange={(e) => {
-              const lv = e.target.value as LevelValue;
-              setLevel(lv);
-              setYear(timingYearOptions(lv)[0] ?? "");
-            }}
-            className="w-full"
-          >
-            {COURS_LEVELS.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-            <option value="formation">Formation</option>
-          </Select>
+      {/* ---- Étape 1 : LES CATÉGORIES ---------------------------------- */}
+      <div className="space-y-2 rounded-xl border border-primary/25 bg-primary-50/25 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+            <GraduationCap className="h-3.5 w-3.5" /> 1. Catégories — plusieurs possibles
+          </span>
+          <span className="text-[10px] font-semibold text-muted">
+            {openClassIds.length} ouverte(s)
+          </span>
         </div>
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
-            2. {level === "maternelle" ? "Section" : "Année"}
-          </label>
-          <Select
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="w-full"
-            disabled={level === "formation"}
-          >
-            {level === "formation" ? (
-              <option value="">Toutes</option>
-            ) : (
-              years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))
-            )}
-          </Select>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <Input
+            value={classSearch}
+            onChange={(e) => setClassSearch(e.target.value)}
+            placeholder="Rechercher une catégorie par son nom…"
+            className="pl-9"
+          />
         </div>
-      </div>
 
-      {/* Step 3: search the timings of that level/year */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher un créneau par nom (module, entraîneur, groupe...)"
-          className="pl-9"
-        />
-      </div>
-
-      {/* Timings — tick one or several */}
-      <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-xl border border-primary/25 bg-primary-50/20 p-2">
-        {shown.length === 0 ? (
-          <p className="p-2 text-[11px] italic text-muted">
-            Aucun créneau tarifé pour ce niveau/cette année. Les créneaux et leurs tarifs se
-            définissent sur les pages Emploi du temps et Abonnements.
+        {shownClasses.length === 0 ? (
+          <p className="p-1.5 text-[11px] italic text-muted">
+            Aucune catégorie ne correspond. Les catégories se créent depuis l&apos;écran
+            Catégories.
           </p>
         ) : (
-          shown.map((t) => {
-            const picked = selectedSubIds.includes(t.subId);
-            const moves =
-              !picked && t.siblingSubIds.some((id) => id !== t.subId && selectedSubIds.includes(id));
-            return (
-              <button
-                key={t.subId}
-                type="button"
-                onClick={() => onToggle(t)}
-                className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border p-2 text-start text-[11px] transition-colors ${
-                  picked
-                    ? "border-primary bg-primary text-white"
-                    : "border-line bg-surface text-ink hover:bg-primary-50"
-                }`}
-              >
-                <span className="min-w-0">
-                  <strong className="block">
-                    {t.moduleName} · {t.groupName}
-                    <span className={`ml-1.5 text-[9px] ${picked ? "text-white/80" : "text-muted"}`}>
-                      ({t.className})
-                    </span>
-                    {t.isOpen && (
-                      <span
-                        className={`ml-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold ${
-                          picked ? "bg-white/20 text-white" : "bg-success/15 text-success"
-                        }`}
-                      >
-                        Séance libre
-                      </span>
-                    )}
-                    {moves && (
-                      <span className="ml-1.5 rounded bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
-                        Change de groupe
-                      </span>
-                    )}
-                  </strong>
+          <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+            {shownClasses.map((c) => {
+              const open = openClassIds.includes(c.id);
+              const count = timingCountOf(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleClass(c.id)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                    open
+                      ? "border-primary bg-primary text-white"
+                      : "border-line bg-surface text-ink hover:bg-primary-50"
+                  }`}
+                >
+                  {classLabel(db, c)}
                   <span
-                    className={`mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 ${
-                      picked ? "text-white/85" : "text-muted"
+                    className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                      open ? "bg-white/20 text-white" : "bg-primary-50 text-primary"
                     }`}
                   >
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> {t.daysLabel} · {t.time}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> {t.salleName}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3" /> {t.enrolled} inscrit(s)
-                    </span>
-                    <span>Ens: {t.teacherName}</span>
+                    {count} créneau(x)
                   </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <span className="text-end">
-                    <strong className="block">
-                      {formatDA(t.price)}
-                      {t.isFormation ? ` / ${t.periodMonths} carte` : " / séance"}
-                    </strong>
-                    {t.hasMonthly && (
-                      <span className={picked ? "text-white/80" : "text-warning"}>
-                        {t.monthlySeances} séances · {formatDA(t.monthlyPrice)} / carte
-                      </span>
-                    )}
-                  </span>
-                  <input type="checkbox" checked={picked} readOnly className="h-4 w-4" />
-                </span>
-              </button>
-            );
-          })
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
+
+      {/* ---- Étape 2 : LES GROUPES DE CHAQUE CATÉGORIE ------------------ */}
+      {openClassIds.length === 0 ? (
+        <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-[11px] leading-relaxed text-warning">
+          Choisissez au moins une catégorie ci-dessus : ses groupes — et les créneaux de
+          chacun — s&apos;afficheront ici.
+        </p>
+      ) : (
+        <>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filtrer les créneaux (groupe, entraîneur, arène, horaire…)"
+              className="pl-9"
+            />
+          </div>
+
+          <div className="space-y-2">
+            {openClassIds.map((cid) => {
+              const cls = classes.find((c) => c.id === cid);
+              const { rows, orphans } = groupsWithTimings(cid);
+              const shownOrphans = orphans.filter(matches);
+              return (
+                <div key={cid} className="rounded-xl border border-line bg-surface p-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <strong className="text-[11px] text-ink">
+                      {cls ? classLabel(db, cls) : "—"}
+                    </strong>
+                    <Badge tone={rows.length > 0 ? "primary" : "warning"} className="text-[9px]">
+                      {rows.length} groupe(s)
+                    </Badge>
+                  </div>
+
+                  {rows.length === 0 && shownOrphans.length === 0 ? (
+                    <p className="text-[10px] italic text-muted">
+                      Cette catégorie n&apos;a encore aucun groupe. Ils se créent depuis
+                      l&apos;écran Emplois du temps, bouton « Groupes des catégories ».
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {rows.map(({ group, timings }) => {
+                        const shown = timings.filter(matches);
+                        const chosen = timings.filter((t) => selectedSubIds.includes(t.subId));
+                        const single = shown.length === 1 ? shown[0] : null;
+                        const expanded = openGroupIds.includes(group.id);
+                        return (
+                          <div
+                            key={group.id}
+                            className={`rounded-lg border ${
+                              chosen.length > 0
+                                ? "border-primary/50 bg-primary-50/40"
+                                : "border-line bg-canvas/30"
+                            }`}
+                          >
+                            {/* UN GROUPE QUI NE TIENT QU'UN CRÉNEAU SE COCHE
+                                D'UN CLIC — c'est le cas courant, et il n'a
+                                aucune raison de demander un dépliage de plus. */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                single ? onToggle(single) : toggleGroupOpen(group.id)
+                              }
+                              className="flex w-full flex-wrap items-center justify-between gap-2 px-2.5 py-2 text-start"
+                            >
+                              <span className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-ink">
+                                <Users className="h-3.5 w-3.5 text-primary" /> {group.name}
+                                <span className="text-[9px] font-normal text-muted">
+                                  {timings.length} créneau(x)
+                                </span>
+                                {chosen.length > 0 && (
+                                  <Badge tone="success" className="text-[9px]">
+                                    {chosen.length} choisi(s)
+                                  </Badge>
+                                )}
+                                {timings.length === 0 && (
+                                  <Badge tone="warning" className="text-[9px]">
+                                    aucun tarif
+                                  </Badge>
+                                )}
+                              </span>
+                              <span className="shrink-0 text-[10px] font-bold text-primary">
+                                {single
+                                  ? selectedSubIds.includes(single.subId)
+                                    ? "✓ Inscrit sur ce groupe"
+                                    : "Choisir ce groupe"
+                                  : timings.length > 1
+                                    ? expanded
+                                      ? "Masquer les créneaux"
+                                      : "Voir les créneaux"
+                                    : ""}
+                              </span>
+                            </button>
+
+                            {/* Plusieurs créneaux : on dit lequel on prend. */}
+                            {!single && expanded && shown.length > 0 && (
+                              <div className="space-y-1.5 border-t border-line p-2">
+                                {shown.map(renderTiming)}
+                              </div>
+                            )}
+                            {/* Le créneau unique est rappelé sous le groupe, pour
+                                qu'on voie l'heure et l'arène sans rien déplier. */}
+                            {single && (
+                              <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-line px-2.5 py-1.5 text-[10px] text-muted">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> {single.daysLabel} · {single.time}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" /> {single.salleName}
+                                </span>
+                                <span>Ens: {single.teacherName}</span>
+                                <span className="font-bold text-ink">
+                                  {formatDA(single.price)} / séance
+                                </span>
+                                {single.hasMonthly && (
+                                  <span className="font-bold text-warning">
+                                    {single.monthlySeances} séances ·{" "}
+                                    {formatDA(single.monthlyPrice)} / carte
+                                  </span>
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Les créneaux de la catégorie qu'aucun groupe ne
+                          réclame : un emploi du temps créé sans groupe. */}
+                      {shownOrphans.length > 0 && (
+                        <div className="rounded-lg border border-dashed border-line bg-canvas/30 p-2">
+                          <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
+                            Créneaux sans groupe
+                          </span>
+                          <div className="space-y-1.5">{shownOrphans.map(renderTiming)}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Total cost of what is ticked */}
       {showTotal && (
@@ -670,9 +896,8 @@ export function ClassTimingPicker({
         </div>
       )}
 
-      {/* Les créneaux cochés — y compris ceux d'un AUTRE niveau que celui affiché.
-          Un clic sur la croix les décoche sans avoir à retrouver leur niveau et
-          leur année dans la liste. */}
+      {/* Les créneaux cochés — y compris ceux d'une catégorie qui n'est pas
+          ouverte. Un clic sur la croix les décoche sans avoir à la rouvrir. */}
       {selectedSubIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selectedSubIds.map((id) => {

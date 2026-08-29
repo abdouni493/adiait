@@ -145,9 +145,24 @@ export interface Module extends Authored {
   id: string;
   name: string;
 }
+/**
+ * UN GROUPE DE L'ORDRE — et la CATÉGORIE à laquelle il appartient.
+ *
+ * Un groupe était jusqu'ici un simple nom flottant, valable pour toute
+ * l'application. Il porte désormais SA catégorie : « Groupe A » des 8-10 ans
+ * n'est plus le même objet que « Groupe A » des 15-18 ans, et l'écran
+ * d'inscription peut enfin répondre à la seule question qui compte au
+ * comptoir — « quels groupes cette catégorie propose-t-elle ? ».
+ *
+ * `classId` ABSENT = groupe d'avant cette colonne : il reste visible partout,
+ * et se rattache à une catégorie le jour où quelqu'un l'y range.
+ */
 export interface Group extends Authored {
   id: string;
   name: string;
+  /** la catégorie à laquelle ce groupe appartient */
+  classId?: string;
+  createdAt?: string;
 }
 export interface Salle extends Authored {
   id: string;
@@ -752,6 +767,23 @@ export interface Subscription extends Authored {
    *  teacherMonthShare / monthlySeances. Stored so every settlement reads it
    *  directly instead of recomputing. */
   teacherPerSeance?: number;
+  /**
+   * L'ENGAGEMENT — le frais d'entrée propre à CET emploi du temps.
+   *
+   * Ce n'est ni la cotisation (qui se paie carte après carte) ni les droits
+   * d'entrée du club (qui se règlent une fois pour toutes, tous emplois
+   * confondus) : c'est ce que le chevalier verse pour REJOINDRE ce créneau —
+   * la tenue, l'équipement, l'assurance du groupe.
+   *
+   * Il est porté au compte du chevalier sous la forme d'un frais ordinaire
+   * (`StudentCharge`) le jour de son inscription sur l'emploi, et se règle en
+   * une ou plusieurs fois comme n'importe quel autre frais.
+   *
+   * 0 ou absent = cet emploi du temps ne demande aucun engagement.
+   */
+  engagementFee?: number;
+  /** ce que l'engagement dit sur la fiche du chevalier et sur son reçu */
+  engagementDescription?: string;
   /** l'emploi du temps de ce tarif a été supprimé : le tarif est archivé avec
    *  lui, pour que les soldes et les paiements qu'il porte restent lisibles */
   archivedAt?: string;
@@ -891,6 +923,14 @@ export interface Student extends Authored {
    */
   phone2?: string;
   email: string;
+  /**
+   * L'ADRESSE DE LA FAMILLE — facultative.
+   *
+   * Elle ne commande rien : ni tarif, ni groupe, ni document obligatoire. Elle
+   * sert à retrouver quelqu'un, et c'est déjà beaucoup. Une fiche sans adresse
+   * est une fiche complète.
+   */
+  address?: string;
   rfid: string;
   isFree: boolean;
   /** billing case — absent/"normal" means an ordinary paying student */
@@ -1068,7 +1108,11 @@ export interface Payment extends Authored {
  *    jamais entrer : la famille le doit désormais au club, et c'est ce frais
  *    qui le dit.
  */
-export type StudentChargeOrigin = "manual" | "school_advance";
+export type StudentChargeOrigin = "manual" | "school_advance" | "engagement";
+// `engagement` : le frais d'entrée d'un emploi du temps (`Subscription.engagementFee`),
+// porté automatiquement le jour où le chevalier s'inscrit sur ce créneau. Il ne
+// naît jamais deux fois pour le même emploi : c'est ce qui le distingue d'une
+// saisie manuelle, qu'on peut répéter autant qu'on veut.
 
 /**
  * UNE DETTE DE LE CHEVALIER QUI N'EST PAS DE LA SCOLARITÉ.
@@ -1300,6 +1344,12 @@ export interface Parent extends Authored {
   firstName: string;
   lastName: string;
   phone: string;
+  /** le second numéro — celui qu'on compose quand le premier ne répond pas */
+  phone2?: string;
+  /** sa date de naissance (YYYY-MM-DD) — facultative */
+  birthDate?: string;
+  /** son adresse — facultative, elle ne commande rien */
+  address?: string;
   email: string;
   childIds: string[];
 }
@@ -1394,5 +1444,85 @@ export interface GroupSeance extends Authored {
   cashInId?: string;
   /** the cash movement that paid the teacher */
   cashOutId?: string;
+  createdAt: string;
+}
+
+// =============================================================================
+//  LES DEMANDES DE COMPTE — ce qui arrive par la page de connexion
+// =============================================================================
+
+/**
+ * QUI DEMANDE : un chevalier pour lui-même, ou un parent pour ses fils.
+ */
+export type AccountRequestKind = "student" | "parent";
+
+/**
+ * OÙ EN EST LA DEMANDE.
+ *
+ *  - `pending` : le compte existe et se connecte, mais il ne voit RIEN tant que
+ *    l'intendance ne l'a pas rattaché à une fiche ;
+ *  - `linked`  : la demande a été traitée — le compte pilote désormais une
+ *    fiche de chevalier ou de parent, et l'application s'ouvre entièrement ;
+ *  - `rejected`: l'intendance l'a écartée. Le compte reste en attente, faute
+ *    de fiche, et la demande sort de la liste de travail.
+ */
+export type AccountRequestStatus = "pending" | "linked" | "rejected";
+
+/** Un fils déclaré par un parent au moment de créer son compte. */
+export interface AccountRequestChild {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  phone2?: string;
+  birthDate?: string;
+}
+
+/**
+ * UNE DEMANDE DE COMPTE VENUE DE LA PAGE DE CONNEXION.
+ *
+ * Personne au comptoir n'a rien saisi : c'est la famille elle-même qui a rempli
+ * le formulaire, depuis son téléphone. Le compte est bien créé dans
+ * `auth.users` — il se connecte tout de suite — mais il n'est rattaché à AUCUNE
+ * fiche, donc il n'a rien à lire : l'application lui affiche « votre compte
+ * attend son activation », et rien d'autre.
+ *
+ * L'intendance ouvre alors la demande depuis le tableau de bord, l'écran des
+ * chevaliers ou celui des parents. Trois chemins :
+ *
+ *   1. le NUMÉRO DE TÉLÉPHONE correspond à une fiche déjà en base : elle est
+ *      proposée d'office, il ne reste qu'à confirmer le rattachement ;
+ *   2. il ne correspond à rien, mais la personne existe sous un autre numéro :
+ *      on la cherche par son nom ;
+ *   3. elle n'existe nulle part : la fiche est CRÉÉE depuis la demande — avec,
+ *      pour un parent, celles de ses fils, rattachées à lui — et la catégorie
+ *      et le groupe se choisissent au passage, ce qui les inscrit vraiment.
+ */
+export interface AccountRequest extends Authored {
+  id: string;
+  /** le compte créé dans `auth.users` (= `profiles.id`) */
+  accountId: string;
+  kind: AccountRequestKind;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  phone2?: string;
+  birthDate?: string;
+  address?: string;
+  /** l'email de connexion choisi */
+  email: string;
+  /** « je suis déjà inscrit au club, je veux seulement mon accès » */
+  existingMember: boolean;
+  /** parent : « mes fils sont déjà inscrits au club » */
+  childrenSubscribed?: boolean;
+  /** parent : les fils déclarés, quand ils ne sont pas encore inscrits */
+  children?: AccountRequestChild[];
+  status: AccountRequestStatus;
+  /** la fiche à laquelle le compte a fini par être rattaché */
+  linkedEntityId?: string;
+  /** les fiches de chevalier créées ou rattachées pour ses fils */
+  linkedChildIds?: string[];
+  reviewedAt?: string;
+  reviewedBy?: string;
+  reviewedByName?: string;
   createdAt: string;
 }

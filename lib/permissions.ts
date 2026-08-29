@@ -88,22 +88,11 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     actions: [
       { id: "create", label: "Créer un emploi du temps" },
       { id: "create_open", label: "Créer un créneau de séance libre" },
+      { id: "groups", label: "Créer / renommer les groupes d'une catégorie" },
       { id: "view", label: "Voir le détail d'un emploi du temps" },
       { id: "edit", label: "Modifier un emploi du temps" },
       { id: "delete", label: "Archiver un emploi du temps" },
       { id: "print", label: "Imprimer un horaire" },
-    ],
-  },
-  {
-    key: "subscriptions",
-    emoji: "🎫",
-    label: "Tarifs & abonnements",
-    href: "/subscriptions",
-    hint: "Le prix de la séance et de la carte, emploi du temps par emploi du temps.",
-    actions: [
-      { id: "view", label: "Voir le détail d'un abonnement" },
-      { id: "edit_price", label: "Créer / modifier un tarif" },
-      { id: "archive", label: "Supprimer un abonnement" },
     ],
   },
   {
@@ -272,6 +261,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
       { id: "school", label: "Établissement", hint: "Nom, logo, coordonnées, identifiants fiscaux." },
       { id: "security", label: "Identifiants & sécurité", hint: "Son propre mot de passe." },
       { id: "whatsapp", label: "Paramètres WhatsApp" },
+      { id: "free_periods", label: "Périodes offertes", hint: "Les fenêtres de gratuité, venues de l'ancien écran « Cartes & tarifs »." },
       { id: "backup", label: "Sauvegarde & données" },
     ],
   },
@@ -309,7 +299,7 @@ export function allPageKeys(): string[] {
  * la fiche porte une liste explicite — fût-elle vide — et c'est elle qui parle.
  */
 const LEGACY_RECEPTION_PAGES = [
-  "dashboard", "classes", "planner", "subscriptions", "students", "attendance",
+  "dashboard", "classes", "planner", "students", "attendance",
   "independent", "parents", "announcements", "expenses", "settings",
 ];
 
