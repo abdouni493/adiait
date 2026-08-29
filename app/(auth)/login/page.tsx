@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ShieldPlus, Swords, UserPlus, Users } from "lucide-react";
+import { ShieldPlus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/SearchInput";
 import { ThemeToggle } from "@/components/controls/ThemeToggle";
@@ -168,7 +168,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-canvas p-4">
-      {/* La chevauchée — trois chevaux en silhouette, sur trois plans. */}
+      {/* La photographie du club, et les voiles qui la rendent lisible. */}
       <HeraldicBackdrop />
 
       {/* Top controls */}
@@ -177,93 +177,30 @@ export default function LoginPage() {
         <ThemeToggle />
       </div>
 
-      <div className="relative z-10 my-8 grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
-        {/* ---- L'enseigne du club — le nom, en grand, et ce qu'on y trouve --- */}
-        <motion.div
-          initial={{ opacity: 0, x: -24 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden text-center lg:block lg:text-start"
-        >
-          <div className="mx-auto inline-flex lg:mx-0">
-            <div className="login-logo-frame card-shadow">
-              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[1.25rem] bg-surface">
-                {school.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={school.logo} alt={school.name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-accent/10 to-accent/25">
-                    <svg viewBox="0 0 24 24" className="h-12 w-12 text-accent-ink" aria-hidden="true">
-                      <path
-                        d="M12 2.6 19.4 5.2v6.1c0 4.3-3.2 7.4-7.4 8.8-4.2-1.4-7.4-4.5-7.4-8.8V5.2Z"
-                        fill="currentColor"
-                        opacity="0.18"
-                      />
-                      <path
-                        d="M12 2.6 19.4 5.2v6.1c0 4.3-3.2 7.4-7.4 8.8-4.2-1.4-7.4-4.5-7.4-8.8V5.2Z"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.4"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M12 6.4v10.2M9.4 10.4h5.2"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </div>
-                )}
-            </div>
-            </div>
-          </div>
+      {/*
+        LA CARTE SE POSE À DROITE, là où la photographie a été composée pour
+        l'accueillir : le cheval et le blason gardent la gauche, et le voile
+        assombrit la droite pour que le formulaire s'y lise.
 
-          <h1 className="font-display login-name-gradient mt-6 text-5xl font-extrabold leading-tight">
-            {school.name}
-          </h1>
-          {school.description && (
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">{school.description}</p>
-          )}
-
-          <div className="mt-8 space-y-3">
-            <div className="flex items-start gap-3 rounded-2xl border border-line bg-surface/80 p-3 backdrop-blur">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary">
-                <Swords className="h-4.5 w-4.5" />
-              </span>
-              <span>
-                <strong className="block text-sm text-ink">Chevalier</strong>
-                <span className="text-[11px] leading-relaxed text-muted">
-                  Vos abonnements, vos présences, vos absences, vos paiements et les annonces
-                  du club — tout, depuis votre téléphone.
-                </span>
-              </span>
-            </div>
-            <div className="flex items-start gap-3 rounded-2xl border border-line bg-surface/80 p-3 backdrop-blur">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent-ink">
-                <Users className="h-4.5 w-4.5" />
-              </span>
-              <span>
-                <strong className="block text-sm text-ink">Parent</strong>
-                <span className="text-[11px] leading-relaxed text-muted">
-                  Inscrivez vos fils et suivez, pour chacun, ses présences, ses absences, ses
-                  paiements et tout le détail de sa saison.
-                </span>
-              </span>
-            </div>
-          </div>
-        </motion.div>
-
+        AUCUN LOGO ICI SUR GRAND ÉCRAN. Le blason et le nom du club sont peints
+        dans la photographie : les réafficher par-dessus donnerait deux fois la
+        même chose, l'une sur l'autre. Ils reparaissent DANS la carte sur les
+        petits écrans, où le cadrage de l'image les laisse hors champ.
+      */}
+      <div className="relative z-10 my-8 flex w-full justify-center lg:justify-end lg:pe-[5%]">
         {/* ---- La carte : connexion, création de compte, amorçage ---------- */}
         <motion.div
           initial={{ opacity: 0, y: 24, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full rounded-3xl border border-line bg-surface/95 p-7 backdrop-blur card-shadow-lg"
+          /* La largeur et la marge reprennent celles de la maquette : la carte
+             occupe le quart droit de l'image, là où la photographie a été
+             composée pour la recevoir — et le blason lui passe juste à côté. */
+          className="w-full max-w-[400px] rounded-3xl border border-accent/25 bg-surface/95 p-7 shadow-[0_24px_70px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md"
         >
           {/* Le blason et le nom, repris ICI sur les petits écrans où la
               colonne de gauche n'a pas la place d'exister. */}
-          <div className="flex flex-col items-center text-center lg:hidden">
+          <div className="mb-2 flex flex-col items-center text-center lg:hidden">
             <div className="login-logo-frame card-shadow">
               <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.25rem] bg-surface">
                 {school.logo ? (

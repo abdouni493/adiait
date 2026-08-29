@@ -359,98 +359,73 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ============================================================
-   LA CHEVAUCHÉE — le fond de la page de connexion
+   LE FOND DE LA PAGE DE CONNEXION
    ------------------------------------------------------------
-   Trois chevaux en silhouette, sur trois plans de profondeur, qui
-   traversent l'écran à trois vitesses. Tout est dessiné en SVG
-   (`components/auth/HeraldicBackdrop.tsx`) : la couleur vient du
-   thème, donc la chevauchée reste juste de jour comme de nuit.
+   La photographie du club — l'allée au coucher du soleil, le
+   cheval au portail, le blason — posée en plein cadre, et deux
+   voiles qui la rendent lisible sous un formulaire.
+
+   Le mouvement est un TRÈS lent panoramique : assez ample pour
+   que l'image soit vivante, assez lent pour qu'on ne le
+   remarque pas en tapant son mot de passe.
    ============================================================ */
-.heraldic-backdrop {
-  color: var(--primary);
-}
-[data-theme="dark"] .heraldic-backdrop,
-[data-theme="dark-red"] .heraldic-backdrop {
-  color: var(--accent);
-}
-
-/* ---- Les nappes de couleur, qui respirent ---- */
-.heraldic-glow {
+.heraldic-photo {
   position: absolute;
-  border-radius: 9999px;
-  filter: blur(80px);
-  will-change: transform, opacity;
+  /* Le cadre déborde de l'écran, sinon le panoramique découvrirait
+     ses bords. */
+  inset: -4%;
+  background-image: url("/login-backdrop.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform-origin: 42% 55%;
+  will-change: transform;
+  animation: heraldic-pan 28s ease-in-out infinite alternate;
 }
-.heraldic-glow-steel {
-  inset-inline-start: -14rem;
-  top: -12rem;
-  height: 34rem;
-  width: 34rem;
-  background: var(--gradient-primary);
-  opacity: 0.28;
-  animation: heraldic-breathe 11s ease-in-out infinite;
-}
-.heraldic-glow-gold {
-  inset-inline-end: -16rem;
-  bottom: -14rem;
-  height: 38rem;
-  width: 38rem;
-  background: var(--gradient-accent);
-  opacity: 0.24;
-  animation: heraldic-breathe 14s ease-in-out infinite reverse;
-}
-@keyframes heraldic-breathe {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(2rem, 1.5rem, 0) scale(1.12); }
+@keyframes heraldic-pan {
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to   { transform: scale(1.09) translate3d(-1.2%, -1%, 0); }
 }
 
-/* ---- Les lices : un parchemin réglé d'or très pâle ---- */
-.heraldic-lists {
+/* ---- Le voile ----
+   Il assombrit le côté OÙ SE POSE LA CARTE, et laisse le cheval et le blason
+   en pleine lumière. Sur un téléphone, la carte occupe le bas de l'écran : le
+   dégradé bascule donc de l'horizontale à la verticale. */
+.heraldic-scrim {
   position: absolute;
   inset: 0;
-  opacity: 0.35;
-  background-image: repeating-linear-gradient(
-    115deg,
-    color-mix(in srgb, var(--accent) 8%, transparent) 0 1px,
-    transparent 1px 84px
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(6, 9, 14, 0.35) 0%,
+      rgba(6, 9, 14, 0.55) 42%,
+      rgba(6, 9, 14, 0.9) 100%
+    );
+}
+@media (min-width: 1024px) {
+  .heraldic-scrim {
+    background:
+      linear-gradient(
+        to right,
+        rgba(6, 9, 14, 0.34) 0%,
+        rgba(6, 9, 14, 0.16) 30%,
+        rgba(6, 9, 14, 0.62) 56%,
+        rgba(6, 9, 14, 0.93) 74%,
+        rgba(6, 9, 14, 0.97) 100%
+      );
+  }
+}
+
+/* Un cerne sombre sur les quatre bords : il tient l'image et empêche le texte
+   des coins de flotter sur une zone claire. */
+.heraldic-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 90% at 42% 48%,
+    transparent 38%,
+    rgba(6, 9, 14, 0.5) 100%
   );
-  animation: heraldic-lists-drift 26s linear infinite;
-}
-@keyframes heraldic-lists-drift {
-  from { background-position: 0 0; }
-  to   { background-position: 168px 0; }
-}
-
-/* ---- La chevauchée ---- */
-.heraldic-charge {
-  will-change: transform;
-}
-.heraldic-charge-far {
-  opacity: 0.07;
-  animation: heraldic-gallop-far 34s linear infinite;
-}
-.heraldic-charge-mid {
-  opacity: 0.09;
-  animation: heraldic-gallop-mid 24s linear infinite;
-}
-.heraldic-charge-near {
-  opacity: 0.11;
-  animation: heraldic-gallop-near 18s linear infinite;
-}
-
-/* Chaque plan traverse l'écran de gauche à droite, avec la SUSPENSION du
-   galop : le cheval monte et redescend deux fois par foulée. */
-@keyframes heraldic-gallop-far {
-  0%   { transform: translate(-16vw, 6vh) scaleX(-1); }
-  100% { transform: translate(112vw, 6vh) scaleX(-1); }
-}
-@keyframes heraldic-gallop-mid {
-  0%   { transform: translate(112vw, 22vh); }
-  100% { transform: translate(-26vw, 22vh); }
-}
-@keyframes heraldic-gallop-near {
-  0%   { transform: translate(-38vw, 40vh); }
-  100% { transform: translate(118vw, 40vh); }
 }
 
 /* ---- La poussière soulevée ---- */
@@ -464,7 +439,7 @@ input:focus, select:focus, textarea:focus {
   height: 4px;
   width: 4px;
   border-radius: 9999px;
-  background: color-mix(in srgb, var(--accent) 65%, transparent);
+  background: rgba(217, 180, 95, 0.75);
   opacity: 0;
   animation: heraldic-mote-rise 15s ease-in infinite;
 }
