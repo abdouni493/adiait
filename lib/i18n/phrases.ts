@@ -265,6 +265,15 @@ const AR: Record<string, string> = {
 
   // ---- « Créer mon compte » — la porte des familles ----------------------
   "Votre compte est créé": "تم إنشاء حسابك",
+  // Le numéro de téléphone a reconnu un membre : le compte est actif d'emblée,
+  // et l'écran de fin ne parle plus d'attente.
+  "Votre compte est prêt": "حسابك جاهز",
+  "Votre numéro de téléphone vous a reconnu : le club vous connaît déjà":
+    "تعرّف عليك رقم هاتفك: النادي يعرفك مسبقاً",
+  "Votre compte est actif dès maintenant — vos séances, vos présences et vos paiements vous attendent.":
+    "حسابك مُفعّل من الآن — حصصك وحضورك ومدفوعاتك في انتظارك.",
+  "Connectez-vous dès maintenant avec cet email et le mot de passe que vous venez de choisir.":
+    "سجّل الدخول الآن بهذا البريد وكلمة المرور التي اخترتها.",
   "Aller à la connexion": "الذهاب إلى تسجيل الدخول",
   "Un compte vous donne accès, depuis votre téléphone, à tout ce que le comptoir sait de vous. Dites-nous d'abord qui vous êtes.":
     "يمنحك الحساب اطّلاعاً، من هاتفك، على كل ما يعرفه النادي عنك. أخبرنا أولاً من أنت.",
@@ -496,8 +505,9 @@ const AR: Record<string, string> = {
   "Vérifier": "تحقّق",
   "Inscription venue du site": "تسجيل وارد من الموقع",
   "Qui participe ?": "من يشارك؟",
-  "Tant qu'une inscription reste ici, la personne se connecte mais ne voit qu'un écran d'attente — et sa place sur la formation n'est pas encore prise.":
-    "ما دام التسجيل هنا، يستطيع الشخص الدخول لكنه لا يرى سوى شاشة انتظار — ومكانه في الدورة لم يُحجز بعد.",
+  "Tant qu'une inscription reste ici, sa place sur la formation n'est pas encore prise — et la personne ne voit qu'un écran d'attente, sauf si son numéro de téléphone l'a déjà fait reconnaître (« compte actif »).":
+    "ما دام التسجيل هنا، لم يُحجز مكانه في الدورة بعد — ولا يرى الشخص سوى شاشة انتظار، إلا إذا تعرّف عليه رقم هاتفه مسبقاً («حساب مُفعّل»).",
+  "Compte actif": "حساب مُفعّل",
   "Modifier l'inscription": "تعديل التسجيل",
   "Supprimer l'inscription": "حذف التسجيل",
   "Corrigez ce que la personne a mal saisi depuis son téléphone AVANT de créer sa fiche : ce qui est écrit ici sera recopié tel quel.":

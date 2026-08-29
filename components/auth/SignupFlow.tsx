@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/SearchInput";
-import { requestAccount } from "@/lib/accounts/requests";
+import { requestAccount, type AccountRequestOutcome } from "@/lib/accounts/requests";
 import { useT } from "@/lib/i18n/useT";
 import type {
   AccountRequestChild,
@@ -178,6 +178,14 @@ export function SignupFlow({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  /**
+   * CE QUE LA BASE A FAIT DU COMPTE.
+   *
+   * `linked` quand le numéro de téléphone a reconnu une fiche du club : le
+   * compte est DÉJÀ actif, et il ne faut surtout pas annoncer à la famille un
+   * écran d'attente qu'elle ne verra jamais.
+   */
+  const [outcome, setOutcome] = useState<AccountRequestOutcome | null>(null);
 
   const setChild = (key: string, fields: Partial<ChildDraft>) =>
     setChildren((prev) => prev.map((c) => (c.key === key ? { ...c, ...fields } : c)));
@@ -243,7 +251,7 @@ export function SignupFlow({
 
     setBusy(true);
     try {
-      await requestAccount({
+      const result = await requestAccount({
         kind,
         email,
         password,
@@ -259,6 +267,7 @@ export function SignupFlow({
         source,
         formationId,
       });
+      setOutcome(result);
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : tr("La création du compte a échoué."));
@@ -268,7 +277,16 @@ export function SignupFlow({
   };
 
   // ---- Le compte est créé : il ne reste qu'à se connecter ------------------
+  //
+  // DEUX FINS POSSIBLES, ET IL NE FAUT PAS SE TROMPER DE PHRASE.
+  //
+  // Le numéro de téléphone a reconnu une fiche du club : le compte est DÉJÀ
+  // ACTIF, et annoncer un écran d'attente à quelqu'un qui n'en verra jamais lui
+  // ferait croire qu'il doit patienter — ou pire, qu'il n'a pas fini.
+  //
+  // Le numéro n'a rien dit : c'est l'ancien chemin, et l'attente est réelle.
   if (done) {
+    const recognized = outcome?.linked === true;
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -276,11 +294,34 @@ export function SignupFlow({
         className="space-y-4 text-center"
       >
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/15 text-success">
-          <CheckCircle2 className="h-7 w-7" />
+          {recognized ? <BadgeCheck className="h-7 w-7" /> : <CheckCircle2 className="h-7 w-7" />}
         </div>
         <h2 className="text-base font-bold text-ink">
-          {tr(formationName ? "Votre inscription est enregistrée" : "Votre compte est créé")}
+          {tr(
+            recognized
+              ? "Votre compte est prêt"
+              : formationName
+                ? "Votre inscription est enregistrée"
+                : "Votre compte est créé",
+          )}
         </h2>
+
+        {/* LE CLUB VOUS A RECONNU — on le dit, et on dit à quoi. Quelqu'un qui
+            voit le nom de sa propre fiche sait immédiatement que c'est bien la
+            sienne, et non celle d'un homonyme. */}
+        {recognized && (
+          <p className="rounded-2xl border border-success/40 bg-success/10 p-3 text-sm leading-relaxed text-ink">
+            {tr("Votre numéro de téléphone vous a reconnu : le club vous connaît déjà")}
+            {outcome?.entityName ? (
+              <>
+                {" "}
+                <strong>({outcome.entityName})</strong>
+              </>
+            ) : null}
+            . {tr("Votre compte est actif dès maintenant — vos séances, vos présences et vos paiements vous attendent.")}
+          </p>
+        )}
+
         {formationName && (
           <p className="rounded-2xl border border-accent/40 bg-accent-wash/60 p-3 text-sm leading-relaxed text-ink">
             <strong>{formationName}</strong>
@@ -288,10 +329,15 @@ export function SignupFlow({
             {tr("Votre place est demandée. Le club vérifiera votre inscription puis vous rappellera — rien ne vous est facturé pour l'instant, et vous réglerez sur place.")}
           </p>
         )}
+
         <p className="text-sm leading-relaxed text-muted">
           <strong className="text-ink">{email.trim().toLowerCase()}</strong>
           {" "}
-          {tr("Connectez-vous dès maintenant avec cet email et le mot de passe que vous venez de choisir. Vous verrez d'abord un écran d'attente : l'intendance du club doit rattacher votre compte à votre fiche avant que vos séances, vos présences et vos paiements s'affichent.")}
+          {tr(
+            recognized
+              ? "Connectez-vous dès maintenant avec cet email et le mot de passe que vous venez de choisir."
+              : "Connectez-vous dès maintenant avec cet email et le mot de passe que vous venez de choisir. Vous verrez d'abord un écran d'attente : l'intendance du club doit rattacher votre compte à votre fiche avant que vos séances, vos présences et vos paiements s'affichent.",
+          )}
         </p>
         <Button className="w-full" onClick={onCancel}>
           {tr(cancelLabel ?? "Aller à la connexion")}

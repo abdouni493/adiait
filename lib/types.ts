@@ -1630,6 +1630,20 @@ export interface AccountRequest extends Authored {
   /** parent : les fils déclarés, quand ils ne sont pas encore inscrits */
   children?: AccountRequestChild[];
   status: AccountRequestStatus;
+  /**
+   * LE NUMÉRO DE TÉLÉPHONE A-T-IL RECONNU LES SIENS TOUT SEUL ?
+   *
+   * `true` = au moment même de la création du compte, le numéro a désigné une
+   * fiche du club — et une seule, encore pilotée par personne. Le compte a donc
+   * été rattaché et ACTIVÉ sans qu'un humain intervienne : la famille se
+   * connecte et voit tout, sans attendre.
+   *
+   * La demande peut malgré tout rester `pending` : activer un compte n'est pas
+   * traiter une demande. Une formation à facturer ou des fils à créer attendent
+   * toujours l'intendance — l'écran d'activation le dit alors en toutes lettres,
+   * et il ne reste à poser que le geste qui manque.
+   */
+  autoLinked?: boolean;
   /** la fiche à laquelle le compte a fini par être rattaché */
   linkedEntityId?: string;
   /** les fiches de chevalier créées ou rattachées pour ses fils */

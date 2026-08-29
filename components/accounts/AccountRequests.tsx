@@ -7,6 +7,15 @@
  * dans `auth.users` et se connecte déjà — mais il ne pilote AUCUNE fiche, donc
  * l'application ne lui montre que « votre compte attend son activation ».
  *
+ * CE QUI N'ARRIVE PLUS JUSQU'ICI. Quand le numéro de téléphone désigne une fiche
+ * du club — une seule, et que personne ne pilote déjà — la base rattache et
+ * active le compte à l'instant même où il est créé (`request_account`). Ces
+ * demandes-là ne s'affichent donc pas dans cette file : elles sont déjà closes.
+ * Restent ici les cas qu'aucune machine ne peut trancher — un numéro inconnu,
+ * un numéro porté par deux fiches — et ceux où l'activation ne suffit pas :
+ * une formation à facturer, des fils déclarés à créer. Ceux-là arrivent marqués
+ * « compte actif », et il ne reste à poser que le geste qui manque.
+ *
  * Tout le travail de l'intendance tient ici, et il n'a que deux issues :
  *
  *   RATTACHER — la personne EXISTE DÉJÀ au club. Son numéro de téléphone la
@@ -158,8 +167,14 @@ export function ActivationModal({
     );
   }, [request.phone, request.phone2, isParent, students, parents]);
 
-  /** Ce qu'on va rattacher : la fiche détectée, ou celle qu'on aura cherchée. */
-  const [pickedId, setPickedId] = useState<string>(detected?.id ?? "");
+  /**
+   * Ce qu'on va rattacher : la fiche que la BASE a déjà reconnue à la création
+   * du compte, à défaut celle que le téléphone désigne ici, à défaut celle
+   * qu'on aura cherchée.
+   */
+  const [pickedId, setPickedId] = useState<string>(
+    request.linkedEntityId ?? detected?.id ?? "",
+  );
   const [search, setSearch] = useState("");
   /** `link` = rattacher à une fiche existante · `create` = la créer. */
   const [mode, setMode] = useState<"link" | "create">(detected ? "link" : "link");
@@ -550,6 +565,32 @@ export function ActivationModal({
           )}
         </div>
 
+        {/*
+          ---- LE COMPTE S'EST ACTIVÉ TOUT SEUL ---------------------------
+
+          Le numéro de téléphone a désigné une fiche à la création du compte, et
+          la base est allée au bout : la famille voit déjà tout. Si la demande
+          est encore là, c'est qu'elle porte autre chose — une formation à
+          facturer, des fils à créer. Le dire évite de refaire un rattachement
+          déjà fait, et de croire que quelqu'un attend derrière son écran.
+        */}
+        {request.autoLinked && (
+          <div className="rounded-2xl border border-success/40 bg-success/10 p-3">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-success">
+              <BadgeCheck className="h-3.5 w-3.5" /> Compte déjà actif
+            </span>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink">
+              Le numéro de téléphone a reconnu cette personne au moment de la création du compte :
+              il est <strong>rattaché et actif</strong>, et la famille voit déjà sa fiche. Il ne
+              reste ici que{" "}
+              {formation
+                ? "l'inscription sur la formation demandée"
+                : "les fils déclarés, à créer et à rattacher"}
+              .
+            </p>
+          </div>
+        )}
+
         {/* ---- LA FORMATION DEMANDÉE, quand la demande vient du site ---- */}
         {formation && (
           <div className="space-y-2 rounded-2xl border border-accent/40 bg-accent-wash/60 p-3">
@@ -624,8 +665,11 @@ export function ActivationModal({
           </div>
         )}
 
-        {/* ---- LA DÉTECTION AUTOMATIQUE -------------------------------- */}
-        {detected ? (
+        {/* ---- LA DÉTECTION AUTOMATIQUE --------------------------------
+             Muette quand la base a DÉJÀ tranché à la création du compte : le
+             bandeau vert ci-dessus le dit mieux, et deux fois la même nouvelle
+             ferait douter de la première. */}
+        {request.autoLinked ? null : detected ? (
           <div className="space-y-2 rounded-2xl border border-success/40 bg-success/10 p-3">
             <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-success">
               <BadgeCheck className="h-3.5 w-3.5" /> Fiche trouvée par le numéro de téléphone
@@ -987,6 +1031,13 @@ export function AccountRequestsPanel({
                   <Badge tone={r.kind === "parent" ? "primary" : "accent"} className="text-[9px]">
                     {r.kind === "parent" ? "Parent" : "Chevalier"}
                   </Badge>
+                  {/* Le numéro l'a reconnu tout seul : la famille n'attend
+                      derrière aucun écran, il reste seulement du travail. */}
+                  {r.autoLinked && (
+                    <Badge tone="success" className="text-[9px]">
+                      <BadgeCheck className="h-3 w-3" /> Compte actif
+                    </Badge>
+                  )}
                 </strong>
                 <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[10px] text-muted">
                   <span className="flex items-center gap-1">
@@ -1067,6 +1118,10 @@ export function AccountRequestsAlert() {
             Ces comptes existent déjà et se connectent — mais ils ne pilotent aucune fiche, donc
             ils ne voient qu&apos;un écran d&apos;attente. Activez-en un pour le rattacher à une
             fiche du club, ou pour créer cette fiche depuis sa demande.
+            <br />
+            Ceux dont le numéro de téléphone a reconnu une fiche du club{" "}
+            <strong className="text-ink">ne passent pas par ici</strong> : ils sont actifs
+            d&apos;emblée. Il ne reste ici que ce que la machine ne peut pas décider.
           </p>
 
           {pending.length > 0 && (
@@ -1086,7 +1141,8 @@ export function AccountRequestsAlert() {
             <p className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] leading-relaxed text-warning">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               Tant qu&apos;une demande reste ici, la famille voit « votre compte attend son
-              activation » et rien d&apos;autre.
+              activation » et rien d&apos;autre — sauf celles marquées « compte actif », dont le
+              numéro a déjà tout ouvert.
             </p>
           )}
         </div>

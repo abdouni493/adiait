@@ -182,6 +182,14 @@ export function WebsiteInscriptionsPage() {
                         >
                           {tr(r.existingMember ? "Se dit déjà inscrit" : "Première inscription")}
                         </Badge>
+                        {/* Le numéro l'a reconnu à la création du compte : cette
+                            personne voit déjà sa fiche, et il ne reste ici que
+                            sa place sur la formation. */}
+                        {r.autoLinked && (
+                          <Badge tone="success" className="text-[9px]">
+                            <BadgeCheck className="h-3 w-3" /> {tr("Compte actif")}
+                          </Badge>
+                        )}
                       </strong>
 
                       <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-muted">
@@ -256,7 +264,7 @@ export function WebsiteInscriptionsPage() {
           {pending.length > 0 && (
             <p className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-[10px] leading-relaxed text-warning">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {tr("Tant qu'une inscription reste ici, la personne se connecte mais ne voit qu'un écran d'attente — et sa place sur la formation n'est pas encore prise.")}
+              {tr("Tant qu'une inscription reste ici, sa place sur la formation n'est pas encore prise — et la personne ne voit qu'un écran d'attente, sauf si son numéro de téléphone l'a déjà fait reconnaître (« compte actif »).")}
             </p>
           )}
         </CardBody>
