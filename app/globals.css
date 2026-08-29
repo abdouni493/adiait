@@ -443,17 +443,17 @@ input:focus, select:focus, textarea:focus {
       rgba(6, 9, 14, 0.9) 100%
     );
 }
-/* Le voile assombrit LE CÔTÉ GAUCHE : c'est là que la carte de connexion se
-   pose désormais, et c'est ce qui rend le formulaire lisible sur une
-   photographie qu'on ne contrôle pas. Le cheval et le blason gardent la
-   droite, en pleine lumière. Le dégradé est écrit en `to right` — une
-   direction PHYSIQUE — pour que le passage de la page en arabe (RTL) ne
+/* Le voile assombrit LE CÔTÉ DROIT : c'est là que la carte de connexion se
+   pose, et c'est ce qui rend le formulaire lisible sur une photographie qu'on
+   ne contrôle pas. Le cheval et le blason gardent la GAUCHE, en pleine
+   lumière — c'est leur moitié de l'image. Le dégradé est écrit en `to left` —
+   une direction PHYSIQUE — pour que le passage de la page en arabe (RTL) ne
    retourne pas le voile et ne laisse pas le formulaire sur la partie claire. */
 @media (min-width: 1024px) {
   .heraldic-scrim {
     background:
       linear-gradient(
-        to right,
+        to left,
         rgba(6, 9, 14, 0.97) 0%,
         rgba(6, 9, 14, 0.93) 26%,
         rgba(6, 9, 14, 0.62) 44%,
@@ -469,7 +469,7 @@ input:focus, select:focus, textarea:focus {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    120% 90% at 58% 48%,
+    120% 90% at 42% 48%,
     transparent 38%,
     rgba(6, 9, 14, 0.5) 100%
   );

@@ -195,11 +195,17 @@ export default function LoginPage() {
       </div>
 
       {/*
-        LA CARTE SE POSE À GAUCHE — et elle y reste, quelle que soit la langue.
+        LA CARTE SE POSE À DROITE — et elle y reste, quelle que soit la langue.
+
+        Ce n'est pas un goût : la photographie a été composée ainsi. Le cheval
+        et le blason tiennent la MOITIÉ GAUCHE, et le photographe a laissé à
+        droite une plage vide, à hauteur des yeux, dont le cadre attend un
+        formulaire. La carte s'y pose donc, et l'image redevient ce qu'elle
+        était : une seule composition, et non un panneau collé sur un sujet.
 
         Les marges logiques (`ms`/`me`) s'inversent en arabe : la carte aurait
         traversé l'écran le jour où l'on est passé au RTL. Elle est donc calée
-        avec des marges PHYSIQUES (`mr-auto`), qui ne dépendent d'aucune
+        avec des marges PHYSIQUES (`ml-auto`), qui ne dépendent d'aucune
         direction d'écriture — le formulaire de connexion se trouve toujours au
         même endroit, pour tout le monde.
 
@@ -214,10 +220,11 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 24, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          /* La carte occupe le quart GAUCHE de l'image. `mr-auto` et `ml-[5%]`
-             sont des marges physiques : elles ne s'inversent pas en arabe, donc
-             la carte ne traverse pas l'écran quand la page passe en RTL. */
-          className="w-full max-w-[400px] rounded-3xl border border-accent/25 bg-surface/95 p-7 shadow-[0_24px_70px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md lg:ml-[5%] lg:mr-auto"
+          /* La carte occupe le quart DROIT de l'image — la plage que la
+             photographie laisse libre. `ml-auto` et `mr-[5%]` sont des marges
+             physiques : elles ne s'inversent pas en arabe, donc la carte ne
+             traverse pas l'écran quand la page passe en RTL. */
+          className="w-full max-w-[400px] rounded-3xl border border-accent/25 bg-surface/95 p-7 shadow-[0_24px_70px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md lg:ml-auto lg:mr-[5%]"
         >
           {/* Le blason et le nom, repris ICI sur les petits écrans où la
               colonne de gauche n'a pas la place d'exister. */}
