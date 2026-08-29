@@ -49,7 +49,15 @@ export const useSettings = create<SettingsState>()(
       // Le thème clair est celui servi par défaut : il doit rester aligné
       // avec le script anti-flash de app/layout.tsx.
       theme: "light",
-      language: "fr",
+      /**
+       * L'ARABE EST LA LANGUE D'ACCUEIL.
+       *
+       * Le club et ses familles parlent arabe : l'application s'ouvre donc dans
+       * leur langue, de droite à gauche, et le français reste à un clic dans la
+       * barre du haut. Ce défaut doit rester aligné avec le script anti-flash
+       * de `app/layout.tsx`, qui lit la même clé avant le premier rendu.
+       */
+      language: "ar",
       hydrated: false,
       autoSendWhatsapp: true,
       autoSendEmail: true,
@@ -89,7 +97,7 @@ export const useSettings = create<SettingsState>()(
         const s = (persisted ?? {}) as Partial<SettingsState>;
         return {
           theme: normalizeTheme(s.theme),
-          language: s.language ?? "fr",
+          language: s.language ?? "ar",
           autoSendWhatsapp: s.autoSendWhatsapp ?? true,
           autoSendEmail: s.autoSendEmail ?? true,
         };

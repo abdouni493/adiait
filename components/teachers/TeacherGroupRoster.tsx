@@ -246,12 +246,12 @@ export function TeacherGroupRoster({
 
         {rows.length > 6 && (
           <div className="relative max-w-sm">
-            <Search className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted ltr:left-3 rtl:right-3" />
+            <Search className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted start-3" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher un chevalier, un numéro, un téléphone…"
-              className="text-xs ltr:pl-9 rtl:pr-9"
+              className="text-xs ps-9"
             />
           </div>
         )}
@@ -260,7 +260,7 @@ export function TeacherGroupRoster({
         <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
           <table className="w-full min-w-[860px] text-[11px]">
             <thead className="bg-canvas/70">
-              <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+              <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                 <th className="px-3 py-2.5">N°</th>
                 <th className="px-3 py-2.5">Chevalier</th>
                 <th className="px-3 py-2.5">Téléphone</th>
@@ -268,8 +268,8 @@ export function TeacherGroupRoster({
                 <th className="px-3 py-2.5 text-center">P / A / An.</th>
                 {date && <th className="px-3 py-2.5 text-center">Ce jour</th>}
                 <th className="px-3 py-2.5 text-center">Paiement de la carte</th>
-                <th className="px-3 py-2.5 text-right">Versé</th>
-                <th className="px-3 py-2.5 text-right">Reste dû</th>
+                <th className="px-3 py-2.5 text-end">Versé</th>
+                <th className="px-3 py-2.5 text-end">Reste dû</th>
               </tr>
             </thead>
             <tbody>
@@ -357,10 +357,10 @@ export function TeacherGroupRoster({
                           {state.label}
                         </Badge>
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-success">
+                      <td className="px-3 py-2.5 text-end font-mono text-success">
                         {formatDA(r.credited)}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono">
+                      <td className="px-3 py-2.5 text-end font-mono">
                         {r.debt > 0 ? (
                           <strong className="text-danger">{formatDA(r.debt)}</strong>
                         ) : (

@@ -511,8 +511,18 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   };
 
   // ---- ce que l'entraîneur a gagné, présence par présence ------------------
-  const recordOn = (studentId: string, day: string) =>
-    recordsByStudent.get(studentId)?.find((a) => dayKeyOf(a.timestamp) === day);
+  /**
+   * La présence qui a produit une part — LA BONNE séance du jour.
+   *
+   * Un emploi qui tient deux séances la même journée écrit deux présences ce
+   * jour-là et deux parts : les apparier sur le seul jour ferait pointer les
+   * deux parts sur la présence du matin, et la carte du soir n'aurait plus
+   * aucune séance à son nom.
+   */
+  const recordOn = (studentId: string, day: string, slot: number) =>
+    recordsByStudent
+      .get(studentId)
+      ?.find((a) => dayKeyOf(a.timestamp) === day && (a.slot ?? 0) === slot);
 
   const duesByMonth = new Map<number, TeacherDue[]>();
   const rosterIds = new Set(roster.map((st) => st.id));
@@ -524,7 +534,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
     // écrites en base sont donc écartées comme les futures.
     if (!rosterIds.has(u.studentId) && db.students.some((st) => st.id === u.studentId)) continue;
     const day = dayKeyOf(u.date);
-    const rec = recordOn(u.studentId, day);
+    const rec = recordOn(u.studentId, day, u.slot ?? 0);
     const idx =
       (rec ? monthOfRecord.get(rec.id) : undefined) ?? currentIndexOf.get(u.studentId) ?? 0;
     const student = db.students.find((s) => s.id === u.studentId);
@@ -569,14 +579,28 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
     }
   }
 
-  // ---- les dates tenues, carte par carte -------------------------------------
+  // ---- les séances tenues, carte par carte -----------------------------------
+  /**
+   * DEUX SÉANCES LE MÊME JOUR FONT DEUX SÉANCES.
+   *
+   * `dates` reste une liste de JOURS — c'est ce que lisent l'entête de la carte
+   * et la fenêtre qui rattache une séance libre. Mais la carte se remplit en
+   * SÉANCES : un groupe qui s'entraîne matin et soir en tient deux ce jour-là,
+   * et un pack de 8 se ferme donc en 4 journées. `heldByMonth` compte cela,
+   * jour + rang de séance, et c'est lui qui dit si le pack est tenu.
+   */
   const datesByMonth = new Map<number, Set<string>>();
+  const heldByMonth = new Map<number, Set<string>>();
   for (const rows of recordsByStudent.values()) {
     for (const rec of rows) {
       const idx = monthOfRecord.get(rec.id) ?? 0;
+      const day = dayKeyOf(rec.timestamp);
       const set = datesByMonth.get(idx) ?? new Set<string>();
-      set.add(dayKeyOf(rec.timestamp));
+      set.add(day);
       datesByMonth.set(idx, set);
+      const held = heldByMonth.get(idx) ?? new Set<string>();
+      held.add(`${day}#${rec.slot ?? 0}`);
+      heldByMonth.set(idx, held);
     }
   }
 
@@ -596,6 +620,7 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
         recordsByStudent,
         dues: duesByMonth.get(i) ?? [],
         dates: [...(datesByMonth.get(i) ?? [])].sort(),
+        heldCount: (heldByMonth.get(i) ?? new Set<string>()).size,
         index: i,
         currentIndex,
       }),
@@ -686,12 +711,15 @@ interface MonthInput {
   recordsByStudent: Map<string, AttendanceRecord[]>;
   dues: TeacherDue[];
   dates: string[];
+  /** séances tenues (jour + rang), qui peut dépasser le nombre de journées */
+  heldCount: number;
   index: number;
   currentIndex: number;
 }
 
 function buildMonth(db: Database, input: MonthInput): TeacherMonth {
-  const { session, sub, size, listPrice, roster, index, currentIndex, dues, dates } = input;
+  const { session, sub, size, listPrice, roster, index, currentIndex, dues, dates, heldCount } =
+    input;
   const code = `M${index + 1}`;
 
   const duesByStudent = new Map<string, TeacherDue[]>();
@@ -796,7 +824,7 @@ function buildMonth(db: Database, input: MonthInput): TeacherMonth {
   // chevalier est allé au bout : un chevalier inscrit en retard ne fige pas la paie —
   // les séances qu'il lui reste rouvriront simplement la carte.
   const allDone = started.length > 0 && started.every((s) => s.complete);
-  const packHeld = dates.length >= size && started.some((s) => s.complete);
+  const packHeld = heldCount >= size && started.some((s) => s.complete);
   const state: MonthState =
     allDone || packHeld
       ? "done"
@@ -816,7 +844,7 @@ function buildMonth(db: Database, input: MonthInput): TeacherMonth {
     code,
     index,
     size,
-    held: dates.length,
+    held: heldCount,
     dates,
     startDate: dates[0],
     endDate: state === "done" ? dates[dates.length - 1] : undefined,

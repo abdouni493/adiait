@@ -608,15 +608,15 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] text-[11px]">
                 <thead className="bg-canvas/70">
-                  <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                  <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                     <th className="px-3 py-2.5">N°</th>
                     <th className="px-3 py-2.5">Chevalier</th>
                     <th className="px-3 py-2.5">Groupe concerné</th>
                     <th className="px-3 py-2.5 text-center">Carte</th>
                     <th className="px-3 py-2.5 text-center">Séances</th>
                     <th className="px-3 py-2.5 text-center">Statut</th>
-                    <th className="px-3 py-2.5 text-right">Doit</th>
-                    <th className="px-3 py-2.5 text-right">Part retenue</th>
+                    <th className="px-3 py-2.5 text-end">Doit</th>
+                    <th className="px-3 py-2.5 text-end">Part retenue</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -661,10 +661,10 @@ export function TeacherDashboard({ teacher }: { teacher: Teacher }) {
                           {r.status === "partial" ? "Partiel" : "Impayé"}
                         </Badge>
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono font-bold text-danger">
+                      <td className="px-3 py-2.5 text-end font-mono font-bold text-danger">
                         {formatDA(r.debt)}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono">
+                      <td className="px-3 py-2.5 text-end font-mono">
                         {r.withheld > 0 ? (
                           <span className="inline-flex items-center gap-1 font-bold text-warning">
                             <Lock className="h-3 w-3" /> {formatDA(r.withheld)}

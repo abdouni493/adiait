@@ -135,15 +135,15 @@ export default function LoginPage() {
     setAdminError("");
 
     if (!adminEmail.trim()) {
-      setAdminError("L'email est obligatoire.");
+      setAdminError(t("auth.emailRequired"));
       return;
     }
     if (adminPassword.length < 6) {
-      setAdminError("Le mot de passe doit contenir au moins 6 caractères.");
+      setAdminError(t("auth.passwordTooShort"));
       return;
     }
     if (adminPassword !== adminConfirm) {
-      setAdminError("Les deux mots de passe ne sont pas identiques.");
+      setAdminError(t("auth.passwordsDiffer"));
       return;
     }
 
@@ -158,7 +158,7 @@ export default function LoginPage() {
       setAdminPassword("");
       setAdminConfirm("");
     } catch (err) {
-      setAdminError(err instanceof Error ? err.message : "La création du compte a échoué.");
+      setAdminError(err instanceof Error ? err.message : t("auth.createFailed"));
       // La base a peut-être été amorcée entre-temps par quelqu'un d'autre.
       void refreshAdmin();
     } finally {
@@ -178,25 +178,29 @@ export default function LoginPage() {
       </div>
 
       {/*
-        LA CARTE SE POSE À DROITE, là où la photographie a été composée pour
-        l'accueillir : le cheval et le blason gardent la gauche, et le voile
-        assombrit la droite pour que le formulaire s'y lise.
+        LA CARTE SE POSE À GAUCHE — et elle y reste, quelle que soit la langue.
+
+        Les marges logiques (`ms`/`me`) s'inversent en arabe : la carte aurait
+        traversé l'écran le jour où l'on est passé au RTL. Elle est donc calée
+        avec des marges PHYSIQUES (`mr-auto`), qui ne dépendent d'aucune
+        direction d'écriture — le formulaire de connexion se trouve toujours au
+        même endroit, pour tout le monde.
 
         AUCUN LOGO ICI SUR GRAND ÉCRAN. Le blason et le nom du club sont peints
         dans la photographie : les réafficher par-dessus donnerait deux fois la
         même chose, l'une sur l'autre. Ils reparaissent DANS la carte sur les
         petits écrans, où le cadrage de l'image les laisse hors champ.
       */}
-      <div className="relative z-10 my-8 flex w-full justify-center lg:justify-end lg:pe-[5%]">
+      <div className="relative z-10 my-8 flex w-full justify-center lg:block">
         {/* ---- La carte : connexion, création de compte, amorçage ---------- */}
         <motion.div
           initial={{ opacity: 0, y: 24, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          /* La largeur et la marge reprennent celles de la maquette : la carte
-             occupe le quart droit de l'image, là où la photographie a été
-             composée pour la recevoir — et le blason lui passe juste à côté. */
-          className="w-full max-w-[400px] rounded-3xl border border-accent/25 bg-surface/95 p-7 shadow-[0_24px_70px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md"
+          /* La carte occupe le quart GAUCHE de l'image. `mr-auto` et `ml-[5%]`
+             sont des marges physiques : elles ne s'inversent pas en arabe, donc
+             la carte ne traverse pas l'écran quand la page passe en RTL. */
+          className="w-full max-w-[400px] rounded-3xl border border-accent/25 bg-surface/95 p-7 shadow-[0_24px_70px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md lg:ml-[5%] lg:mr-auto"
         >
           {/* Le blason et le nom, repris ICI sur les petits écrans où la
               colonne de gauche n'a pas la place d'exister. */}
@@ -295,15 +299,13 @@ export default function LoginPage() {
                   rattacher à sa fiche.
                 */}
                 <div className="mt-6 rounded-2xl border border-accent/30 bg-accent-wash/50 p-4 text-center">
-                  <p className="text-xs font-semibold text-ink">
-                    Vous n&apos;avez pas encore de compte&nbsp;?
-                  </p>
+                  <p className="text-xs font-semibold text-ink">{t("auth.noAccountYet")}</p>
                   <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-                    <strong className="text-ink">Parent&nbsp;:</strong> inscrivez vos fils et suivez
-                    leurs présences, leurs absences, leurs paiements et les annonces du club.
+                    <strong className="text-ink">{t("auth.parentLabel")}&nbsp;:</strong>{" "}
+                    {t("auth.parentPitch")}
                     <br />
-                    <strong className="text-ink">Chevalier&nbsp;:</strong> retrouvez vos
-                    abonnements, vos présences, vos absences, vos paiements et tout votre détail.
+                    <strong className="text-ink">{t("auth.studentLabel")}&nbsp;:</strong>{" "}
+                    {t("auth.studentPitch")}
                   </p>
                   <Button
                     type="button"
@@ -312,7 +314,7 @@ export default function LoginPage() {
                     className="mt-3 w-full gap-2"
                     onClick={() => setMode("signup")}
                   >
-                    <UserPlus className="h-4 w-4" /> Créer mon compte
+                    <UserPlus className="h-4 w-4" /> {t("auth.createMyAccount")}
                   </Button>
                 </div>
 
@@ -321,7 +323,7 @@ export default function LoginPage() {
                   existe aucun. Dès qu'il est créé, ce bloc disparaît définitivement.
                 */}
                 {state === null && (
-                  <p className="mt-6 text-center text-xs text-muted">Vérification du club…</p>
+                  <p className="mt-6 text-center text-xs text-muted">{t("auth.checkingClub")}</p>
                 )}
 
                 {needsAdmin && (
@@ -329,19 +331,9 @@ export default function LoginPage() {
                     {!creating ? (
                       <>
                         <p className="text-center text-xs leading-relaxed text-muted">
-                          {state === "unreachable" ? (
-                            <>
-                              Impossible de vérifier si ce club a déjà un compte
-                              d&apos;administration ({lastSchemaError()}). Vous pouvez essayer de
-                              le créer&nbsp;: s&apos;il en existe déjà un, la base le dira.
-                            </>
-                          ) : (
-                            <>
-                              Ce club n&apos;a encore aucun compte. Créez celui de
-                              l&apos;administration pour commencer — il n&apos;est proposé
-                              qu&apos;une fois.
-                            </>
-                          )}
+                          {state === "unreachable"
+                            ? t("auth.cannotVerify", { error: lastSchemaError() })
+                            : t("auth.noAdminYet")}
                         </p>
                         <Button
                           type="button"
@@ -352,25 +344,25 @@ export default function LoginPage() {
                           onClick={() => setCreating(true)}
                         >
                           <ShieldPlus className="h-4 w-4" />
-                          Créer le compte administrateur
+                          {t("auth.createAdmin")}
                         </Button>
                       </>
                     ) : (
                       <form onSubmit={handleCreateAdmin} className="space-y-3">
                         <div className="flex items-center gap-2 text-sm font-bold text-body">
                           <ShieldPlus className="h-4 w-4 text-primary" />
-                          Compte administrateur
+                          {t("auth.adminAccount")}
                         </div>
                         <Input
                           type="text"
-                          placeholder="Nom affiché (Direction)"
+                          placeholder={t("auth.adminDisplayName")}
                           value={adminName}
                           onChange={(e) => setAdminName(e.target.value)}
                         />
                         <Input
                           type="email"
                           autoComplete="email"
-                          placeholder="Email de connexion"
+                          placeholder={t("auth.adminLoginEmail")}
                           value={adminEmail}
                           onChange={(e) => {
                             setAdminEmail(e.target.value);
@@ -380,7 +372,7 @@ export default function LoginPage() {
                         <Input
                           type="password"
                           autoComplete="new-password"
-                          placeholder="Mot de passe (6 caractères minimum)"
+                          placeholder={t("auth.adminPasswordMin")}
                           value={adminPassword}
                           onChange={(e) => {
                             setAdminPassword(e.target.value);
@@ -390,7 +382,7 @@ export default function LoginPage() {
                         <Input
                           type="password"
                           autoComplete="new-password"
-                          placeholder="Confirmer le mot de passe"
+                          placeholder={t("auth.adminConfirmPassword")}
                           value={adminConfirm}
                           onChange={(e) => {
                             setAdminConfirm(e.target.value);
@@ -411,10 +403,10 @@ export default function LoginPage() {
                               setAdminError("");
                             }}
                           >
-                            Annuler
+                            {t("common.cancel")}
                           </Button>
                           <Button type="submit" className="flex-1" disabled={busy}>
-                            {busy ? "Création…" : "Créer le compte"}
+                            {busy ? t("auth.creating") : t("auth.createTheAccount")}
                           </Button>
                         </div>
                       </form>
@@ -427,16 +419,13 @@ export default function LoginPage() {
                 */}
                 {state === "not-installed" && (
                   <p className="mt-6 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-center text-xs font-medium leading-relaxed text-warning">
-                    La base de ce club n&apos;est pas encore installée. Exécutez{" "}
-                    <code className="font-bold">supabase/schema.sql</code> dans le SQL Editor de
-                    votre projet Supabase, puis rechargez cette page.
+                    {t("auth.schemaMissing")}
                   </p>
                 )}
 
                 {created && (
                   <p className="mt-6 rounded-2xl border border-success/30 bg-success/10 p-3 text-center text-xs font-medium leading-relaxed text-success">
-                    Le compte administrateur est créé. Ses identifiants sont déjà
-                    saisis&nbsp;: connectez-vous pour ouvrir le club.
+                    {t("auth.adminReady")}
                   </p>
                 )}
               </motion.div>

@@ -266,7 +266,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
           {/* ---- 1. chercher le chevalier -------------------------------------- */}
           <div className="space-y-2">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input
                 autoFocus
                 value={query}
@@ -275,7 +275,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                   setStudent(null);
                 }}
                 placeholder="Nom, n° d'inscription (00001) ou numéro de téléphone…"
-                className="pl-9"
+                className="ps-9"
               />
             </div>
 
@@ -290,7 +290,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                     <button
                       key={st.id}
                       onClick={() => pick(st)}
-                      className="flex w-full items-center justify-between gap-2 rounded-lg p-2.5 text-left hover:bg-primary-50/60"
+                      className="flex w-full items-center justify-between gap-2 rounded-lg p-2.5 text-start hover:bg-primary-50/60"
                     >
                       <span className="min-w-0">
                         <strong className="block text-xs text-ink">{studentName(st)}</strong>
@@ -320,7 +320,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                   <h3 className="text-base font-black text-ink sm:text-lg">
                     {studentName(student)}
                     {studentCaseLabel(student) && (
-                      <Badge tone={studentCaseTone(student)} className="ml-2 text-[9px]">
+                      <Badge tone={studentCaseTone(student)} className="ms-2 text-[9px]">
                         {studentCaseLabel(student)}
                       </Badge>
                     )}
@@ -400,7 +400,7 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                 <div className="overflow-x-auto rounded-2xl border border-line">
                   <table className="w-full min-w-[1080px] text-xs">
                     <thead className="bg-canvas/60">
-                      <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
+                      <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
                         <th className="px-2 py-2.5">Emploi du temps</th>
                         <th className="px-2 py-2.5">Carte</th>
                         {Array.from({ length: slotCount }, (_, i) => (

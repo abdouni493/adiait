@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 type Variant =
   | "primary"
@@ -42,8 +43,30 @@ export interface ButtonProps
   size?: Size;
 }
 
+/**
+ * LE TEXTE D'UN BOUTON PASSE PAR LE DICTIONNAIRE.
+ *
+ * Les boutons de l'application portent leur libellé en clair — `<Button>
+ * Enregistrer</Button>` — et non une clé. On traduit donc ICI, au seul endroit
+ * par lequel ils passent tous : les enfants qui sont du TEXTE sont traduits, le
+ * reste (icônes, fragments, éléments) traverse intact.
+ *
+ * Un libellé absent du dictionnaire revient en français, exactement comme il a
+ * été écrit : aucun bouton ne peut se retrouver vide ou porteur d'un code.
+ */
+function TranslatedChildren({ children }: { children: React.ReactNode }) {
+  const { tr } = useT();
+  return (
+    <>
+      {React.Children.map(children, (child) =>
+        typeof child === "string" ? tr(child) : child,
+      )}
+    </>
+  );
+}
+
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", ...props }, ref) => (
+  ({ className, variant = "primary", size = "md", children, ...props }, ref) => (
     <button
       ref={ref}
       className={cn(
@@ -59,7 +82,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className,
       )}
       {...props}
-    />
+    >
+      <TranslatedChildren>{children}</TranslatedChildren>
+    </button>
   ),
 );
 Button.displayName = "Button";

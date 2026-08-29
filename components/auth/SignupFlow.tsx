@@ -38,6 +38,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/SearchInput";
 import { requestAccount } from "@/lib/accounts/requests";
+import { useT } from "@/lib/i18n/useT";
 import type { AccountRequestChild, AccountRequestKind } from "@/lib/types";
 
 /** Un fils en cours de saisie, avec la clé qui le suit dans la liste. */
@@ -64,11 +65,12 @@ function Field({
   hint?: string;
   children: React.ReactNode;
 }) {
+  const { tr } = useT();
   return (
     <div>
-      <label className="mb-1 block text-xs font-semibold text-muted">{label}</label>
+      <label className="mb-1 block text-xs font-semibold text-muted">{tr(label)}</label>
       {children}
-      {hint && <p className="mt-1 text-[10px] leading-relaxed text-muted">{hint}</p>}
+      {hint && <p className="mt-1 text-[10px] leading-relaxed text-muted">{tr(hint)}</p>}
     </div>
   );
 }
@@ -87,6 +89,7 @@ function ChoiceCard({
   icon: React.ComponentType<{ className?: string }>;
   onClick: () => void;
 }) {
+  const { tr } = useT();
   return (
     <button
       type="button"
@@ -105,14 +108,17 @@ function ChoiceCard({
         <Icon className="h-4.5 w-4.5" />
       </span>
       <span className="min-w-0">
-        <strong className="block text-sm">{title}</strong>
-        <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">{description}</span>
+        <strong className="block text-sm">{tr(title)}</strong>
+        <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">{tr(description)}</span>
       </span>
     </button>
   );
 }
 
 export function SignupFlow({ onCancel }: { onCancel: () => void }) {
+  // Les phrases de ce formulaire sont écrites en français : elles passent par
+  // le dictionnaire, comme partout ailleurs dans l'application.
+  const { tr } = useT();
   /** `null` = on n'a pas encore choisi qui l'on est. */
   const [kind, setKind] = useState<AccountRequestKind | null>(null);
 
@@ -152,35 +158,35 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
 
     if (!kind) return;
     if (!firstName.trim() && !lastName.trim()) {
-      setError("Indiquez au moins un nom ou un prénom.");
+      setError(tr("Indiquez au moins un nom ou un prénom."));
       return;
     }
     if (!phone.trim()) {
-      setError("Le téléphone est obligatoire : c'est lui qui permet de vous retrouver au club.");
+      setError(tr("Le téléphone est obligatoire : c'est lui qui permet de vous retrouver au club."));
       return;
     }
     if (!email.trim()) {
-      setError("L'email est obligatoire — c'est votre identifiant de connexion.");
+      setError(tr("L'email est obligatoire — c'est votre identifiant de connexion."));
       return;
     }
     if (password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères.");
+      setError(tr("Le mot de passe doit contenir au moins 6 caractères."));
       return;
     }
     if (password !== confirm) {
-      setError("Les deux mots de passe ne sont pas identiques.");
+      setError(tr("Les deux mots de passe ne sont pas identiques."));
       return;
     }
     if (existingMember === null) {
       setError(
         kind === "student"
-          ? "Dites-nous si vous êtes déjà inscrit au club, ou si c'est votre première inscription."
-          : "Dites-nous si vous êtes déjà connu du club, ou si c'est votre première venue.",
+          ? tr("Dites-nous si vous êtes déjà inscrit au club, ou si c'est votre première inscription.")
+          : tr("Dites-nous si vous êtes déjà connu du club, ou si c'est votre première venue."),
       );
       return;
     }
     if (kind === "parent" && childrenSubscribed === null) {
-      setError("Dites-nous si vos fils sont déjà inscrits au club.");
+      setError(tr("Dites-nous si vos fils sont déjà inscrits au club."));
       return;
     }
 
@@ -201,7 +207,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
         : undefined;
 
     if (kind === "parent" && childrenSubscribed === false && (declared?.length ?? 0) === 0) {
-      setError("Indiquez au moins un fils, ou dites qu'ils sont déjà inscrits au club.");
+      setError(tr("Indiquez au moins un fils, ou dites qu'ils sont déjà inscrits au club."));
       return;
     }
 
@@ -223,7 +229,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
       });
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "La création du compte a échoué.");
+      setError(err instanceof Error ? err.message : tr("La création du compte a échoué."));
     } finally {
       setBusy(false);
     }
@@ -240,15 +246,14 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/15 text-success">
           <CheckCircle2 className="h-7 w-7" />
         </div>
-        <h2 className="text-base font-bold text-ink">Votre compte est créé</h2>
+        <h2 className="text-base font-bold text-ink">{tr("Votre compte est créé")}</h2>
         <p className="text-sm leading-relaxed text-muted">
-          Connectez-vous dès maintenant avec <strong className="text-ink">{email.trim().toLowerCase()}</strong>{" "}
-          et le mot de passe que vous venez de choisir. Vous verrez d&apos;abord un écran
-          d&apos;attente&nbsp;: l&apos;intendance du club doit rattacher votre compte à votre fiche
-          avant que vos séances, vos présences et vos paiements s&apos;affichent.
+          <strong className="text-ink">{email.trim().toLowerCase()}</strong>
+          {" "}
+          {tr("Connectez-vous dès maintenant avec cet email et le mot de passe que vous venez de choisir. Vous verrez d'abord un écran d'attente : l'intendance du club doit rattacher votre compte à votre fiche avant que vos séances, vos présences et vos paiements s'affichent.")}
         </p>
         <Button className="w-full" onClick={onCancel}>
-          Aller à la connexion
+          {tr("Aller à la connexion")}
         </Button>
       </motion.div>
     );
@@ -259,10 +264,9 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
     return (
       <div className="space-y-4">
         <div className="text-center">
-          <h2 className="font-display text-lg font-bold text-ink">Créer mon compte</h2>
+          <h2 className="font-display text-lg font-bold text-ink">{tr("Créer mon compte")}</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            Un compte vous donne accès, depuis votre téléphone, à tout ce que le comptoir
-            sait de vous. Dites-nous d&apos;abord qui vous êtes.
+              {tr("Un compte vous donne accès, depuis votre téléphone, à tout ce que le comptoir sait de vous. Dites-nous d'abord qui vous êtes.")}
           </p>
         </div>
 
@@ -282,7 +286,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
         />
 
         <Button variant="ghost" className="w-full gap-2" onClick={onCancel}>
-          <ArrowLeft className="h-4 w-4" /> Retour à la connexion
+          <ArrowLeft className="h-4 w-4" /> {tr("Retour à la connexion")}
         </Button>
       </div>
     );
@@ -298,19 +302,19 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
           type="button"
           onClick={() => setKind(null)}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary-50 hover:text-ink"
-          aria-label="Revenir au choix"
+          aria-label={tr("Revenir au choix")}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <h2 className="font-display text-base font-bold text-ink">
-          {isParent ? "Compte parent" : "Compte chevalier"}
+          {tr(isParent ? "Compte parent" : "Compte chevalier")}
         </h2>
       </div>
 
       {/* ---- Identité ---- */}
       <div className="space-y-3 rounded-2xl border border-line bg-canvas/40 p-3">
         <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-          👤 Informations personnelles
+          👤 {tr("Informations personnelles")}
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Prénom">
@@ -337,7 +341,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
       {/* ---- Identifiants ---- */}
       <div className="space-y-3 rounded-2xl border border-line bg-canvas/40 p-3">
         <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-          🔑 Identifiants de connexion
+          🔑 {tr("Identifiants de connexion")}
         </span>
         <Field label="Email">
           <Input
@@ -373,7 +377,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
       {/* ---- Déjà membre, ou première inscription ? ---- */}
       <div className="space-y-2 rounded-2xl border border-accent/30 bg-accent-wash/60 p-3">
         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
-          <ShieldQuestion className="h-3.5 w-3.5" /> Êtes-vous déjà connu du club&nbsp;?
+          <ShieldQuestion className="h-3.5 w-3.5" /> {tr("Êtes-vous déjà connu du club ?")}
         </span>
         <ChoiceCard
           active={existingMember === true}
@@ -399,7 +403,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
       {isParent && (
         <div className="space-y-2 rounded-2xl border border-primary/25 bg-primary-50/30 p-3">
           <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-            🧒 Vos fils sont-ils déjà inscrits au club&nbsp;?
+            🧒 {tr("Vos fils sont-ils déjà inscrits au club ?")}
           </span>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -411,7 +415,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
                   : "border-line bg-surface text-ink hover:bg-primary-50"
               }`}
             >
-              Oui, ils le sont
+              {tr("Oui, ils le sont")}
             </button>
             <button
               type="button"
@@ -422,14 +426,13 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
                   : "border-line bg-surface text-ink hover:bg-primary-50"
               }`}
             >
-              Non, pas encore
+              {tr("Non, pas encore")}
             </button>
           </div>
 
           {childrenSubscribed === true && (
             <p className="rounded-xl border border-line bg-surface p-2.5 text-[11px] leading-relaxed text-muted">
-              Parfait — inutile de les ressaisir. L&apos;intendance retrouvera leurs fiches et
-              les rattachera à votre compte.
+              {tr("Parfait — inutile de les ressaisir. L'intendance retrouvera leurs fiches et les rattachera à votre compte.")}
             </p>
           )}
 
@@ -442,14 +445,13 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
                 className="space-y-2 overflow-hidden"
               >
                 <p className="text-[11px] leading-relaxed text-muted">
-                  Décrivez chacun de vos fils. Ils n&apos;ont ni email ni mot de passe&nbsp;:
-                  c&apos;est votre compte qui les suit.
+                  {tr("Décrivez chacun de vos fils. Ils n'ont ni email ni mot de passe : c'est votre compte qui les suit.")}
                 </p>
 
                 {children.map((child, index) => (
                   <div key={child.key} className="space-y-2 rounded-xl border border-line bg-surface p-2.5">
                     <div className="flex items-center justify-between">
-                      <strong className="text-[11px] text-ink">Fils {index + 1}</strong>
+                      <strong className="text-[11px] text-ink">{tr("Fils")} {index + 1}</strong>
                       {children.length > 1 && (
                         <button
                           type="button"
@@ -509,7 +511,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
                   className="w-full gap-2"
                   onClick={() => setChildren((prev) => [...prev, newChild()])}
                 >
-                  <Plus className="h-3.5 w-3.5" /> Ajouter un autre fils
+                  <Plus className="h-3.5 w-3.5" /> {tr("Ajouter un autre fils")}
                 </Button>
               </motion.div>
             )}
@@ -524,9 +526,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
       )}
 
       <p className="rounded-xl border border-line bg-canvas/50 p-2.5 text-[10px] leading-relaxed text-muted">
-        Votre compte sera créé tout de suite et vous pourrez vous connecter — mais il
-        n&apos;affichera vos données qu&apos;une fois <strong>activé par l&apos;intendance</strong> du
-        club.
+        {tr("Votre compte sera créé tout de suite et vous pourrez vous connecter — mais il n'affichera vos données qu'une fois ACTIVÉ PAR L'INTENDANCE du club.")}
       </p>
 
       <div className="flex gap-2">
@@ -534,7 +534,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
           Annuler
         </Button>
         <Button type="submit" className="flex-1" disabled={busy}>
-          {busy ? "Création…" : "Créer mon compte"}
+          {busy ? tr("Création…") : tr("Créer mon compte")}
         </Button>
       </div>
     </form>

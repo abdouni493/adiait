@@ -13,6 +13,7 @@ import {
   isSchoolOnlySub,
   joinPointFor,
   netPriceFor,
+  sessionSlotsOn,
   sessionTimesOn,
   soldFor,
   studentDebtSummary,
@@ -256,9 +257,27 @@ function dayOfKey(key: string): Day {
 }
 
 /** When an emploi du temps starts on a GIVEN date — its hours may differ from
- *  one weekday to the next. */
-function startTimeOnDate(session: ScheduleSession, date: string): string {
-  return sessionTimesOn(session, dayOfKey(date)).startTime;
+ *  one weekday to the next, and the day may hold more than one séance. */
+function startTimeOnDate(session: ScheduleSession, date: string, slot = 0): string {
+  return sessionTimesOn(session, dayOfKey(date), slot).startTime;
+}
+
+/**
+ * LA SÉANCE QU'UNE HEURE DÉSIGNE, dans une journée qui en tient plusieurs.
+ *
+ * Le badge se présente à 17h05 : c'est la séance du soir qu'il pointe, pas
+ * celle du matin déjà terminée. On rend le rang de la séance en cours, sinon
+ * celui de la prochaine à s'ouvrir, sinon la dernière de la journée.
+ */
+function slotAtMinutes(session: ScheduleSession, day: Day, nowMin: number, margin = 0): number {
+  const slots = sessionSlotsOn(session, day);
+  for (let i = 0; i < slots.length; i++) {
+    const start = timeToMinutes(slots[i].startTime);
+    const end = timeToMinutes(slots[i].endTime);
+    if (nowMin >= start - margin && nowMin <= end) return i;
+  }
+  const next = slots.findIndex((t) => timeToMinutes(t.startTime) - margin > nowMin);
+  return next >= 0 ? next : Math.max(0, slots.length - 1);
 }
 
 function minutesOf(d: Date): number {
@@ -411,7 +430,7 @@ interface DataActions {
     studentId: string,
     sessionId: string,
     status: "present" | "late" | "absent",
-    opts?: { date?: string; allowDebt?: boolean; skipTeacherDue?: boolean },
+    opts?: { date?: string; slot?: number; allowDebt?: boolean; skipTeacherDue?: boolean },
   ) => Promise<ScanResult>;
   /**
    * The présence sheet writes through THIS action: one call per click, no
@@ -424,6 +443,12 @@ interface DataActions {
     studentId: string;
     sessionId: string;
     date: string;
+    /**
+     * LAQUELLE DES SÉANCES DU JOUR. Un emploi qui tient le matin ET le soir en
+     * a deux : elles se pointent, se décomptent et se paient séparément.
+     * 0 (le défaut) = l'unique séance du jour, ou la première.
+     */
+    slot?: number;
     /** null undoes whatever was recorded that day */
     status: AttendanceStatus | null;
   }) => Promise<PresenceResult>;
@@ -631,6 +656,12 @@ interface DataActions {
       monthlyPrice?: number;
       /** how much of the month price the school keeps */
       schoolMonthShare?: number;
+      /**
+       * LE TRANSPORT : la part du prix de la carte qui paie le ramassage. Elle
+       * est prélevée AVANT le partage — ce qui reste se divise entre le club et
+       * l'entraîneur. 0 = ce créneau n'a pas de transport.
+       */
+      transportMonthShare?: number;
       /** teacher pay for one séance (teacher month share / monthlySeances) */
       teacherPerSeance?: number;
       /**
@@ -1199,10 +1230,15 @@ export const useData = create<DataStore>((set, get) => ({
         (!se.periodEnd || se.periodEnd >= today),
     );
 
-    // An emploi may run at different hours depending on the weekday, so every
-    // comparison below reads the hours OF TODAY, never the emploi's default.
-    const startsAt = (se: ScheduleSession) => timeToMinutes(sessionTimesOn(se, dow).startTime);
-    const endsAt = (se: ScheduleSession) => timeToMinutes(sessionTimesOn(se, dow).endTime);
+    // An emploi may run at different hours depending on the weekday — and hold
+    // TWO séances the same day — so every comparison below reads the hours OF
+    // TODAY, séance par séance, jamais l'horaire par défaut de l'emploi.
+    /** Le rang de la séance du jour que l'heure courante désigne. */
+    const slotOf = (se: ScheduleSession) => slotAtMinutes(se, dow, nowMin, SCAN_EARLY_MARGIN);
+    const startsAt = (se: ScheduleSession) =>
+      timeToMinutes(sessionTimesOn(se, dow, slotOf(se)).startTime);
+    const endsAt = (se: ScheduleSession) =>
+      timeToMinutes(sessionTimesOn(se, dow, slotOf(se)).endTime);
 
     const matched = scheduledToday
       .filter(
@@ -1256,9 +1292,18 @@ export const useData = create<DataStore>((set, get) => ({
       };
     }
 
-    // Anti re-swipe on the SAME timing (30 min).
+    /** La séance du jour que le badge vient pointer (0 = l'unique / la première). */
+    const matchedSlot = slotOf(matched);
+
+    // Anti re-swipe on the SAME timing (30 min) — et sur LA MÊME séance : la
+    // séance du soir ne doit pas être refusée à cause de celle du matin.
     const lastSame = db.attendance
-      .filter((a) => a.studentId === student.id && a.sessionId === matched.id)
+      .filter(
+        (a) =>
+          a.studentId === student.id &&
+          a.sessionId === matched.id &&
+          (a.slot ?? 0) === matchedSlot,
+      )
       .map((a) => new Date(a.timestamp).getTime())
       .sort((a, b) => b - a)[0];
     if (
@@ -1307,7 +1352,8 @@ export const useData = create<DataStore>((set, get) => ({
       (a) =>
         a.studentId === student.id &&
         a.sessionId === matched.id &&
-        dateKey(a.timestamp) === today,
+        dateKey(a.timestamp) === today &&
+        (a.slot ?? 0) === matchedSlot,
     );
     if (already) {
       const enr = enrollmentFor(db, student, matched, today);
@@ -1321,8 +1367,8 @@ export const useData = create<DataStore>((set, get) => ({
         groupName,
         otherGroup: !ownGroup,
         ownGroupName,
-        sessionStart: sessionTimesOn(matched, dow).startTime,
-        sessionEnd: sessionTimesOn(matched, dow).endTime,
+        sessionStart: sessionTimesOn(matched, dow, matchedSlot).startTime,
+        sessionEnd: sessionTimesOn(matched, dow, matchedSlot).endTime,
         messageKey: "scan.alreadyPresent",
       };
     }
@@ -1337,8 +1383,8 @@ export const useData = create<DataStore>((set, get) => ({
         sessionId: matched.id,
         moduleName,
         groupName,
-        sessionStart: sessionTimesOn(matched, dow).startTime,
-        sessionEnd: sessionTimesOn(matched, dow).endTime,
+        sessionStart: sessionTimesOn(matched, dow, matchedSlot).startTime,
+        sessionEnd: sessionTimesOn(matched, dow, matchedSlot).endTime,
         messageKey: "scan.subscriptionExpired",
       };
     }
@@ -1393,6 +1439,7 @@ export const useData = create<DataStore>((set, get) => ({
       timestamp: now.toISOString(),
       amountDeducted: cost,
       status,
+      slot: matchedSlot || undefined,
       substituteGroup: !ownGroup,
       freePeriodId: isFreePeriod ? freePeriod!.id : undefined,
       waivedAmount: waived,
@@ -1427,6 +1474,7 @@ export const useData = create<DataStore>((set, get) => ({
             studentId: student.id,
             amount: teacherDue,
             date: now.toISOString(),
+            slot: matchedSlot || undefined,
             paid: false,
           },
         ];
@@ -1447,8 +1495,8 @@ export const useData = create<DataStore>((set, get) => ({
       groupName,
       otherGroup: !ownGroup,
       ownGroupName,
-      sessionStart: sessionTimesOn(matched, dow).startTime,
-      sessionEnd: sessionTimesOn(matched, dow).endTime,
+      sessionStart: sessionTimesOn(matched, dow, matchedSlot).startTime,
+      sessionEnd: sessionTimesOn(matched, dow, matchedSlot).endTime,
       free: isFreePeriod,
       freePeriodName: isFreePeriod ? freePeriod!.name || undefined : undefined,
       preStart: beforeStart && !isFreePeriod,
@@ -1467,6 +1515,7 @@ export const useData = create<DataStore>((set, get) => ({
     if (!session) return { ok: false, messageKey: "attendance.sessionNotFound" };
 
     const date = opts?.date ?? dateKey(new Date());
+    const daySlot = Math.max(0, Math.round(opts?.slot ?? 0));
     const [y, m, d] = date.split("-").map(Number);
     const day = JS_DAYS[new Date(y, m - 1, d).getDay()];
     if (!session.days.includes(day)) {
@@ -1477,7 +1526,11 @@ export const useData = create<DataStore>((set, get) => ({
     const groupName = GROUP_NAME(db, session.groupId);
 
     const existing = db.attendance.find(
-      (a) => a.studentId === studentId && a.sessionId === sessionId && dateKey(a.timestamp) === date,
+      (a) =>
+        a.studentId === studentId &&
+        a.sessionId === sessionId &&
+        dateKey(a.timestamp) === date &&
+        (a.slot ?? 0) === daySlot,
     );
 
     if (status === "absent") {
@@ -1499,7 +1552,8 @@ export const useData = create<DataStore>((set, get) => ({
               u.studentId === studentId &&
               u.sessionId === sessionId &&
               !u.paid &&
-              dateKey(u.date) === date
+              dateKey(u.date) === date &&
+              (u.slot ?? 0) === daySlot
             ),
         ),
         enrollments: refundSeance
@@ -1572,9 +1626,9 @@ export const useData = create<DataStore>((set, get) => ({
       : teacherDueFor(db, session, markedSub, teacherBase, student);
 
     const occurred =
-      date === dateKey(new Date())
+      date === dateKey(new Date()) && daySlot === 0
         ? new Date().toISOString()
-        : new Date(`${date}T${startTimeOnDate(session, date)}:00`).toISOString();
+        : new Date(`${date}T${startTimeOnDate(session, date, daySlot)}:00`).toISOString();
 
     const consumes = !freeHere && !offered && !!enrollment?.enrollmentId;
     const before = enrollment?.remaining ?? 0;
@@ -1589,6 +1643,7 @@ export const useData = create<DataStore>((set, get) => ({
       timestamp: occurred,
       amountDeducted: cost,
       status,
+      slot: daySlot || undefined,
       substituteGroup: !ownGroup,
       freePeriodId: isFreePeriod ? freePeriod!.id : undefined,
       waivedAmount: waived,
@@ -1620,6 +1675,7 @@ export const useData = create<DataStore>((set, get) => ({
             studentId,
             amount: teacherDue,
             date: occurred,
+            slot: daySlot || undefined,
             paid: false,
           },
         ];
@@ -1661,12 +1717,14 @@ export const useData = create<DataStore>((set, get) => ({
    *  - `cancelled` -> the séance did not happen: nothing burnt, nothing taken,
    *  - `null` -> the click was a mistake: the row goes and the money comes back.
    */
-  setPresence: async ({ studentId, sessionId, date, status }) => {
+  setPresence: async ({ studentId, sessionId, date, slot = 0, status }) => {
     const db = get();
     const student = db.students.find((s) => s.id === studentId);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
     const session = db.sessions.find((s) => s.id === sessionId);
     if (!session) return { ok: false, messageKey: "attendance.sessionNotFound" };
+    /** La séance visée dans la journée — 0 quand le jour n'en tient qu'une. */
+    const daySlot = Math.max(0, Math.round(slot || 0));
 
     const moduleName = MODULE_NAME(db, session.moduleId);
     const sub = db.subscriptions.find((x) => x.sessionId === sessionId);
@@ -1698,7 +1756,11 @@ export const useData = create<DataStore>((set, get) => ({
     const listPrice = studentListPrice(student, sub, session.openPrice ?? 0);
 
     const existing = db.attendance.find(
-      (a) => a.studentId === studentId && a.sessionId === sessionId && dateKey(a.timestamp) === date,
+      (a) =>
+        a.studentId === studentId &&
+        a.sessionId === sessionId &&
+        dateKey(a.timestamp) === date &&
+        (a.slot ?? 0) === daySlot,
     );
 
     // What the row already written for that day costs today — undoing it gives
@@ -1707,6 +1769,8 @@ export const useData = create<DataStore>((set, get) => ({
     const undoCharge = undoBillable ? existing!.amountDeducted || 0 : 0;
     const balanceBefore = enrollment?.balance ?? 0;
 
+    // On ne retire QUE la dette de la séance repointée : la séance du matin ne
+    // doit pas emporter celle du soir, ni l'inverse.
     const dropDayRows = (rows: UnpaidTeacherSession[]) =>
       rows.filter(
         (u) =>
@@ -1714,7 +1778,8 @@ export const useData = create<DataStore>((set, get) => ({
             u.studentId === studentId &&
             u.sessionId === sessionId &&
             !u.paid &&
-            dateKey(u.date) === date
+            dateKey(u.date) === date &&
+            (u.slot ?? 0) === daySlot
           ),
       );
 
@@ -1761,15 +1826,14 @@ export const useData = create<DataStore>((set, get) => ({
 
     // "First séance ever and he is not there": the month has not opened, so the
     // absence is recorded but never billed.
-    const hasEarlierBillable = db.attendance.some(
-      (a) =>
-        a.studentId === studentId &&
-        a.sessionId === sessionId &&
-        a.id !== existing?.id &&
-        a.status !== "cancelled" &&
-        !a.noCharge &&
-        dateKey(a.timestamp) < date,
-    );
+    const hasEarlierBillable = db.attendance.some((a) => {
+      if (a.studentId !== studentId || a.sessionId !== sessionId) return false;
+      if (a.id === existing?.id || a.status === "cancelled" || a.noCharge) return false;
+      const day = dateKey(a.timestamp);
+      // Une séance PLUS TÔT DANS LA MÊME JOURNÉE compte aussi : le matin ouvre
+      // la carte, le soir n'est donc plus la première séance de personne.
+      return day < date || (day === date && (a.slot ?? 0) < daySlot);
+    });
     const firstAbsence = status === "absent" && !hasEarlierBillable;
 
     const freePeriod = activeFreePeriod(db, [session.classId, ...(session.classIds ?? [])], date);
@@ -1782,10 +1846,18 @@ export const useData = create<DataStore>((set, get) => ({
     const charge = noCharge || offered ? 0 : netPrice;
     const waived = offered ? netPrice : 0;
 
+    /**
+     * L'HEURE ÉCRITE SUR LA LIGNE — celle de SA séance.
+     *
+     * Deux séances le même jour se rangent dans l'ordre parce que leurs heures
+     * diffèrent. Écrire « maintenant » pour les deux, dès qu'on pointe le jour
+     * même, les rendrait indiscernables : la ligne prend donc toujours l'heure
+     * de début de la séance visée quand le jour en tient plusieurs.
+     */
     const occurred =
-      date === dateKey(new Date())
+      date === dateKey(new Date()) && daySlot === 0
         ? new Date().toISOString()
-        : new Date(`${date}T${startTimeOnDate(session, date)}:00`).toISOString();
+        : new Date(`${date}T${startTimeOnDate(session, date, daySlot)}:00`).toISOString();
 
     const record: AttendanceRecord = {
       ...authorStamp(),
@@ -1795,6 +1867,7 @@ export const useData = create<DataStore>((set, get) => ({
       timestamp: existing?.timestamp ?? occurred,
       amountDeducted: charge,
       status,
+      slot: daySlot || undefined,
       substituteGroup: !ownGroup,
       freePeriodId: freePeriod && !noCharge ? freePeriod.id : undefined,
       waivedAmount: waived,
@@ -1838,6 +1911,7 @@ export const useData = create<DataStore>((set, get) => ({
             studentId,
             amount: teacherDue,
             date: record.timestamp,
+            slot: daySlot || undefined,
             paid: false,
           },
         ];
@@ -2698,10 +2772,17 @@ export const useData = create<DataStore>((set, get) => ({
     const monthlyPrice = monthlySeances
       ? positiveMoney(opts?.monthlyPrice ?? monthlySeances * clean)
       : undefined;
+    // LE TRANSPORT SE PRÉLÈVE EN PREMIER : le club et l'entraîneur se partagent
+    // ce qui reste une fois le bus payé.
+    const transportMonthShare =
+      monthlySeances && opts?.transportMonthShare != null
+        ? Math.min(positiveMoney(opts.transportMonthShare), monthlyPrice ?? 0)
+        : undefined;
+    const shareable = positiveMoney((monthlyPrice ?? 0) - (transportMonthShare ?? 0));
     // The school/teacher split only means something on a monthly formula.
     const schoolMonthShare =
       monthlySeances && opts?.schoolMonthShare != null
-        ? Math.min(positiveMoney(opts.schoolMonthShare), monthlyPrice ?? 0)
+        ? Math.min(positiveMoney(opts.schoolMonthShare), shareable)
         : undefined;
     const teacherPerSeance =
       monthlySeances && opts?.teacherPerSeance != null
@@ -2709,7 +2790,7 @@ export const useData = create<DataStore>((set, get) => ({
         : monthlySeances && monthlyPrice != null && schoolMonthShare != null
           // Sans valeur explicite, la part entraîneur d'une séance se déduit du
           // reste de la carte — décimales comprises.
-          ? positiveMoney((monthlyPrice - schoolMonthShare) / monthlySeances)
+          ? positiveMoney((shareable - schoolMonthShare) / monthlySeances)
           : undefined;
     /**
      * L'ENGAGEMENT SE RÈGLE À PART DU TARIF.
@@ -2738,6 +2819,7 @@ export const useData = create<DataStore>((set, get) => ({
           periodMonths,
           monthlySeances,
           monthlyPrice,
+          transportMonthShare,
           schoolMonthShare,
           teacherPerSeance,
           engagementFee,
@@ -2759,6 +2841,7 @@ export const useData = create<DataStore>((set, get) => ({
                 periodMonths,
                 monthlySeances,
                 monthlyPrice,
+                transportMonthShare,
                 schoolMonthShare,
                 teacherPerSeance,
                 engagementFee,
@@ -3036,7 +3119,7 @@ export const useData = create<DataStore>((set, get) => ({
           method: "percent",
           percentage: teacher.percentage,
           studentsCount: new Set(unpaid.map((u) => u.studentId)).size,
-          sessionsCount: new Set(unpaid.map((u) => `${dateKey(u.date)}|${u.sessionId}`)).size,
+          sessionsCount: new Set(unpaid.map((u) => `${dateKey(u.date)}#${u.slot ?? 0}|${u.sessionId}`)).size,
           description:
             `Règlement au pourcentage — ${teacher.firstName} ${teacher.lastName}` +
             ` (${unpaid.length} présences)`,
@@ -3406,8 +3489,8 @@ export const useData = create<DataStore>((set, get) => ({
     // How many dated séances the settlement actually covers.
     const covered = byId
       ? new Set([
-          ...settledDues.map((u) => `${dateKey(u.date)}|${u.sessionId}`),
-          ...settledPassagers.map((i) => `${i.date}|${i.sessionId}`),
+          ...settledDues.map((u) => `${dateKey(u.date)}#${u.slot ?? 0}|${u.sessionId}`),
+          ...settledPassagers.map((i) => `${i.date}#0|${i.sessionId}`),
         ]).size
       : parsed.filter(
           (p) =>

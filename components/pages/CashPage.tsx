@@ -677,7 +677,7 @@ export function CashPage() {
 
         {/* Search bar */}
         <div className="relative flex-1 max-w-md xl:ml-auto">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+          <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-muted">
             <Search className="h-4 w-4" />
           </span>
           <Input
@@ -685,12 +685,12 @@ export function CashPage() {
             placeholder="Rechercher par description, montant, type..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 py-2 text-xs rounded-xl w-full"
+            className="ps-9 pe-4 py-2 text-xs rounded-xl w-full"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-ink"
+              className="absolute inset-y-0 end-0 flex items-center pe-3 text-muted hover:text-ink"
             >
               <X className="h-4 w-4" />
             </button>
@@ -751,17 +751,17 @@ export function CashPage() {
               {periodSettlements.length})
             </h4>
             <div className="overflow-x-auto rounded-xl border border-line">
-              <table className="w-full min-w-[900px] text-left text-[11px]">
+              <table className="w-full min-w-[900px] text-start text-[11px]">
                 <thead className="bg-canvas/50">
                   <tr className="text-[9px] font-bold uppercase tracking-wider text-muted">
                     <th className="p-2.5">Date</th>
                     <th className="p-2.5">Entraîneur</th>
                     <th className="p-2.5">Emploi du temps · carte</th>
                     <th className="p-2.5 text-center">Chevaliers</th>
-                    <th className="p-2.5 text-right">Table 1 — chevaliers</th>
-                    <th className="p-2.5 text-right">Table 2 — arriérés</th>
-                    <th className="p-2.5 text-right">Table 3 — retenues</th>
-                    <th className="p-2.5 text-right">Net versé</th>
+                    <th className="p-2.5 text-end">Table 1 — chevaliers</th>
+                    <th className="p-2.5 text-end">Table 2 — arriérés</th>
+                    <th className="p-2.5 text-end">Table 3 — retenues</th>
+                    <th className="p-2.5 text-end">Net versé</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -793,15 +793,15 @@ export function CashPage() {
                         <td className="p-2.5 text-center font-mono">
                           {b ? b.students.length : pay.studentsCount}
                         </td>
-                        <td className="p-2.5 text-right font-mono text-success">
+                        <td className="p-2.5 text-end font-mono text-success">
                           {b ? formatDA(b.studentsTotal) : formatDA(pay.gross ?? pay.amount)}
                         </td>
-                        <td className="p-2.5 text-right font-mono text-primary">
+                        <td className="p-2.5 text-end font-mono text-primary">
                           {b
                             ? formatDA(b.arrearsTotal)
                             : formatDA((pay.arrears ?? []).reduce((t, a) => t + a.amount, 0))}
                         </td>
-                        <td className="p-2.5 text-right font-mono text-danger">
+                        <td className="p-2.5 text-end font-mono text-danger">
                           −{" "}
                           {b
                             ? formatDA(b.deductionsTotal)
@@ -812,7 +812,7 @@ export function CashPage() {
                                   (pay.childCharges ?? []).reduce((t, x) => t + x.amount, 0),
                               )}
                         </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-warning">
+                        <td className="p-2.5 text-end font-mono font-bold text-warning">
                           {formatDA(pay.amount)}
                         </td>
                       </tr>
@@ -838,17 +838,17 @@ export function CashPage() {
               {periodGroupSeances.length})
             </h4>
             <div className="overflow-x-auto rounded-xl border border-line">
-              <table className="w-full min-w-[760px] text-left text-[11px]">
+              <table className="w-full min-w-[760px] text-start text-[11px]">
                 <thead className="bg-canvas/50">
                   <tr className="text-[9px] font-bold uppercase tracking-wider text-muted">
                     <th className="p-2.5">Date</th>
                     <th className="p-2.5">Séance</th>
                     <th className="p-2.5">Entraîneur</th>
                     <th className="p-2.5 text-center">Chevaliers</th>
-                    <th className="p-2.5 text-right">Prix / chevalier</th>
-                    <th className="p-2.5 text-right">Encaissé</th>
-                    <th className="p-2.5 text-right">Club</th>
-                    <th className="p-2.5 text-right">Entraîneur</th>
+                    <th className="p-2.5 text-end">Prix / chevalier</th>
+                    <th className="p-2.5 text-end">Encaissé</th>
+                    <th className="p-2.5 text-end">Club</th>
+                    <th className="p-2.5 text-end">Entraîneur</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -870,14 +870,14 @@ export function CashPage() {
                         </td>
                         <td className="p-2.5 text-muted">{teacherNameOf(g.teacherId)}</td>
                         <td className="p-2.5 text-center font-mono">{t.students}</td>
-                        <td className="p-2.5 text-right font-mono">{formatDA(t.pricePerStudent)}</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-success">
+                        <td className="p-2.5 text-end font-mono">{formatDA(t.pricePerStudent)}</td>
+                        <td className="p-2.5 text-end font-mono font-bold text-success">
                           {formatDA(t.total)}
                         </td>
-                        <td className="p-2.5 text-right font-mono text-primary">
+                        <td className="p-2.5 text-end font-mono text-primary">
                           {formatDA(t.schoolTotal)}
                         </td>
-                        <td className="p-2.5 text-right font-mono text-warning">
+                        <td className="p-2.5 text-end font-mono text-warning">
                           {formatDA(t.teacherTotal)}
                         </td>
                       </tr>
@@ -891,16 +891,16 @@ export function CashPage() {
 
         {/* Transaction Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-start text-xs border-collapse">
             <thead>
               <tr className="bg-canvas/50 border-b border-line text-muted font-bold text-[10px] uppercase tracking-wider">
-                <th className="p-4 pl-6">Date / Heure</th>
+                <th className="p-4 ps-6">Date / Heure</th>
                 <th className="p-4">Type</th>
                 <th className="p-4">Description</th>
                 <th className="p-4">Détail de la pièce</th>
-                <th className="p-4 text-right">Montant</th>
-                <th className="p-4 text-right">Solde après</th>
-                <th className="p-4 text-center pr-6 w-28">Actions</th>
+                <th className="p-4 text-end">Montant</th>
+                <th className="p-4 text-end">Solde après</th>
+                <th className="p-4 text-center pe-6 w-28">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -919,7 +919,7 @@ export function CashPage() {
               ) : (
                 journalRows.map(({ tx, running }) => (
                   <tr key={tx.id} className="hover:bg-primary-50/10 transition-colors group">
-                    <td className="p-4 pl-6 font-mono text-[10px] text-muted">
+                    <td className="p-4 ps-6 font-mono text-[10px] text-muted">
                       <div className="flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5 text-muted/70 shrink-0" />
                         <span>{tx.date.substring(0, 16).replace("T", " ")}</span>
@@ -930,13 +930,13 @@ export function CashPage() {
                     <td className="p-4 text-[10px] text-muted max-w-xs">
                       {detailOf(tx) || <span className="italic text-muted/60">—</span>}
                     </td>
-                    <td className={`p-4 text-right font-extrabold text-sm ${tx.amount > 0 ? "text-success" : "text-danger"}`}>
+                    <td className={`p-4 text-end font-extrabold text-sm ${tx.amount > 0 ? "text-success" : "text-danger"}`}>
                       {tx.amount > 0 ? `+${formatDA(tx.amount)}` : formatDA(tx.amount)}
                     </td>
-                    <td className="p-4 text-right font-mono text-[11px] text-muted">
+                    <td className="p-4 text-end font-mono text-[11px] text-muted">
                       {formatDA(running)}
                     </td>
-                    <td className="p-4 text-center pr-6">
+                    <td className="p-4 text-center pe-6">
                       <div className="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                         {can("edit") && (
 <button
@@ -1229,7 +1229,7 @@ function StudentPaymentsHistory({
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-line">
-        <table className="w-full min-w-[900px] text-left text-[11px]">
+        <table className="w-full min-w-[900px] text-start text-[11px]">
           <thead className="bg-canvas/50">
             <tr className="text-[9px] font-bold uppercase tracking-wider text-muted">
               <th className="p-2.5">Date &amp; heure</th>
@@ -1238,7 +1238,7 @@ function StudentPaymentsHistory({
               <th className="p-2.5">Carte payée</th>
               <th className="p-2.5">Provenance</th>
               <th className="p-2.5">Libellé</th>
-              <th className="p-2.5 text-right">Montant</th>
+              <th className="p-2.5 text-end">Montant</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -1275,7 +1275,7 @@ function StudentPaymentsHistory({
                           <strong className="block text-ink">
                             {ses.title || moduleName(db, ses.moduleId) || "Emploi du temps"}
                             {ses.archivedAt && (
-                              <span className="ml-1 rounded bg-canvas px-1 py-0.5 text-[8px] font-bold text-muted">
+                              <span className="ms-1 rounded bg-canvas px-1 py-0.5 text-[8px] font-bold text-muted">
                                 supprimé
                               </span>
                             )}
@@ -1303,12 +1303,12 @@ function StudentPaymentsHistory({
                     <td className="p-2.5 max-w-[260px] truncate text-muted">
                       {p.description || "—"}
                       {p.rest > 0 && (
-                        <span className="ml-1 font-bold text-danger">
+                        <span className="ms-1 font-bold text-danger">
                           (reste {formatDA(p.rest)})
                         </span>
                       )}
                     </td>
-                    <td className="p-2.5 text-right font-mono font-extrabold text-success">
+                    <td className="p-2.5 text-end font-mono font-extrabold text-success">
                       {formatDA(p.amountPaid)}
                     </td>
                   </tr>

@@ -237,12 +237,12 @@ export function GroupSeanceSection() {
           </div>
 
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
               value={listQuery}
               onChange={(e) => setListQuery(e.target.value)}
               placeholder="Rechercher une séance de groupe — intitulé ou entraîneur…"
-              className="pl-9"
+              className="ps-9"
             />
           </div>
 
@@ -254,16 +254,16 @@ export function GroupSeanceSection() {
             <div className="overflow-x-auto rounded-2xl border border-line">
               <table className="w-full min-w-[900px] text-xs">
                 <thead className="bg-canvas/60">
-                  <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
+                  <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
                     <th className="px-3 py-2.5">Date &amp; horaire</th>
                     <th className="px-3 py-2.5">Séance</th>
                     <th className="px-3 py-2.5">Entraîneur</th>
                     <th className="px-3 py-2.5 text-center">Chevaliers</th>
-                    <th className="px-3 py-2.5 text-right">Prix / chevalier</th>
-                    <th className="px-3 py-2.5 text-right">Total</th>
-                    <th className="px-3 py-2.5 text-right">Club</th>
-                    <th className="px-3 py-2.5 text-right">Entraîneur</th>
-                    <th className="px-3 py-2.5 text-right">Actions</th>
+                    <th className="px-3 py-2.5 text-end">Prix / chevalier</th>
+                    <th className="px-3 py-2.5 text-end">Total</th>
+                    <th className="px-3 py-2.5 text-end">Club</th>
+                    <th className="px-3 py-2.5 text-end">Entraîneur</th>
+                    <th className="px-3 py-2.5 text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -289,14 +289,14 @@ export function GroupSeanceSection() {
                             <Users className="h-3 w-3" /> {t.students}
                           </Badge>
                         </td>
-                        <td className="px-3 py-2.5 text-right font-mono">{formatDA(t.pricePerStudent)}</td>
-                        <td className="px-3 py-2.5 text-right font-mono font-bold text-success">
+                        <td className="px-3 py-2.5 text-end font-mono">{formatDA(t.pricePerStudent)}</td>
+                        <td className="px-3 py-2.5 text-end font-mono font-bold text-success">
                           {formatDA(t.total)}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-primary">
+                        <td className="px-3 py-2.5 text-end font-mono text-primary">
                           {formatDA(t.schoolTotal)}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-warning">
+                        <td className="px-3 py-2.5 text-end font-mono text-warning">
                           {formatDA(t.teacherTotal)}
                         </td>
                         <td className="px-3 py-2.5">
@@ -340,12 +340,12 @@ export function GroupSeanceSection() {
                 👨‍🏫 Entraîneur
               </span>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <Input
                   value={teacherQuery}
                   onChange={(e) => setTeacherQuery(e.target.value)}
                   placeholder="Rechercher un entraîneur…"
-                  className="pl-9"
+                  className="ps-9"
                 />
               </div>
               <div className="max-h-36 space-y-1 overflow-y-auto">

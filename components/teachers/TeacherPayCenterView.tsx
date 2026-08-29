@@ -874,12 +874,12 @@ function MonthBoardView({
           <div className="overflow-x-auto rounded-xl border border-danger/25 bg-surface">
             <table className="w-full min-w-[560px] text-[11px]">
               <thead className="bg-canvas/60">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-1.5">Chevalier</th>
                   <th className="px-2 py-1.5 text-center">Séances</th>
                   <th className="px-2 py-1.5 text-center">Statut</th>
-                  <th className="px-2 py-1.5 text-right">Doit sur {carteShort(monthCode)}</th>
-                  <th className="px-2 py-1.5 text-right">Part retenue</th>
+                  <th className="px-2 py-1.5 text-end">Doit sur {carteShort(monthCode)}</th>
+                  <th className="px-2 py-1.5 text-end">Part retenue</th>
                 </tr>
               </thead>
               <tbody>
@@ -903,10 +903,10 @@ function MonthBoardView({
                         {(PAY_STATE_LABEL[r.payState] ?? PAY_STATE_LABEL.pending).label}
                       </Badge>
                     </td>
-                    <td className="px-2 py-1.5 text-right font-mono font-bold text-danger">
+                    <td className="px-2 py-1.5 text-end font-mono font-bold text-danger">
                       {formatDA(r.debt)}
                     </td>
-                    <td className="px-2 py-1.5 text-right font-mono text-warning">
+                    <td className="px-2 py-1.5 text-end font-mono text-warning">
                       {r.withheld ? formatDA(r.amount) : "—"}
                     </td>
                   </tr>
@@ -936,7 +936,7 @@ function MonthBoardView({
         <div className="overflow-x-auto bg-surface">
           <table className="w-full min-w-[960px] text-[11px]">
             <thead className="bg-canvas/70">
-              <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+              <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                 <th className="px-2 py-2">N°</th>
                 <th className="px-2 py-2">Chevalier</th>
                 {Array.from({ length: board.size }, (_, i) => (
@@ -947,10 +947,10 @@ function MonthBoardView({
                 <th className="px-2 py-2 text-center">Séances</th>
                 <th className="px-2 py-2 text-center">P / A / An.</th>
                 <th className="px-2 py-2 text-center">Statut</th>
-                <th className="px-2 py-2 text-right">Versé</th>
-                <th className="px-2 py-2 text-right">Reste dû</th>
-                <th className="px-2 py-2 text-right">Part / séance</th>
-                <th className="px-2 py-2 text-right">Ma part</th>
+                <th className="px-2 py-2 text-end">Versé</th>
+                <th className="px-2 py-2 text-end">Reste dû</th>
+                <th className="px-2 py-2 text-end">Part / séance</th>
+                <th className="px-2 py-2 text-end">Ma part</th>
               </tr>
             </thead>
             <tbody>
@@ -971,11 +971,11 @@ function MonthBoardView({
               <tr className="border-t-2 border-line bg-canvas/60">
                 <td
                   colSpan={8 + board.size}
-                  className="px-2 py-2.5 text-right text-[11px] font-bold text-ink"
+                  className="px-2 py-2.5 text-end text-[11px] font-bold text-ink"
                 >
                   TOTAL — ce que cette carte vous rapporte
                 </td>
-                <td className="px-2 py-2.5 text-right font-mono text-sm font-black text-success">
+                <td className="px-2 py-2.5 text-end font-mono text-sm font-black text-success">
                   {formatDA(board.studentsTotal)}
                 </td>
               </tr>
@@ -983,11 +983,11 @@ function MonthBoardView({
                 <tr className="bg-warning/10">
                   <td
                     colSpan={8 + board.size}
-                    className="px-2 py-2 text-right text-[10px] font-bold text-warning"
+                    className="px-2 py-2 text-end text-[10px] font-bold text-warning"
                   >
                     Retenu (chevaliers encore en dette) — vous revient dès qu&apos;ils auront payé
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-xs font-bold text-warning">
+                  <td className="px-2 py-2 text-end font-mono text-xs font-bold text-warning">
                     {formatDA(board.withheldTotal)}
                   </td>
                 </tr>
@@ -1030,15 +1030,15 @@ function MonthBoardView({
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[820px] text-[11px]">
               <thead className="bg-canvas/70">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">N°</th>
                   <th className="px-2 py-2">Chevalier</th>
                   <th className="px-2 py-2 text-center">Carte d&apos;origine</th>
                   <th className="px-2 py-2 text-center">Séances</th>
                   <th className="px-2 py-2">Dates concernées</th>
-                  <th className="px-2 py-2 text-right">Versé par le chevalier</th>
-                  <th className="px-2 py-2 text-right">Part / séance</th>
-                  <th className="px-2 py-2 text-right">Part rattrapée</th>
+                  <th className="px-2 py-2 text-end">Versé par le chevalier</th>
+                  <th className="px-2 py-2 text-end">Part / séance</th>
+                  <th className="px-2 py-2 text-end">Part rattrapée</th>
                 </tr>
               </thead>
               <tbody>
@@ -1064,11 +1064,11 @@ function MonthBoardView({
                     <td className="px-2 py-2 text-[10px] text-muted">
                       {r.dates.map(formatDateFr).join(" · ") || "—"}
                     </td>
-                    <td className="px-2 py-2 text-right font-mono">{formatDA(r.credited)}</td>
-                    <td className="px-2 py-2 text-right font-mono text-muted">
+                    <td className="px-2 py-2 text-end font-mono">{formatDA(r.credited)}</td>
+                    <td className="px-2 py-2 text-end font-mono text-muted">
                       {formatDA(r.perSeance)}
                     </td>
-                    <td className="px-2 py-2 text-right font-mono font-bold text-success">
+                    <td className="px-2 py-2 text-end font-mono font-bold text-success">
                       {formatDA(r.amount)}
                     </td>
                   </tr>
@@ -1076,10 +1076,10 @@ function MonthBoardView({
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-line bg-canvas/60">
-                  <td colSpan={7} className="px-2 py-2.5 text-right text-[11px] font-bold text-ink">
+                  <td colSpan={7} className="px-2 py-2.5 text-end text-[11px] font-bold text-ink">
                     TOTAL DES RETARDS DE PAIEMENT RATTRAPÉS
                   </td>
-                  <td className="px-2 py-2.5 text-right font-mono text-sm font-black text-success">
+                  <td className="px-2 py-2.5 text-end font-mono text-sm font-black text-success">
                     {formatDA(board.arrearsTotal)}
                   </td>
                 </tr>
@@ -1111,13 +1111,13 @@ function MonthBoardView({
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[700px] text-[11px]">
               <thead className="bg-canvas/70">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">Date &amp; horaire</th>
                   <th className="px-2 py-2">Chevalier de passage</th>
                   <th className="px-2 py-2">Séance</th>
-                  <th className="px-2 py-2 text-right">Prix payé</th>
-                  <th className="px-2 py-2 text-right">Part club</th>
-                  <th className="px-2 py-2 text-right">Ma part</th>
+                  <th className="px-2 py-2 text-end">Prix payé</th>
+                  <th className="px-2 py-2 text-end">Part club</th>
+                  <th className="px-2 py-2 text-end">Ma part</th>
                 </tr>
               </thead>
               <tbody>
@@ -1138,8 +1138,8 @@ function MonthBoardView({
                       </Badge>
                     </td>
                     <td className="px-2 py-2 text-[10px] text-muted">{r.label || "—"}</td>
-                    <td className="px-2 py-2 text-right font-mono">{formatDA(r.price)}</td>
-                    <td className="px-2 py-2 text-right font-mono text-muted">
+                    <td className="px-2 py-2 text-end font-mono">{formatDA(r.price)}</td>
+                    <td className="px-2 py-2 text-end font-mono text-muted">
                       {formatDA(r.schoolShare)}
                       {r.unsplit && (
                         <span
@@ -1150,7 +1150,7 @@ function MonthBoardView({
                         </span>
                       )}
                     </td>
-                    <td className="px-2 py-2 text-right font-mono font-bold text-primary">
+                    <td className="px-2 py-2 text-end font-mono font-bold text-primary">
                       {formatDA(r.teacherShare)}
                     </td>
                   </tr>
@@ -1158,10 +1158,10 @@ function MonthBoardView({
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-line bg-canvas/60">
-                  <td colSpan={5} className="px-2 py-2.5 text-right text-[11px] font-bold text-ink">
+                  <td colSpan={5} className="px-2 py-2.5 text-end text-[11px] font-bold text-ink">
                     TOTAL DES SÉANCES LIBRES
                   </td>
-                  <td className="px-2 py-2.5 text-right font-mono text-sm font-black text-primary">
+                  <td className="px-2 py-2.5 text-end font-mono text-sm font-black text-primary">
                     {formatDA(board.passagersTotal)}
                   </td>
                 </tr>
@@ -1195,12 +1195,12 @@ function MonthBoardView({
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[680px] text-[11px]">
               <thead className="bg-canvas/70">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">Date</th>
                   <th className="px-2 py-2">Nature</th>
                   <th className="px-2 py-2">Libellé</th>
                   <th className="px-2 py-2 text-center">Statut</th>
-                  <th className="px-2 py-2 text-right">Montant</th>
+                  <th className="px-2 py-2 text-end">Montant</th>
                 </tr>
               </thead>
               <tbody>
@@ -1230,7 +1230,7 @@ function MonthBoardView({
                           {d.paid ? "Déjà retenue" : "À retenir"}
                         </Badge>
                       </td>
-                      <td className="px-2 py-2 text-right font-mono font-bold text-danger">
+                      <td className="px-2 py-2 text-end font-mono font-bold text-danger">
                         − {formatDA(d.amount)}
                       </td>
                     </tr>
@@ -1239,10 +1239,10 @@ function MonthBoardView({
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-line bg-canvas/60">
-                  <td colSpan={4} className="px-2 py-2.5 text-right text-[11px] font-bold text-ink">
+                  <td colSpan={4} className="px-2 py-2.5 text-end text-[11px] font-bold text-ink">
                     TOTAL DES RETENUES
                   </td>
-                  <td className="px-2 py-2.5 text-right font-mono text-sm font-black text-danger">
+                  <td className="px-2 py-2.5 text-end font-mono text-sm font-black text-danger">
                     − {formatDA(board.deductionsTotal)}
                   </td>
                 </tr>
@@ -1376,16 +1376,16 @@ function StudentLine({ row, size }: { row: BoardStudent; size: number }) {
           {state.label}
         </Badge>
       </td>
-      <td className="px-2 py-2 text-right font-mono text-success">{formatDA(row.credited)}</td>
-      <td className="px-2 py-2 text-right font-mono">
+      <td className="px-2 py-2 text-end font-mono text-success">{formatDA(row.credited)}</td>
+      <td className="px-2 py-2 text-end font-mono">
         {row.debt > 0 ? (
           <span className="font-bold text-danger">{formatDA(row.debt)}</span>
         ) : (
           <span className="text-muted">—</span>
         )}
       </td>
-      <td className="px-2 py-2 text-right font-mono text-muted">{formatDA(row.perSeance)}</td>
-      <td className="px-2 py-2 text-right">
+      <td className="px-2 py-2 text-end font-mono text-muted">{formatDA(row.perSeance)}</td>
+      <td className="px-2 py-2 text-end">
         {row.withheld ? (
           <span
             className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-warning"
@@ -1575,12 +1575,12 @@ function LedgerView({
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
         <table className="w-full min-w-[720px] text-[11px]">
           <thead className="bg-canvas/70">
-            <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+            <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
               <th className="px-3 py-2.5">Date</th>
               <th className="px-3 py-2.5">Nature</th>
               <th className="px-3 py-2.5">Libellé</th>
               <th className="px-3 py-2.5 text-center">Statut</th>
-              <th className="px-3 py-2.5 text-right">Montant</th>
+              <th className="px-3 py-2.5 text-end">Montant</th>
             </tr>
           </thead>
           <tbody>
@@ -1613,7 +1613,7 @@ function LedgerView({
                       {l.paid ? "Déjà reprise" : "À reprendre"}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-right font-mono font-bold text-danger">
+                  <td className="px-3 py-2.5 text-end font-mono font-bold text-danger">
                     − {formatDA(l.amount)}
                   </td>
                 </motion.tr>

@@ -571,10 +571,14 @@ export function presenceSheetHtml(
     slotCount: number;
     rows: PresenceSheetRow[];
     date: string;
+    /** l'horaire de LA séance imprimée — un jour peut en tenir deux */
+    timeLabel?: string;
+    /** « S2 sur 2 » quand la journée tient plusieurs séances */
+    slotLabel?: string;
     language: Language;
   },
 ): string {
-  const { session, monthCode, slotCount, rows, date, language } = opts;
+  const { session, monthCode, slotCount, rows, date, timeLabel, slotLabel, language } = opts;
 
   const head = Array.from({ length: slotCount }, (_, i) => `<th class="ctr">S${i + 1}</th>`).join("");
   const body = rows
@@ -603,7 +607,9 @@ export function presenceSheetHtml(
     ${bannerHtml("Feuille de présence", `${esc(title)} — ${esc(monthCodeLabel(monthCode))}`)}
     <div class="frame">
       <h3>
-        Séance du ${esc(formatDateFr(date))} · ${esc(session.startTime)}–${esc(session.endTime)}
+        Séance du ${esc(formatDateFr(date))} · ${esc(timeLabel || `${session.startTime}–${session.endTime}`)}${
+          slotLabel ? ` <span style="font-weight:400">(${esc(slotLabel)})</span>` : ""
+        }
         · Groupe : ${esc(groupName(db, session.groupId))}
         · Arène : ${esc(salleName(db, session.salleId))}
         · Entraîneur : ${esc(teacherName(db, session.teacherId))}

@@ -1,5 +1,8 @@
+"use client";
+
 import * as React from "react";
 import type { LucideIcon } from "lucide-react";
+import { useT } from "@/lib/i18n/useT";
 
 /**
  * L'EN-TÊTE D'ÉCRAN.
@@ -20,6 +23,10 @@ export function PageHeader({
   subtitle?: string;
   actions?: React.ReactNode;
 }) {
+  // Le titre et le sous-titre sont écrits en français dans chaque écran : ils
+  // passent par le dictionnaire ici, une seule fois, et toute l'application
+  // s'en trouve titrée en arabe.
+  const { tr } = useT();
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3.5">
@@ -33,9 +40,9 @@ export function PageHeader({
         )}
         <div className="min-w-0">
           <h1 className="font-display truncate text-xl font-bold text-ink md:text-2xl">
-            {title}
+            {tr(title)}
           </h1>
-          {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-muted">{tr(subtitle)}</p>}
         </div>
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}

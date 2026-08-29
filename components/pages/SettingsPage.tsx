@@ -252,7 +252,7 @@ export function SettingsPage() {
           {can("school") && (
 <button
               onClick={() => setActiveTab("school")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-start transition-all ${
                 activeTab === "school"
                   ? "bg-primary-50 text-primary border border-primary/20 shadow-sm"
                   : "text-muted hover:text-ink hover:bg-canvas/50 border border-transparent"
@@ -266,7 +266,7 @@ export function SettingsPage() {
           {can("security") && (
 <button
               onClick={() => setActiveTab("security")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-start transition-all ${
                 activeTab === "security"
                   ? "bg-primary-50 text-primary border border-primary/20 shadow-sm"
                   : "text-muted hover:text-ink hover:bg-canvas/50 border border-transparent"
@@ -280,7 +280,7 @@ export function SettingsPage() {
           {can("whatsapp") && (
 <button
               onClick={() => setActiveTab("whatsapp")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-start transition-all ${
                 activeTab === "whatsapp"
                   ? "bg-primary-50 text-primary border border-primary/20 shadow-sm"
                   : "text-muted hover:text-ink hover:bg-canvas/50 border border-transparent"
@@ -294,7 +294,7 @@ export function SettingsPage() {
           {can("free_periods") && (
             <button
               onClick={() => setActiveTab("free_periods")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-start transition-all ${
                 activeTab === "free_periods"
                   ? "bg-primary-50 text-primary border border-primary/20 shadow-sm"
                   : "text-muted hover:text-ink hover:bg-canvas/50 border border-transparent"
@@ -308,7 +308,7 @@ export function SettingsPage() {
           {can("backup") && (
 <button
               onClick={() => setActiveTab("backup")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-start transition-all ${
                 activeTab === "backup"
                   ? "bg-primary-50 text-primary border border-primary/20 shadow-sm"
                   : "text-muted hover:text-ink hover:bg-canvas/50 border border-transparent"
@@ -464,12 +464,12 @@ export function SettingsPage() {
                       {feeScope === "sessions" && (
                         <div className="space-y-2">
                           <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                            <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
                             <Input
                               value={feeSessionSearch}
                               onChange={(e) => setFeeSessionSearch(e.target.value)}
                               placeholder="Rechercher un emploi du temps…"
-                              className="pl-9"
+                              className="ps-9"
                             />
                           </div>
                           <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line bg-surface p-2">
@@ -580,7 +580,7 @@ export function SettingsPage() {
                         {modules.length === 0 ? (
                           <p className="text-[10px] italic text-muted py-2">Aucun module enregistré.</p>
                         ) : (
-                          <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                          <div className="max-h-56 overflow-y-auto space-y-1.5 pe-1">
                             {modules.map((m) => {
                               const rule = moduleAbsenceRules.find((r) => r.moduleId === m.id);
                               const enabled = rule?.enabled ?? true;
@@ -633,7 +633,7 @@ export function SettingsPage() {
                         )}
                       </div>
 
-                      <div className="flex-1 text-center sm:text-left space-y-1.5">
+                      <div className="flex-1 text-center sm:text-start space-y-1.5">
                         <label className="block text-xs font-bold text-ink">Logo de l'Établissement</label>
                         <p className="text-[10px] text-muted">Format recommandé : Image carrée (PNG, JPG), max 10 Mo.</p>
 
@@ -822,12 +822,12 @@ export function SettingsPage() {
                               value={adminPassword}
                               onChange={(e) => setAdminPassword(e.target.value)}
                               placeholder="Laisser vide pour ne pas changer"
-                              className="rounded-xl w-full pr-12"
+                              className="rounded-xl w-full pe-12"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-ink text-[11px] font-bold"
+                              className="absolute inset-y-0 end-0 pe-3 flex items-center text-muted hover:text-ink text-[11px] font-bold"
                             >
                               {showPassword ? "Masquer" : "Afficher"}
                             </button>

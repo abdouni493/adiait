@@ -102,8 +102,9 @@ import {
   salleName,
   schoolPerSeanceOf,
   sessionSalleOn,
-  sessionTimesOn,
+  sessionSlotsOn,
   slotCountFor,
+  slotLabel,
   soldFor,
   soldStatus,
   studentAdvanceDebt,
@@ -134,6 +135,19 @@ export interface PresenceSheetProps {
   session: ScheduleSession;
   /** the day the présence buttons write on (YYYY-MM-DD) */
   date: string;
+  /**
+   * LAQUELLE DES SÉANCES DU JOUR la feuille pointe.
+   *
+   * Un emploi du temps peut en tenir deux — le matin et le soir. Ce sont deux
+   * séances distinctes : deux pointages, deux séances décomptées de la carte,
+   * deux parts pour l'entraîneur. La feuille en montre UNE à la fois, et un
+   * sélecteur bascule de l'une à l'autre.
+   *
+   * Absent = 0, l'unique séance du jour — ce qu'était la feuille avant.
+   */
+  slot?: number;
+  /** appelé quand la feuille elle-même change de séance */
+  onSlotChange?: (slot: number) => void;
   monthCode: string;
   onMonthChange: (code: string) => void;
   /** opens the create-student screen with this emploi already ticked */
@@ -154,6 +168,8 @@ export interface PresenceSheetProps {
 export function PresenceSheet({
   session,
   date,
+  slot = 0,
+  onSlotChange,
   monthCode,
   onMonthChange,
   onCreateStudent,
@@ -239,7 +255,19 @@ export function PresenceSheet({
 
   const slotCount = sub ? slotCountFor(db, sub.id, roster.map((s) => s.id), monthCode) : cycleSizeOf(sub);
 
-  const scheduledDay = session.days.includes(JS_DAYS[new Date(`${date}T12:00:00`).getDay()]);
+  const sheetDow = JS_DAYS[new Date(`${date}T12:00:00`).getDay()];
+  const scheduledDay = session.days.includes(sheetDow);
+  /**
+   * LES SÉANCES DE LA JOURNÉE — presque toujours une, parfois deux.
+   *
+   * La feuille en pointe UNE à la fois : celle que `slot` désigne. Un rang qui
+   * n'existe pas ce jour-là (on passe d'un jour à deux séances à un jour qui
+   * n'en tient qu'une) retombe sur la première, plutôt que de pointer dans le
+   * vide.
+   */
+  const daySlots = sessionSlotsOn(session, sheetDow);
+  const activeSlot = slot < daySlots.length ? slot : 0;
+  const slotTimes = daySlots[activeSlot] ?? daySlots[0];
 
   /**
    * LE COMPTE DE LA JOURNÉE, EN CINQ NOMBRES.
@@ -293,7 +321,7 @@ export function PresenceSheet({
   const dayTally = useMemo(() => {
     const tally = { total: roster.length, present: 0, absent: 0, cancelled: 0, pending: 0 };
     for (const st of roster) {
-      const rec = attendanceOn(db, st.id, session.id, date);
+      const rec = attendanceOn(db, st.id, session.id, date, activeSlot);
       if (!rec) tally.pending += 1;
       else if (rec.status === "cancelled") tally.cancelled += 1;
       else if (rec.status === "absent") tally.absent += 1;
@@ -301,7 +329,7 @@ export function PresenceSheet({
     }
     return tally;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roster, db.attendance, session.id, date]);
+  }, [roster, db.attendance, session.id, date, activeSlot]);
 
   // ---- writing ------------------------------------------------------------
   /**
@@ -324,6 +352,7 @@ export function PresenceSheet({
       studentId: student.id,
       sessionId: session.id,
       date,
+      slot: activeSlot,
       status,
     });
     setBusyId(null);
@@ -371,6 +400,9 @@ export function PresenceSheet({
       studentId: student.id,
       sessionId: session.id,
       date: day,
+      // On retire EXACTEMENT la séance pointée, pas « celle du jour » : une
+      // journée peut en tenir deux, et l'autre doit rester intacte.
+      slot: record.slot ?? 0,
       status: null,
     });
     setBusyId(null);
@@ -471,10 +503,10 @@ export function PresenceSheet({
     for (const id of ids) {
       const student = db.students.find((s) => s.id === id);
       if (!student) continue;
-      const already = attendanceOn(db, id, session.id, date);
+      const already = attendanceOn(db, id, session.id, date, activeSlot);
       if (status === "present" && already) continue;
       if (status === "cancelled" && already?.status === "cancelled") continue;
-      await setPresence({ studentId: id, sessionId: session.id, date, status });
+      await setPresence({ studentId: id, sessionId: session.id, date, slot: activeSlot, status });
     }
     setBulkStatus(null);
     addToast({
@@ -616,6 +648,11 @@ export function PresenceSheet({
         monthCode,
         slotCount,
         date,
+        timeLabel: `${slotTimes.startTime}–${slotTimes.endTime}`,
+        slotLabel:
+          daySlots.length > 1
+            ? `séance ${slotLabel(activeSlot)} sur ${daySlots.length}`
+            : undefined,
         language,
         rows: shown.map((st) => {
           const slots = cycleSlots(db, st.id, sub.id, monthCode);
@@ -660,9 +697,16 @@ export function PresenceSheet({
           <h3 className="text-base font-black text-ink sm:text-lg">{title}</h3>
           <p className="text-[11px] text-muted sm:text-xs">
             Groupe {groupName(db, session.groupId)} · Arène{" "}
-            {salleName(db, sessionSalleOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]))} ·{" "}
-            {sessionTimesOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]).startTime}–
-            {sessionTimesOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]).endTime}
+            {salleName(db, sessionSalleOn(session, sheetDow))} · {slotTimes.startTime}–
+            {slotTimes.endTime}
+            {daySlots.length > 1 && (
+              <>
+                {" "}
+                <Badge tone="primary" className="ms-1 text-[9px] font-bold">
+                  Séance {slotLabel(activeSlot)} sur {daySlots.length}
+                </Badge>
+              </>
+            )}
           </p>
           <p className="text-[10px] text-muted sm:text-[11px]">
             Entraîneur : {teacherName(db, session.teacherId)} · {cycleSizeOf(sub)} séances / carte ·
@@ -729,18 +773,51 @@ export function PresenceSheet({
       {/* ---- search + day -------------------------------------------------- */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un chevalier — nom ou n° d'inscription (00001)…"
-            className="pl-9"
+            className="ps-9"
           />
         </div>
         <Badge tone={scheduledDay ? "primary" : "warning"} className="gap-1">
           <Clock className="h-3 w-3" />
-          {DAY_LABELS_FR[JS_DAYS[new Date(`${date}T12:00:00`).getDay()]]} {formatDateFr(date)}
+          {DAY_LABELS_FR[sheetDow]} {formatDateFr(date)}
         </Badge>
+
+        {/* ---- LES DEUX SÉANCES DE LA JOURNÉE ----------------------------
+            Un groupe qui s'entraîne le matin PUIS le soir tient deux séances
+            ce jour-là. Elles ne se mélangent jamais : chacune a ses présences,
+            décompte SA séance de la carte, et rapporte SA part à l'entraîneur.
+            Ce sélecteur dit laquelle on est en train de pointer. */}
+        {daySlots.length > 1 && (
+          <div className="flex items-center gap-1 rounded-xl border border-primary/40 bg-primary-50/40 p-1">
+            <span className="ps-1.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+              Séance du jour
+            </span>
+            {daySlots.map((t, i) => {
+              const on = i === activeSlot;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onSlotChange?.(i)}
+                  disabled={!onSlotChange}
+                  className={`rounded-lg px-2 py-1 text-[10px] font-bold transition-colors disabled:cursor-not-allowed ${
+                    on
+                      ? "bg-primary text-white"
+                      : "bg-surface text-ink hover:bg-primary-50 disabled:opacity-50"
+                  }`}
+                  title={`${t.startTime}–${t.endTime}`}
+                >
+                  {slotLabel(i)} · {t.startTime}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <Badge tone="neutral">{shown.length} chevalier(s)</Badge>
         {notYetHere > 0 && (
           <Badge tone="warning" title="Inscrits après cette carte-là — ils apparaissent sur le leur">
@@ -889,7 +966,7 @@ export function PresenceSheet({
       <div className="overflow-x-auto rounded-2xl border border-line">
         <table className="w-full min-w-[1000px] text-xs">
           <thead className="bg-canvas/60">
-            <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
+            <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
               <th className="px-2 py-2.5">N°</th>
               <th className="px-2 py-2.5">Chevalier</th>
               <th className="px-2 py-2.5">Téléphone</th>
@@ -927,6 +1004,7 @@ export function PresenceSheet({
                   monthCode={carteShort(monthCode)}
                   monthIndex={monthIndex}
                   slotCount={slotCount}
+                  daySlot={activeSlot}
                   date={date}
                   busy={busyId === st.id}
                   onWrite={write}
@@ -973,13 +1051,13 @@ export function PresenceSheet({
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[640px] text-[11px]">
               <thead className="bg-canvas/60">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">Chevalier de passage</th>
                   <th className="px-2 py-2">Séance</th>
                   <th className="px-2 py-2 text-center">Horaire</th>
-                  <th className="px-2 py-2 text-right">Prix payé</th>
-                  <th className="px-2 py-2 text-right">Part club</th>
-                  <th className="px-2 py-2 text-right">Part entraîneur</th>
+                  <th className="px-2 py-2 text-end">Prix payé</th>
+                  <th className="px-2 py-2 text-end">Part club</th>
+                  <th className="px-2 py-2 text-end">Part entraîneur</th>
                   <th className="px-2 py-2 text-center">Retirer</th>
                 </tr>
               </thead>
@@ -998,11 +1076,11 @@ export function PresenceSheet({
                       <td className="px-2 py-2 text-center font-mono text-[10px] text-muted">
                         {p.startTime} → {p.endTime}
                       </td>
-                      <td className="px-2 py-2 text-right font-mono">{formatDA(t.price)}</td>
-                      <td className="px-2 py-2 text-right font-mono text-muted">
+                      <td className="px-2 py-2 text-end font-mono">{formatDA(t.price)}</td>
+                      <td className="px-2 py-2 text-end font-mono text-muted">
                         {formatDA(t.school)}
                       </td>
-                      <td className="px-2 py-2 text-right font-mono font-bold text-primary">
+                      <td className="px-2 py-2 text-end font-mono font-bold text-primary">
                         {formatDA(t.teacher)}
                       </td>
                       <td className="px-2 py-2 text-center">
@@ -1025,16 +1103,16 @@ export function PresenceSheet({
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-line bg-canvas/60">
-                  <td colSpan={3} className="px-2 py-2 text-right text-[11px] font-bold text-ink">
+                  <td colSpan={3} className="px-2 py-2 text-end text-[11px] font-bold text-ink">
                     TOTAL DE LA SÉANCE
                   </td>
-                  <td className="px-2 py-2 text-right font-mono font-black text-success">
+                  <td className="px-2 py-2 text-end font-mono font-black text-success">
                     {formatDA(passagerTotals.total)}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono font-bold text-muted">
+                  <td className="px-2 py-2 text-end font-mono font-bold text-muted">
                     {formatDA(passagerTotals.school)}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono font-black text-primary">
+                  <td className="px-2 py-2 text-end font-mono font-black text-primary">
                     {formatDA(passagerTotals.teacher)}
                   </td>
                   <td />
@@ -1289,6 +1367,7 @@ export function PresenceSheet({
           students={roster}
           session={session}
           date={date}
+          daySlot={activeSlot}
           onConfirm={(ids) => markAll(ids, bulkStatus)}
           onClose={() => setBulkStatus(null)}
         />
@@ -1349,9 +1428,7 @@ export function PresenceSheet({
         <PassagerModal
           title={title}
           date={date}
-          timeLabel={`${sessionTimesOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]).startTime}–${
-            sessionTimesOn(session, JS_DAYS[new Date(`${date}T12:00:00`).getDay()]).endTime
-          }`}
+          timeLabel={`${slotTimes.startTime}–${slotTimes.endTime}`}
           teacher={teacherName(db, session.teacherId)}
           monthLabel={monthCodeLabel(monthCode)}
           suggestedPrice={unitPrice}
@@ -1878,16 +1955,16 @@ function AddExistingStudentModal({
           le {formatDateFr(date)}. Les séances tenues avant lui resteront vides sur sa ligne.
         </div>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Nom, n° d'inscription (00001) ou téléphone…"
-            className="pl-9"
+            className="ps-9"
           />
         </div>
-        <div className="max-h-[45vh] space-y-1.5 overflow-y-auto pr-1">
+        <div className="max-h-[45vh] space-y-1.5 overflow-y-auto pe-1">
           {candidates.length === 0 ? (
             <p className="py-8 text-center text-xs italic text-muted">
               {query.trim()
@@ -1946,6 +2023,7 @@ function MarkAllModal({
   students,
   session,
   date,
+  daySlot,
   onConfirm,
   onClose,
 }: {
@@ -1953,6 +2031,8 @@ function MarkAllModal({
   students: Student[];
   session: ScheduleSession;
   date: string;
+  /** la séance de la journée que la feuille pointe — un jour peut en tenir deux */
+  daySlot: number;
   onConfirm: (ids: string[]) => Promise<void> | void;
   onClose: () => void;
 }) {
@@ -1961,7 +2041,7 @@ function MarkAllModal({
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string[]>(() =>
     students
-      .filter((st) => cancelling || !attendanceOn(db, st.id, session.id, date))
+      .filter((st) => cancelling || !attendanceOn(db, st.id, session.id, date, daySlot))
       .map((st) => st.id),
   );
   const [busy, setBusy] = useState(false);
@@ -1998,13 +2078,13 @@ function MarkAllModal({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher un chevalier…"
-              className="pl-9"
+              className="ps-9"
             />
           </div>
           <Button size="sm" variant="outline" onClick={() => setPicked(shown.map((x) => x.id))}>
@@ -2014,12 +2094,12 @@ function MarkAllModal({
             Tout décocher
           </Button>
         </div>
-        <div className="max-h-[42vh] space-y-1 overflow-y-auto pr-1">
+        <div className="max-h-[42vh] space-y-1 overflow-y-auto pe-1">
           {shown.length === 0 ? (
             <p className="py-8 text-center text-xs italic text-muted">Aucun chevalier.</p>
           ) : (
             shown.map((st) => {
-              const already = attendanceOn(db, st.id, session.id, date);
+              const already = attendanceOn(db, st.id, session.id, date, daySlot);
               return (
                 <label
                   key={st.id}
@@ -2177,7 +2257,7 @@ export function PaymentHistoryModal({
             Aucun paiement enregistré sur cet emploi du temps.
           </p>
         ) : (
-          <div className="max-h-[45vh] space-y-1.5 overflow-y-auto pr-1">
+          <div className="max-h-[45vh] space-y-1.5 overflow-y-auto pe-1">
             {rows.map((p) => (
               <div
                 key={p.id}
@@ -2186,7 +2266,7 @@ export function PaymentHistoryModal({
                 <div className="min-w-0">
                   <strong className="block text-xs text-ink">
                     {formatDA(p.amountPaid)}
-                    <Badge tone="primary" className="ml-1.5 font-mono text-[9px]">
+                    <Badge tone="primary" className="ms-1.5 font-mono text-[9px]">
                       {p.monthCode || "M1"}
                     </Badge>
                   </strong>
@@ -2306,6 +2386,7 @@ function StudentRow({
   monthIndex,
   slotCount,
   date,
+  daySlot,
   busy,
   onWrite,
   onPay,
@@ -2324,6 +2405,10 @@ function StudentRow({
   monthIndex: number;
   slotCount: number;
   date: string;
+  /** la séance de la JOURNÉE que la feuille pointe (0 = la seule, ou la
+   *  première) — à ne pas confondre avec `slotCount`, qui compte les séances de
+   *  la CARTE. */
+  daySlot: number;
   busy: boolean;
   onWrite: (student: Student, status: AttendanceStatus | null) => void;
   /** absent = ce compte n'encaisse pas : le bouton ne s'affiche pas */
@@ -2352,7 +2437,7 @@ function StudentRow({
   // « Club seule » paie la part du club, pas le prix complet.
   const unit = studentListPrice(student, sub);
   const status = soldStatus(sold, unit);
-  const today = attendanceOn(db, student.id, session.id, date);
+  const today = attendanceOn(db, student.id, session.id, date, daySlot);
 
   /** Ce qu'il doit ENCORE sur la carte affiché — jamais un nombre négatif. */
   const monthDue = Math.max(0, -cycle.balance);
@@ -2952,7 +3037,7 @@ function TeacherChildPayModal({
                   }`}
                 >
                   {monthCodeLabel(code)}
-                  <span className="ml-1.5 font-mono">{owed > 0 ? formatDA(owed) : "réglé"}</span>
+                  <span className="ms-1.5 font-mono">{owed > 0 ? formatDA(owed) : "réglé"}</span>
                 </button>
               );
             })}

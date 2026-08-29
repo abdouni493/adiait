@@ -394,7 +394,7 @@ function StudentHomeView({
                   <div key={ann.id} className="p-3 bg-canvas/40 border border-line rounded-xl space-y-1">
                     <strong className="text-ink font-bold text-xs block">{ann.title}</strong>
                     <p className="text-muted text-[11px] leading-relaxed">{ann.description}</p>
-                    <span className="text-[9px] text-muted block text-right">Publié le {new Date(ann.date).toLocaleDateString()}</span>
+                    <span className="text-[9px] text-muted block text-end">Publié le {new Date(ann.date).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>
@@ -452,13 +452,13 @@ function StudentScheduleView({
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
     const colors = [
-      "border-l-4 border-l-blue-500 bg-blue-50/70 text-blue-900 dark:bg-blue-950/20 dark:text-blue-200 border-blue-100",
-      "border-l-4 border-l-emerald-500 bg-emerald-50/70 text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200 border-emerald-100",
-      "border-l-4 border-l-amber-500 bg-amber-50/70 text-amber-900 dark:bg-amber-950/20 dark:text-amber-200 border-amber-100",
-      "border-l-4 border-l-rose-500 bg-rose-50/70 text-rose-900 dark:bg-rose-950/20 dark:text-rose-200 border-rose-100",
-      "border-l-4 border-l-purple-500 bg-purple-50/70 text-purple-900 dark:bg-purple-950/20 dark:text-purple-200 border-purple-100",
-      "border-l-4 border-l-cyan-500 bg-cyan-50/70 text-cyan-900 dark:bg-cyan-950/20 dark:text-cyan-200 border-cyan-100",
-      "border-l-4 border-l-indigo-500 bg-indigo-50/70 text-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-200 border-indigo-100",
+      "border-s-4 border-s-blue-500 bg-blue-50/70 text-blue-900 dark:bg-blue-950/20 dark:text-blue-200 border-blue-100",
+      "border-s-4 border-s-emerald-500 bg-emerald-50/70 text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200 border-emerald-100",
+      "border-s-4 border-s-amber-500 bg-amber-50/70 text-amber-900 dark:bg-amber-950/20 dark:text-amber-200 border-amber-100",
+      "border-s-4 border-s-rose-500 bg-rose-50/70 text-rose-900 dark:bg-rose-950/20 dark:text-rose-200 border-rose-100",
+      "border-s-4 border-s-purple-500 bg-purple-50/70 text-purple-900 dark:bg-purple-950/20 dark:text-purple-200 border-purple-100",
+      "border-s-4 border-s-cyan-500 bg-cyan-50/70 text-cyan-900 dark:bg-cyan-950/20 dark:text-cyan-200 border-cyan-100",
+      "border-s-4 border-s-indigo-500 bg-indigo-50/70 text-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-200 border-indigo-100",
     ];
     return colors[Math.abs(hash) % colors.length];
   };
@@ -987,12 +987,12 @@ function StudentPaymentsView({
       <Card className="border border-line shadow-sm">
         <CardBody className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted" />
+            <Search className="absolute start-3 top-2.5 h-4 w-4 text-muted" />
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Rechercher par module ou désignation..."
-              className="pl-9 w-full"
+              className="ps-9 w-full"
             />
           </div>
 

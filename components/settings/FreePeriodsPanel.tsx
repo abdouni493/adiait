@@ -339,33 +339,33 @@ export function FreePeriodsPanel() {
                           {menuId === fp.id && (
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setMenuId(null)} />
-                              <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
+                              <div className="absolute end-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
                                 <button
                                   onClick={() => {
                                     setViewing(fp);
                                     setIsDetailsOpen(true);
                                     setMenuId(null);
                                   }}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ink hover:bg-primary-50"
+                                  className="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-ink hover:bg-primary-50"
                                 >
                                   <Eye className="h-4 w-4" /> Détails
                                 </button>
                                 <button
                                   onClick={() => openEdit(fp)}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ink hover:bg-primary-50"
+                                  className="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-ink hover:bg-primary-50"
                                 >
                                   <Edit className="h-4 w-4" /> Modifier
                                 </button>
                                 <button
                                   onClick={() => handleToggleActive(fp)}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ink hover:bg-primary-50"
+                                  className="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-ink hover:bg-primary-50"
                                 >
                                   <Power className="h-4 w-4" />
                                   {fp.active ? "Désactiver" : "Réactiver"}
                                 </button>
                                 <button
                                   onClick={() => handleDelete(fp)}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-danger hover:bg-danger/10"
+                                  className="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-danger hover:bg-danger/10"
                                 >
                                   <Trash2 className="h-4 w-4" /> Supprimer
                                 </button>
@@ -383,7 +383,7 @@ export function FreePeriodsPanel() {
                     <div className="mt-3 space-y-1 text-xs">
                       <div className="flex justify-between text-muted">
                         <span>Catégories:</span>
-                        <strong className="max-w-[60%] truncate text-right text-ink">
+                        <strong className="max-w-[60%] truncate text-end text-ink">
                           {fp.allClasses
                             ? "Toutes les catégories"
                             : `${covered.length} classe${covered.length > 1 ? "s" : ""}`}
@@ -664,11 +664,11 @@ export function FreePeriodsPanel() {
                 ) : (
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-canvas/80 backdrop-blur">
-                      <tr className="text-left text-[10px] uppercase text-muted">
+                      <tr className="text-start text-[10px] uppercase text-muted">
                         <th className="px-3 py-2">Chevalier</th>
                         <th className="px-3 py-2">Séance</th>
                         <th className="px-3 py-2">Date</th>
-                        <th className="px-3 py-2 text-right">Offert</th>
+                        <th className="px-3 py-2 text-end">Offert</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -691,7 +691,7 @@ export function FreePeriodsPanel() {
                                 minute: "2-digit",
                               })}
                             </td>
-                            <td className="px-3 py-2 text-right font-bold text-success">
+                            <td className="px-3 py-2 text-end font-bold text-success">
                               {formatDA(a.waivedAmount ?? 0)}
                             </td>
                           </tr>

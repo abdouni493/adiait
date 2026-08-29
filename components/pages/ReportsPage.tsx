@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-import { formatDA } from "@/lib/utils";
+import { formatDA, money } from "@/lib/utils";
 import {
   cashByCategory,
   carteShort,
@@ -27,8 +27,10 @@ import {
   teacherMonthShareOf,
   teacherPerSeanceOf,
   totalRemainingSeances,
+  transportMonthShareOf,
+  transportPerSeanceOf,
 } from "@/lib/helpers";
-import { AlertCircle, ArrowDownLeft, ArrowUpRight, Banknote, BookOpen, Calendar, CalendarClock, ChevronRight, CircleDollarSign, ClipboardList, DollarSign, FileSpreadsheet, FileText, Filter, GraduationCap, HandCoins, Layers, PieChart as PieIcon, PiggyBank, Puzzle, Receipt, RotateCcw, Search, Sparkles, Tag, Ticket, TrendingUp, UserCog, Users, Wallet, X } from "lucide-react";
+import { AlertCircle, ArrowDownLeft, ArrowUpRight, Banknote, BookOpen, Bus, Calendar, CalendarClock, ChevronRight, CircleDollarSign, ClipboardList, DollarSign, FileSpreadsheet, FileText, Filter, GraduationCap, HandCoins, Layers, PieChart as PieIcon, PiggyBank, Puzzle, Receipt, RotateCcw, Route, Search, Sparkles, Tag, Ticket, TrendingUp, UserCog, Users, Wallet, X } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Types & small helpers                                               */
@@ -139,11 +141,11 @@ function DetailTable({ spec, search }: { spec: DetailSpec; search: string }) {
         )}
       </div>
       <div className="max-h-[26rem] overflow-auto rounded-2xl border border-line">
-        <table className="w-full border-collapse text-left text-xs">
+        <table className="w-full border-collapse text-start text-xs">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-line bg-canvas text-muted">
               {spec.columns.map((c, i) => (
-                <th key={i} className={`p-3 font-bold ${c.align === "right" ? "text-right" : ""}`}>
+                <th key={i} className={`p-3 font-bold ${c.align === "right" ? "text-end" : ""}`}>
                   {c.label}
                 </th>
               ))}
@@ -160,7 +162,7 @@ function DetailTable({ spec, search }: { spec: DetailSpec; search: string }) {
               rows.map((row, ri) => (
                 <tr key={ri} className="transition-colors hover:bg-primary-50/10">
                   {spec.columns.map((c, ci) => (
-                    <td key={ci} className={`p-3 align-middle ${c.align === "right" ? "text-right" : ""}`}>
+                    <td key={ci} className={`p-3 align-middle ${c.align === "right" ? "text-end" : ""}`}>
                       {c.render(row)}
                     </td>
                   ))}
@@ -262,7 +264,7 @@ function CalcCard({
                 {l.tone && !l.emphasis && <span className={`h-2 w-2 rounded-full ${TONE_SOFT[l.tone].split(" ")[0]}`} />}
                 <span>
                   {l.label}
-                  {l.formula && <span className="ml-1 block text-[9px] font-normal not-italic text-muted">{l.formula}</span>}
+                  {l.formula && <span className="ms-1 block text-[9px] font-normal not-italic text-muted">{l.formula}</span>}
                 </span>
               </span>
               <strong className={`flex items-center gap-1 ${l.tone ? TONE_TEXT[l.tone] : "text-ink"}`}>
@@ -362,7 +364,7 @@ function DonutChart({
                 {a.hint && <span className="block text-[9px] text-muted">{a.hint}</span>}
               </span>
             </span>
-            <span className="shrink-0 text-right">
+            <span className="shrink-0 text-end">
               <strong className="block text-xs text-ink">{formatDA(a.value)}</strong>
               <span className="block text-[10px] font-bold text-muted">{a.pct.toFixed(1)} %</span>
             </span>
@@ -2203,13 +2205,25 @@ export function ReportsPage() {
           schoolMonth: sub ? schoolMonthShareOf(sub) : 0,
           teacherMonth: sub ? teacherMonthShareOf(sub) : 0,
           roster,
-          seances: new Set(marks.map((a) => (a.timestamp || "").substring(0, 10))).size,
+          // Une journée peut porter DEUX séances : elles se comptent pour deux.
+          seances: new Set(
+            marks.map((a) => `${(a.timestamp || "").substring(0, 10)}#${a.slot ?? 0}`),
+          ).size,
           presents,
           absents,
           collected,
           teacherDue,
           margin: collected - teacherDue,
           potentialMonth: sub ? monthlyPriceOf(sub) * roster : 0,
+          // ---- LE TRANSPORT ------------------------------------------------
+          // Ce que le ramassage prend sur la carte, et ce qu'il a coûté sur la
+          // période : part transport d'une séance × présences facturées.
+          transportMonth: sub ? transportMonthShareOf(sub) : 0,
+          transportPerSeance: sub ? transportPerSeanceOf(sub) : 0,
+          /** ce que le transport a coûté sur les présences de la période */
+          transportDue: sub ? money(transportPerSeanceOf(sub) * presents) : 0,
+          /** ce que le transport coûterait sur une carte complète du groupe */
+          transportPotential: sub ? money(transportMonthShareOf(sub) * roster) : 0,
         };
       })
       .sort((a, b) => b.collected - a.collected || a.title.localeCompare(b.title));
@@ -2218,6 +2232,30 @@ export function ReportsPage() {
     const plannerTeacher = sum(plannerRows, (r) => r.teacherDue);
     const plannerPotential = sum(plannerRows, (r) => r.potentialMonth);
     const plannerPriced = plannerRows.filter((r) => r.monthPrice > 0).length;
+
+    /* ============================= TRANSPORT ============================ */
+    /**
+     * CE QUE LE RAMASSAGE COÛTE, GROUPE PAR GROUPE.
+     *
+     * Le prix d'une carte se coupe en trois : le bus d'abord, puis la part du
+     * club, puis celle de l'entraîneur. Le transport n'est donc ni un revenu ni
+     * une charge de personnel — c'est une part du prix que le club met de côté
+     * pour faire rouler le car, et la question qui se pose en fin de carte est
+     * simple : « combien coûte chaque groupe, et combien coûte le transport en
+     * tout ? »
+     *
+     * Un créneau SANS transport n'a rien à faire dans ce tableau : y afficher
+     * des zéros noierait les groupes qui en ont vraiment un.
+     */
+    const transportRows = plannerRows.filter((r) => r.transportMonth > 0);
+    const transportDue = sum(transportRows, (r) => r.transportDue);
+    const transportPotential = sum(transportRows, (r) => r.transportPotential);
+    /** le prix total des cartes des groupes qui ont un transport */
+    const transportGroupsTotal = sum(transportRows, (r) => r.potentialMonth);
+    /** ce que ces mêmes groupes ont encaissé sur la période */
+    const transportCollected = sum(transportRows, (r) => r.collected);
+    const transportShareOfPrice =
+      transportGroupsTotal > 0 ? (transportPotential / transportGroupsTotal) * 100 : 0;
 
     const tariffColumns: DetailColumn[] = [
       {
@@ -2242,6 +2280,24 @@ export function ReportsPage() {
             <span className="text-[9px] text-muted">
               {formatDA(r.monthPrice)} ÷ {r.size}
             </span>
+          </span>
+        ),
+      },
+      {
+        // LE TRANSPORT se prélève AVANT le partage : il a sa colonne, entre le
+        // prix payé par le chevalier et ce que le club garde.
+        label: "Transport / séance",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-accent-ink">
+              {r.transportMonth > 0 ? formatDA(r.transportPerSeance) : "—"}
+            </strong>
+            {r.transportMonth > 0 && (
+              <span className="text-[9px] text-muted">
+                {formatDA(r.transportMonth)} ÷ {r.size}
+              </span>
+            )}
           </span>
         ),
       },
@@ -2399,6 +2455,210 @@ export function ReportsPage() {
             totalValue: `${plannerRows.length}`,
             totalTone: "primary",
             searchable: (r) => `${r.title} ${r.className} ${r.groups} ${r.teacher}`,
+          },
+        },
+      ],
+    };
+
+    /* ============================= TRANSPORT ============================ */
+    /**
+     * L'ÉCRAN DU RAMASSAGE.
+     *
+     * Deux questions, et rien d'autre : « combien coûte le transport pour
+     * CHAQUE groupe ? » et « combien coûte-t-il en tout ? ». Les deux se lisent
+     * sur la même page, avec le prix total des cartes de ces groupes en regard,
+     * parce que la part du transport ne veut rien dire seule — 800 DA sur une
+     * carte à 4 000, ce n'est pas 800 DA sur une carte à 1 500.
+     */
+    const transportColumns: DetailColumn[] = [
+      {
+        label: "Groupe / emploi du temps",
+        render: (r) => (
+          <span>
+            <strong className="block text-ink">{r.title}</strong>
+            <span className="text-[10px] text-muted">
+              {r.className} · {r.groups} · {r.teacher}
+            </span>
+          </span>
+        ),
+      },
+      {
+        label: "Chevaliers",
+        align: "right",
+        render: (r) => <span className="font-mono text-primary">{r.roster}</span>,
+      },
+      {
+        label: "Prix de la carte",
+        align: "right",
+        render: (r) => <span className="font-mono">{formatDA(r.monthPrice)}</span>,
+      },
+      {
+        label: "Transport / carte",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-accent-ink">{formatDA(r.transportMonth)}</strong>
+            <span className="text-[9px] text-muted">
+              {formatDA(r.transportPerSeance)} / séance
+            </span>
+          </span>
+        ),
+      },
+      {
+        label: "Coût total du groupe",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-ink">{formatDA(r.potentialMonth)}</strong>
+            <span className="text-[9px] text-muted">
+              {formatDA(r.monthPrice)} × {r.roster}
+            </span>
+          </span>
+        ),
+      },
+      {
+        label: "Transport du groupe",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-accent-ink">{formatDA(r.transportPotential)}</strong>
+            <span className="text-[9px] text-muted">
+              {formatDA(r.transportMonth)} × {r.roster}
+            </span>
+          </span>
+        ),
+      },
+      {
+        label: "Sur la période",
+        align: "right",
+        render: (r) => (
+          <span>
+            <strong className="block text-warning">{formatDA(r.transportDue)}</strong>
+            <span className="text-[9px] text-muted">{r.presents} présence(s)</span>
+          </span>
+        ),
+      },
+    ];
+
+    const transportSection: Section = {
+      id: "transport",
+      label: "Transport",
+      subtitle:
+        "Ce que le ramassage prend sur chaque carte, groupe par groupe — et ce qu'il coûte en tout.",
+      icon: <Bus className="h-4 w-4" />,
+      cards: [
+        {
+          label: "Transport sur la période",
+          value: outflow(transportDue),
+          tone: "warning",
+          featured: true,
+          icon: <Bus className="h-5 w-5" />,
+          hint: "part transport d'une séance × présences facturées",
+          detail: {
+            columns: transportColumns,
+            rows: [...transportRows].sort((a, b) => b.transportDue - a.transportDue),
+            totalLabel: "Total transport (période)",
+            totalValue: outflow(transportDue),
+            totalTone: "warning",
+            searchable: (r) => `${r.title} ${r.className} ${r.groups} ${r.teacher}`,
+            empty: "Aucun emploi du temps ne porte de part transport.",
+          },
+        },
+        {
+          label: "Transport d'une carte complète",
+          value: formatDA(transportPotential),
+          tone: "sky",
+          icon: <Route className="h-5 w-5" />,
+          hint: "part transport × chevaliers inscrits, groupe par groupe",
+          detail: {
+            columns: transportColumns,
+            rows: [...transportRows].sort((a, b) => b.transportPotential - a.transportPotential),
+            totalLabel: "Total transport (carte complète)",
+            totalValue: formatDA(transportPotential),
+            totalTone: "sky",
+            searchable: (r) => `${r.title} ${r.className} ${r.groups} ${r.teacher}`,
+            empty: "Aucun emploi du temps ne porte de part transport.",
+          },
+        },
+        {
+          label: "Coût total des groupes transportés",
+          value: formatDA(transportGroupsTotal),
+          tone: "primary",
+          icon: <Users className="h-5 w-5" />,
+          hint: `${transportRows.length} groupe(s) · prix de la carte × chevaliers`,
+          detail: {
+            columns: transportColumns,
+            rows: [...transportRows].sort((a, b) => b.potentialMonth - a.potentialMonth),
+            totalLabel: "Coût total des groupes",
+            totalValue: formatDA(transportGroupsTotal),
+            totalTone: "primary",
+            searchable: (r) => `${r.title} ${r.className} ${r.groups} ${r.teacher}`,
+            empty: "Aucun emploi du temps ne porte de part transport.",
+          },
+        },
+        {
+          label: "Poids du transport",
+          value: `${transportShareOfPrice.toFixed(1)} %`,
+          tone: "violet",
+          icon: <PieIcon className="h-5 w-5" />,
+          hint: "part du prix des cartes qui part dans le bus",
+        },
+      ],
+      panels: [
+        {
+          title: "Comment la part du transport est calculée",
+          subtitle: "Le bus se prélève sur la carte, AVANT le club et l'entraîneur.",
+          icon: <Bus className="h-4 w-4 text-accent-ink" />,
+          lines: [
+            {
+              label: "Groupes avec transport",
+              value: `${transportRows.length} / ${plannerRows.length}`,
+              strong: true,
+            },
+            {
+              label: "Coût total de ces groupes",
+              value: formatDA(transportGroupsTotal),
+              tone: "primary",
+              formula: "prix de la carte × chevaliers inscrits, groupe par groupe",
+            },
+            {
+              label: "Transport d'une carte complète",
+              value: formatDA(transportPotential),
+              tone: "warning",
+              formula: "part transport de la carte × chevaliers inscrits",
+            },
+            {
+              label: "Transport réellement consommé (période)",
+              value: outflow(transportDue),
+              tone: "warning",
+              emphasis: true,
+              formula: "(part transport ÷ séances de la carte) × présences facturées",
+            },
+            {
+              label: "Encaissé par ces groupes (période)",
+              value: inflow(transportCollected),
+              tone: "success",
+              formula: "somme des montants débités sur leurs présences",
+            },
+          ],
+          note:
+            "La part du transport est fixée sur l'emploi du temps, à la création ou à la modification du tarif. Elle est retirée du prix de la carte AVANT le partage : ce qui reste se divise entre le club et l'entraîneur. Un créneau sans ramassage n'apparaît pas ici — il n'a rien à y montrer.",
+        },
+      ],
+      tables: [
+        {
+          title: "Le transport, groupe par groupe",
+          icon: <Bus className="h-3.5 w-3.5 text-accent-ink" />,
+          note: "Le coût total de chaque groupe, ce que le transport y prend, et ce qu'il a coûté sur la période.",
+          spec: {
+            columns: transportColumns,
+            rows: [...transportRows].sort((a, b) => b.transportPotential - a.transportPotential),
+            totalLabel: "Total transport (carte complète)",
+            totalValue: formatDA(transportPotential),
+            totalTone: "sky",
+            searchable: (r) => `${r.title} ${r.className} ${r.groups} ${r.teacher}`,
+            empty:
+              "Aucun emploi du temps ne porte de part transport. Ouvrez « Emplois du temps », modifiez un créneau et indiquez la part du transport sur sa carte.",
           },
         },
       ],
@@ -2801,6 +3061,7 @@ export function ReportsPage() {
         studentsSection,
         attendanceSection,
         plannerSection,
+        transportSection,
         subscriptionsSection,
         teachersSection,
         payrollSection,
@@ -2889,7 +3150,7 @@ export function ReportsPage() {
           ----------------------------------------------------------------- */}
       <div className="space-y-3 rounded-2xl border border-line bg-surface p-4 card-shadow">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
+          <span className="me-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
             <Calendar className="h-3.5 w-3.5" /> Période
           </span>
           {(
@@ -3042,14 +3303,14 @@ export function ReportsPage() {
               Chevalier (nom, N°)
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+              <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-muted">
                 <Search className="h-3.5 w-3.5" />
               </span>
               <Input
                 value={entitySearch}
                 onChange={(e) => setEntitySearch(e.target.value)}
                 placeholder="Rechercher…"
-                className="w-full rounded-xl py-2 pl-9 text-xs"
+                className="w-full rounded-xl py-2 ps-9 text-xs"
               />
             </div>
           </div>
@@ -3181,7 +3442,7 @@ export function ReportsPage() {
                     {t.icon} {t.title}
                   </h4>
                   <div className="relative w-full max-w-xs">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+                    <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-muted">
                       <Search className="h-3.5 w-3.5" />
                     </span>
                     <Input
@@ -3193,7 +3454,7 @@ export function ReportsPage() {
                         }))
                       }
                       placeholder="Filtrer ce tableau…"
-                      className="w-full rounded-xl py-1.5 pl-9 text-xs"
+                      className="w-full rounded-xl py-1.5 ps-9 text-xs"
                     />
                   </div>
                 </div>
@@ -3210,7 +3471,7 @@ export function ReportsPage() {
         {detail && (
           <div className="space-y-4">
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+              <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-muted">
                 <Search className="h-4 w-4" />
               </span>
               <Input
@@ -3218,12 +3479,12 @@ export function ReportsPage() {
                 placeholder="Rechercher dans cette liste..."
                 value={modalSearch}
                 onChange={(e) => setModalSearch(e.target.value)}
-                className="w-full rounded-xl px-4 py-2 pl-9 text-xs"
+                className="w-full rounded-xl px-4 py-2 ps-9 text-xs"
               />
               {modalSearch && (
                 <button
                   onClick={() => setModalSearch("")}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-ink"
+                  className="absolute inset-y-0 end-0 flex items-center pe-3 text-muted hover:text-ink"
                 >
                   <X className="h-4 w-4" />
                 </button>

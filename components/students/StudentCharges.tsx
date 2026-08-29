@@ -355,7 +355,7 @@ export function ChargeSettlementPanel({
         </div>
 
         {/* Un frais par ligne : coché ou non, et pour combien. */}
-        <div className="max-h-[38vh] space-y-1.5 overflow-y-auto pr-1">
+        <div className="max-h-[38vh] space-y-1.5 overflow-y-auto pe-1">
           {open.map((c) => {
             const left = chargeRemaining(c);
             const isPicked = picked[c.id] !== undefined;

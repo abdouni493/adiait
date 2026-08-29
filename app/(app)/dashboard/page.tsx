@@ -64,11 +64,13 @@ import {
   sessionCurrentMonthCode,
   sessionSalleIds,
   sessionSalleOn,
+  sessionSlotsOn,
   sessionTimesOn,
+  slotLabel,
   teacherName,
 } from "@/lib/helpers";
 import { ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, Clock, Filter, Home, Hourglass, Receipt, Search, UserPlus, UserSearch, Users, Wallet, X } from "lucide-react";
-import type { Day, ScheduleSession } from "@/lib/types";
+import type { Day, DayTime, ScheduleSession } from "@/lib/types";
 
 const JS_DAYS: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -102,6 +104,23 @@ export default function DashboardPage() {
 
 type CashKind = "deposit" | "withdraw" | "expense";
 
+/**
+ * UNE SÉANCE DE LA JOURNÉE — et non un emploi du temps.
+ *
+ * Un emploi du temps peut en tenir deux le même jour : le matin et le soir. Ce
+ * sont deux séances distinctes — deux pointages, deux séances décomptées de la
+ * carte, deux parts pour l'entraîneur — et la journée doit donc les compter et
+ * les afficher pour deux.
+ */
+interface DaySeance {
+  session: ScheduleSession;
+  /** son rang dans la journée (0 = la première) */
+  slot: number;
+  times: DayTime;
+  /** combien de séances cet emploi tient ce jour-là */
+  slotCount: number;
+}
+
 function AdminDashboard() {
   const db = useData();
   const { sessions, attendance, students, subscriptions, classes, cashMove, push } = db;
@@ -127,6 +146,15 @@ function AdminDashboard() {
   /** The day the whole screen works on — today until the desk moves it. */
   const [date, setDate] = useState<string>(todayIso);
   const [openSessionId, setOpenSessionId] = useState<string | null>(null);
+  /**
+   * LAQUELLE DES SÉANCES DU JOUR la feuille ouverte pointe.
+   *
+   * Un emploi du temps peut en tenir deux — le matin et le soir. Ce sont deux
+   * séances distinctes : deux pointages, deux séances décomptées de la carte,
+   * deux parts pour l'entraîneur. La grille de la journée les affiche donc
+   * séparément, et c'est celle sur laquelle on a cliqué qui s'ouvre.
+   */
+  const [openSlot, setOpenSlot] = useState<number>(0);
   const [openDate, setOpenDate] = useState<string>(todayIso);
   const [month, setMonth] = useState<string>("M1");
   const [createOpen, setCreateOpen] = useState(false);
@@ -183,14 +211,39 @@ function AdminDashboard() {
   );
 
   /**
+   * LES SÉANCES DE LA JOURNÉE, dans l'ordre où elles tombent.
+   *
+   * Presque toujours une par emploi du temps. Mais un groupe qui s'entraîne le
+   * matin PUIS le soir en tient deux, et la journée en compte deux : deux
+   * feuilles à ouvrir, deux pointages à faire, deux parts à payer.
+   */
+  const daySeances = useMemo<DaySeance[]>(
+    () =>
+      dayTimings
+        .flatMap((s) =>
+          sessionSlotsOn(s, dow).map((times, slot, all) => ({
+            session: s,
+            slot,
+            times,
+            slotCount: all.length,
+          })),
+        )
+        .sort((a, b) => minutesOf(a.times.startTime) - minutesOf(b.times.startTime)),
+    [dayTimings, dow],
+  );
+
+  /**
    * How far the pointage of that day has gone, créneau by créneau — built in
    * one pass over les présences du jour, pas un balayage par emploi.
    */
   const progress = useMemo(() => {
+    // Le pointage se compte SÉANCE PAR SÉANCE : la séance du matin peut être
+    // faite pendant que celle du soir reste entière.
     const marks = new Map<string, number>();
     for (const a of attendance) {
       if (dayKeyOf(a.timestamp) !== date) continue;
-      marks.set(a.sessionId, (marks.get(a.sessionId) ?? 0) + 1);
+      const key = `${a.sessionId}#${a.slot ?? 0}`;
+      marks.set(key, (marks.get(key) ?? 0) + 1);
     }
     const rosterOf = new Map<string, number>();
     for (const st of students) {
@@ -202,28 +255,38 @@ function AdminDashboard() {
     const out = new Map<string, { roster: number; marked: number; priced: boolean }>();
     for (const s of sessions) {
       const subId = bySession.get(s.id);
-      out.set(s.id, {
-        roster: subId ? rosterOf.get(subId) ?? 0 : 0,
-        marked: marks.get(s.id) ?? 0,
-        priced: !!subId,
-      });
+      const roster = subId ? rosterOf.get(subId) ?? 0 : 0;
+      // Une entrée par séance du jour, plus une entrée « toutes séances
+      // confondues » pour les écrans qui ne parlent que de l'emploi du temps.
+      const slots = sessionSlotsOn(s, dow).length;
+      let total = 0;
+      for (let i = 0; i < slots; i++) {
+        const marked = marks.get(`${s.id}#${i}`) ?? 0;
+        total += marked;
+        out.set(`${s.id}#${i}`, { roster, marked, priced: !!subId });
+      }
+      out.set(s.id, { roster, marked: total, priced: !!subId });
     }
     return out;
-  }, [sessions, subscriptions, students, attendance, date]);
+  }, [sessions, subscriptions, students, attendance, date, dow]);
 
-  const progressOf = (s: ScheduleSession) =>
-    progress.get(s.id) ?? { roster: 0, marked: 0, priced: false };
+  const progressOf = (s: ScheduleSession, slot?: number) =>
+    progress.get(slot === undefined ? s.id : `${s.id}#${slot}`) ?? {
+      roster: 0,
+      marked: 0,
+      priced: false,
+    };
 
-  /** Done = every enrolled student of the créneau has a row that day. */
-  const doneCount = dayTimings.filter((s) => {
-    const { roster, marked } = progressOf(s);
+  /** Done = every enrolled student of the séance has a row that day. */
+  const doneCount = daySeances.filter(({ session: s, slot }) => {
+    const { roster, marked } = progressOf(s, slot);
     return roster > 0 && marked >= roster;
   }).length;
-  const startedCount = dayTimings.filter((s) => {
-    const { roster, marked } = progressOf(s);
+  const startedCount = daySeances.filter(({ session: s, slot }) => {
+    const { roster, marked } = progressOf(s, slot);
     return marked > 0 && !(roster > 0 && marked >= roster);
   }).length;
-  const remainingCount = dayTimings.length - doneCount;
+  const remainingCount = daySeances.length - doneCount;
 
   const dayMarks = attendance.filter(
     (a) => dayKeyOf(a.timestamp) === date && dayTimings.some((s) => s.id === a.sessionId),
@@ -322,7 +385,7 @@ function AdminDashboard() {
   const openSession = sessions.find((s) => s.id === openSessionId) ?? null;
   const openDow = JS_DAYS[new Date(`${openDate}T12:00:00`).getDay()];
 
-  const openSheet = (s: ScheduleSession, on: string = date) => {
+  const openSheet = (s: ScheduleSession, on: string = date, slot = 0) => {
     // Un travailleur à qui l'on n'a pas ouvert la feuille de présence peut voir
     // la grille du jour sans pouvoir l'ouvrir : le clic ne fait alors rien.
     if (!can("open_presence")) {
@@ -335,6 +398,7 @@ function AdminDashboard() {
     }
     setMonth(sessionCurrentMonthCode(db, s.id));
     setOpenDate(on);
+    setOpenSlot(slot);
     setOpenSessionId(s.id);
   };
 
@@ -403,24 +467,30 @@ function AdminDashboard() {
     setTeacherFilter("all");
   };
 
-  /** The day's grid: one row per créneau horaire, one column per arène. */
+  /**
+   * The day's grid: one row per créneau horaire, one column per arène.
+   *
+   * UNE CASE PAR SÉANCE, et non par emploi du temps : un groupe qui s'entraîne
+   * le matin PUIS le soir occupe deux lignes de la grille, chacune avec son
+   * horaire — les fondre cacherait l'entraînement du soir à qui lit la journée.
+   */
   const grid = useMemo(() => {
     const slotKeys = new Map<string, { start: string; end: string }>();
     const salleIds: string[] = [];
-    const cells = new Map<string, ScheduleSession[]>();
+    const cells = new Map<string, DaySeance[]>();
 
-    for (const s of dayTimings) {
-      const { startTime, endTime } = sessionTimesOn(s, dow);
+    for (const seance of daySeances) {
+      const { startTime, endTime } = seance.times;
       const slot = `${startTime}|${endTime}`;
       if (!slotKeys.has(slot)) slotKeys.set(slot, { start: startTime, end: endTime });
       // L'arène DU JOUR : un emploi qui tourne samedi en Arène A et mardi en
       // Arène B se range dans la bonne colonne chaque jour.
-      const salleId = sessionSalleOn(s, dow) || "__none__";
+      const salleId = sessionSalleOn(seance.session, dow) || "__none__";
       if (!salleIds.includes(salleId)) salleIds.push(salleId);
       const key = `${slot}::${salleId}`;
       const list = cells.get(key);
-      if (list) list.push(s);
-      else cells.set(key, [s]);
+      if (list) list.push(seance);
+      else cells.set(key, [seance]);
     }
 
     const slots = [...slotKeys.entries()]
@@ -433,7 +503,7 @@ function AdminDashboard() {
       .sort((a, b) => (a.id === "__none__" ? 1 : b.id === "__none__" ? -1 : a.label.localeCompare(b.label)));
 
     return { slots, columns, cells };
-  }, [dayTimings, dow, db]);
+  }, [daySeances, dow, db]);
 
   // ---- caisse --------------------------------------------------------------
   const openCash = (kind: CashKind) => {
@@ -539,12 +609,12 @@ function AdminDashboard() {
         <CardBody className="space-y-3 p-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-[240px] flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher un emploi du temps — module, groupe, arène, entraîneur…"
-                className="pl-9"
+                className="ps-9"
               />
             </div>
             <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="min-w-[150px]">
@@ -596,7 +666,7 @@ function AdminDashboard() {
                   Aucun emploi du temps ne correspond à cette recherche.
                 </p>
               ) : (
-                <div className="max-h-[320px] space-y-1.5 overflow-y-auto pr-1">
+                <div className="max-h-[320px] space-y-1.5 overflow-y-auto pe-1">
                   {matches.map((s, i) => {
                     const color = colorOf(s.id);
                     const runsToday = s.days.includes(dow);
@@ -609,7 +679,7 @@ function AdminDashboard() {
                         key={s.id}
                         autoFocus={i === 0}
                         onClick={() => openSheet(s)}
-                        className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-left transition-all hover:brightness-105 ${
+                        className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-start transition-all hover:brightness-105 ${
                           i === 0 ? "ring-2 ring-primary/40" : ""
                         }`}
                         style={{ borderColor: `${color}66`, background: `${color}12` }}
@@ -617,7 +687,7 @@ function AdminDashboard() {
                         <span className="min-w-0">
                           <strong className="block text-xs text-ink">
                             {i === 0 && (
-                              <Badge tone="primary" className="mr-1.5 text-[9px]">
+                              <Badge tone="primary" className="me-1.5 text-[9px]">
                                 1er résultat
                               </Badge>
                             )}
@@ -698,24 +768,32 @@ function AdminDashboard() {
 
           {/* Avancement du pointage de la journée */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* LE COMPTE SE FAIT EN SÉANCES, pas en emplois du temps : un
+                groupe qui s'entraîne matin ET soir en tient deux, et il reste
+                bien deux feuilles à pointer. */}
             <ProgressTile
               icon={<Clock className="h-4 w-4" />}
-              label="Créneaux du jour"
-              value={String(dayTimings.length)}
+              label="Séances du jour"
+              value={String(daySeances.length)}
+              hint={
+                daySeances.length > dayTimings.length
+                  ? `${dayTimings.length} emploi(s) du temps`
+                  : undefined
+              }
               tone="text-ink"
             />
             <ProgressTile
               icon={<CheckCircle2 className="h-4 w-4" />}
               label="Présences faites"
               value={String(doneCount)}
-              hint={startedCount > 0 ? `${startedCount} commencé(s)` : "emplois entièrement pointés"}
+              hint={startedCount > 0 ? `${startedCount} commencée(s)` : "séances entièrement pointées"}
               tone="text-success"
             />
             <ProgressTile
               icon={<Hourglass className="h-4 w-4" />}
               label="Restent à pointer"
               value={String(remainingCount)}
-              hint={remainingCount === 0 ? "journée terminée ✅" : "emplois du temps"}
+              hint={remainingCount === 0 ? "journée terminée ✅" : "séances"}
               tone={remainingCount === 0 ? "text-success" : "text-warning"}
             />
             <ProgressTile
@@ -747,13 +825,13 @@ function AdminDashboard() {
               <table className="w-full min-w-[720px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-canvas/70">
-                    <th className="w-[150px] border-b border-r border-line px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted">
+                    <th className="w-[150px] border-b border-r border-line px-3 py-2.5 text-start text-[10px] uppercase tracking-wide text-muted">
                       Horaire
                     </th>
                     {grid.columns.map((col) => (
                       <th
                         key={col.id}
-                        className="border-b border-r border-line px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wide text-ink last:border-r-0"
+                        className="border-b border-r border-line px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wide text-ink last:border-e-0"
                       >
                         🚪 {col.label}
                       </th>
@@ -774,7 +852,7 @@ function AdminDashboard() {
                         return (
                           <td
                             key={col.id}
-                            className="border-b border-r border-line px-2 py-2 last:border-r-0"
+                            className="border-b border-r border-line px-2 py-2 last:border-e-0"
                           >
                             {list.length === 0 ? (
                               <span className="block py-2 text-center text-[10px] text-muted/40">
@@ -782,16 +860,16 @@ function AdminDashboard() {
                               </span>
                             ) : (
                               <div className="space-y-1.5">
-                                {list.map((s) => {
+                                {list.map(({ session: s, slot: seanceSlot, slotCount }) => {
                                   const color = colorOf(s.id);
-                                  const { roster, marked, priced } = progressOf(s);
+                                  const { roster, marked, priced } = progressOf(s, seanceSlot);
                                   const done = roster > 0 && marked >= roster;
                                   return (
                                     <button
-                                      key={s.id}
-                                      onClick={() => openSheet(s)}
+                                      key={`${s.id}#${seanceSlot}`}
+                                      onClick={() => openSheet(s, date, seanceSlot)}
                                       title={`${sessionTitle(s)} — ${teacherName(db, s.teacherId)}`}
-                                      className="block w-full rounded-xl border-l-4 p-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                      className="block w-full rounded-xl border-s-4 p-2 text-start transition-all hover:-translate-y-0.5 hover:shadow-md"
                                       style={{
                                         borderLeftColor: color,
                                         background: `${color}14`,
@@ -802,6 +880,11 @@ function AdminDashboard() {
                                         style={{ color }}
                                       >
                                         {sessionTitle(s)}
+                                        {slotCount > 1 && (
+                                          <span className="ms-1 rounded bg-black/10 px-1 py-0.5 text-[8px] font-black dark:bg-white/15">
+                                            {slotLabel(seanceSlot)} / {slotCount}
+                                          </span>
+                                        )}
                                       </strong>
                                       <span className="block truncate text-[10px] text-muted">
                                         Gr. {sessionGroupsLabel(db, s)} ·{" "}
@@ -888,17 +971,17 @@ function AdminDashboard() {
               <div className="overflow-x-auto rounded-xl border border-line bg-surface">
                 <table className="w-full min-w-[860px] text-[11px]">
                   <thead className="bg-canvas/60">
-                    <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                    <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                       <th className="px-2 py-1.5">Emploi du temps</th>
                       <th className="px-2 py-1.5">Groupe(s)</th>
                       <th className="px-2 py-1.5 text-center">Carte</th>
-                      <th className="px-2 py-1.5 text-right">Prix de la carte</th>
-                      <th className="px-2 py-1.5 text-right">Séance chevalier</th>
-                      <th className="px-2 py-1.5 text-right">Part club / séance</th>
-                      <th className="px-2 py-1.5 text-right">Part prof / séance</th>
+                      <th className="px-2 py-1.5 text-end">Prix de la carte</th>
+                      <th className="px-2 py-1.5 text-end">Séance chevalier</th>
+                      <th className="px-2 py-1.5 text-end">Part club / séance</th>
+                      <th className="px-2 py-1.5 text-end">Part prof / séance</th>
                       <th className="px-2 py-1.5 text-center">Pointés</th>
-                      <th className="px-2 py-1.5 text-right">Généré ce jour</th>
-                      <th className="px-2 py-1.5 text-right">Total encaissé</th>
+                      <th className="px-2 py-1.5 text-end">Généré ce jour</th>
+                      <th className="px-2 py-1.5 text-end">Total encaissé</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -907,7 +990,7 @@ function AdminDashboard() {
                         <td className="px-2 py-1.5">
                           <strong className="text-ink">{sessionTitle(r.session)}</strong>
                           {!r.priced && (
-                            <Badge tone="warning" className="ml-1.5 text-[8px]">
+                            <Badge tone="warning" className="ms-1.5 text-[8px]">
                               sans tarif par carte
                             </Badge>
                           )}
@@ -921,22 +1004,22 @@ function AdminDashboard() {
                         <td className="px-2 py-1.5 text-center font-mono text-muted">
                           {r.size} séance(s)
                         </td>
-                        <td className="px-2 py-1.5 text-right font-mono text-ink">
+                        <td className="px-2 py-1.5 text-end font-mono text-ink">
                           {formatDA(r.monthPrice)}
                         </td>
-                        <td className="px-2 py-1.5 text-right font-mono font-bold text-primary">
+                        <td className="px-2 py-1.5 text-end font-mono font-bold text-primary">
                           {formatDA(r.seance)}
                           <span className="block text-[8px] font-normal text-muted">
                             {formatDA(r.monthPrice)} ÷ {r.size}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-right font-mono text-ink">
+                        <td className="px-2 py-1.5 text-end font-mono text-ink">
                           {formatDA(r.school)}
                           <span className="block text-[8px] text-muted">
                             {formatDA(r.schoolMonth)} ÷ {r.size}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-right font-mono font-bold text-warning">
+                        <td className="px-2 py-1.5 text-end font-mono font-bold text-warning">
                           {formatDA(r.teacher)}
                           <span className="block text-[8px] font-normal text-muted">
                             {formatDA(r.teacherMonth)} ÷ {r.size}
@@ -945,7 +1028,7 @@ function AdminDashboard() {
                         <td className="px-2 py-1.5 text-center font-mono">
                           {r.marked}/{r.roster}
                         </td>
-                        <td className="px-2 py-1.5 text-right font-mono font-black text-success">
+                        <td className="px-2 py-1.5 text-end font-mono font-black text-success">
                           {formatDA(r.dayRevenue)}
                           <span className="block text-[8px] font-normal text-muted">
                             dont {formatDA(r.dayTeacher)} au prof
@@ -953,7 +1036,7 @@ function AdminDashboard() {
                         </td>
                         {/* CE QUE CE GROUPE A RAPPORTÉ DEPUIS LE PREMIER JOUR —
                             toutes cartes confondus, tous versements confondus. */}
-                        <td className="px-2 py-1.5 text-right font-mono font-black text-primary">
+                        <td className="px-2 py-1.5 text-end font-mono font-black text-primary">
                           {formatDA(r.collected)}
                           <span className="block text-[8px] font-normal text-muted">
                             {r.collectedPayments} versement(s)
@@ -964,13 +1047,13 @@ function AdminDashboard() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-primary/30 bg-primary-50/40">
-                      <td colSpan={8} className="px-2 py-2 text-right text-[10px] font-bold uppercase text-muted">
+                      <td colSpan={8} className="px-2 py-2 text-end text-[10px] font-bold uppercase text-muted">
                         Total de la journée · total encaissé par ces emplois du temps
                       </td>
-                      <td className="px-2 py-2 text-right font-mono text-sm font-black text-success">
+                      <td className="px-2 py-2 text-end font-mono text-sm font-black text-success">
                         {formatDA(dayTotals.revenue)}
                       </td>
-                      <td className="px-2 py-2 text-right font-mono text-sm font-black text-primary">
+                      <td className="px-2 py-2 text-end font-mono text-sm font-black text-primary">
                         {formatDA(dayTotals.collected)}
                       </td>
                     </tr>
@@ -1013,6 +1096,8 @@ function AdminDashboard() {
             <PresenceSheet
               session={openSession}
               date={openDate}
+              slot={openSlot}
+              onSlotChange={setOpenSlot}
               monthCode={month}
               onMonthChange={setMonth}
               canMark={can("mark_presence")}

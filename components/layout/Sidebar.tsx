@@ -88,7 +88,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Icon
           className={cn(
             "h-[18px] w-[18px] shrink-0 transition-colors duration-200",
-            active ? "text-accent" : "text-sidebar-muted group-hover:text-accent-soft",
+            active
+              ? "text-sidebar-active-icon"
+              : "text-sidebar-muted group-hover:text-accent-ink",
           )}
           strokeWidth={active ? 2.2 : 1.8}
           aria-hidden="true"
@@ -100,8 +102,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     const classes = cn(
       "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200",
       "cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+      // L'écran OUVERT inverse le contraste de la barre : acier plein le jour,
+      // lavis d'or la nuit. C'est ce qui le rend visible d'un coup d'œil.
       active
-        ? "sidebar-active-pill font-semibold text-sidebar-text"
+        ? "sidebar-active-pill font-semibold text-sidebar-active-text"
         : "font-medium text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-text",
     );
 
@@ -173,7 +177,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <p className="font-display truncate text-sm font-bold text-sidebar-text">
             {school.name || t("common.appName")}
           </p>
-          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-accent/80">
+          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-accent-ink">
             {t(`roles.${role}`)}
           </p>
         </div>
@@ -187,7 +191,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 travailleur à qui l'on n'a ouvert que deux écrans n'a pas
                 besoin qu'on lui range deux lignes. */}
             {groups.length > 1 && (
-              <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-muted/55">
+              <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-muted">
                 {t(`navSection.${group.section}`)}
               </p>
             )}

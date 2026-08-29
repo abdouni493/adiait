@@ -233,11 +233,11 @@ export function WorkerDetailsModal({
                   </Badge>
                   {worker.hasAccount ? (
                     <Badge tone="success" className="text-[10px]">
-                      <KeyRound className="mr-1 inline h-3 w-3" /> Compte actif
+                      <KeyRound className="me-1 inline h-3 w-3" /> Compte actif
                     </Badge>
                   ) : (
                     <Badge tone="neutral" className="text-[10px]">
-                      <Ban className="mr-1 inline h-3 w-3" /> Sans compte
+                      <Ban className="me-1 inline h-3 w-3" /> Sans compte
                     </Badge>
                   )}
                 </div>
@@ -361,7 +361,7 @@ export function WorkerDetailsModal({
                 Rien n&apos;a encore été versé ni retenu pour ce travailleur.
               </p>
             ) : (
-              <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+              <div className="max-h-80 space-y-2 overflow-y-auto pe-1">
                 {log.map((entry) => (
                   <LogRow
                     key={`${entry.kind}-${entry.id}`}
@@ -491,15 +491,15 @@ function HoursTab({ worker }: { worker: ReceptionStaff }) {
 
       <div className="overflow-hidden rounded-2xl border border-line bg-surface">
         <div className="max-h-72 overflow-y-auto">
-          <table className="w-full border-collapse text-left text-xs">
+          <table className="w-full border-collapse text-start text-xs">
             <thead>
               <tr className="border-b border-line bg-canvas text-[10px] font-bold uppercase tracking-wider text-muted">
                 <th className="p-2.5">Jour</th>
                 <th className="p-2.5">Arrivée</th>
                 <th className="p-2.5">Sortie</th>
-                <th className="p-2.5 text-right">Heures</th>
-                <th className="p-2.5 text-right">Montant</th>
-                <th className="p-2.5 text-right">Statut</th>
+                <th className="p-2.5 text-end">Heures</th>
+                <th className="p-2.5 text-end">Montant</th>
+                <th className="p-2.5 text-end">Statut</th>
               </tr>
             </thead>
             <tbody>
@@ -517,13 +517,13 @@ function HoursTab({ worker }: { worker: ReceptionStaff }) {
                     <td className="p-2.5 font-mono">
                       {s.endAt ? fmtTime(s.endAt) : <span className="font-bold text-danger">Non pointée</span>}
                     </td>
-                    <td className="p-2.5 text-right font-mono font-bold">
+                    <td className="p-2.5 text-end font-mono font-bold">
                       {s.frozen ? <span className="text-danger">gelée</span> : formatHours(s.minutes)}
                     </td>
-                    <td className="p-2.5 text-right font-mono">
+                    <td className="p-2.5 text-end font-mono">
                       {s.frozen ? "—" : formatDA((s.minutes / 60) * (worker.hourlyRate ?? 0))}
                     </td>
-                    <td className="p-2.5 text-right">
+                    <td className="p-2.5 text-end">
                       {s.frozen ? (
                         <button
                           onClick={() => {

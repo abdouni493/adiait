@@ -336,12 +336,12 @@ export function AdministrationPage() {
       <Card className="border border-line card-shadow">
         <CardBody className="flex flex-wrap items-center gap-2 p-3">
           <div className="relative min-w-[16rem] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher un travailleur — nom, téléphone, badge, métier…"
-              className="pl-9"
+              className="ps-9"
             />
           </div>
           <Select
@@ -752,7 +752,7 @@ function WorkerCard({
                   </Badge>
                   {worker.hasAccount && (
                     <Badge tone="success" className="px-1.5 py-0 text-[9px]">
-                      <KeyRound className="mr-0.5 inline h-2.5 w-2.5" /> Compte
+                      <KeyRound className="me-0.5 inline h-2.5 w-2.5" /> Compte
                     </Badge>
                   )}
                   {worker.rfid && (

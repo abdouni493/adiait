@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "@/lib/i18n/useT";
 
 /** Renders modal content into a portal at document.body so that
  *  it is never caught in a parent component's unmount cascade
@@ -41,6 +42,9 @@ export function Modal({
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Le titre est écrit en français dans l'écran qui ouvre la boîte : il passe
+  // par le dictionnaire ici, une fois, et toutes les boîtes suivent.
+  const { tr } = useT();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -116,11 +120,11 @@ export function Modal({
               {title && (
                 <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-5 py-4">
                   <h2 id={titleId} className="font-display text-base font-bold text-ink">
-                    {title}
+                    {tr(title)}
                   </h2>
                   <button
                     onClick={onClose}
-                    aria-label="Fermer"
+                    aria-label={tr("Fermer")}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary-50 hover:text-ink"
                   >
                     <X className="h-4 w-4" />

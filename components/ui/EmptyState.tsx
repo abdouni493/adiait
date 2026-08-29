@@ -1,5 +1,8 @@
+"use client";
+
 import type { LucideIcon } from "lucide-react";
 import { Inbox } from "lucide-react";
+import { useT } from "@/lib/i18n/useT";
 
 /** L'écran vide : un emblème estompé, une phrase, et — quand il y a quelque
  *  chose à faire — l'action qui remplira la liste. */
@@ -14,6 +17,9 @@ export function EmptyState({
   hint?: string;
   action?: React.ReactNode;
 }) {
+  // Le message et son indication sont écrits en français dans les écrans : ils
+  // passent par le dictionnaire ici, une fois pour toutes.
+  const { tr } = useT();
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-line py-14 text-center">
       <span
@@ -23,8 +29,8 @@ export function EmptyState({
         <Icon className="h-6 w-6 text-accent-ink opacity-80" strokeWidth={1.7} />
       </span>
       <div>
-        <p className="text-sm font-medium text-ink">{message}</p>
-        {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+        <p className="text-sm font-medium text-ink">{tr(message)}</p>
+        {hint && <p className="mt-1 text-xs text-muted">{tr(hint)}</p>}
       </div>
       {action}
     </div>

@@ -684,6 +684,24 @@ export interface ScheduleSession extends Authored {
    */
   dayTimes?: Partial<Record<Day, DayTime>>;
   /**
+   * PLUSIEURS SÉANCES LE MÊME JOUR.
+   *
+   * Un groupe s'entraîne parfois DEUX FOIS dans la même journée — 08:00–10:00
+   * le matin, puis 17:00–19:00 le soir. Ce ne sont pas deux emplois du temps :
+   * c'est le même groupe, le même entraîneur, la même carte — mais deux séances
+   * distinctes, qui se pointent séparément et se paient deux fois.
+   *
+   * `daySlots` porte, jour par jour, la LISTE de ces séances dans l'ordre où
+   * elles tombent. `dayTimes[day]` garde toujours la PREMIÈRE, et
+   * `startTime`/`endTime` celle du premier jour : tout ce qui ne demande que
+   * « à peu près quand » continue de les lire sans rien savoir de la nouveauté.
+   *
+   * Un jour absent de la carte n'a qu'une séance, exactement comme avant.
+   * Lisez-la par `sessionSlotsOn()` — jamais directement — pour que le repli
+   * reste à un seul endroit.
+   */
+  daySlots?: Partial<Record<Day, DayTime[]>>;
+  /**
    * Per-day arène. An emploi that runs Samedi in Arène A and Mardi in Arène B is
    * still ONE emploi: each day simply carries the room it occupies. A day absent
    * from the map falls back on `salleId`, which always holds the first day's
@@ -759,10 +777,24 @@ export interface Subscription extends Authored {
   /** what that month costs. Defaults to `monthlySeances × pricePerSession`, but
    *  the school may sell the pack for less than the sum of its séances. */
   monthlyPrice?: number;
-  /** monthly formula: how much of `monthlyPrice` the SCHOOL keeps. The rest
-   *  (monthlyPrice − schoolMonthShare) is the teacher's share for that month.
+  /** monthly formula: how much of `monthlyPrice` the SCHOOL keeps. What is left
+   *  once the transport is taken out (monthlyPrice − transportMonthShare −
+   *  schoolMonthShare) is the teacher's share for that month.
    *  Absent = the school keeps the whole month price. */
   schoolMonthShare?: number;
+  /**
+   * LE TRANSPORT — ce que la carte paie pour le bus, et rien d'autre.
+   *
+   * Le prix d'une carte se coupe désormais en TROIS et non plus en deux : le
+   * transport d'abord, puis la part du club, et ce qui reste appartient à
+   * l'entraîneur. Le transport n'est ni un revenu du club ni une part de
+   * l'entraîneur : c'est un coût que la carte porte, suivi à part pour que les
+   * rapports puissent dire ce que le ramassage coûte, groupe par groupe.
+   *
+   * 0 ou absent = ce créneau n'a pas de transport, et la carte se coupe en deux
+   * exactement comme avant.
+   */
+  transportMonthShare?: number;
   /** monthly formula: the teacher's pay for ONE séance, derived at creation as
    *  teacherMonthShare / monthlySeances. Stored so every settlement reads it
    *  directly instead of recomputing. */
@@ -1216,6 +1248,18 @@ export interface AttendanceRecord extends Authored {
    * attended this emploi yet, so his month has not started).
    */
   noCharge?: boolean;
+  /**
+   * LAQUELLE DES SÉANCES DU JOUR.
+   *
+   * Un emploi du temps peut tenir DEUX séances le même jour (le matin et le
+   * soir). Elles se pointent séparément, se décomptent séparément et se paient
+   * séparément : la ligne porte donc le rang de la séance dans la journée,
+   * 0 pour la première.
+   *
+   * Absent = 0, c'est-à-dire l'unique séance du jour — ce qu'était toute
+   * présence écrite avant cette colonne.
+   */
+  slot?: number;
 }
 
 export interface UnpaidTeacherSession extends Authored {
@@ -1226,6 +1270,9 @@ export interface UnpaidTeacherSession extends Authored {
   amount: number;
   date: string;
   paid: boolean;
+  /** la séance du jour qui l'a produite (0 = la première) — voir
+   *  `AttendanceRecord.slot` */
+  slot?: number;
   /** le règlement qui l'a soldée — annuler ce règlement la rend à nouveau due */
   paymentId?: string;
 }

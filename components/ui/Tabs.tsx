@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
 export function Tabs({
@@ -9,6 +10,7 @@ export function Tabs({
 }: {
   tabs: { id: string; label: string; content: React.ReactNode }[];
 }) {
+  const { tr } = useT();
   const [active, setActive] = useState(tabs[0]?.id);
   const current = tabs.find((t) => t.id === active) ?? tabs[0];
 
@@ -40,7 +42,7 @@ export function Tabs({
                   transition={{ type: "spring", stiffness: 440, damping: 36 }}
                 />
               )}
-              {tab.label}
+              {tr(tab.label)}
             </button>
           );
         })}

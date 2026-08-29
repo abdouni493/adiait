@@ -605,12 +605,12 @@ function ActivationModal({
               Chercher {isParent ? "le parent" : "le chevalier"} par son nom
             </span>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+              <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Nom, prénom ou téléphone…"
-                className="pl-9"
+                className="ps-9"
               />
             </div>
 
@@ -638,7 +638,7 @@ function ActivationModal({
                     <span className="flex items-center gap-2">
                       {label}
                       <span className={`text-[9px] ${on ? "text-white/80" : "text-muted"}`}>
-                        <Phone className="mr-0.5 inline h-2.5 w-2.5" />
+                        <Phone className="me-0.5 inline h-2.5 w-2.5" />
                         {c.phone || "—"}
                       </span>
                     </span>
@@ -687,7 +687,7 @@ function ActivationModal({
                         >
                           <span className="text-[11px] font-bold text-ink">
                             {child.firstName} {child.lastName || request.lastName}
-                            <span className="ml-2 text-[9px] font-normal text-muted">
+                            <span className="ms-2 text-[9px] font-normal text-muted">
                               {child.birthDate ? formatDateFr(child.birthDate) : "date inconnue"}
                             </span>
                           </span>

@@ -82,13 +82,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }`}
         onClick={() => setMobileOpen(false)}
       />
+      {/* Le tiroir s'ouvre DU CÔTÉ OÙ COMMENCE LA LECTURE : à gauche en
+          français, à droite en arabe. `start-0` s'en charge tout seul, la
+          direction du document faisant foi. La translation, elle, est une
+          transformation PHYSIQUE que le CSS ne retourne pas : c'est la seule
+          chose qui a encore besoin de savoir dans quel sens on lit. */}
       <div
-        className={`fixed inset-y-0 z-50 lg:hidden transition-transform duration-300 ease-out shadow-2xl ${
-          isRTL ? "right-0" : "left-0"
-        } ${
-          mobileOpen 
-            ? "translate-x-0" 
-            : (isRTL ? "translate-x-full" : "-translate-x-full")
+        className={`fixed inset-y-0 start-0 z-50 lg:hidden transition-transform duration-300 ease-out shadow-2xl ${
+          mobileOpen
+            ? "translate-x-0"
+            : isRTL
+              ? "translate-x-full"
+              : "-translate-x-full"
         }`}
       >
         <Sidebar onNavigate={() => setMobileOpen(false)} />

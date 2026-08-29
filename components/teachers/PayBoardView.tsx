@@ -124,7 +124,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[860px] text-[11px]">
               <thead className="bg-canvas/60">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">N°</th>
                   <th className="px-2 py-2">Chevalier</th>
                   {Array.from({ length: board.size }, (_, i) => (
@@ -134,10 +134,10 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                   ))}
                   <th className="px-2 py-2 text-center">P / A / An.</th>
                   <th className="px-2 py-2 text-center">Séances payées</th>
-                  <th className="px-2 py-2 text-right">Part / séance</th>
-                  <th className="px-2 py-2 text-right">Versé</th>
-                  <th className="px-2 py-2 text-right">Reste dû</th>
-                  <th className="px-2 py-2 text-right">Part entraîneur</th>
+                  <th className="px-2 py-2 text-end">Part / séance</th>
+                  <th className="px-2 py-2 text-end">Versé</th>
+                  <th className="px-2 py-2 text-end">Reste dû</th>
+                  <th className="px-2 py-2 text-end">Part entraîneur</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,20 +175,20 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                       <span className="text-primary">{r.cancelled}</span>
                     </td>
                     <td className="px-2 py-2 text-center font-mono">{r.seances}</td>
-                    <td className="px-2 py-2 text-right font-mono text-muted">
+                    <td className="px-2 py-2 text-end font-mono text-muted">
                       {formatDA(r.perSeance)}
                     </td>
-                    <td className="px-2 py-2 text-right font-mono text-success">
+                    <td className="px-2 py-2 text-end font-mono text-success">
                       {formatDA(r.credited)}
                     </td>
-                    <td className="px-2 py-2 text-right font-mono">
+                    <td className="px-2 py-2 text-end font-mono">
                       {r.debt > 0 ? (
                         <span className="font-bold text-danger">{formatDA(r.debt)}</span>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
                     </td>
-                    <td className="px-2 py-2 text-right">
+                    <td className="px-2 py-2 text-end">
                       {r.withheld ? (
                         <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-warning">
                           <Lock className="h-3 w-3" /> {formatDA(r.amount)}
@@ -204,11 +204,11 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                 <tr className="border-t-2 border-line bg-canvas/60">
                   <td
                     colSpan={7 + board.size}
-                    className="px-2 py-2 text-right text-[11px] font-bold text-ink"
+                    className="px-2 py-2 text-end text-[11px] font-bold text-ink"
                   >
                     Sous-total table 1
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm font-black text-success">
+                  <td className="px-2 py-2 text-end font-mono text-sm font-black text-success">
                     {formatDA(board.studentsTotal)}
                   </td>
                 </tr>
@@ -233,13 +233,13 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[760px] text-[11px]">
               <thead className="bg-canvas/60">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">N°</th>
                   <th className="px-2 py-2">Chevalier</th>
                   <th className="px-2 py-2 text-center">Carte d&apos;origine</th>
                   <th className="px-2 py-2 text-center">Séances</th>
                   <th className="px-2 py-2">Dates</th>
-                  <th className="px-2 py-2 text-right">Part rattrapée</th>
+                  <th className="px-2 py-2 text-end">Part rattrapée</th>
                 </tr>
               </thead>
               <tbody>
@@ -260,7 +260,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                     <td className="px-2 py-2 text-[10px] text-muted">
                       {r.dates.map(formatDateFr).join(" · ") || "—"}
                     </td>
-                    <td className="px-2 py-2 text-right font-mono font-bold text-success">
+                    <td className="px-2 py-2 text-end font-mono font-bold text-success">
                       {formatDA(r.amount)}
                     </td>
                   </tr>
@@ -268,10 +268,10 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-line bg-canvas/60">
-                  <td colSpan={5} className="px-2 py-2 text-right text-[11px] font-bold text-ink">
+                  <td colSpan={5} className="px-2 py-2 text-end text-[11px] font-bold text-ink">
                     Sous-total table 2
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm font-black text-success">
+                  <td className="px-2 py-2 text-end font-mono text-sm font-black text-success">
                     {formatDA(board.arrearsTotal)}
                   </td>
                 </tr>
@@ -296,11 +296,11 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
           <div className="overflow-x-auto bg-surface">
             <table className="w-full min-w-[620px] text-[11px]">
               <thead className="bg-canvas/60">
-                <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">Date</th>
                   <th className="px-2 py-2">Nature</th>
                   <th className="px-2 py-2">Libellé</th>
-                  <th className="px-2 py-2 text-right">Montant</th>
+                  <th className="px-2 py-2 text-end">Montant</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,7 +322,7 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
                           <span className="block text-[9px] text-muted">{d.description}</span>
                         )}
                       </td>
-                      <td className="px-2 py-2 text-right font-mono font-bold text-danger">
+                      <td className="px-2 py-2 text-end font-mono font-bold text-danger">
                         − {formatDA(d.amount)}
                       </td>
                     </tr>
@@ -331,10 +331,10 @@ export function PayBoardView({ board }: { board: TeacherPayBoard }) {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-line bg-canvas/60">
-                  <td colSpan={3} className="px-2 py-2 text-right text-[11px] font-bold text-ink">
+                  <td colSpan={3} className="px-2 py-2 text-end text-[11px] font-bold text-ink">
                     Sous-total table 3
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm font-black text-danger">
+                  <td className="px-2 py-2 text-end font-mono text-sm font-black text-danger">
                     − {formatDA(board.deductionsTotal)}
                   </td>
                 </tr>

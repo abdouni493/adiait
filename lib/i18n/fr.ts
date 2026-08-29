@@ -92,6 +92,35 @@ export const fr = {
     backToLogin: "Retour à la connexion",
     invalidCredentials: "Identifiants invalides",
     or: "ou",
+    /** LA PORTE DES FAMILLES — le bloc qui invite parents et chevaliers à
+     *  créer eux-mêmes leur compte, sans passer par le comptoir. */
+    noAccountYet: "Vous n'avez pas encore de compte ?",
+    parentLabel: "Parent",
+    parentPitch:
+      "inscrivez vos fils et suivez leurs présences, leurs absences, leurs paiements et les annonces du club.",
+    studentLabel: "Chevalier",
+    studentPitch:
+      "retrouvez vos abonnements, vos présences, vos absences, vos paiements et tout votre détail.",
+    createMyAccount: "Créer mon compte",
+    /** L'amorçage du tout premier compte d'administration. */
+    checkingClub: "Vérification du club…",
+    cannotVerify:
+      "Impossible de vérifier si ce club a déjà un compte d'administration ({error}). Vous pouvez essayer de le créer : s'il en existe déjà un, la base le dira.",
+    noAdminYet:
+      "Ce club n'a encore aucun compte. Créez celui de l'administration pour commencer — il n'est proposé qu'une fois.",
+    adminAccount: "Compte administrateur",
+    adminDisplayName: "Nom affiché (Direction)",
+    adminLoginEmail: "Email de connexion",
+    adminPasswordMin: "Mot de passe (6 caractères minimum)",
+    adminConfirmPassword: "Confirmer le mot de passe",
+    createTheAccount: "Créer le compte",
+    emailRequired: "L'email est obligatoire.",
+    passwordsDiffer: "Les deux mots de passe ne sont pas identiques.",
+    createFailed: "La création du compte a échoué.",
+    schemaMissing:
+      "La base de ce club n'est pas encore installée. Exécutez supabase/schema.sql dans le SQL Editor de votre projet Supabase, puis rechargez cette page.",
+    adminReady:
+      "Le compte administrateur est créé. Ses identifiants sont déjà saisis : connectez-vous pour ouvrir le club.",
     // L'accès rapide de la version de démonstration : un bouton par rôle,
     // parce qu'aucun visiteur n'a de mot de passe à connaître ici.
     quick: {

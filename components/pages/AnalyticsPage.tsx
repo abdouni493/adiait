@@ -775,15 +775,15 @@ export function AnalyticsPage() {
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">Période du</label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="pl-9" />
+              <Calendar className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="ps-9" />
             </div>
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">Au</label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="pl-9" />
+              <Calendar className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="ps-9" />
             </div>
           </div>
         </div>

@@ -281,7 +281,7 @@ export function WorkerHistoryModal({
           </div>
           <div className="flex flex-wrap gap-1.5">
             <Badge tone="primary" className="font-mono text-[10px]">
-              <Activity className="mr-1 inline h-3 w-3" /> {entries.length} opération(s)
+              <Activity className="me-1 inline h-3 w-3" /> {entries.length} opération(s)
             </Badge>
             <Badge tone="success" className="font-mono text-[10px]">
               {formatDA(collected)} encaissés
@@ -313,12 +313,12 @@ export function WorkerHistoryModal({
         {/* ---- filtres ------------------------------------------------------ */}
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-canvas/30 p-2">
           <div className="relative min-w-[13rem] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Chercher un chevalier, un montant, un motif…"
-              className="pl-9"
+              className="ps-9"
             />
           </div>
           <Select
@@ -372,7 +372,7 @@ export function WorkerHistoryModal({
             Aucune opération ne correspond — ou il n&apos;a encore rien fait depuis son compte.
           </p>
         ) : (
-          <div className="max-h-[26rem] space-y-4 overflow-y-auto pr-1">
+          <div className="max-h-[26rem] space-y-4 overflow-y-auto pe-1">
             {byDay.map(([day, rows]) => (
               <div key={day} className="space-y-1.5">
                 <div className="sticky top-0 z-10 flex items-center gap-2 bg-surface/95 py-1 backdrop-blur">

@@ -46,7 +46,7 @@ const noFlashScript = `
     var raw = localStorage.getItem('ecole-settings');
     var st = raw ? (JSON.parse(raw).state || {}) : {};
     var theme = (st.theme === 'dark' || st.theme === 'dark-red') ? 'dark' : 'light';
-    var lang = st.language || 'fr';
+    var lang = st.language || 'ar';
     var el = document.documentElement;
     el.setAttribute('data-theme', theme);
     el.setAttribute('lang', lang);
@@ -62,8 +62,11 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="fr"
-      dir="ltr"
+      // L'arabe est la langue d'accueil : le serveur rend donc déjà la page en
+      // RTL, et le script anti-flash ci-dessous ne fait que confirmer (ou
+      // corriger) selon la préférence enregistrée dans le navigateur.
+      lang="ar"
+      dir="rtl"
       data-theme="light"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${cairo.variable} ${cinzel.variable} h-full antialiased`}

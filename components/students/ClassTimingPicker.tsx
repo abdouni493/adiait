@@ -424,16 +424,16 @@ export function CurrentInscriptions({
         <div className="overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[760px] text-[11px]">
             <thead className="bg-canvas/60">
-              <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+              <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                 <th className="px-2 py-1.5">Catégorie</th>
                 <th className="px-2 py-1.5">Niveau / Année</th>
                 <th className="px-2 py-1.5">Emploi du temps</th>
                 <th className="px-2 py-1.5">Groupe</th>
                 <th className="px-2 py-1.5">Jours &amp; heures</th>
                 <th className="px-2 py-1.5">Entraîneur</th>
-                <th className="px-2 py-1.5 text-right">Séance</th>
-                {student && <th className="px-2 py-1.5 text-right">Solde</th>}
-                {onRemove && <th className="px-2 py-1.5 text-right">Action</th>}
+                <th className="px-2 py-1.5 text-end">Séance</th>
+                {student && <th className="px-2 py-1.5 text-end">Solde</th>}
+                {onRemove && <th className="px-2 py-1.5 text-end">Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -471,9 +471,9 @@ export function CurrentInscriptions({
                     <span className="block text-[9px]">Arène {r.salleName}</span>
                   </td>
                   <td className="px-2 py-1.5 text-muted">{r.teacherName}</td>
-                  <td className="px-2 py-1.5 text-right font-mono">{formatDA(r.unitPrice)}</td>
+                  <td className="px-2 py-1.5 text-end font-mono">{formatDA(r.unitPrice)}</td>
                   {student && (
-                    <td className="px-2 py-1.5 text-right font-mono">
+                    <td className="px-2 py-1.5 text-end font-mono">
                       <span className={r.balance < 0 ? "text-danger" : "text-success"}>
                         {r.balance < 0
                           ? `${formatDA(-r.balance)} dus`
@@ -482,7 +482,7 @@ export function CurrentInscriptions({
                     </td>
                   )}
                   {onRemove && (
-                    <td className="px-2 py-1.5 text-right">
+                    <td className="px-2 py-1.5 text-end">
                       <button
                         type="button"
                         onClick={() => onRemove(r.subId)}
@@ -620,7 +620,7 @@ export function ClassTimingPicker({
             {t.moduleName}
             {t.isOpen && (
               <span
-                className={`ml-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                className={`ms-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold ${
                   picked ? "bg-white/20 text-white" : "bg-success/15 text-success"
                 }`}
               >
@@ -628,7 +628,7 @@ export function ClassTimingPicker({
               </span>
             )}
             {moves && (
-              <span className="ml-1.5 rounded bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
+              <span className="ms-1.5 rounded bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
                 Change de groupe
               </span>
             )}
@@ -696,12 +696,12 @@ export function ClassTimingPicker({
         </div>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
           <Input
             value={classSearch}
             onChange={(e) => setClassSearch(e.target.value)}
             placeholder="Rechercher une catégorie par son nom…"
-            className="pl-9"
+            className="ps-9"
           />
         </div>
 
@@ -750,12 +750,12 @@ export function ClassTimingPicker({
       ) : (
         <>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filtrer les créneaux (groupe, entraîneur, arène, horaire…)"
-              className="pl-9"
+              className="ps-9"
             />
           </div>
 

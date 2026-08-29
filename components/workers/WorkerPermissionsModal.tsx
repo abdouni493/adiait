@@ -148,16 +148,16 @@ export function WorkerPermissionsModal({
           </div>
           <div className="mt-2.5 flex flex-wrap gap-2 border-t border-line/60 pt-2.5">
             <Badge tone={pages.length ? "primary" : "neutral"} className="font-mono text-[10px]">
-              <Eye className="mr-1 inline h-3 w-3" />
+              <Eye className="me-1 inline h-3 w-3" />
               {pages.length}/{PERMISSION_PAGES.length} écran(s)
             </Badge>
             <Badge tone={actions.length ? "success" : "neutral"} className="font-mono text-[10px]">
-              <MousePointerClick className="mr-1 inline h-3 w-3" />
+              <MousePointerClick className="me-1 inline h-3 w-3" />
               {actions.length}/{totalActions} bouton(s)
             </Badge>
             {pages.length === 0 && (
               <Badge tone="warning" className="text-[10px]">
-                <Lock className="mr-1 inline h-3 w-3" />
+                <Lock className="me-1 inline h-3 w-3" />
                 Il ne verra que le bouton « Déconnexion »
               </Badge>
             )}

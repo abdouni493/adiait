@@ -515,6 +515,11 @@ create table if not exists public.schedule_sessions (
   start_time       text not null default '',
   end_time         text not null default '',
   day_times        jsonb,
+  -- PLUSIEURS SÉANCES LE MÊME JOUR : { "saturday": [{"startTime":"08:00",
+  -- "endTime":"10:00"}, {"startTime":"17:00","endTime":"19:00"}] }. `day_times`
+  -- garde toujours la PREMIÈRE séance de chaque jour, de sorte que tout ce qui
+  -- ne lit qu'un horaire continue de fonctionner sans rien savoir.
+  day_slots        jsonb,
   day_salles       jsonb,
   class_groups     jsonb,
   is_open          boolean,
@@ -542,6 +547,10 @@ create table if not exists public.subscriptions (
   monthly_seances     integer,
   monthly_price       numeric,
   school_month_share  numeric,
+  -- LE TRANSPORT : la part du prix de la carte qui paie le ramassage. Elle est
+  -- prélevée AVANT le partage — ce qui reste se divise entre le club
+  -- (`school_month_share`) et l'entraîneur. 0 / null = pas de transport.
+  transport_month_share numeric,
   teacher_per_seance  numeric,
   -- L'ENGAGEMENT : le frais d'entrée propre à CE créneau (tenue, équipement,
   -- assurance du groupe). Ni la cotisation, ni les droits d'entrée du club : il
@@ -682,6 +691,9 @@ create table if not exists public.attendance_records (
   amount_deducted   numeric not null default 0,
   status            text not null default 'present'
                     check (status in ('present','late','absent','cancelled')),
+  -- LAQUELLE DES SÉANCES DU JOUR : un emploi du temps peut en tenir deux (le
+  -- matin et le soir). 0 / null = l'unique séance, ou la première.
+  slot              integer,
   substitute_group  boolean,
   free_period_id    text,
   pre_start         boolean,
@@ -693,6 +705,9 @@ create table if not exists public.attendance_records (
 );
 create index if not exists attendance_student_idx on public.attendance_records (student_id);
 create index if not exists attendance_session_idx on public.attendance_records (session_id);
+-- Un emploi du temps à deux séances écrit deux lignes par jour et par chevalier :
+-- l'index les distingue, sinon la feuille de présence balaie toute la table.
+create index if not exists attendance_session_slot_idx on public.attendance_records (session_id, slot);
 create index if not exists attendance_ts_idx      on public.attendance_records ("timestamp");
 
 create table if not exists public.absence_penalties (
@@ -811,6 +826,8 @@ create table if not exists public.unpaid_teacher_sessions (
   student_id       text references public.students (id) on delete cascade,
   amount           numeric not null default 0,
   date             text not null default '',
+  -- la séance du jour qui a produit cette part (0 = la première)
+  slot             integer,
   paid             boolean not null default false,
   payment_id       text references public.teacher_payments (id) on delete set null,
   created_by       text,

@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useData } from "@/lib/store/data";
 import { useSettings } from "@/lib/store/settings";
+import { useT } from "@/lib/i18n/useT";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -35,7 +36,10 @@ import {
   moduleName as moduleNameOf,
   salleName,
   sessionCurrentMonthCode,
+  sessionSalleOn,
+  sessionSlotsOn,
   sessionTimesOn,
+  slotLabel,
   studentName,
   teacherName,
 } from "@/lib/helpers";
@@ -55,6 +59,7 @@ export function AttendancePage() {
   const db = useData();
   const { sessions, students, attendance } = db;
   useSettings();
+  const { tr } = useT();
 
   const [tab, setTab] = useState<"sheet" | "history">("sheet");
   const isoOf = (d: Date) => d.toLocaleDateString("fr-CA");
@@ -62,6 +67,15 @@ export function AttendancePage() {
 
   const [sheetDate, setSheetDate] = useState<string>(todayStr);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
+  /**
+   * LAQUELLE DES SÉANCES DU JOUR est ouverte.
+   *
+   * Un emploi du temps peut en tenir deux — le matin et le soir. Ce sont deux
+   * séances distinctes : chacune a sa feuille, ses présences, sa séance
+   * décomptée de la carte et sa part d'entraîneur. L'écran les liste donc
+   * séparément, et c'est ce rang-là qui est ouvert.
+   */
+  const [activeSlot, setActiveSlot] = useState<number>(0);
   const [month, setMonth] = useState<string>("M1");
   const [createOpen, setCreateOpen] = useState(false);
   const [createSubIds, setCreateSubIds] = useState<string[]>([]);
@@ -94,16 +108,40 @@ export function AttendancePage() {
     [sessions, sheetDow, sheetDate],
   );
 
-  // Never leave the sheet on a créneau that does not exist that day.
+  /**
+   * LES SÉANCES DE LA JOURNÉE — une entrée par séance, pas par emploi.
+   *
+   * Un groupe qui s'entraîne matin ET soir occupe deux cases : les fondre en
+   * une seule cacherait la séance du soir à qui ouvre l'écran, et la ferait
+   * pointer sur la feuille du matin.
+   */
+  const daySeances = useMemo(
+    () =>
+      daySessions
+        .flatMap((s) =>
+          sessionSlotsOn(s, sheetDow).map((times, slot, all) => ({
+            session: s,
+            slot,
+            times,
+            slotCount: all.length,
+          })),
+        )
+        .sort((a, b) => minutesOf(a.times.startTime) - minutesOf(b.times.startTime)),
+    [daySessions, sheetDow],
+  );
+
+  // Never leave the sheet on a créneau — ni sur une séance — qui n'existe pas
+  // ce jour-là.
   useEffect(() => {
-    if (daySessions.length === 0) {
+    if (daySeances.length === 0) {
       if (activeSessionId) setActiveSessionId("");
       return;
     }
-    if (!daySessions.some((s) => s.id === activeSessionId)) {
-      setActiveSessionId(daySessions[0].id);
+    if (!daySeances.some((x) => x.session.id === activeSessionId && x.slot === activeSlot)) {
+      setActiveSessionId(daySeances[0].session.id);
+      setActiveSlot(daySeances[0].slot);
     }
-  }, [daySessions, activeSessionId]);
+  }, [daySeances, activeSessionId, activeSlot]);
 
   const activeSession = daySessions.find((s) => s.id === activeSessionId);
 
@@ -166,7 +204,7 @@ export function AttendancePage() {
                 : "border-line bg-surface text-ink hover:bg-primary-50"
             }`}
           >
-            <t.icon className="h-4 w-4" /> {t.label}
+            <t.icon className="h-4 w-4" /> {tr(t.label)}
           </button>
         ))}
       </div>
@@ -210,6 +248,9 @@ export function AttendancePage() {
                     {DAY_LABELS_FR[sheetDow]} {formatDateFr(sheetDate)}
                   </Badge>
                   <Badge tone="neutral">{daySessions.length} créneau(x)</Badge>
+                  {daySeances.length > daySessions.length && (
+                    <Badge tone="primary">{daySeances.length} séance(s)</Badge>
+                  )}
                   <Badge tone="success">{dayMarks.length} pointage(s)</Badge>
                 </div>
               </div>
@@ -221,23 +262,36 @@ export function AttendancePage() {
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {daySessions.map((s) => {
-                    const active = s.id === activeSessionId;
+                  {daySeances.map(({ session: s, slot, times, slotCount }) => {
+                    const active = s.id === activeSessionId && slot === activeSlot;
                     return (
                       <button
-                        key={s.id}
-                        onClick={() => setActiveSessionId(s.id)}
+                        key={`${s.id}#${slot}`}
+                        onClick={() => {
+                          setActiveSessionId(s.id);
+                          setActiveSlot(slot);
+                        }}
                         className={`rounded-xl border px-3 py-2 text-start text-[11px] transition-colors ${
                           active
                             ? "border-primary bg-primary text-white"
                             : "border-line bg-surface text-ink hover:bg-primary-50"
                         }`}
                       >
-                        <strong className="block">{sessionTitle(s)}</strong>
+                        <strong className="block">
+                          {sessionTitle(s)}
+                          {slotCount > 1 && (
+                            <span
+                              className={`ms-1.5 rounded px-1 py-0.5 text-[8px] font-black ${
+                                active ? "bg-white/25" : "bg-primary/15 text-primary"
+                              }`}
+                            >
+                              {slotLabel(slot)} / {slotCount}
+                            </span>
+                          )}
+                        </strong>
                         <span className={active ? "text-white/80" : "text-muted"}>
-                          {sessionTimesOn(s, sheetDow).startTime}–{sessionTimesOn(s, sheetDow).endTime} ·{" "}
-                          {groupName(db, s.groupId)} ·{" "}
-                          {salleName(db, s.salleId)}
+                          {times.startTime}–{times.endTime} · {groupName(db, s.groupId)} ·{" "}
+                          {salleName(db, sessionSalleOn(s, sheetDow))}
                         </span>
                         <span className={`block text-[9px] ${active ? "text-white/70" : "text-muted"}`}>
                           {teacherName(db, s.teacherId)}
@@ -257,6 +311,8 @@ export function AttendancePage() {
                 <PresenceSheet
                   session={activeSession}
                   date={sheetDate}
+                  slot={activeSlot}
+                  onSlotChange={setActiveSlot}
                   monthCode={month}
                   onMonthChange={setMonth}
                   canMark={can("mark")}
@@ -309,12 +365,12 @@ export function AttendancePage() {
                   Chevalier
                 </label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                  <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                   <Input
                     value={histSearch}
                     onChange={(e) => setHistSearch(e.target.value)}
                     placeholder="Nom…"
-                    className="pl-9"
+                    className="ps-9"
                   />
                 </div>
               </div>
@@ -323,12 +379,12 @@ export function AttendancePage() {
             <div className="overflow-x-auto rounded-2xl border border-line">
               <table className="w-full min-w-[640px] text-xs">
                 <thead className="bg-canvas/60">
-                  <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
+                  <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
                     <th className="px-3 py-2.5">Date</th>
                     <th className="px-3 py-2.5">Chevalier</th>
                     <th className="px-3 py-2.5">Emploi du temps</th>
                     <th className="px-3 py-2.5">Statut</th>
-                    <th className="px-3 py-2.5 text-right">Décompté</th>
+                    <th className="px-3 py-2.5 text-end">Décompté</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -358,12 +414,12 @@ export function AttendancePage() {
                           <td className="px-3 py-2">
                             <Badge tone={st.tone}>{st.label}</Badge>
                             {a.noCharge && (
-                              <Badge tone="neutral" className="ml-1 text-[9px]">
+                              <Badge tone="neutral" className="ms-1 text-[9px]">
                                 non facturée
                               </Badge>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-right font-mono">
+                          <td className="px-3 py-2 text-end font-mono">
                             {a.amountDeducted > 0 ? formatDA(a.amountDeducted) : "—"}
                           </td>
                         </tr>

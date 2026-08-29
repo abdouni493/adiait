@@ -163,7 +163,7 @@ export function WorkerPaymentsAlert() {
               Aucun encaissement de travailleur en attente de lecture.
             </p>
           ) : (
-            <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-[26rem] space-y-2 overflow-y-auto pe-1">
               {pending.map((p) => {
                 const student = db.students.find((s) => s.id === p.studentId);
                 return (

@@ -377,7 +377,7 @@ export function SoldManagerModal({
               <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
                 <Receipt className="h-3.5 w-3.5" /> Dettes &amp; frais divers
                 {chargeDebt > 0 && (
-                  <Badge tone="danger" className="ml-1 font-mono text-[10px]">
+                  <Badge tone="danger" className="ms-1 font-mono text-[10px]">
                     {formatDA(chargeDebt)} dus
                   </Badge>
                 )}

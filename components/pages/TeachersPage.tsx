@@ -359,13 +359,13 @@ export function TeachersPage() {
           <div className="overflow-x-auto rounded-xl border border-line bg-surface">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-[10px] uppercase text-muted font-bold text-left">
+                <tr className="text-[10px] uppercase text-muted font-bold text-start">
                   <th className="py-2 px-2">Emploi du temps</th>
                   <th className="py-2 px-2">Groupe</th>
-                  <th className="py-2 px-2 text-right">Prix de la carte</th>
-                  <th className="py-2 px-2 text-right">Part club</th>
-                  <th className="py-2 px-2 text-right">Part entraîneur</th>
-                  <th className="py-2 px-2 text-right">Par séance</th>
+                  <th className="py-2 px-2 text-end">Prix de la carte</th>
+                  <th className="py-2 px-2 text-end">Part club</th>
+                  <th className="py-2 px-2 text-end">Part entraîneur</th>
+                  <th className="py-2 px-2 text-end">Par séance</th>
                 </tr>
               </thead>
               <tbody>
@@ -376,12 +376,12 @@ export function TeachersPage() {
                       <span className="block text-[10px] font-normal text-muted">{r.className}</span>
                     </td>
                     <td className="py-1.5 px-2 text-muted">{r.groupName}</td>
-                    <td className="py-1.5 px-2 text-right font-mono">{formatDA(r.monthPrice)}</td>
-                    <td className="py-1.5 px-2 text-right font-mono">{formatDA(r.schoolShare)}</td>
-                    <td className="py-1.5 px-2 text-right font-mono text-success">
+                    <td className="py-1.5 px-2 text-end font-mono">{formatDA(r.monthPrice)}</td>
+                    <td className="py-1.5 px-2 text-end font-mono">{formatDA(r.schoolShare)}</td>
+                    <td className="py-1.5 px-2 text-end font-mono text-success">
                       {formatDA(r.teacherShare)}
                     </td>
-                    <td className="py-1.5 px-2 text-right font-mono font-bold text-primary">
+                    <td className="py-1.5 px-2 text-end font-mono font-bold text-primary">
                       {r.configured ? (
                         formatDA(r.perSeance)
                       ) : (
@@ -854,12 +854,12 @@ export function TeachersPage() {
       {/* Search + kind filter */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-surface border border-line p-3 rounded-2xl">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
           <Input
             value={teacherSearch}
             onChange={(e) => setTeacherSearch(e.target.value)}
             placeholder="Rechercher un entraîneur (nom, téléphone, email)..."
-            className="pl-9"
+            className="ps-9"
           />
         </div>
         <div className="flex gap-1.5">
@@ -1050,7 +1050,7 @@ export function TeachersPage() {
                                 : "Pourcentage"}
                         </span>
                       </div>
-                      <div className="text-right">
+                      <div className="text-end">
                         <span className="text-[10px] text-muted block uppercase font-semibold">Rémunération</span>
                         <span className="font-bold text-primary">
                           {t.isPassager
@@ -1334,16 +1334,16 @@ export function TeachersPage() {
                     📅 Emplois du temps &amp; rémunération
                   </h4>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-left text-xs">
+                    <table className="w-full min-w-[720px] text-start text-xs">
                       <thead>
                         <tr className="border-b border-line text-[10px] font-bold uppercase text-muted">
                           <th className="py-1.5">Emploi du temps</th>
                           <th className="py-1.5 text-center">Séances / carte</th>
-                          <th className="py-1.5 text-right">Prix de la carte</th>
-                          <th className="py-1.5 text-right">Prix séance</th>
-                          <th className="py-1.5 text-right">Part club</th>
-                          <th className="py-1.5 text-right">Part entraîneur</th>
-                          <th className="py-1.5 text-right">Séance entraîneur</th>
+                          <th className="py-1.5 text-end">Prix de la carte</th>
+                          <th className="py-1.5 text-end">Prix séance</th>
+                          <th className="py-1.5 text-end">Part club</th>
+                          <th className="py-1.5 text-end">Part entraîneur</th>
+                          <th className="py-1.5 text-end">Séance entraîneur</th>
                           <th className="py-1.5 text-center">Inscrits</th>
                         </tr>
                       </thead>
@@ -1364,19 +1364,19 @@ export function TeachersPage() {
                               <td className="py-2 text-center font-mono">
                                 {sub ? cycleSizeOf(sub) : "—"}
                               </td>
-                              <td className="py-2 text-right font-mono">
+                              <td className="py-2 text-end font-mono">
                                 {sub ? formatDA(monthlyPriceOf(sub)) : "—"}
                               </td>
-                              <td className="py-2 text-right font-mono text-primary">
+                              <td className="py-2 text-end font-mono text-primary">
                                 {sub ? formatDA(sub.pricePerSession) : "—"}
                               </td>
-                              <td className="py-2 text-right font-mono">
+                              <td className="py-2 text-end font-mono">
                                 {sub ? formatDA(schoolMonthShareOf(sub)) : "—"}
                               </td>
-                              <td className="py-2 text-right font-mono font-bold text-success">
+                              <td className="py-2 text-end font-mono font-bold text-success">
                                 {sub ? formatDA(teacherMonthShareOf(sub)) : "—"}
                               </td>
-                              <td className="py-2 text-right font-mono font-bold text-success">
+                              <td className="py-2 text-end font-mono font-bold text-success">
                                 {sub ? formatDA(teacherPerSeanceOf(sub)) : "—"}
                               </td>
                               <td className="py-2 text-center font-mono">
@@ -1482,14 +1482,14 @@ export function TeachersPage() {
                         <p className="text-xs text-muted italic text-center py-6">Aucune séance tenue pour le moment.</p>
                       ) : (
                         <div className="max-h-60 overflow-y-auto">
-                          <table className="w-full text-xs text-left">
+                          <table className="w-full text-xs text-start">
                             <thead>
                               <tr className="text-[10px] uppercase text-muted font-bold border-b border-line">
                                 <th className="py-1.5">Date</th>
                                 <th className="py-1.5">Créneau</th>
                                 <th className="py-1.5 text-center">Présents</th>
-                                <th className="py-1.5 text-right">Recette</th>
-                                <th className="py-1.5 text-right">Statut</th>
+                                <th className="py-1.5 text-end">Recette</th>
+                                <th className="py-1.5 text-end">Statut</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1512,8 +1512,8 @@ export function TeachersPage() {
                                         <span className="text-[9px] text-warning block">{r.passagers} pass.</span>
                                       )}
                                     </td>
-                                    <td className="py-1.5 text-right font-mono">{formatDA(r.revenue)}</td>
-                                    <td className="py-1.5 text-right">
+                                    <td className="py-1.5 text-end font-mono">{formatDA(r.revenue)}</td>
+                                    <td className="py-1.5 text-end">
                                       <Badge tone={r.paid ? "success" : "warning"} className="text-[9px]">
                                         {r.paid ? "Payé" : "Dû"}
                                       </Badge>
@@ -1535,7 +1535,7 @@ export function TeachersPage() {
                       {myPayments.length === 0 ? (
                         <p className="text-xs text-muted italic text-center py-6">Aucun règlement enregistré.</p>
                       ) : (
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
                           {myPayments.map((p) => (
                             <div
                               key={p.id}
@@ -1544,7 +1544,7 @@ export function TeachersPage() {
                               <div className="min-w-0">
                                 <span className="font-bold text-ink block">
                                   {formatDA(p.amount)}
-                                  <Badge tone={p.method === "percent" ? "primary" : "neutral"} className="ml-1.5 text-[9px]">
+                                  <Badge tone={p.method === "percent" ? "primary" : "neutral"} className="ms-1.5 text-[9px]">
                                     {p.method === "percent" ? `${p.percentage ?? 0}%` : "Montant fixe"}
                                   </Badge>
                                 </span>
@@ -1684,7 +1684,7 @@ export function TeachersPage() {
                   {sessions.filter((s) => s.teacherId === selectedTeacher.id).length === 0 ? (
                     <p className="text-xs text-muted italic text-center py-6">Aucune séance programmée pour cet entraîneur.</p>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pe-1">
                       {sessions
                         .filter((s) => s.teacherId === selectedTeacher.id)
                         .map((s) => (
@@ -1912,7 +1912,7 @@ export function TeachersPage() {
                           : "Aucun règlement ne correspond à ces filtres."}
                       </p>
                     ) : (
-                      <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                      <div className="max-h-72 space-y-2 overflow-y-auto pe-1">
                         {settlements.map((pay) => (
                           <div
                             key={pay.id}
@@ -1921,7 +1921,7 @@ export function TeachersPage() {
                             <div className="min-w-0">
                               <strong className="block text-ink">
                                 {formatDA(pay.amount)} net
-                                <Badge tone="neutral" className="ml-1.5 text-[9px]">
+                                <Badge tone="neutral" className="ms-1.5 text-[9px]">
                                   {pay.method === "percent"
                                     ? `${pay.percentage ?? 0} %`
                                     : pay.method === "group"
@@ -2017,11 +2017,11 @@ export function TeachersPage() {
                       <div className="max-h-52 overflow-y-auto">
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="border-b border-line text-left text-[10px] font-bold uppercase text-muted">
+                            <tr className="border-b border-line text-start text-[10px] font-bold uppercase text-muted">
                               <th className="py-1.5">Date</th>
                               <th className="py-1.5">Séance</th>
                               <th className="py-1.5 text-center">Chevaliers</th>
-                              <th className="py-1.5 text-right">Sa part</th>
+                              <th className="py-1.5 text-end">Sa part</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2039,7 +2039,7 @@ export function TeachersPage() {
                                     </span>
                                   </td>
                                   <td className="py-1.5 text-center font-mono">{gt.students}</td>
-                                  <td className="py-1.5 text-right font-mono font-bold text-warning">
+                                  <td className="py-1.5 text-end font-mono font-bold text-warning">
                                     {formatDA(gt.teacherTotal)}
                                   </td>
                                 </tr>
@@ -2067,11 +2067,11 @@ export function TeachersPage() {
                     ) : (
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="text-left text-[10px] font-bold uppercase text-muted">
+                          <tr className="text-start text-[10px] font-bold uppercase text-muted">
                             <th className="py-1">Date</th>
                             <th className="py-1">Nature</th>
                             <th className="py-1">Libellé</th>
-                            <th className="py-1 text-right">Montant</th>
+                            <th className="py-1 text-end">Montant</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2087,7 +2087,7 @@ export function TeachersPage() {
                                   <span className="block text-[10px] text-muted">{e.description}</span>
                                 )}
                               </td>
-                              <td className="py-1.5 text-right font-mono font-bold text-danger">
+                              <td className="py-1.5 text-end font-mono font-bold text-danger">
                                 {formatDA(e.amount)}
                               </td>
                             </tr>
@@ -2106,7 +2106,7 @@ export function TeachersPage() {
                                   <span className="block text-[10px] text-muted">{a.description}</span>
                                 )}
                               </td>
-                              <td className="py-1.5 text-right font-mono font-bold text-danger">
+                              <td className="py-1.5 text-end font-mono font-bold text-danger">
                                 {formatDA(a.amount)}
                               </td>
                             </tr>
@@ -2123,7 +2123,7 @@ export function TeachersPage() {
                     {allFinancialLogs.length === 0 ? (
                       <p className="text-xs text-muted italic text-center py-6">Aucun acompte, absence ou paiement enregistré.</p>
                     ) : (
-                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
                         {allFinancialLogs.map((log, index) => (
                           <div
                             key={`${log.id}-${index}`}
@@ -2133,7 +2133,7 @@ export function TeachersPage() {
                               <span className="font-bold block text-ink">{log.title}</span>
                               <span className="text-[10px] text-muted block truncate mt-0.5">{log.description}</span>
                             </div>
-                            <div className="text-right shrink-0">
+                            <div className="text-end shrink-0">
                               <span className="font-mono font-bold block text-sm">
                                 {log.type === "absence" ? "-" : ""}{formatDA(log.amount)}
                               </span>
@@ -2212,13 +2212,13 @@ export function TeachersPage() {
 
                   <div className="border border-line rounded-2xl overflow-hidden bg-surface">
                     <div className="max-h-60 overflow-y-auto">
-                      <table className="w-full text-xs text-left border-collapse">
+                      <table className="w-full text-xs text-start border-collapse">
                         <thead>
                           <tr className="bg-canvas border-b border-line text-[10px] text-muted uppercase font-bold tracking-wider">
                             <th className="p-3">Date</th>
                             <th className="p-3">Module / Groupe</th>
                             <th className="p-3">Montant Dû</th>
-                            <th className="p-3 text-right">Statut</th>
+                            <th className="p-3 text-end">Statut</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2239,7 +2239,7 @@ export function TeachersPage() {
                                     <span className="text-[10px] text-muted">{groupName}</span>
                                   </td>
                                   <td className="p-3 font-bold text-primary font-mono">{formatDA(u.amount)}</td>
-                                  <td className="p-3 text-right">
+                                  <td className="p-3 text-end">
                                     <Badge tone={u.paid ? "success" : "warning"} className="font-bold">
                                       {u.paid ? "Payée" : "En attente"}
                                     </Badge>
@@ -2558,13 +2558,13 @@ export function TeachersPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[560px] text-[11px]">
                     <thead className="bg-canvas/60">
-                      <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                      <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                         <th className="px-2 py-1.5">Emploi du temps</th>
                         <th className="px-2 py-1.5">Groupe</th>
                         <th className="px-2 py-1.5 text-center">Carte</th>
                         <th className="px-2 py-1.5 text-center">Séances</th>
                         <th className="px-2 py-1.5 text-center">Chevaliers</th>
-                        <th className="px-2 py-1.5 text-right">Part entraîneur</th>
+                        <th className="px-2 py-1.5 text-end">Part entraîneur</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2577,7 +2577,7 @@ export function TeachersPage() {
                           </td>
                           <td className="px-2 py-1.5 text-center font-mono">{m.seances}</td>
                           <td className="px-2 py-1.5 text-center font-mono">{m.students}</td>
-                          <td className="px-2 py-1.5 text-right font-mono font-bold text-success">
+                          <td className="px-2 py-1.5 text-end font-mono font-bold text-success">
                             {formatDA(m.gross)}
                           </td>
                         </tr>
@@ -2598,13 +2598,13 @@ export function TeachersPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[520px] text-[11px]">
                     <thead className="bg-canvas/60">
-                      <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                      <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                         <th className="px-2 py-1.5">N°</th>
                         <th className="px-2 py-1.5">Chevalier</th>
                         <th className="px-2 py-1.5">Emploi du temps</th>
                         <th className="px-2 py-1.5 text-center">Carte d&apos;origine</th>
                         <th className="px-2 py-1.5 text-center">Séances</th>
-                        <th className="px-2 py-1.5 text-right">Part rattrapée</th>
+                        <th className="px-2 py-1.5 text-end">Part rattrapée</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2619,7 +2619,7 @@ export function TeachersPage() {
                             <Badge tone="primary" className="text-[9px]">{carteShort(a.monthCode)}</Badge>
                           </td>
                           <td className="px-2 py-1.5 text-center font-mono">{a.seances}</td>
-                          <td className="px-2 py-1.5 text-right font-mono font-bold text-success">
+                          <td className="px-2 py-1.5 text-end font-mono font-bold text-success">
                             {formatDA(a.amount)}
                           </td>
                         </tr>
@@ -2658,7 +2658,7 @@ export function TeachersPage() {
                               <span className="block text-[10px] text-muted">{r.description}</span>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 text-right font-mono font-bold text-danger">
+                          <td className="px-2 py-1.5 text-end font-mono font-bold text-danger">
                             − {formatDA(r.amount)}
                           </td>
                         </tr>
@@ -2679,7 +2679,7 @@ export function TeachersPage() {
                     <strong className="text-ink">
                       {c.studentName}
                       {c.registrationNumber && (
-                        <span className="ml-1.5 font-mono text-[10px] text-muted">
+                        <span className="ms-1.5 font-mono text-[10px] text-muted">
                           N° {c.registrationNumber}
                         </span>
                       )}
@@ -2697,17 +2697,17 @@ export function TeachersPage() {
 
             <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
               <Button variant="outline" onClick={() => reprintSettlement(viewedPayment.id)}>
-                <Printer className="mr-1.5 h-4 w-4" /> Réimprimer
+                <Printer className="me-1.5 h-4 w-4" /> Réimprimer
               </Button>
               <Button variant="outline" onClick={() => openPaymentEdit(viewedPayment)}>
-                <Edit className="mr-1.5 h-4 w-4" /> Corriger
+                <Edit className="me-1.5 h-4 w-4" /> Corriger
               </Button>
               <Button
                 onClick={() => removePayment(viewedPayment)}
                 disabled={payBusy}
                 className="bg-danger text-white hover:bg-danger/90"
               >
-                <Trash2 className="mr-1.5 h-4 w-4" /> Annuler le règlement
+                <Trash2 className="me-1.5 h-4 w-4" /> Annuler le règlement
               </Button>
             </div>
           </div>
@@ -2768,7 +2768,7 @@ export function TeachersPage() {
                 disabled={payBusy}
                 className="text-danger"
               >
-                <Trash2 className="mr-1.5 h-4 w-4" /> Annuler le règlement
+                <Trash2 className="me-1.5 h-4 w-4" /> Annuler le règlement
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setEditedPayment(null)}>

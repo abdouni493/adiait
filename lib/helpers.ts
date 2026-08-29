@@ -49,7 +49,11 @@ export function formatDays(days: Day[] = []): string {
  * `startTime`/`endTime` remain the default, so a timing that keeps the same
  * hours all week stores nothing extra.
  */
-export function sessionTimesOn(session: ScheduleSession, day?: Day): DayTime {
+export function sessionTimesOn(session: ScheduleSession, day?: Day, slot = 0): DayTime {
+  if (slot > 0) {
+    const list = sessionSlotsOn(session, day);
+    if (list[slot]) return list[slot];
+  }
   const override = day ? session.dayTimes?.[day] : undefined;
   return {
     startTime: override?.startTime || session.startTime,
@@ -57,16 +61,78 @@ export function sessionTimesOn(session: ScheduleSession, day?: Day): DayTime {
   };
 }
 
+/**
+ * LES SÉANCES D'UN JOUR, dans l'ordre où elles tombent.
+ *
+ * Un emploi du temps peut tenir deux séances la même journée — 08:00–10:00 le
+ * matin, 17:00–19:00 le soir. `daySlots` porte cette liste ; un jour qui n'y
+ * figure pas n'a qu'une séance, celle de `dayTimes`/`startTime`, et rend donc
+ * une liste d'un seul élément. C'est LE point de passage : personne ne lit
+ * `daySlots` directement, pour que le repli reste ici.
+ */
+export function sessionSlotsOn(session: ScheduleSession, day?: Day): DayTime[] {
+  const list = day ? session.daySlots?.[day] : undefined;
+  const clean = (list ?? []).filter((t) => !!t?.startTime && !!t?.endTime);
+  if (clean.length > 0) {
+    return [...clean].sort((a, b) => minutesOf(a.startTime) - minutesOf(b.startTime));
+  }
+  const override = day ? session.dayTimes?.[day] : undefined;
+  return [
+    {
+      startTime: override?.startTime || session.startTime,
+      endTime: override?.endTime || session.endTime,
+    },
+  ];
+}
+
+/** Combien de séances cet emploi tient ce jour-là — 1 presque toujours. */
+export function sessionSlotCountOn(session: ScheduleSession, day?: Day): number {
+  return sessionSlotsOn(session, day).length;
+}
+
+/** L'emploi tient-il plus d'une séance sur au moins un de ses jours ? */
+export function hasMultiSlotDays(session: ScheduleSession): boolean {
+  return (session.days ?? []).some((d) => sessionSlotCountOn(session, d) > 1);
+}
+
+/** Toutes les séances de la SEMAINE, jour par jour et dans l'ordre — ce que la
+ *  grille du jour, la feuille de présence et la fiche imprimée déroulent. */
+export function sessionWeekSlots(
+  session: ScheduleSession,
+): { day: Day; slot: number; times: DayTime; count: number }[] {
+  const out: { day: Day; slot: number; times: DayTime; count: number }[] = [];
+  for (const day of DAYS) {
+    if (!(session.days ?? []).includes(day)) continue;
+    const list = sessionSlotsOn(session, day);
+    list.forEach((times, slot) => out.push({ day, slot, times, count: list.length }));
+  }
+  return out;
+}
+
+/** Combien de séances la semaine complète de cet emploi contient. */
+export function weeklySeanceCount(session: ScheduleSession): number {
+  return (session.days ?? []).reduce((n, d) => n + sessionSlotCountOn(session, d), 0);
+}
+
+/** « S1 » / « S2 » — comment une séance de la journée se nomme sur les écrans. */
+export function slotLabel(slot: number): string {
+  return `S${(slot ?? 0) + 1}`;
+}
+
 /** "08:00 – 10:00" for one day, or every distinct pair when no day is given. */
-export function sessionTimeLabel(session: ScheduleSession, day?: Day): string {
+export function sessionTimeLabel(session: ScheduleSession, day?: Day, slot?: number): string {
   if (day) {
-    const { startTime, endTime } = sessionTimesOn(session, day);
-    return `${startTime} – ${endTime}`;
+    if (slot !== undefined) {
+      const { startTime, endTime } = sessionTimesOn(session, day, slot);
+      return `${startTime} – ${endTime}`;
+    }
+    return sessionSlotsOn(session, day)
+      .map((t) => `${t.startTime} – ${t.endTime}`)
+      .join(" · ");
   }
   const seen = new Set<string>();
   for (const d of session.days ?? []) {
-    const { startTime, endTime } = sessionTimesOn(session, d);
-    seen.add(`${startTime} – ${endTime}`);
+    for (const t of sessionSlotsOn(session, d)) seen.add(`${t.startTime} – ${t.endTime}`);
   }
   if (seen.size === 0) return `${session.startTime} – ${session.endTime}`;
   return [...seen].join(" · ");
@@ -98,8 +164,10 @@ export function hasUniformSalles(session: ScheduleSession): boolean {
   return sessionSalleIds(session).length <= 1;
 }
 
-/** Does the emploi keep the same hours every day it runs? */
+/** Does the emploi keep the same hours every day it runs? A day that holds two
+ *  séances is never uniform: it does not run on one pair of hours at all. */
 export function hasUniformTimes(session: ScheduleSession): boolean {
+  if (hasMultiSlotDays(session)) return false;
   const seen = new Set<string>();
   for (const d of session.days ?? []) {
     const { startTime, endTime } = sessionTimesOn(session, d);
@@ -129,7 +197,13 @@ export function timesOverlap(a: DayTime, b: DayTime): boolean {
  * shared day that overlaps in time is returned, whatever room each holds.
  */
 export function clashingDays(
-  a: { days: Day[]; startTime: string; endTime: string; dayTimes?: Partial<Record<Day, DayTime>> },
+  a: {
+    days: Day[];
+    startTime: string;
+    endTime: string;
+    dayTimes?: Partial<Record<Day, DayTime>>;
+    daySlots?: Partial<Record<Day, DayTime[]>>;
+  },
   b: ScheduleSession,
   salleId?: string,
 ): Day[] {
@@ -140,7 +214,11 @@ export function clashingDays(
     if (salleId && !(b.isOpen && b.salleIds?.length)) {
       if (sessionSalleOn(b, d) !== salleId) return false;
     }
-    return timesOverlap(sessionTimesOn(a as ScheduleSession, d), sessionTimesOn(b, d));
+    // Un jour peut porter DEUX séances de chaque côté : la journée se heurte
+    // dès qu'une seule paire se chevauche.
+    const mine = sessionSlotsOn(a as ScheduleSession, d);
+    const theirs = sessionSlotsOn(b, d);
+    return mine.some((x) => theirs.some((y) => timesOverlap(x, y)));
   });
 }
 
@@ -596,14 +674,46 @@ export function monthlySeancesValue(sub?: Subscription): number {
 export function schoolMonthShareOf(sub?: Subscription): number {
   if (!sub) return 0;
   const total = monthlyPriceOf(sub);
-  if (sub.schoolMonthShare == null) return total;
-  return Math.min(positiveMoney(sub.schoolMonthShare), total);
+  // Le transport est prélevé AVANT le partage : le club ne peut pas garder plus
+  // que ce qui reste une fois le bus payé.
+  const left = positiveMoney(total - Math.min(positiveMoney(sub.transportMonthShare ?? 0), total));
+  if (sub.schoolMonthShare == null) return left;
+  return Math.min(positiveMoney(sub.schoolMonthShare), left);
 }
 
-/** The teacher's share of one month = month price − school share. */
+/**
+ * LE TRANSPORT D'UNE CARTE — ce que le ramassage prend sur le prix.
+ *
+ * Il se prélève AVANT tout le reste : la part du club et celle de l'entraîneur
+ * se partagent ce qui reste une fois le bus payé. Jamais plus que le prix de la
+ * carte, et 0 quand le créneau n'a pas de transport.
+ */
+export function transportMonthShareOf(sub?: Subscription): number {
+  if (!sub) return 0;
+  const total = monthlyPriceOf(sub);
+  return Math.min(positiveMoney(sub.transportMonthShare ?? 0), total);
+}
+
+/** Ce que le transport coûte sur UNE séance : part transport ÷ séances. */
+export function transportPerSeanceOf(sub?: Subscription): number {
+  if (!sub) return 0;
+  const n = sub.monthlySeances ?? 0;
+  if (n <= 0) return 0;
+  return positiveMoney(transportMonthShareOf(sub) / n);
+}
+
+/**
+ * The teacher's share of one month = month price − transport − school share.
+ *
+ * LE TRANSPORT PASSE EN PREMIER. Une carte se coupe désormais en trois : le
+ * bus, le club, l'entraîneur. Une carte d'avant le transport en garde zéro, et
+ * la division redevient exactement celle de toujours.
+ */
 export function teacherMonthShareOf(sub?: Subscription): number {
   if (!sub) return 0;
-  return positiveMoney(monthlyPriceOf(sub) - schoolMonthShareOf(sub));
+  return positiveMoney(
+    monthlyPriceOf(sub) - transportMonthShareOf(sub) - schoolMonthShareOf(sub),
+  );
 }
 
 /**
@@ -2149,6 +2259,32 @@ export function sessionMonthDays(
 }
 
 /**
+ * LES SÉANCES d'un carte, une par une — et non les JOURS.
+ *
+ * Un emploi du temps qui tient deux séances le même jour en fait deux, pas une :
+ * la clé porte donc le jour ET le rang de la séance (`2026-08-30#1`). C'est ce
+ * que compte le point d'entrée d'un nouveau chevalier, sans quoi une inscription
+ * du soir le ferait entrer sur la séance du matin.
+ */
+export function sessionMonthSlotKeys(
+  db: Database,
+  subscriptionId: string,
+  code: string,
+  exceptStudentId?: string,
+): string[] {
+  const sub = db.subscriptions.find((s) => s.id === subscriptionId);
+  if (!sub) return [];
+  const keys = new Set<string>();
+  for (const student of sessionEnrolledStudents(db, sub.sessionId)) {
+    if (student.id === exceptStudentId) continue;
+    for (const rec of cycleSlots(db, student.id, subscriptionId, code)) {
+      keys.add(`${dayKeyOf(rec.timestamp)}#${rec.slot ?? 0}`);
+    }
+  }
+  return [...keys].sort();
+}
+
+/**
  * Where a student registered on `date` comes into an emploi du temps: the month
  * the GROUP is living, and the séance of that month held that day — the next
  * one when nothing has been pointed yet. Registering during M2 · séance 3 gives
@@ -2160,29 +2296,60 @@ export function joinPointFor(
   date: string,
   /** the student being registered — his own (empty) history must not count */
   exceptStudentId?: string,
+  /** la séance du jour où il entre, quand le jour en tient plusieurs */
+  daySlot = 0,
 ): { monthCode: string; slotIndex: number } {
   const sub = db.subscriptions.find((s) => s.id === subscriptionId);
   if (!sub) return { monthCode: "M1", slotIndex: 0 };
   const size = cycleSizeOf(sub);
   const code = sessionCurrentMonthCode(db, sub.sessionId, exceptStudentId);
-  const days = sessionMonthDays(db, subscriptionId, code, exceptStudentId);
-  const held = days.indexOf(date);
+  const days = sessionMonthSlotKeys(db, subscriptionId, code, exceptStudentId);
+  const held = days.indexOf(`${date}#${daySlot}`);
   // Already pointed today: he joins THAT séance. Otherwise the next one.
   const slot = held >= 0 ? held : days.length;
   const offset = Math.max(0, monthOrder(code)) * size + slot;
   return { monthCode: `M${Math.floor(offset / size) + 1}`, slotIndex: offset % size };
 }
 
-/** The row written for ONE student on ONE emploi on ONE day, if any. */
+/**
+ * The row written for ONE student on ONE emploi on ONE day, if any.
+ *
+ * `slot` désigne LAQUELLE des séances du jour : un emploi qui tient le matin et
+ * le soir porte deux lignes ce jour-là, et elles ne se confondent jamais.
+ * Omettre `slot` rend la première ligne trouvée — ce que lisent les écrans qui
+ * ne parlent que « du jour », et ce que faisait cette fonction avant qu'un jour
+ * puisse contenir deux séances.
+ */
 export function attendanceOn(
   db: Database,
   studentId: string,
   sessionId: string,
   date: string,
+  slot?: number,
 ): AttendanceRecord | undefined {
   return db.attendance.find(
-    (a) => a.studentId === studentId && a.sessionId === sessionId && dayKeyOf(a.timestamp) === date,
+    (a) =>
+      a.studentId === studentId &&
+      a.sessionId === sessionId &&
+      dayKeyOf(a.timestamp) === date &&
+      (slot === undefined || (a.slot ?? 0) === slot),
   );
+}
+
+/** Toutes les lignes d'un chevalier sur un emploi un jour donné — une par
+ *  séance tenue ce jour-là, dans l'ordre. */
+export function attendancesOn(
+  db: Database,
+  studentId: string,
+  sessionId: string,
+  date: string,
+): AttendanceRecord[] {
+  return db.attendance
+    .filter(
+      (a) =>
+        a.studentId === studentId && a.sessionId === sessionId && dayKeyOf(a.timestamp) === date,
+    )
+    .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
 }
 
 

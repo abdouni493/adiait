@@ -1565,12 +1565,12 @@ export function StudentsPage() {
       {/* Filter panel */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-surface border border-line p-3 rounded-2xl">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Rechercher par n° d'inscription (00001), nom, téléphone ou email..."
-            className="pl-9"
+            className="ps-9"
           />
         </div>
         <div className="flex gap-1">
@@ -2277,7 +2277,7 @@ export function StudentsPage() {
                                 <strong className="block text-xs text-ink">
                                   {getModuleLabel(subId)}
                                   {gone && (
-                                    <Badge tone="warning" className="ml-1.5 text-[9px]">
+                                    <Badge tone="warning" className="ms-1.5 text-[9px]">
                                       Désinscrit
                                       {leftOn ? ` le ${formatDateFr(leftOn)}` : ""}
                                     </Badge>
@@ -2309,12 +2309,12 @@ export function StudentsPage() {
                             <div className="mt-2 overflow-x-auto">
                               <table className="w-full min-w-[420px] text-[11px]">
                                 <thead>
-                                  <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                                  <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                                     <th className="py-1">Carte</th>
                                     <th className="py-1 text-center">Séances</th>
-                                    <th className="py-1 text-right">Versé</th>
-                                    <th className="py-1 text-right">Consommé</th>
-                                    <th className="py-1 text-right">Reste</th>
+                                    <th className="py-1 text-end">Versé</th>
+                                    <th className="py-1 text-end">Consommé</th>
+                                    <th className="py-1 text-end">Reste</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -2328,7 +2328,7 @@ export function StudentsPage() {
                                       <td className="py-1.5 font-bold text-ink">
                                         {c.code}
                                         {c.index === current && (
-                                          <span className="ml-1 text-[9px] font-semibold text-primary">
+                                          <span className="ms-1 text-[9px] font-semibold text-primary">
                                             en cours
                                           </span>
                                         )}
@@ -2342,14 +2342,14 @@ export function StudentsPage() {
                                       <td className="py-1.5 text-center font-mono">
                                         {c.done}/{c.size}
                                       </td>
-                                      <td className="py-1.5 text-right font-mono text-success">
+                                      <td className="py-1.5 text-end font-mono text-success">
                                         {formatDA(c.credited)}
                                       </td>
-                                      <td className="py-1.5 text-right font-mono text-muted">
+                                      <td className="py-1.5 text-end font-mono text-muted">
                                         {formatDA(c.consumed)}
                                       </td>
                                       <td
-                                        className={`py-1.5 text-right font-mono font-bold ${
+                                        className={`py-1.5 text-end font-mono font-bold ${
                                           c.balance < 0 ? "text-danger" : "text-ink"
                                         }`}
                                       >
@@ -2456,7 +2456,7 @@ export function StudentsPage() {
                               <Receipt className="h-3.5 w-3.5" /> Dettes &amp; frais divers (
                               {charges.length})
                               {due > 0 && (
-                                <Badge tone="danger" className="ml-1 font-mono text-[10px]">
+                                <Badge tone="danger" className="ms-1 font-mono text-[10px]">
                                   {formatDA(due)} dus
                                 </Badge>
                               )}
@@ -3124,7 +3124,7 @@ export function StudentsPage() {
           </div>
 
           {/* List of low balance students */}
-          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
             {students.filter(isSoonToRunOut).length === 0 ? (
               <p className="text-xs text-muted italic p-4 text-center">Aucun chevalier n&apos;a de séances presque épuisées en ce moment.</p>
             ) : (

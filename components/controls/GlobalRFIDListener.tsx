@@ -77,7 +77,7 @@ export function GlobalRFIDListener() {
   }, [processScan]);
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 space-y-3 w-96 max-w-[calc(100vw-40px)] no-print pointer-events-none">
+    <div className="fixed bottom-5 end-5 z-50 space-y-3 w-96 max-w-[calc(100vw-40px)] no-print pointer-events-none">
       {toasts.map((t) => (
         <ToastCard key={t.id} toast={t} onClose={() => removeToast(t.id)} />
       ))}
@@ -118,7 +118,7 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       className={`pointer-events-auto relative overflow-hidden rounded-2xl border p-4 shadow-2xl flex gap-3 theme-fade ${style.bg}`}
     >
       {/* Side highlight border strip */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${style.accent}`} />
+      <div className={`absolute start-0 top-0 bottom-0 w-1.5 ${style.accent}`} />
 
       <div className="flex-1 space-y-1.5">
         <div className="flex justify-between items-start">
@@ -189,7 +189,7 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
         initial={{ width: "100%" }}
         animate={{ width: "0%" }}
         transition={{ duration: 6, ease: "linear" }}
-        className={`absolute bottom-0 left-0 right-0 h-1 opacity-40 ${style.accent}`}
+        className={`absolute bottom-0 start-0 end-0 h-1 opacity-40 ${style.accent}`}
       />
     </motion.div>
   );

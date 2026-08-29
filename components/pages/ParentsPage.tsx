@@ -345,12 +345,12 @@ export function ParentsPage() {
 
       {/* Search panel */}
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Rechercher par nom ou numéro de téléphone du parent..."
-          className="pl-9 w-full"
+          className="ps-9 w-full"
         />
       </div>
 
@@ -387,11 +387,11 @@ export function ParentsPage() {
                       {activeMenuId === p.id && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
-                          <div className="absolute right-0 mt-1 w-44 bg-surface border border-line rounded-xl shadow-lg z-20 overflow-hidden">
+                          <div className="absolute end-0 mt-1 w-44 bg-surface border border-line rounded-xl shadow-lg z-20 overflow-hidden">
                             {can("view") && (
                               <button
                                 onClick={() => openDetails(p)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink hover:bg-primary-50 text-left"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink hover:bg-primary-50 text-start"
                               >
                                 <Eye className="h-4 w-4" /> Voir Détails
                               </button>
@@ -405,7 +405,7 @@ export function ParentsPage() {
                                   ? "Envoyer un message WhatsApp à ce parent"
                                   : "Numéro de téléphone inexploitable"
                               }
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-500/10 text-left disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-500/10 text-start disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             >
                               <MessageCircle className="h-4 w-4" /> Message WhatsApp
                             </button>
@@ -413,7 +413,7 @@ export function ParentsPage() {
                             {can("message") && (
                               <button
                                 onClick={() => openMessage(p)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-primary hover:bg-primary-50 text-left"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-primary hover:bg-primary-50 text-start"
                               >
                                 <Send className="h-4 w-4" /> Notification App
                               </button>
@@ -421,7 +421,7 @@ export function ParentsPage() {
                             {can("edit") && (
                               <button
                                 onClick={() => openEdit(p)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink hover:bg-primary-50 text-left"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink hover:bg-primary-50 text-start"
                               >
                                 <Edit className="h-4 w-4" /> Modifier
                               </button>
@@ -429,7 +429,7 @@ export function ParentsPage() {
                             {can("delete") && (
                               <button
                                 onClick={() => handleDelete(p.id)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-danger/10 text-left"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-danger/10 text-start"
                               >
                                 <Trash2 className="h-4 w-4" /> Supprimer
                               </button>
@@ -521,12 +521,12 @@ export function ParentsPage() {
           <div className="space-y-3">
             <label className="block text-xs font-semibold text-muted">Sélectionner les enfants</label>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
+              <Search className="absolute start-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
               <Input
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
                 placeholder="Rechercher chevalier par nom, téléphone..."
-                className="pl-8 text-xs py-1"
+                className="ps-8 text-xs py-1"
               />
             </div>
             <div className="border border-line rounded-xl max-h-48 overflow-y-auto p-1.5 bg-canvas/30 space-y-1">
@@ -609,12 +609,12 @@ export function ParentsPage() {
           <div className="space-y-3">
             <label className="block text-xs font-semibold text-muted font-sans">Liaison enfants</label>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
+              <Search className="absolute start-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
               <Input
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
                 placeholder="Rechercher chevalier par nom, téléphone..."
-                className="pl-8 text-xs py-1"
+                className="ps-8 text-xs py-1"
               />
             </div>
             <div className="border border-line rounded-xl max-h-56 overflow-y-auto p-1.5 bg-canvas/30 space-y-1">

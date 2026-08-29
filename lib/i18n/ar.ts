@@ -92,6 +92,31 @@ export const ar: Dictionary = {
     backToLogin: "العودة لتسجيل الدخول",
     invalidCredentials: "بيانات الدخول غير صحيحة",
     or: "أو",
+    noAccountYet: "ليس لديك حساب بعد؟",
+    parentLabel: "ولي الأمر",
+    parentPitch:
+      "سجّل أبناءك وتابع حضورهم وغياباتهم ومدفوعاتهم وإعلانات النادي.",
+    studentLabel: "فارس",
+    studentPitch: "اطّلع على بطاقاتك وحضورك وغياباتك ومدفوعاتك وكل تفاصيلك.",
+    createMyAccount: "إنشاء حسابي",
+    checkingClub: "جارٍ التحقق من النادي…",
+    cannotVerify:
+      "تعذّر التحقق مما إذا كان لهذا النادي حساب إدارة ({error}). يمكنك محاولة إنشائه: إن كان موجوداً فعلاً، ستُعلمك قاعدة البيانات بذلك.",
+    noAdminYet:
+      "لا يملك هذا النادي أي حساب بعد. أنشئ حساب الإدارة للبدء — يُعرَض هذا مرة واحدة فقط.",
+    adminAccount: "حساب المدير",
+    adminDisplayName: "الاسم المعروض (الإدارة)",
+    adminLoginEmail: "بريد تسجيل الدخول",
+    adminPasswordMin: "كلمة المرور (6 أحرف على الأقل)",
+    adminConfirmPassword: "تأكيد كلمة المرور",
+    createTheAccount: "إنشاء الحساب",
+    emailRequired: "البريد الإلكتروني إجباري.",
+    passwordsDiffer: "كلمتا المرور غير متطابقتين.",
+    createFailed: "فشل إنشاء الحساب.",
+    schemaMissing:
+      "قاعدة بيانات هذا النادي غير مثبّتة بعد. نفّذ ملف supabase/schema.sql في محرّر SQL الخاص بمشروع Supabase، ثم أعد تحميل الصفحة.",
+    adminReady:
+      "تم إنشاء حساب المدير. بياناته مُدخَلة سلفاً: سجّل الدخول لفتح النادي.",
     quick: {
       title: "دخول سريع — نسخة تجريبية",
       admin: "الإدارة",

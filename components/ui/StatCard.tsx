@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useT } from "@/lib/i18n/useT";
 import type { LucideIcon } from "lucide-react";
 
 const GRADIENTS = {
@@ -42,6 +43,9 @@ export function StatCard({
   tone?: keyof typeof GRADIENTS;
   index?: number;
 }) {
+  // Le libellé est écrit en français dans les écrans : il passe ici par le
+  // dictionnaire, une fois, et toutes les cartes de chiffres suivent.
+  const { tr } = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -56,7 +60,7 @@ export function StatCard({
           aria-hidden="true"
         />
       )}
-      <p className={`text-sm font-medium ${SUB_INK[tone]}`}>{label}</p>
+      <p className={`text-sm font-medium ${SUB_INK[tone]}`}>{tr(label)}</p>
       <p className="mt-2 text-2xl font-extrabold tabular-nums md:text-3xl">{value}</p>
     </motion.div>
   );

@@ -272,12 +272,12 @@ export function WorkerFormModal({
             </Field>
             <Field label="Carte RFID (badge de pointage)" hint="Obligatoire pour le pointage horaire.">
               <div className="relative">
-                <Scan className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                <Scan className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <Input
                   value={rfid}
                   onChange={(e) => setRfid(e.target.value)}
                   placeholder="Passez la carte devant le lecteur…"
-                  className="pl-9 font-mono"
+                  className="ps-9 font-mono"
                 />
               </div>
             </Field>
@@ -490,7 +490,7 @@ export function WorkerFormModal({
 
           {!editing && hasAccount && (
             <div className="rounded-xl border border-line bg-surface p-2.5 text-[10px] leading-relaxed text-muted">
-              <Badge tone="warning" className="mr-1.5 text-[9px]">
+              <Badge tone="warning" className="me-1.5 text-[9px]">
                 À faire ensuite
               </Badge>
               Le compte sera créé <strong>sans aucun droit</strong>. Ouvrez « Droits d&apos;accès »

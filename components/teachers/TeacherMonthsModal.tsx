@@ -278,7 +278,7 @@ function EmploiCard({
     <div className="overflow-hidden rounded-2xl border border-line bg-surface">
       <button
         onClick={onToggle}
-        className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-primary-50/40"
+        className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-start transition-colors hover:bg-primary-50/40"
       >
         <div className="min-w-0">
           <strong className="flex items-center gap-1.5 text-sm text-ink">
@@ -356,16 +356,16 @@ function EmploiCard({
           <div className="overflow-x-auto rounded-xl border border-line bg-surface">
             <table className="w-full min-w-[860px] text-xs">
               <thead className="bg-canvas/60">
-                <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
+                <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
                   <th className="px-2 py-2">Carte</th>
                   <th className="px-2 py-2">État</th>
                   <th className="px-2 py-2">Séances</th>
                   <th className="px-2 py-2">Période</th>
                   <th className="px-2 py-2 text-center">Chevaliers payés</th>
-                  <th className="px-2 py-2 text-right">Dette chevaliers</th>
-                  <th className="px-2 py-2 text-right">Part entraîneur</th>
-                  <th className="px-2 py-2 text-right">Réglé</th>
-                  <th className="px-2 py-2 text-right">Reste</th>
+                  <th className="px-2 py-2 text-end">Dette chevaliers</th>
+                  <th className="px-2 py-2 text-end">Part entraîneur</th>
+                  <th className="px-2 py-2 text-end">Réglé</th>
+                  <th className="px-2 py-2 text-end">Reste</th>
                 </tr>
               </thead>
               <tbody>
@@ -408,7 +408,7 @@ function MonthRows({
           {expanded ? "▾ " : "▸ "}
           {carteShort(month.code)}
           {month.isCurrent && (
-            <Badge tone="primary" className="ml-1.5 text-[9px]">
+            <Badge tone="primary" className="ms-1.5 text-[9px]">
               en cours
             </Badge>
           )}
@@ -433,16 +433,16 @@ function MonthRows({
             <span className="ms-1 text-[9px] text-muted">({month.studentsPending} sans séance)</span>
           )}
         </td>
-        <td className="px-2 py-2 text-right font-mono">
+        <td className="px-2 py-2 text-end font-mono">
           {month.studentsDebt > 0 ? (
             <span className="font-bold text-danger">{formatDA(month.studentsDebt)}</span>
           ) : (
             <span className="text-success">✓</span>
           )}
         </td>
-        <td className="px-2 py-2 text-right font-mono text-ink">{formatDA(month.gross)}</td>
-        <td className="px-2 py-2 text-right font-mono text-success">{formatDA(month.settled)}</td>
-        <td className="px-2 py-2 text-right font-mono">
+        <td className="px-2 py-2 text-end font-mono text-ink">{formatDA(month.gross)}</td>
+        <td className="px-2 py-2 text-end font-mono text-success">{formatDA(month.settled)}</td>
+        <td className="px-2 py-2 text-end font-mono">
           {month.payable > 0 ? (
             <span className="font-bold text-primary">{formatDA(month.payable)}</span>
           ) : month.withheld > 0 ? (
@@ -488,17 +488,17 @@ function MonthRows({
               <div className="overflow-x-auto rounded-xl border border-line bg-surface">
                 <table className="w-full min-w-[900px] text-[11px]">
                   <thead className="bg-canvas/60">
-                    <tr className="text-left text-[9px] uppercase tracking-wide text-muted">
+                    <tr className="text-start text-[9px] uppercase tracking-wide text-muted">
                       <th className="px-2 py-1.5">N°</th>
                       <th className="px-2 py-1.5">Chevalier</th>
                       <th className="px-2 py-1.5 text-center">Séances</th>
                       <th className="px-2 py-1.5 text-center">P / A / An.</th>
-                      <th className="px-2 py-1.5 text-right">Dû (carte)</th>
-                      <th className="px-2 py-1.5 text-right">Consommé</th>
-                      <th className="px-2 py-1.5 text-right">Versé</th>
-                      <th className="px-2 py-1.5 text-right">Reste dû</th>
+                      <th className="px-2 py-1.5 text-end">Dû (carte)</th>
+                      <th className="px-2 py-1.5 text-end">Consommé</th>
+                      <th className="px-2 py-1.5 text-end">Versé</th>
+                      <th className="px-2 py-1.5 text-end">Reste dû</th>
                       <th className="px-2 py-1.5">Statut</th>
-                      <th className="px-2 py-1.5 text-right">Part prof</th>
+                      <th className="px-2 py-1.5 text-end">Part prof</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -522,7 +522,7 @@ function MonthRows({
                             <td className="px-2 py-1.5">
                               <strong className="text-ink">{st.name}</strong>
                               {st.caseLabel && (
-                                <Badge tone="warning" className="ml-1.5 text-[8px]">
+                                <Badge tone="warning" className="ms-1.5 text-[8px]">
                                   {st.caseLabel}
                                 </Badge>
                               )}
@@ -544,16 +544,16 @@ function MonthRows({
                             <td className="px-2 py-1.5 text-center font-mono text-muted">
                               {st.presents} / {st.absents} / {st.cancelled}
                             </td>
-                            <td className="px-2 py-1.5 text-right font-mono text-muted">
+                            <td className="px-2 py-1.5 text-end font-mono text-muted">
                               {st.isFree ? "—" : formatDA(st.expected)}
                             </td>
-                            <td className="px-2 py-1.5 text-right font-mono text-muted">
+                            <td className="px-2 py-1.5 text-end font-mono text-muted">
                               {formatDA(st.consumed)}
                             </td>
-                            <td className="px-2 py-1.5 text-right font-mono text-success">
+                            <td className="px-2 py-1.5 text-end font-mono text-success">
                               {formatDA(st.credited)}
                             </td>
-                            <td className="px-2 py-1.5 text-right font-mono">
+                            <td className="px-2 py-1.5 text-end font-mono">
                               {st.debt > 0 ? (
                                 <strong className="text-danger">{formatDA(st.debt)}</strong>
                               ) : (
@@ -565,7 +565,7 @@ function MonthRows({
                                 {badge.label}
                               </Badge>
                             </td>
-                            <td className="px-2 py-1.5 text-right font-mono">
+                            <td className="px-2 py-1.5 text-end font-mono">
                               <span className="text-ink">{formatDA(st.gross)}</span>
                               {st.withheld > 0 && (
                                 <span className="block text-[9px] text-warning">
@@ -622,12 +622,12 @@ function UnpaidTable({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[240px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Rechercher un chevalier, un emploi du temps ou une carte…"
-            className="pl-9"
+            className="ps-9"
           />
         </div>
         <Badge tone="danger" className="font-mono font-bold">
@@ -643,16 +643,16 @@ function UnpaidTable({
         <div className="overflow-x-auto rounded-2xl border border-line">
           <table className="w-full min-w-[860px] text-xs">
             <thead className="bg-canvas/60">
-              <tr className="text-left text-[10px] uppercase tracking-wide text-muted">
+              <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
                 <th className="px-2 py-2">N°</th>
                 <th className="px-2 py-2">Chevalier</th>
                 <th className="px-2 py-2">Téléphone</th>
                 <th className="px-2 py-2">Emploi du temps</th>
                 <th className="px-2 py-2">Carte</th>
                 <th className="px-2 py-2 text-center">Séances</th>
-                <th className="px-2 py-2 text-right">Versé</th>
-                <th className="px-2 py-2 text-right">Reste dû</th>
-                <th className="px-2 py-2 text-right">Part prof bloquée</th>
+                <th className="px-2 py-2 text-end">Versé</th>
+                <th className="px-2 py-2 text-end">Reste dû</th>
+                <th className="px-2 py-2 text-end">Part prof bloquée</th>
               </tr>
             </thead>
             <tbody>
@@ -673,13 +673,13 @@ function UnpaidTable({
                   <td className="px-2 py-2 text-center font-mono text-muted">
                     {r.done}/{r.size}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-success">
+                  <td className="px-2 py-2 text-end font-mono text-success">
                     {formatDA(r.credited)}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono font-bold text-danger">
+                  <td className="px-2 py-2 text-end font-mono font-bold text-danger">
                     {formatDA(r.debt)}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-warning">
+                  <td className="px-2 py-2 text-end font-mono text-warning">
                     {r.withheld > 0 ? formatDA(r.withheld) : "—"}
                   </td>
                 </tr>

@@ -204,12 +204,12 @@ export function AnnouncementsPage() {
           </div>
         </div>
         <div className="relative mb-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
           <Input
             value={groupSearch}
             onChange={(e) => setGroupSearch(e.target.value)}
             placeholder="Rechercher un groupe..."
-            className="pl-9"
+            className="ps-9"
           />
         </div>
         <div className="border border-line rounded-xl max-h-40 overflow-y-auto p-1.5 bg-canvas/30 space-y-1">
@@ -301,12 +301,12 @@ export function AnnouncementsPage() {
             <div>
               <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Recherche</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                 <Input
                   value={listSearch}
                   onChange={(e) => setListSearch(e.target.value)}
                   placeholder="Titre ou contenu..."
-                  className="pl-9"
+                  className="ps-9"
                 />
               </div>
             </div>

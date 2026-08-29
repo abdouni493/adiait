@@ -488,12 +488,12 @@ export function IndependentPage() {
             <div className="lg:col-span-2">
               <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Recherche</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                 <Input
                   value={listSearch}
                   onChange={(e) => setListSearch(e.target.value)}
                   placeholder="Nom du chevalier, passager ou séance..."
-                  className="pl-9"
+                  className="ps-9"
                 />
               </div>
             </div>
@@ -640,7 +640,7 @@ export function IndependentPage() {
                           </span>
                           <span className="font-semibold text-ink block truncate">{ind.itemLabel}</span>
                         </div>
-                        <div className="text-right shrink-0">
+                        <div className="text-end shrink-0">
                           <span className="text-[10px] text-muted block uppercase font-semibold">Tarif Payé</span>
                           <span className="font-bold text-success">{formatDA(ind.price)}</span>
                         </div>
@@ -681,7 +681,7 @@ export function IndependentPage() {
         /* TABLE VIEW */
         <div className="border border-line rounded-2xl overflow-hidden bg-surface">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse min-w-[860px]">
+            <table className="w-full text-xs text-start border-collapse min-w-[860px]">
               <thead>
                 <tr className="bg-canvas border-b border-line text-[10px] text-muted uppercase font-bold tracking-wider">
                   <th className="p-3">Chevalier / Passager</th>
@@ -689,10 +689,10 @@ export function IndependentPage() {
                   <th className="p-3">Entraîneur</th>
                   <th className="p-3">Date & horaire</th>
                   <th className="p-3">Créée le</th>
-                  <th className="p-3 text-right">Tarif</th>
-                  <th className="p-3 text-right">Part club</th>
-                  <th className="p-3 text-right">Part entraîneur</th>
-                  <th className="p-3 text-right">Actions</th>
+                  <th className="p-3 text-end">Tarif</th>
+                  <th className="p-3 text-end">Part club</th>
+                  <th className="p-3 text-end">Part entraîneur</th>
+                  <th className="p-3 text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -724,13 +724,13 @@ export function IndependentPage() {
                         const split = independentTotals(ind);
                         return (
                           <>
-                            <td className="p-3 text-right font-bold text-success font-mono">
+                            <td className="p-3 text-end font-bold text-success font-mono">
                               {formatDA(split.price)}
                             </td>
-                            <td className="p-3 text-right font-mono text-muted">
+                            <td className="p-3 text-end font-mono text-muted">
                               {formatDA(split.school)}
                             </td>
-                            <td className="p-3 text-right font-mono font-bold text-primary">
+                            <td className="p-3 text-end font-mono font-bold text-primary">
                               {formatDA(split.teacher)}
                               <span className="block text-[9px] font-normal text-muted">
                                 {ind.teacherPaid ? "réglée" : "à régler"}
@@ -799,7 +799,7 @@ export function IndependentPage() {
                 Chevalier inscrit (facultatif) — nom, n° d&apos;inscription ou n° de carte
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                 <Input
                   value={studentSearchQuery}
                   onChange={(e) => {
@@ -807,7 +807,7 @@ export function IndependentPage() {
                     if (selectedStudent) setSelectedStudent(null);
                   }}
                   placeholder="Nom, n° d'inscription (00001), téléphone ou carte RFID…"
-                  className="pl-9"
+                  className="ps-9"
                 />
               </div>
               <p className="text-[10px] text-muted mt-1 leading-relaxed">
@@ -987,12 +987,12 @@ export function IndependentPage() {
                 ))}
               </div>
               <div className="relative mb-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                 <Input
                   value={itemSearchQuery}
                   onChange={(e) => setItemSearchQuery(e.target.value)}
                   placeholder="Nom de l'emploi du temps, catégorie, groupe, arène ou entraîneur…"
-                  className="pl-9"
+                  className="ps-9"
                 />
               </div>
               <div className="border border-line rounded-xl max-h-56 overflow-y-auto p-1.5 bg-canvas/30 space-y-1">
@@ -1020,7 +1020,7 @@ export function IndependentPage() {
                       >
                         <div className="flex justify-between items-start gap-2">
                           <strong className="font-bold block min-w-0 truncate">
-                            {opt.kind === "timing" && <span className="mr-1">🎯</span>}
+                            {opt.kind === "timing" && <span className="me-1">🎯</span>}
                             {opt.label}
                           </strong>
                           <strong className="text-primary shrink-0">{formatDA(opt.price)}</strong>
@@ -1101,7 +1101,7 @@ export function IndependentPage() {
                 <div className="rounded-xl border border-success/25 bg-success/10 p-3 text-xs">
                   <div className="flex justify-between py-0.5">
                     <span className="text-muted">Qui paie</span>
-                    <strong className="text-ink text-right">
+                    <strong className="text-ink text-end">
                       {selectedStudent
                         ? `${selectedStudent.firstName} ${selectedStudent.lastName}`
                         : selectedCasual
@@ -1196,7 +1196,7 @@ export function IndependentPage() {
                     value ? (
                       <div key={label} className="flex justify-between border-b border-line/50 pb-1.5 last:border-0">
                         <span className="text-muted">{label} :</span>
-                        <strong className="text-ink text-right">{value}</strong>
+                        <strong className="text-ink text-end">{value}</strong>
                       </div>
                     ) : null,
                   )}
