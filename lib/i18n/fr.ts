@@ -24,12 +24,14 @@ export const fr = {
     today: "Aujourd'hui",
     yes: "Oui",
     no: "Non",
+    pending: "en attente",
   },
   /** Les quartiers de la barre latérale. */
   navSection: {
     order: "L'Ordre",
     company: "La Compagnie",
     stewardship: "L'Intendance",
+    gate: "La Herse",
     keep: "Le Donjon",
   },
   nav: {
@@ -49,6 +51,8 @@ export const fr = {
     analytics: "Statistiques",
     cash: "Caisse",
     reports: "Rapports financiers",
+    website: "Site web",
+    "website-inscriptions": "Inscriptions du site",
     settings: "Paramètres",
     logout: "Déconnexion",
     home: "Accueil",
@@ -70,6 +74,7 @@ export const fr = {
   },
   auth: {
     welcome: "Bienvenue",
+    visitWebsite: "Visiter le site du club",
     signInSubtitle: "Connectez-vous pour gérer votre club",
     username: "Nom d'utilisateur ou email",
     password: "Mot de passe",

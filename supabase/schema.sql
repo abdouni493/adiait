@@ -11,11 +11,12 @@
 --
 --   1. Les extensions (pgcrypto : c'est lui qui chiffre les mots de passe).
 --   2. `public.profiles` — le pont entre `auth.users` et les fiches métier.
---   3. LE CATALOGUE DES DROITS : `app_pages` (les 16 écrans) et
---      `app_page_actions` (les 85 boutons), recopiés de `lib/permissions.ts`.
+--   3. LE CATALOGUE DES DROITS : `app_pages` (les 17 écrans) et
+--      `app_page_actions` (les 95 boutons), recopiés de `lib/permissions.ts`.
 --      C'est la table de vérité que l'écran « Droits d'accès » présente.
---   4. Les 40 tables métier — une par collection du magasin (`lib/store/data.ts`),
---      avec TOUTES leurs relations.
+--   4. Les 42 tables métier — une par collection du magasin (`lib/store/data.ts`),
+--      avec TOUTES leurs relations. Deux d'entre elles servent LE SITE PUBLIC :
+--      `website_formations` (lisible sans compte) et `formation_enrollments`.
 --   5. Les fonctions de garde (qui suis-je, qu'ai-je le droit d'écrire).
 --   6. La RLS : une politique de lecture et une d'écriture par table.
 --   7. LES COMPTES : créer l'administrateur, créer un travailleur, changer un
@@ -145,8 +146,8 @@ create table if not exists public.app_page_actions (
   primary key (page_key, action_id)
 );
 
-comment on table public.app_pages is 'Les 15 écrans de l''application, dans l''ordre de la barre latérale.';
-comment on table public.app_page_actions is 'Les 84 boutons, écran par écran. Clé stockée : « écran:action ».';
+comment on table public.app_pages is 'Les 17 écrans de l''application, dans l''ordre de la barre latérale.';
+comment on table public.app_page_actions is 'Les 95 boutons, écran par écran. Clé stockée : « écran:action ».';
 
 -- ---- Les écrans -------------------------------------------------------------
 insert into public.app_pages (key, position, emoji, label, href, hint) values
@@ -164,7 +165,9 @@ insert into public.app_pages (key, position, emoji, label, href, hint) values
   ('analytics', 14, '📈', 'Statistiques', '/analytics', 'L''affluence des chevaliers par catégorie et par entraîneur.'),
   ('cash', 15, '💵', 'Caisse', '/cash', 'Les mouvements de caisse : dépôts, retraits, dépenses — et leurs rubriques.'),
   ('reports', 16, '💰', 'Rapports', '/reports', 'Le bilan du club sur une période. Cet écran se consulte ; il n''écrit rien.'),
-  ('settings', 17, '⚙️', 'Paramètres', '/settings', 'Le club, la sécurité, WhatsApp et les sauvegardes.')
+  ('website', 17, '🌐', 'Site web', '/website', 'La vitrine du club : les formations et les évènements publiés, les coordonnées et l''habillage de la page d''accueil.'),
+  ('website-inscriptions', 18, '📥', 'Inscriptions du site', '/website-inscriptions', 'Les inscriptions venues du site public, en attente d''être vérifiées et rattachées à une fiche.'),
+  ('settings', 19, '⚙️', 'Paramètres', '/settings', 'Le club, la sécurité, WhatsApp et les sauvegardes.')
 on conflict (key) do update set
   position = excluded.position,
   emoji    = excluded.emoji,
@@ -264,7 +267,18 @@ insert into public.app_page_actions (page_key, action_id, position, label, hint)
   ('settings', 'security', 2, 'Identifiants & sécurité', 'Son propre mot de passe.'),
   ('settings', 'whatsapp', 3, 'Paramètres WhatsApp', null),
   ('settings', 'free_periods', 4, 'Périodes offertes', 'Les fenêtres de gratuité, venues de l''ancien écran « Cartes & tarifs ».'),
-  ('settings', 'backup', 5, 'Sauvegarde & données', null)
+  ('settings', 'backup', 5, 'Sauvegarde & données', null),
+  ('website', 'create', 1, 'Publier une formation ou un évènement', null),
+  ('website', 'view', 2, 'Voir le détail d''une formation', null),
+  ('website', 'edit', 3, 'Modifier une formation', null),
+  ('website', 'delete', 4, 'Supprimer une formation', null),
+  ('website', 'hide', 5, 'Retirer une formation du site', 'Elle disparaît de la vitrine sans être supprimée.'),
+  ('website', 'contacts', 6, 'Coordonnées & réseaux sociaux', null),
+  ('website', 'appearance', 7, 'Habillage du site', 'Favicon, présentations, image de fond et vidéo d''accueil.'),
+  ('website-inscriptions', 'view', 1, 'Ouvrir une inscription', null),
+  ('website-inscriptions', 'verify', 2, 'Vérifier & accepter une inscription', 'Rattacher le compte à une fiche, ou la créer depuis la demande.'),
+  ('website-inscriptions', 'edit', 3, 'Corriger une inscription', null),
+  ('website-inscriptions', 'delete', 4, 'Supprimer une inscription', null)
 on conflict (page_key, action_id) do update set
   position = excluded.position,
   label    = excluded.label,
@@ -337,6 +351,34 @@ create table if not exists public.schools (
   absence_penalty_enabled       boolean,
   absence_penalty_since         text,
   absence_week_start_day        integer,
+
+  -- ---- LA VITRINE PUBLIQUE --------------------------------------------------
+  --
+  -- LE SITE DU CLUB VIT SUR CETTE LIGNE-LÀ, ET C'EST VOULU.
+  --
+  -- `schools` est la seule table que ce schéma laisse déjà lire à un visiteur
+  -- NON CONNECTÉ (politique `schools_public_read`, section 6). Ranger ici le
+  -- favicon, les textes de présentation, l'image et la vidéo d'accueil ainsi que
+  -- les coordonnées, c'est permettre au site de s'afficher avant que quiconque
+  -- ait un compte — sans ouvrir une seule table de plus au dehors.
+  --
+  -- Les coordonnées du site sont DISTINCTES de `phone` et `address` : celles-là
+  -- sont celles de l'administration (le fixe du bureau, le siège fiscal), et ce
+  -- n'est pas toujours ce qu'on donne au public.
+  site_favicon                  text,
+  site_description              text,
+  site_description2             text,
+  site_hero_image               text,
+  site_video_url                text,
+  site_facebook                 text,
+  site_instagram                text,
+  site_tiktok                   text,
+  site_snapchat                 text,
+  site_whatsapp                 text,
+  site_maps_url                 text,
+  site_phone                    text,
+  site_phone2                   text,
+
   updated_at                    timestamptz not null default now()
 );
 
@@ -669,7 +711,7 @@ create table if not exists public.student_charges (
   amount             numeric not null default 0,
   description        text,
   date               text not null default '',
-  origin             text check (origin in ('manual','school_advance','engagement')),
+  origin             text check (origin in ('manual','school_advance','engagement','formation')),
   source_payment_id  text,
   subscription_id    text references public.subscriptions (id) on delete set null,
   month_code         text,
@@ -1088,6 +1130,16 @@ create table if not exists public.account_requests (
   id                   text primary key,
   account_id           uuid not null references auth.users (id) on delete cascade,
   kind                 text not null check (kind in ('student','parent')),
+  -- D'OÙ LA DEMANDE VIENT : « login » = la page de connexion de l'application,
+  -- « website » = le site public, au bas d'une formation. Les deux créent le
+  -- même compte inactif ; elles ne s'affichent simplement pas dans la même file
+  -- d'attente. Vide = « login », ce que sont toutes les demandes d'avant la
+  -- vitrine.
+  source               text check (source in ('login','website')),
+  -- La formation d'où la demande est partie. Ce n'est qu'une INTENTION : elle ne
+  -- réserve rien et n'engage aucun argent tant que l'intendance n'a pas vérifié
+  -- la demande.
+  formation_id         text,
   first_name           text not null default '',
   last_name            text not null default '',
   phone                text not null default '',
@@ -1117,7 +1169,91 @@ create index if not exists account_requests_status_idx  on public.account_reques
 create index if not exists account_requests_account_idx on public.account_requests (account_id);
 
 comment on table public.account_requests is
-  'Les comptes créés depuis la page de connexion, en attente d''être rattachés à une fiche.';
+  'Les comptes créés depuis la page de connexion OU depuis le site public, en attente d''être rattachés à une fiche.';
+comment on column public.account_requests.source is
+  '« login » = la page de connexion · « website » = le site public. Vide = login.';
+create index if not exists account_requests_source_idx on public.account_requests (source);
+
+
+-- ---- LA VITRINE : LES FORMATIONS ET LES ÉVÈNEMENTS --------------------------
+--
+-- C'est la SEULE chose que le site publie en propre — tout le reste de la
+-- vitrine (le fond, la vidéo, les textes, les coordonnées) tient sur la fiche de
+-- l'établissement. Une formation est donc lisible SANS COMPTE : c'est ce qui
+-- permet à quelqu'un qui passe de la découvrir et de s'y inscrire avant même
+-- d'exister au club.
+--
+-- LES JOURS SONT DES DATES, PAS DES JOURS DE SEMAINE (`days`). Une formation ne
+-- « tient pas tous les mardis » : elle tient LES 4, 11 et 18 mars. L'écran de
+-- création déplie le calendrier de la période et l'on coche les journées
+-- réelles, ce qui permet de sauter une fête ou une semaine de vacances sans
+-- inventer une règle de récurrence que personne ne saurait relire. Une liste
+-- VIDE veut dire « toute la période » — le cas d'un évènement d'un seul tenant.
+--
+-- `trainer_name` EST UNE COPIE, et pas un oubli de normalisation : le site est
+-- lu par des visiteurs à qui la RLS ne rend PAS `teachers`. Sans cette copie, la
+-- carte publique afficherait « tea-mf3k2a-9c1b ».
+create table if not exists public.website_formations (
+  id               text primary key,
+  kind             text not null default 'formation' check (kind in ('formation','event')),
+  name             text not null default '',
+  description      text not null default '',
+  start_date       text not null default '',
+  start_time       text not null default '',
+  end_date         text not null default '',
+  end_time         text not null default '',
+  days             jsonb not null default '[]'::jsonb,
+  trainer_id       text references public.teachers (id) on delete set null,
+  trainer_name     text,
+  trainer_note     text,
+  price            numeric not null default 0,
+  seances          integer not null default 0,
+  images           jsonb not null default '[]'::jsonb,
+  -- Retirée de la vitrine, mais pas supprimée : une formation complète,
+  -- reportée ou terminée n'a plus à s'afficher sans pour autant emporter les
+  -- inscriptions qu'elle a produites.
+  hidden           boolean not null default false,
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists website_formations_hidden_idx on public.website_formations (hidden);
+create index if not exists website_formations_start_idx  on public.website_formations (start_date);
+
+comment on table public.website_formations is
+  'Les formations et les évènements publiés sur le site du club. Lisibles sans compte tant que `hidden` est faux.';
+
+
+-- ---- QUI EST INSCRIT SUR QUOI -----------------------------------------------
+--
+-- L'INSCRIPTION ET L'ARGENT SONT SÉPARÉS, et c'est tout l'intérêt : quelqu'un
+-- qui s'inscrit depuis le site n'a rien payé — il paiera au comptoir, parfois
+-- des semaines plus tard. La ligne naît donc TOUJOURS, et le prix est porté au
+-- compte du chevalier sous la forme d'un frais ordinaire (`student_charges`,
+-- origine « formation »), qui se règle en une ou plusieurs fois comme n'importe
+-- quelle autre dette et s'affiche déjà partout où le chevalier apparaît.
+--
+-- `charge_id` est le lien vers ce frais : c'est lui qui dit si l'inscription est
+-- payée, et de combien. Une inscription offerte (prix nul) n'en porte aucun.
+create table if not exists public.formation_enrollments (
+  id               text primary key,
+  formation_id     text not null references public.website_formations (id) on delete cascade,
+  student_id       text not null references public.students (id) on delete cascade,
+  price            numeric not null default 0,
+  charge_id        text references public.student_charges (id) on delete set null,
+  date             text not null default '',
+  source           text check (source in ('login','website')),
+  created_at       text,
+  created_by       text,
+  created_by_name  text,
+  created_by_role  text
+);
+create index if not exists formation_enrollments_formation_idx on public.formation_enrollments (formation_id);
+create index if not exists formation_enrollments_student_idx   on public.formation_enrollments (student_id);
+
+comment on table public.formation_enrollments is
+  'Les chevaliers inscrits sur une formation. Le prix vit dans student_charges (origine « formation »), jamais ici.';
 
 
 -- =============================================================================
@@ -1303,7 +1439,7 @@ begin
       -- une famille ne voit qu'elle-même.
       ('students',
         $r$public.is_staff() or public.is_teacher() or id = any (public.my_student_ids())$r$,
-        $w$public.can_write(array['students','dashboard','attendance','parents']) or public.is_teacher()$w$),
+        $w$public.can_write(array['students','dashboard','attendance','parents','website-inscriptions']) or public.is_teacher()$w$),
       ('student_credentials',
         $r$public.is_staff() or student_id = any (public.my_student_ids())$r$,
         $w$public.can_write(array['students','dashboard'])$w$),
@@ -1315,7 +1451,7 @@ begin
         $w$public.can_write(array['students','dashboard','attendance']) or public.is_teacher()$w$),
       ('student_charges',
         $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
-        $w$public.can_write(array['students','dashboard','attendance','teachers']) or public.is_teacher()$w$),
+        $w$public.can_write(array['students','dashboard','attendance','teachers','website','website-inscriptions']) or public.is_teacher()$w$),
       ('attendance_records',
         $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
         $w$public.can_write(array['attendance','dashboard','students']) or public.is_teacher()$w$),
@@ -1357,7 +1493,7 @@ begin
            or (public.is_student() and exists (
                  select 1 from public.students s
                   where s.id = public.my_entity_id() and s.parent_id = parents.id))$r$,
-        $w$public.can_write(array['parents','students'])$w$),
+        $w$public.can_write(array['parents','students','website-inscriptions'])$w$),
       ('notifications',
         $r$public.is_staff() or (public.is_parent() and parent_id = public.my_entity_id())$r$,
         $w$public.can_write(array['parents','students','announcements'])$w$),
@@ -1385,7 +1521,16 @@ begin
       -- `request_account()`, qui vérifie tout elle-même.
       ('account_requests',
         $r$public.is_staff() or account_id = auth.uid()$r$,
-        $w$public.can_write(array['dashboard','students','parents'])$w$)
+        $w$public.can_write(array['dashboard','students','parents','website-inscriptions'])$w$),
+
+      -- LA VITRINE. Tout compte connecté lit les formations — la gestion doit
+      -- voir jusqu'aux masquées — et le VISITEUR, lui, passe par la politique
+      -- `anon` posée plus bas, qui ne lui rend que les formations affichées.
+      ('website_formations',          any_signed,
+        $w$public.can_write(array['website'])$w$),
+      ('formation_enrollments',
+        $r$public.is_staff() or public.is_teacher() or student_id = any (public.my_student_ids())$r$,
+        $w$public.can_write(array['website','website-inscriptions','students','dashboard'])$w$)
     ) as t(tbl, read_using, write_using)
   loop
     execute format('alter table public.%I enable row level security', r.tbl);
@@ -1433,10 +1578,27 @@ create policy profiles_read on public.profiles
   using (id = auth.uid() or public.is_staff());
 
 -- La page de connexion doit pouvoir afficher le nom et le logo de l'école
--- AVANT que quiconque soit connecté.
+-- AVANT que quiconque soit connecté. C'est aussi cette ligne-là qui porte toute
+-- la vitrine du site public : ses textes, son image de fond, sa vidéo et ses
+-- coordonnées (colonnes `site_*`).
 drop policy if exists schools_public_read on public.schools;
 create policy schools_public_read on public.schools
   for select to anon using (true);
+
+-- LE SITE PUBLIC LIT SES FORMATIONS SANS COMPTE.
+--
+-- C'est la deuxième et DERNIÈRE porte ouverte à un visiteur anonyme. Elle ne
+-- rend que les formations AFFICHÉES : une annonce qu'on a masquée depuis la
+-- gestion ne sort pas, même si l'on devine son adresse. Le filtre est posé ici,
+-- dans la politique — l'appliquer seulement côté navigateur reviendrait à le
+-- laisser au bon vouloir de celui qui écrit la requête.
+--
+-- La lecture ne donne rien d'autre : ni les inscrits, ni les fiches des
+-- entraîneurs. C'est pour cela que le nom de l'encadrant est RECOPIÉ sur la
+-- formation.
+drop policy if exists website_formations_public_read on public.website_formations;
+create policy website_formations_public_read on public.website_formations
+  for select to anon using (hidden is not true);
 
 
 -- =============================================================================
@@ -1871,6 +2033,17 @@ $$;
 --
 -- Autrement dit : le compte existe et se connecte, mais il ne voit rien tant
 -- qu'un humain du club ne l'a pas rattaché à une fiche.
+-- L'ANCIENNE SIGNATURE EST RETIRÉE AVANT LA NOUVELLE.
+--
+-- Deux paramètres s'ajoutent (l'origine de la demande, et la formation visée).
+-- PostgreSQL garderait alors DEUX fonctions du même nom, et PostgREST — qui
+-- choisit par les noms d'arguments reçus — refuserait l'appel avec
+-- « could not choose the best candidate function ». La page de connexion
+-- tomberait en panne sans que rien, dans le code de l'application, ait changé.
+drop function if exists public.request_account(
+  text, text, text, text, text, text, text, text, text, boolean, boolean, jsonb
+);
+
 create or replace function public.request_account(
   p_email                text,
   p_password             text,
@@ -1883,7 +2056,13 @@ create or replace function public.request_account(
   p_address              text default null,
   p_existing_member      boolean default false,
   p_children_subscribed  boolean default null,
-  p_children             jsonb default '[]'::jsonb
+  p_children             jsonb default '[]'::jsonb,
+  -- « login » (la page de connexion) ou « website » (le site public).
+  p_source               text default 'login',
+  -- La formation du site sur laquelle la demande porte, le cas échéant. Elle
+  -- n'inscrit RIEN et ne facture RIEN : c'est une intention, que l'intendance
+  -- transforme en inscription réelle quand elle vérifie la demande.
+  p_formation_id         text default null
 )
 returns text
 language plpgsql
@@ -1928,12 +2107,18 @@ begin
   values (v_id, v_id::text, v_role, v_email, v_email, v_name, false);
 
   insert into public.account_requests (
-    id, account_id, kind, first_name, last_name, phone, phone2, birth_date, address,
+    id, account_id, kind, source, formation_id,
+    first_name, last_name, phone, phone2, birth_date, address,
     email, existing_member, children_subscribed, children, status, created_at
   ) values (
     'req-' || replace(v_id::text, '-', ''),
     v_id,
     p_kind,
+    case when p_source = 'website' then 'website' else 'login' end,
+    -- Une formation qui n'existe pas (ou plus) ne bloque pas la création du
+    -- compte : la demande arrive simplement sans formation, et l'intendance la
+    -- traite comme n'importe quelle autre.
+    (select f.id from public.website_formations f where f.id = p_formation_id),
     coalesce(trim(p_first_name), ''),
     coalesce(trim(p_last_name), ''),
     coalesce(trim(p_phone), ''),
@@ -1977,7 +2162,10 @@ declare
   v_account uuid;
   v_role    public.app_role;
 begin
-  if not (public.is_admin() or public.can_write(array['dashboard','students','parents'])) then
+  if not (
+    public.is_admin()
+    or public.can_write(array['dashboard','students','parents','website-inscriptions'])
+  ) then
     raise exception 'Vous n''avez pas le droit d''activer un compte.' using errcode = '42501';
   end if;
 
@@ -2041,7 +2229,7 @@ grant execute on function public.login_email(text)                    to anon, a
 -- La création de compte par la famille elle-même : ouverte à qui n'est pas
 -- encore connecté, puisque c'est précisément son cas. Le rôle y est FORCÉ et le
 -- profil naît inactif — voir la fonction.
-grant execute on function public.request_account(text, text, text, text, text, text, text, text, text, boolean, boolean, jsonb) to anon, authenticated;
+grant execute on function public.request_account(text, text, text, text, text, text, text, text, text, boolean, boolean, jsonb, text, text) to anon, authenticated;
 grant execute on function public.link_account_entity(text, text, text)  to authenticated;
 
 
@@ -2115,21 +2303,21 @@ begin
     for insert to authenticated
     with check (
       bucket_id = 'logos'
-      and public.can_write(array['settings'])
+      and public.can_write(array['settings','website'])
     );
 
   create policy "staff update app images" on storage.objects
     for update to authenticated
     using (
       bucket_id = 'logos'
-      and public.can_write(array['settings'])
+      and public.can_write(array['settings','website'])
     );
 
   create policy "staff delete app images" on storage.objects
     for delete to authenticated
     using (
       bucket_id = 'logos'
-      and public.can_write(array['settings'])
+      and public.can_write(array['settings','website'])
     );
 exception
   when insufficient_privilege then
@@ -2156,6 +2344,9 @@ $storage$;
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 grant select on public.schools to anon;
+-- Le site public lit les formations sans compte : la politique `anon` ci-dessus
+-- ne suffit pas, il faut aussi le privilège sur la table.
+grant select on public.website_formations to anon;
 
 
 -- =============================================================================
@@ -2176,14 +2367,25 @@ grant select on public.schools to anon;
 --     pour choisir ses écrans et ses boutons. Il se connectera avec son email
 --     OU son nom d'utilisateur.
 --
+--  4. LE SITE PUBLIC est servi par l'application elle-même, sur `/site`. Il ne
+--     demande aucune installation de plus : il s'habille depuis « Site web »
+--     (l'image d'accueil, la vidéo, les deux présentations, les coordonnées) et
+--     se remplit avec les formations qu'on y publie. Ce que le visiteur y dépose
+--     — une inscription — arrive dans « Inscriptions du site ».
+--
 --  LES REQUÊTES DE CONTRÔLE
 --
---    -- Les 40 tables métier sont-elles là, et toutes protégées ?
+--    -- Les 42 tables métier sont-elles là, et toutes protégées ?
 --    select tablename, rowsecurity from pg_tables
 --     where schemaname = 'public' order by tablename;
 --
---    -- Le catalogue des droits (16 écrans, 85 boutons)
+--    -- Le catalogue des droits (17 écrans, 95 boutons)
 --    select page_key, action_id, permission_key from public.app_permission_catalog;
+--
+--    -- CE QUE LE DEHORS PEUT LIRE. Deux tables, et pas une de plus :
+--    -- l'établissement (nom, logo, vitrine) et les formations affichées.
+--    select schemaname, tablename, policyname from pg_policies
+--     where schemaname = 'public' and 'anon' = any (roles);
 --
 --    -- Les comptes existants, et la fiche que chacun pilote
 --    select role, email, username, entity_id from public.profiles order by role, email;

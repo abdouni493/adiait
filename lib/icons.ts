@@ -7,10 +7,12 @@ import {
   CalendarDays,
   CreditCard,
   Flag,
+  Globe,
   Home,
   LayoutDashboard,
   LogOut,
   Megaphone,
+  MailOpen,
   Receipt,
   Settings,
   Shield,
@@ -56,6 +58,10 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   analytics: BarChart3,
   cash: Banknote,
   reports: Wallet,
+
+  // — La Herse : ce qui donne sur le dehors —
+  website: Globe,
+  "website-inscriptions": MailOpen,
 
   // — Le Château —
   settings: Settings,

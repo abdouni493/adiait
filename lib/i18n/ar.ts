@@ -26,11 +26,13 @@ export const ar: Dictionary = {
     today: "اليوم",
     yes: "نعم",
     no: "لا",
+    pending: "في الانتظار",
   },
   navSection: {
     order: "الوسام",
     company: "الرفقة",
     stewardship: "الإدارة المالية",
+    gate: "البوابة",
     keep: "الحصن",
   },
   nav: {
@@ -50,6 +52,8 @@ export const ar: Dictionary = {
     analytics: "التحليلات",
     cash: "الصندوق",
     reports: "التقارير المالية",
+    website: "الموقع الإلكتروني",
+    "website-inscriptions": "تسجيلات الموقع",
     settings: "الإعدادات",
     logout: "تسجيل الخروج",
     home: "الرئيسية",
@@ -71,6 +75,7 @@ export const ar: Dictionary = {
   },
   auth: {
     welcome: "مرحباً",
+    visitWebsite: "زيارة موقع النادي",
     signInSubtitle: "سجّل الدخول لإدارة ناديك",
     username: "اسم المستخدم أو البريد الإلكتروني",
     password: "كلمة المرور",

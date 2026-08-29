@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AccountRequestsPanel, usePendingRequests } from "@/components/accounts/AccountRequests";
-import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, MessageCircle, MoreVertical, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Swords, Trash2, User, Wallet } from "lucide-react";
+import { AssignFormationModal } from "@/components/students/AssignFormationModal";
+import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, Megaphone, MessageCircle, MoreVertical, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Swords, Trash2, User, Wallet } from "lucide-react";
 import type {
   AbsencePenalty,
   AttendanceRecord,
@@ -101,6 +102,7 @@ export function StudentsPage() {
     parents,
     classCategories,
     studentCredentials,
+    formationEnrollments,
     push,
     deleteFrom,
     updateItem,
@@ -202,6 +204,14 @@ export function StudentsPage() {
   } | null>(null);
   /** la saisie seule, ouverte en un clic depuis la carte d'un chevalier */
   const [chargeFormStudent, setChargeFormStudent] = useState<Student | null>(null);
+  /**
+   * LE CHEVALIER QU'ON INSCRIT SUR UNE FORMATION DE LA VITRINE.
+   *
+   * Le site inscrit sans encaisser ; au comptoir, la famille est là, et la
+   * question de l'argent se pose tout de suite. La fenêtre porte donc les deux :
+   * l'inscription, et le règlement — immédiat ou porté à la dette.
+   */
+  const [formationStudent, setFormationStudent] = useState<Student | null>(null);
 
   // Scanner state
   const [scanRfidInput, setScanRfidInput] = useState("");
@@ -1501,7 +1511,7 @@ export function StudentsPage() {
   };
 
   /** Les comptes de CHEVALIERS créés depuis la page de connexion, en attente. */
-  const pendingStudents = usePendingRequests("student");
+  const pendingStudents = usePendingRequests("student", "login");
 
   return (
     <div>
@@ -1825,6 +1835,37 @@ export function StudentsPage() {
                             {chargeDue > 0 ? formatDA(chargeDue) : "Ses frais"}
                           </button>
                         </div>
+                      </div>
+                      )}
+
+                      {/* LES FORMATIONS ET LES ÉVÈNEMENTS DE LA VITRINE.
+                          On l'y inscrit d'ici, et l'on décide de l'argent dans
+                          le même geste : il paie au guichet, ou le prix rejoint
+                          sa dette jusqu'à ce qu'il passe. */}
+                      {can("charges") && (
+                      <div>
+                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                          Formations &amp; évènements
+                        </span>
+                        <button
+                          onClick={() => setFormationStudent(stu)}
+                          className="flex w-full items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-[11px] font-bold hover:bg-white/25"
+                        >
+                          <Megaphone className="h-4 w-4 shrink-0" />
+                          <span className="min-w-0 text-start">
+                            Inscrire sur une formation
+                            <span className="block text-[9px] font-semibold text-white/70">
+                              {(() => {
+                                const count = formationEnrollments.filter(
+                                  (e) => e.studentId === stu.id,
+                                ).length;
+                                return count > 0
+                                  ? `Déjà inscrit sur ${count} formation(s)`
+                                  : "Payer tout de suite, ou porter à sa dette";
+                              })()}
+                            </span>
+                          </span>
+                        </button>
                       </div>
                       )}
 
@@ -3347,6 +3388,13 @@ export function StudentsPage() {
           student={students.find((s) => s.id === chargeStudent.student.id) ?? chargeStudent.student}
           initialTab={chargeStudent.tab}
           onClose={() => setChargeStudent(null)}
+        />
+      )}
+
+      {formationStudent && (
+        <AssignFormationModal
+          student={students.find((s) => s.id === formationStudent.id) ?? formationStudent}
+          onClose={() => setFormationStudent(null)}
         />
       )}
 

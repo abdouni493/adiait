@@ -58,6 +58,8 @@ const PRESENT: Record<CollectionKey, true> = {
   independent: true,
   groupSeances: true,
   accountRequests: true,
+  formations: true,
+  formationEnrollments: true,
 };
 
 export const COLLECTION_ORDER = Object.keys(PRESENT) as CollectionKey[];

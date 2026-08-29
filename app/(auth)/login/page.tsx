@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ShieldPlus, UserPlus } from "lucide-react";
+import { Globe, ShieldPlus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/SearchInput";
 import { ThemeToggle } from "@/components/controls/ThemeToggle";
@@ -173,6 +173,23 @@ export default function LoginPage() {
 
       {/* Top controls */}
       <div className="absolute end-4 top-4 z-20 flex items-center gap-2">
+        {/*
+          LA PORTE DU DEHORS.
+
+          Quelqu'un qui arrive sur la connexion n'est pas toujours un membre :
+          c'est parfois un parent qui cherche les formations du club et qui est
+          tombé là. Le site s'ouvre donc d'ici — dans un AUTRE ONGLET, pour que
+          celui qui allait vraiment se connecter retrouve son formulaire intact.
+        */}
+        <a
+          href="/site"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl border border-accent/35 bg-surface/85 px-3 py-2 text-sm font-semibold text-ink backdrop-blur transition-colors hover:border-accent/60 hover:bg-surface"
+        >
+          <Globe className="h-4 w-4 text-accent-ink" />
+          <span className="hidden sm:inline">{t("auth.visitWebsite")}</span>
+        </a>
         <LanguageSwitcher />
         <ThemeToggle />
       </div>

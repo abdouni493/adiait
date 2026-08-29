@@ -25,6 +25,7 @@ import { money, positiveMoney, formatDA } from "@/lib/utils";
 import type {
   AbsencePenalty,
   AccountRequest,
+  AccountRequestSource,
   Announcement,
   AttendanceRecord,
   AttendanceStatus,
@@ -37,6 +38,9 @@ import type {
   Enrollment,
   Expense,
   ExpenseCategory,
+  Formation,
+  FormationEnrollment,
+  FormationKind,
   FreePeriod,
   FreePeriodStat,
   Group,
@@ -139,9 +143,14 @@ export interface Database {
   /**
    * LES DEMANDES DE COMPTE VENUES DE LA PAGE DE CONNEXION — un chevalier ou un
    * parent qui s'est inscrit lui-même et attend que l'intendance le rattache à
-   * une fiche.
+   * une fiche. Depuis la vitrine, elles portent en plus la formation d'où elles
+   * sont parties (`source: "website"`).
    */
   accountRequests: AccountRequest[];
+  /** LES FORMATIONS ET LES ÉVÈNEMENTS publiés sur le site du club. */
+  formations: Formation[];
+  /** QUI EST INSCRIT SUR QUOI — et le frais que l'inscription a porté. */
+  formationEnrollments: FormationEnrollment[];
 }
 
 // =============================================================================
@@ -965,6 +974,77 @@ interface DataActions {
   setStudentPassword: (studentId: string, password: string) => Promise<void>;
   /** Turns the weekly-absence billing on/off for a single module. */
   setModuleAbsenceRule: (moduleId: string, enabled: boolean, daysWindow?: number) => Promise<void>;
+  // ---- LA VITRINE : FORMATIONS, ÉVÈNEMENTS ET LEURS INSCRITS --------------
+  /**
+   * CRÉE OU RÉÉCRIT UNE FORMATION (ou un évènement) DU SITE.
+   *
+   * Le nom de l'encadrant est RECOPIÉ sur la ligne au passage : le site est lu
+   * sans compte, et la RLS ne rend pas la table des entraîneurs à un visiteur.
+   * Sans cette copie, la carte publique afficherait un identifiant.
+   */
+  saveFormation: (input: {
+    id?: string;
+    kind: FormationKind;
+    name: string;
+    description?: string;
+    startDate: string;
+    startTime?: string;
+    endDate: string;
+    endTime?: string;
+    days?: string[];
+    trainerId?: string;
+    trainerName?: string;
+    trainerNote?: string;
+    price?: number;
+    seances?: number;
+    images?: string[];
+    hidden?: boolean;
+  }) => Promise<{ ok: boolean; id?: string; messageKey?: string }>;
+  /**
+   * SUPPRIME UNE FORMATION, ET AVEC ELLE SES INSCRIPTIONS.
+   *
+   * Les FRAIS déjà portés aux chevaliers, eux, RESTENT : ils ont été facturés,
+   * parfois payés, et effacer une dette parce qu'on retire une annonce du site
+   * ferait disparaître de l'argent de la caisse. Ce que la suppression enlève,
+   * c'est la vitrine et la liste des inscrits — pas la comptabilité.
+   */
+  deleteFormation: (id: string) => Promise<{ ok: boolean }>;
+  /**
+   * INSCRIT UN CHEVALIER SUR UNE FORMATION, ET DÉCIDE DE L'ARGENT.
+   *
+   * Deux cas, et un seul geste :
+   *
+   *   - `amountPaid > 0` : il paie tout de suite, en tout ou en partie. Le
+   *     versement entre en caisse et le frais est soldé d'autant ;
+   *   - `amountPaid = 0` : il paiera plus tard. Le frais reste ouvert, et le
+   *     chevalier porte la dette exactement comme un livre impayé — visible sur
+   *     sa fiche, sur la feuille de présence de son groupe et dans les rapports.
+   *
+   * C'est ce qui permet au site d'inscrire quelqu'un sans le faire payer en
+   * ligne : l'inscription est réelle, l'argent viendra au comptoir.
+   */
+  enrollInFormation: (args: {
+    formationId: string;
+    studentId: string;
+    /** le prix retenu — celui de la formation quand il est absent */
+    price?: number;
+    /** ce qui est versé DANS LA FOULÉE (0 = tout reste dû) */
+    amountPaid?: number;
+    /** le jour de l'inscription (YYYY-MM-DD) — aujourd'hui quand absent */
+    date?: string;
+    source?: AccountRequestSource;
+  }) => Promise<{
+    ok: boolean;
+    id?: string;
+    chargeId?: string;
+    due?: number;
+    paid?: number;
+    messageKey?: string;
+  }>;
+  /** Retire un chevalier d'une formation. Le frais impayé part avec lui ; un
+   *  frais déjà réglé, même en partie, reste — l'argent a bougé. */
+  unenrollFormation: (id: string) => Promise<{ ok: boolean }>;
+
   deleteFrom: <K extends keyof Database>(key: K, id: string) => void;
   push: <K extends keyof Database>(
     key: K,
@@ -4356,6 +4436,170 @@ export const useData = create<DataStore>((set, get) => ({
         { moduleId, enabled, daysWindow },
       ],
     }));
+  },
+
+  // ---- La vitrine : formations, évènements et leurs inscrits ----------------
+  saveFormation: async (input) => {
+    const db = get();
+    const label = (input.name ?? "").trim();
+    if (!label) return { ok: false, messageKey: "formation.nameRequired" };
+    if (!input.startDate || !input.endDate) {
+      return { ok: false, messageKey: "formation.periodRequired" };
+    }
+    // Une période à l'envers ne se dessine pas : le calendrier de l'écran de
+    // création n'aurait aucun jour à cocher, et le site afficherait une
+    // formation qui finit avant de commencer.
+    if (input.endDate < input.startDate) {
+      return { ok: false, messageKey: "formation.periodReversed" };
+    }
+
+    // Le nom de l'encadrant est FIGÉ ici. Le site est lu sans compte, et la RLS
+    // ne rend pas la table des entraîneurs à un visiteur : sans cette copie, sa
+    // carte publique afficherait « tea-mf3k2a-9c1b ».
+    const trainer = input.trainerId
+      ? db.teachers.find((t) => t.id === input.trainerId)
+      : undefined;
+    const trainerName =
+      input.trainerName?.trim() ||
+      (trainer ? `${trainer.firstName} ${trainer.lastName}`.trim() : "");
+
+    const fields = {
+      kind: input.kind,
+      name: label,
+      description: (input.description ?? "").trim(),
+      startDate: input.startDate,
+      startTime: input.startTime || "",
+      endDate: input.endDate,
+      endTime: input.endTime || "",
+      days: [...new Set(input.days ?? [])].sort(),
+      trainerId: input.trainerId || undefined,
+      trainerName: trainerName || undefined,
+      trainerNote: input.trainerNote?.trim() || undefined,
+      price: positiveMoney(input.price ?? 0),
+      seances: Math.max(0, Math.round(input.seances ?? 0)),
+      images: (input.images ?? []).filter(Boolean),
+      hidden: input.hidden ?? false,
+    };
+
+    const existing = input.id ? db.formations.find((f) => f.id === input.id) : undefined;
+    if (existing) {
+      set((state) => ({
+        formations: state.formations.map((f) =>
+          f.id === existing.id ? { ...f, ...fields } : f,
+        ),
+      }));
+      return { ok: true, id: existing.id };
+    }
+
+    const row: Formation = {
+      ...authorStamp(),
+      id: uid("frm"),
+      ...fields,
+      createdAt: new Date().toISOString(),
+    };
+    set((state) => ({ formations: [...state.formations, row] }));
+    return { ok: true, id: row.id };
+  },
+
+  deleteFormation: async (id) => {
+    set((state) => ({
+      formations: state.formations.filter((f) => f.id !== id),
+      // Les inscriptions partent avec l'annonce — c'est ce que fait le
+      // `on delete cascade` en base, et le magasin doit dire la même chose.
+      // Les FRAIS, eux, restent : ils ont été facturés, et parfois payés.
+      formationEnrollments: state.formationEnrollments.filter((e) => e.formationId !== id),
+    }));
+    return { ok: true };
+  },
+
+  enrollInFormation: async ({ formationId, studentId, price, amountPaid, date, source }) => {
+    const db = get();
+    const formation = db.formations.find((f) => f.id === formationId);
+    if (!formation) return { ok: false, messageKey: "formation.notFound" };
+    const student = db.students.find((s) => s.id === studentId);
+    if (!student) return { ok: false, messageKey: "student.notFound" };
+
+    // Inscrire deux fois le même chevalier lui porterait le prix deux fois.
+    const already = db.formationEnrollments.find(
+      (e) => e.formationId === formationId && e.studentId === studentId,
+    );
+    if (already) return { ok: false, id: already.id, messageKey: "formation.alreadyEnrolled" };
+
+    const day = date || dateKey(new Date());
+    const due = positiveMoney(price ?? formation.price ?? 0);
+    const enrollmentId = uid("fen");
+
+    // LE PRIX DEVIENT UN FRAIS ORDINAIRE. C'est ce qui le fait apparaître, sans
+    // une ligne de code de plus, sur la fiche du chevalier, sur la feuille de
+    // présence de son groupe et dans les rapports — et ce qui permet de le
+    // régler en plusieurs fois, comme n'importe quelle autre dette.
+    const chargeId = due > 0 ? uid("chg") : undefined;
+    if (chargeId) {
+      const charge: StudentCharge = {
+        ...authorStamp(),
+        id: chargeId,
+        studentId,
+        name: formation.kind === "event" ? "Évènement" : "Formation",
+        amount: due,
+        description: formation.name,
+        date: day,
+        origin: "formation",
+        paidAmount: 0,
+        paid: false,
+        createdAt: new Date().toISOString(),
+      };
+      set((state) => ({ studentCharges: [...state.studentCharges, charge] }));
+    }
+
+    const row: FormationEnrollment = {
+      ...authorStamp(),
+      id: enrollmentId,
+      formationId,
+      studentId,
+      price: due,
+      chargeId,
+      date: day,
+      source: source ?? "login",
+      createdAt: new Date().toISOString(),
+    };
+    set((state) => ({ formationEnrollments: [...state.formationEnrollments, row] }));
+
+    // L'ARGENT, S'IL EST LÀ. Le versement passe par le même chemin que tous les
+    // autres règlements de frais : un paiement, une entrée en caisse, un reçu
+    // imprimable. Rien ici ne fabrique de monnaie à part.
+    const take = Math.min(positiveMoney(amountPaid ?? 0), due);
+    let paid = 0;
+    if (chargeId && take > 0) {
+      const result = await get().payStudentCharges({
+        studentId,
+        lines: [{ chargeId, amount: take }],
+        date: day,
+        description: formation.name,
+      });
+      paid = result.paid ?? 0;
+    }
+
+    return { ok: true, id: enrollmentId, chargeId, due, paid };
+  },
+
+  unenrollFormation: async (id) => {
+    const db = get();
+    const row = db.formationEnrollments.find((e) => e.id === id);
+    if (!row) return { ok: false };
+
+    // Un frais SUR LEQUEL RIEN N'A ÉTÉ VERSÉ s'en va avec l'inscription : il ne
+    // reste plus rien à réclamer. Dès qu'un dinar est tombé, il RESTE — sinon
+    // l'encaissement et son reçu désigneraient une dette qui n'existe plus.
+    const charge = row.chargeId ? db.studentCharges.find((c) => c.id === row.chargeId) : undefined;
+    const untouched = !!charge && positiveMoney(charge.paidAmount ?? 0) === 0;
+
+    set((state) => ({
+      formationEnrollments: state.formationEnrollments.filter((e) => e.id !== id),
+      studentCharges: untouched
+        ? state.studentCharges.filter((c) => c.id !== row.chargeId)
+        : state.studentCharges,
+    }));
+    return { ok: true };
   },
 
   // ---- Plain collection mutations -------------------------------------------

@@ -316,7 +316,7 @@ export function ParentsPage() {
   };
 
   /** Les comptes de PARENTS créés depuis la page de connexion, en attente. */
-  const pendingParents = usePendingRequests("parent");
+  const pendingParents = usePendingRequests("parent", "login");
 
   return (
     <div>

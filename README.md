@@ -1112,6 +1112,94 @@ Dans la fiche d'un élève, onglet **Paiements**, chaque versement porte un bout
 famille perd son reçu, l'école en veut un double : il se rejoue depuis la ligne elle-même, sur le
 même modèle qu'au guichet.
 
+## Le site public du club
+
+L'application était fermée : pour savoir ce que le club proposait, il fallait déjà un compte —
+donc être déjà venu. Le site renverse cela. Il s'ouvre sur `/site`, **sans compte**, et se règle
+entièrement depuis l'application, sur l'écran **Site web**.
+
+Deux boutons y mènent : le globe de la barre du haut, et celui de la page de connexion. Tous deux
+ouvrent **un autre onglet** — celui qui règle la vitrine veut la voir sans perdre l'écran qu'il
+remplissait, et celui qui allait se connecter veut retrouver son formulaire intact.
+
+**Le site s'ouvre en arabe**, la langue du club et de ses familles. Le français reste à un clic,
+dans l'en-tête, et le choix est le même que celui de l'application : il est rangé dans le
+navigateur, donc il suit d'un côté à l'autre.
+
+### Ce que le dehors peut lire — deux tables, pas une de plus
+
+| Table                | Ce qu'elle rend à un visiteur anonyme                                       |
+| -------------------- | -------------------------------------------------------------------------- |
+| `schools`            | Le nom, le logo, et toute la vitrine : favicon, présentations, image de fond, vidéo, réseaux, plan, deux numéros (colonnes `site_*`) |
+| `website_formations` | Les formations et les évènements **affichés** (`hidden` faux)               |
+
+Rien d'autre ne sort. C'est pourquoi le nom de l'encadrant est **recopié** sur la formation
+(`trainer_name`) : la table des entraîneurs, elle, reste fermée, et sans cette copie la carte
+publique afficherait `tea-mf3k2a-9c1b`.
+
+Le filtre sur `hidden` est posé **dans la politique de lecture**, pas seulement dans le navigateur :
+une annonce masquée ne sort pas, même si l'on devine son adresse.
+
+### Une formation se compte en dates, pas en jours de semaine
+
+Une formation ne « tient pas tous les mardis » : elle tient **les 4, 11 et 18 mars**. L'écran de
+création déplie le calendrier de la période — une case par jour, groupées par mois — et l'on coche
+les journées réelles. Un jour férié sauté, une semaine de vacances, une séance de rattrapage se
+disent alors sans qu'on ait à inventer une exception à une règle de récurrence.
+
+Ne rien cocher veut dire **toute la période** : c'est ce qu'est un évènement d'un seul tenant.
+
+Chaque formation porte cinq actions : **détails**, **modifier**, **masquer** (elle quitte la
+vitrine sans être supprimée), **copier le lien** (l'adresse publique, absolue, prête à être
+envoyée) et **supprimer** — avec une confirmation qui dit ce qui part *et* ce qui reste.
+
+### L'inscription et l'argent sont séparés
+
+Quelqu'un qui s'inscrit depuis le site n'a **rien payé** : il paiera au comptoir, parfois des
+semaines plus tard. Le formulaire d'inscription est **celui de la page de connexion** — le vrai,
+pas une copie : mêmes champs, mêmes questions, mêmes règles, plus la formation visée. Deux
+formulaires écrits séparément finiraient par diverger, et l'intendance recevrait alors deux
+dossiers de nature différente pour un seul et même geste.
+
+La demande arrive dans l'écran **Inscriptions du site**, qui est la même fenêtre d'activation que
+la cloche du tableau de bord — à ceci près qu'elle **inscrit aussi sur la formation**. Le prix
+devient alors un frais ordinaire au compte du chevalier (`student_charges`, origine `formation`) :
+il s'affiche sur sa fiche, sur la feuille de présence de son groupe et dans les rapports, et se
+règle en une ou plusieurs fois, comme un livre impayé. Aucune ligne de comptabilité n'a été
+inventée pour l'occasion.
+
+Trois autres gestes y sont possibles : **modifier** une inscription (corriger ce qu'un téléphone a
+mal saisi, *avant* de créer la fiche), **supprimer** la ligne — le compte de connexion, lui, reste,
+puisqu'il ne pilote aucune fiche et ne coûte rien — et filtrer par nature et par formation.
+
+Les deux files d'attente ne se confondent jamais : la cloche du tableau de bord garde les comptes
+créés depuis la **page de connexion**, l'écran des inscriptions garde ceux venus du **site**
+(`account_requests.source`). Une demande sans origine est antérieure à la vitrine : elle vient de
+la page de connexion, et compte comme telle.
+
+### Le chiffre rouge de la barre latérale
+
+Une famille crée son compte à 22 h ; quelqu'un s'inscrit un dimanche. Ces demandes dormaient dans
+une table que personne n'ouvre. **Tableau de bord** et **Inscriptions du site** portent donc une
+pastille qui compte ce qui attend — et qui pulse tant que ce n'est pas traité, parce qu'un chiffre
+immobile dans un menu qu'on voit toute la journée finit par ne plus se voir.
+
+Elle ne compte que ce qu'on peut **traiter** : un travailleur à qui l'écran n'a pas été ouvert ne
+voit pas de chiffre réclamer un geste qu'il ne peut pas poser.
+
+### Inscrire un chevalier au comptoir
+
+Depuis la fiche d'un chevalier, **Inscrire sur une formation** pose l'inscription et tranche
+l'argent dans le même geste, parce que c'est un seul geste au guichet :
+
+- **il paie maintenant** — en tout ou en partie : l'argent entre en caisse, un reçu peut être
+  imprimé, et ce qui n'est pas versé reste dû ;
+- **il paiera plus tard** — rien n'entre en caisse, le prix rejoint sa dette.
+
+Le prix peut être corrigé pour ce chevalier-là (une remise, un tarif de famille). Retirer une
+inscription emporte le frais **sur lequel rien n'a été versé** ; dès qu'un dinar est tombé, le
+frais reste — l'encaissement et son reçu désigneraient sinon une dette qui n'existe plus.
+
 ## Structure
 
 | Domaine                          | Fichiers                                                              |
@@ -1136,6 +1224,16 @@ même modèle qu'au guichet.
 | Droits d'accès (catalogue)       | `lib/permissions.ts`, `lib/usePermissions.ts`, `components/workers/WorkerPermissionsModal.tsx` |
 | Papiers des travailleurs         | `lib/reports/workerDocuments.ts`                                       |
 | Cloche des paiements travailleurs| `components/dashboard/WorkerPaymentsAlert.tsx`                          |
+| Site public (pages, coquille)    | `app/site/`, `components/site/`                                        |
+| Lecture publique (sans compte)   | `lib/site/public.ts`, `lib/store/site.ts`                              |
+| Calendrier d'une formation       | `lib/site/formations.ts`                                               |
+| Liens & réseaux du site          | `lib/site/contacts.ts`, `components/website/BrandIcons.tsx`            |
+| Gestion du site (3 quartiers)    | `components/pages/WebsitePage.tsx`, `components/website/`              |
+| Inscriptions venues du site      | `components/pages/WebsiteInscriptionsPage.tsx`, `components/accounts/AccountRequests.tsx` |
+| Inscrire un chevalier au comptoir| `components/students/AssignFormationModal.tsx`                          |
+| Pastilles de la barre latérale   | `lib/useNavAlerts.ts`                                                  |
 
-L'application n'affiche **aucun favicon** : l'onglet du navigateur reste sans icône. Le logo
-téléversé dans **Paramètres** ne sert que dans l'application et sur les documents imprimés.
+L'**application** n'affiche aucun favicon de son cru : l'onglet reste à l'écusson de l'Ordre
+(`app/icon.svg`), et le logo téléversé dans **Paramètres** ne sert que dans l'application et sur
+les documents imprimés. Le **site public**, lui, porte le favicon réglé dans « Site web »
+(`schools.site_favicon`), et retombe sur le logo du club quand aucun n'a été déposé.

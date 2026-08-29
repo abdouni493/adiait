@@ -29,6 +29,7 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   BadgeCheck,
+  Megaphone,
   Bell,
   BellRing,
   Check,
@@ -58,10 +59,13 @@ import { useSession } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import { linkAccountToEntity } from "@/lib/accounts/requests";
 import { formatDateFr, joinPointFor, nextRegistrationNumber, todayIso } from "@/lib/helpers";
+import { formatDA } from "@/lib/utils";
+import { periodLabel } from "@/lib/site/formations";
 import { toInternational } from "@/lib/whatsapp/phone";
 import type {
   AccountRequest,
   AccountRequestChild,
+  AccountRequestSource,
   Parent,
   Student,
   SubscriptionDates,
@@ -76,16 +80,31 @@ function samePhone(a?: string, b?: string): boolean {
   return !!x && !!y && x === y;
 }
 
-/** Les demandes encore à traiter, les plus récentes d'abord. */
-export function usePendingRequests(kind?: "student" | "parent"): AccountRequest[] {
+/**
+ * Les demandes encore à traiter, les plus récentes d'abord.
+ *
+ * `source` sépare LES DEUX PORTES par lesquelles une demande arrive : la page
+ * de connexion de l'application (`login`) et le site public du club
+ * (`website`). Elles se traitent avec le même geste, mais elles ne s'affichent
+ * pas au même endroit — le tableau de bord ne doit pas sonner deux fois pour ce
+ * que l'écran « Inscriptions du site » montre déjà.
+ *
+ * Une demande SANS origine est une demande d'avant la vitrine : elle vient
+ * forcément de la page de connexion, et compte comme telle.
+ */
+export function usePendingRequests(
+  kind?: "student" | "parent",
+  source?: AccountRequestSource,
+): AccountRequest[] {
   const requests = useData((s) => s.accountRequests);
   return useMemo(
     () =>
       requests
         .filter((r) => r.status === "pending")
         .filter((r) => !kind || r.kind === kind)
+        .filter((r) => !source || (r.source ?? "login") === source)
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")),
-    [requests, kind],
+    [requests, kind, source],
   );
 }
 
@@ -93,7 +112,7 @@ export function usePendingRequests(kind?: "student" | "parent"): AccountRequest[
 //  LA FENÊTRE D'ACTIVATION
 // ===========================================================================
 
-function ActivationModal({
+export function ActivationModal({
   request,
   onClose,
 }: {
@@ -156,6 +175,31 @@ function ActivationModal({
   const [openChild, setOpenChild] = useState<number | null>(null);
 
   const declaredChildren: AccountRequestChild[] = request.children ?? [];
+
+  /**
+   * LA FORMATION D'OÙ LA DEMANDE EST PARTIE — quand elle vient du site.
+   *
+   * Quelqu'un qui s'inscrit depuis la vitrine ne demande pas « un compte » : il
+   * demande UNE FORMATION. Activer son compte sans l'y inscrire lui donnerait
+   * un accès à un club dont il ne suivrait rien, et l'intendance devrait
+   * refaire à la main ce que le formulaire disait déjà.
+   *
+   * L'inscription naît donc AVEC l'activation, et SANS ARGENT : le prix est
+   * porté au compte comme n'importe quel autre frais, et il se réglera au
+   * comptoir, le jour où la famille passera.
+   */
+  const formation = request.formationId
+    ? db.formations.find((f) => f.id === request.formationId)
+    : undefined;
+
+  /**
+   * UN PARENT RATTACHÉ À UNE FICHE QUI EXISTE DÉJÀ : QUI PARTICIPE ?
+   *
+   * On ne peut pas le deviner. Ses fils sont peut-être trois, et un seul veut
+   * faire le stage. La liste de ses enfants s'affiche donc, et l'on coche —
+   * plutôt que d'inscrire tout le monde ou personne.
+   */
+  const [formationChildIds, setFormationChildIds] = useState<string[]>([]);
 
   const q = search.trim().toLowerCase();
   const candidates = useMemo(() => {
@@ -221,6 +265,29 @@ function ActivationModal({
     return dates;
   };
 
+  /**
+   * INSCRIT LES CHEVALIERS DÉSIGNÉS SUR LA FORMATION DE LA DEMANDE.
+   *
+   * Sans argent : `amountPaid` vaut zéro, donc le prix reste ENTIÈREMENT dû. Il
+   * apparaît dès lors comme une dette ordinaire — sur la fiche du chevalier, sur
+   * la feuille de présence de son groupe et dans les rapports — et se règle au
+   * guichet, en une ou plusieurs fois.
+   */
+  const enrollOnFormation = async (studentIds: string[]) => {
+    if (!formation) return 0;
+    let done = 0;
+    for (const studentId of studentIds) {
+      const result = await db.enrollInFormation({
+        formationId: formation.id,
+        studentId,
+        amountPaid: 0,
+        source: "website",
+      });
+      if (result.ok) done += 1;
+    }
+    return done;
+  };
+
   // ---- RATTACHER À UNE FICHE EXISTANTE ------------------------------------
   const confirmLink = async () => {
     if (!picked) return;
@@ -236,11 +303,28 @@ function ActivationModal({
         updateItem("students", picked.id, { email: request.email });
       }
 
-      updateItem("accountRequests", request.id, { ...stamp(), linkedEntityId: picked.id });
+      // La formation demandée depuis le site, posée sur la fiche qu'on vient de
+      // rattacher : le chevalier lui-même, ou les fils que l'on a cochés.
+      //
+      // Les fils cochés sont RELUS sur la fiche retenue : on a pu changer de
+      // parent après avoir coché, et l'on inscrirait alors l'enfant de
+      // quelqu'un d'autre.
+      const childIds = isParent
+        ? formationChildIds.filter((id) =>
+            students.some((st) => st.id === id && st.parentId === picked.id),
+          )
+        : [];
+      const enrolled = await enrollOnFormation(isParent ? childIds : [picked.id]);
+
+      updateItem("accountRequests", request.id, {
+        ...stamp(),
+        linkedEntityId: picked.id,
+        ...(childIds.length > 0 ? { linkedChildIds: childIds } : {}),
+      });
 
       addToast({
         type: "success",
-        title: "Compte activé",
+        title: formation && enrolled > 0 ? "Compte activé & inscrit" : "Compte activé",
         message: `${request.firstName} ${request.lastName} pilote désormais la fiche « ${
           isParent
             ? `${(picked as Parent).firstName} ${(picked as Parent).lastName}`
@@ -321,6 +405,10 @@ function ActivationModal({
           await db.applyEngagementCharges(studentId, childSubs[index] ?? []);
         }
 
+        // Et la formation du site, quand la demande en portait une : tous les
+        // fils qui viennent de naître y sont inscrits, sans rien payer encore.
+        await enrollOnFormation(childIds);
+
         await linkAccountToEntity(request.accountId, parentId, "parent");
         updateItem("accountRequests", request.id, {
           ...stamp(),
@@ -365,6 +453,7 @@ function ActivationModal({
       };
       push("students", student);
       await db.applyEngagementCharges(studentId, subIds);
+      await enrollOnFormation([studentId]);
 
       await linkAccountToEntity(request.accountId, studentId, "student");
       updateItem("accountRequests", request.id, { ...stamp(), linkedEntityId: studentId });
@@ -460,6 +549,80 @@ function ActivationModal({
             </p>
           )}
         </div>
+
+        {/* ---- LA FORMATION DEMANDÉE, quand la demande vient du site ---- */}
+        {formation && (
+          <div className="space-y-2 rounded-2xl border border-accent/40 bg-accent-wash/60 p-3">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+              <Megaphone className="h-3.5 w-3.5" /> Inscription venue du site
+            </span>
+            <p className="text-[11px] leading-relaxed text-ink">
+              Cette demande porte sur{" "}
+              <strong>{formation.name}</strong>
+              {" — "}
+              {periodLabel(formation)}
+              {formation.price > 0 ? (
+                <>
+                  , <strong>{formatDA(formation.price)}</strong>.
+                </>
+              ) : (
+                <>, offerte.</>
+              )}{" "}
+              L&apos;activation inscrira {isParent ? "les fils cochés" : "le chevalier"}{" "}
+              <strong>sans encaisser quoi que ce soit</strong> : le prix est porté au compte
+              comme un frais ordinaire, et se règle au comptoir le jour où la famille passe.
+            </p>
+
+            {/* Un parent RATTACHÉ à une fiche existante : lesquels de ses fils
+                participent ? On ne le devine pas — on le demande. */}
+            {isParent && mode === "link" && picked && (
+              <div className="space-y-1.5 rounded-xl border border-line bg-surface p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Qui participe ?
+                </span>
+                {students.filter((st) => st.parentId === picked.id).length === 0 ? (
+                  <p className="text-[11px] italic text-muted">
+                    Aucun fils n&apos;est rattaché à cette fiche. Rattachez-les d&apos;abord
+                    depuis l&apos;écran Parents, puis inscrivez-les depuis leur fiche.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {students
+                      .filter((st) => st.parentId === picked.id)
+                      .map((st) => {
+                        const on = formationChildIds.includes(st.id);
+                        return (
+                          <button
+                            key={st.id}
+                            type="button"
+                            onClick={() =>
+                              setFormationChildIds((prev) =>
+                                on ? prev.filter((x) => x !== st.id) : [...prev, st.id],
+                              )
+                            }
+                            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                              on
+                                ? "border-primary bg-primary text-white"
+                                : "border-line bg-surface text-ink hover:bg-primary-50"
+                            }`}
+                          >
+                            {on && <Check className="h-3 w-3" />}
+                            {st.firstName} {st.lastName}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isParent && mode === "create" && (
+              <p className="rounded-xl border border-line bg-surface p-2 text-[10px] leading-relaxed text-muted">
+                Les fils créés depuis cette demande seront TOUS inscrits sur la formation.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ---- LA DÉTECTION AUTOMATIQUE -------------------------------- */}
         {detected ? (
@@ -766,15 +929,22 @@ function ActivationModal({
 
 export function AccountRequestsPanel({
   kind,
+  source = "login",
   title,
   emptyHint,
 }: {
   /** `undefined` = les deux natures de demande (le tableau de bord) */
   kind?: "student" | "parent";
+  /**
+   * D'où viennent les demandes qu'on montre ici. Par défaut celles de la PAGE
+   * DE CONNEXION : celles du site ont leur propre écran, et les afficher deux
+   * fois ferait croire à deux files d'attente là où il n'y en a qu'une.
+   */
+  source?: AccountRequestSource;
   title?: string;
   emptyHint?: string;
 }) {
-  const pending = usePendingRequests(kind);
+  const pending = usePendingRequests(kind, source);
   const [open, setOpen] = useState<AccountRequest | null>(null);
 
   return (
@@ -859,7 +1029,7 @@ export function AccountRequestsPanel({
  * tableau de bord est le seul écran que l'intendance regarde tous les matins.
  */
 export function AccountRequestsAlert() {
-  const pending = usePendingRequests();
+  const pending = usePendingRequests(undefined, "login");
   const [open, setOpen] = useState(false);
 
   const students = pending.filter((r) => r.kind === "student").length;

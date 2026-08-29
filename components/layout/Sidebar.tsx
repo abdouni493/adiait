@@ -11,6 +11,7 @@ import { useData } from "@/lib/store/data";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { PERMISSION_PAGES } from "@/lib/permissions";
 import { useAccessRights } from "@/lib/usePermissions";
+import { useNavAlerts } from "@/lib/useNavAlerts";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
@@ -27,6 +28,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const role = user?.role ?? "admin";
   const rights = useAccessRights();
+  /** Ce qui attend quelqu'un, écran par écran — voir `lib/useNavAlerts.ts`. */
+  const alerts = useNavAlerts();
 
   /**
    * CE QUE CE COMPTE VOIT DANS SA BARRE LATÉRALE.
@@ -72,6 +75,15 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const renderItem = (item: NavItem) => {
     const active = item.action !== "logout" && isActive(pathname, item.href);
     const Icon = navIcon(item.key);
+    /**
+     * LE CHIFFRE ROUGE.
+     *
+     * Il ne dit pas « il y a des choses ici » — tous les écrans en contiennent.
+     * Il dit « quelque chose t'attend, et personne ne l'a encore traité » :
+     * des comptes à activer, des inscriptions venues du site, des
+     * encaissements à relire. C'est la seule raison d'interrompre quelqu'un.
+     */
+    const alert = alerts[item.key] ?? 0;
 
     const content = (
       <>
@@ -96,6 +108,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           aria-hidden="true"
         />
         <span className="truncate">{t(`nav.${item.key}`)}</span>
+        {alert > 0 && (
+          <motion.span
+            // La pastille PULSE tant qu'elle n'est pas traitée : un chiffre
+            // immobile dans un menu qu'on voit toute la journée finit par ne
+            // plus se voir du tout.
+            animate={{ scale: [1, 1.12, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+            className="ms-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] font-black tabular-nums text-white"
+            aria-label={`${alert} ${t("common.pending")}`}
+          >
+            {alert > 99 ? "99+" : alert}
+          </motion.span>
+        )}
       </>
     );
 

@@ -39,7 +39,11 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/SearchInput";
 import { requestAccount } from "@/lib/accounts/requests";
 import { useT } from "@/lib/i18n/useT";
-import type { AccountRequestChild, AccountRequestKind } from "@/lib/types";
+import type {
+  AccountRequestChild,
+  AccountRequestKind,
+  AccountRequestSource,
+} from "@/lib/types";
 
 /** Un fils en cours de saisie, avec la clé qui le suit dans la liste. */
 interface ChildDraft extends AccountRequestChild {
@@ -115,7 +119,33 @@ function ChoiceCard({
   );
 }
 
-export function SignupFlow({ onCancel }: { onCancel: () => void }) {
+/**
+ * LE MÊME FORMULAIRE SERT LES DEUX PORTES.
+ *
+ * La page de connexion l'ouvre sans rien de plus. Le SITE PUBLIC l'ouvre au bas
+ * d'une formation, et lui passe alors deux choses : d'où vient la demande, et
+ * SUR QUOI elle porte. Rien d'autre ne change — ni les champs, ni les
+ * questions, ni les mots — parce qu'une famille qui s'inscrit depuis la vitrine
+ * doit répondre exactement aux mêmes questions que celle qui vient au comptoir,
+ * faute de quoi l'intendance recevrait deux dossiers de nature différente.
+ */
+export function SignupFlow({
+  onCancel,
+  source = "login",
+  formationId,
+  formationName,
+  cancelLabel,
+}: {
+  onCancel: () => void;
+  /** `website` quand le formulaire est ouvert depuis le site public */
+  source?: AccountRequestSource;
+  /** la formation ou l'évènement demandé, quand la demande en vise un */
+  formationId?: string;
+  /** son titre, pour que le formulaire dise sur quoi on s'inscrit */
+  formationName?: string;
+  /** le libellé du bouton de sortie — « Retour à la connexion » par défaut */
+  cancelLabel?: string;
+}) {
   // Les phrases de ce formulaire sont écrites en français : elles passent par
   // le dictionnaire, comme partout ailleurs dans l'application.
   const { tr } = useT();
@@ -226,6 +256,8 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
         existingMember,
         childrenSubscribed: kind === "parent" ? childrenSubscribed === true : undefined,
         children: declared,
+        source,
+        formationId,
       });
       setDone(true);
     } catch (err) {
@@ -246,14 +278,23 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/15 text-success">
           <CheckCircle2 className="h-7 w-7" />
         </div>
-        <h2 className="text-base font-bold text-ink">{tr("Votre compte est créé")}</h2>
+        <h2 className="text-base font-bold text-ink">
+          {tr(formationName ? "Votre inscription est enregistrée" : "Votre compte est créé")}
+        </h2>
+        {formationName && (
+          <p className="rounded-2xl border border-accent/40 bg-accent-wash/60 p-3 text-sm leading-relaxed text-ink">
+            <strong>{formationName}</strong>
+            <br />
+            {tr("Votre place est demandée. Le club vérifiera votre inscription puis vous rappellera — rien ne vous est facturé pour l'instant, et vous réglerez sur place.")}
+          </p>
+        )}
         <p className="text-sm leading-relaxed text-muted">
           <strong className="text-ink">{email.trim().toLowerCase()}</strong>
           {" "}
           {tr("Connectez-vous dès maintenant avec cet email et le mot de passe que vous venez de choisir. Vous verrez d'abord un écran d'attente : l'intendance du club doit rattacher votre compte à votre fiche avant que vos séances, vos présences et vos paiements s'affichent.")}
         </p>
         <Button className="w-full" onClick={onCancel}>
-          {tr("Aller à la connexion")}
+          {tr(cancelLabel ?? "Aller à la connexion")}
         </Button>
       </motion.div>
     );
@@ -264,11 +305,23 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
     return (
       <div className="space-y-4">
         <div className="text-center">
-          <h2 className="font-display text-lg font-bold text-ink">{tr("Créer mon compte")}</h2>
+          <h2 className="font-display text-lg font-bold text-ink">
+            {tr(formationName ? "S'inscrire" : "Créer mon compte")}
+          </h2>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-              {tr("Un compte vous donne accès, depuis votre téléphone, à tout ce que le comptoir sait de vous. Dites-nous d'abord qui vous êtes.")}
+            {tr(
+              formationName
+                ? "Dites-nous d'abord qui s'inscrit : le chevalier lui-même, ou le parent qui inscrit ses fils."
+                : "Un compte vous donne accès, depuis votre téléphone, à tout ce que le comptoir sait de vous. Dites-nous d'abord qui vous êtes.",
+            )}
           </p>
         </div>
+
+        {formationName && (
+          <p className="rounded-2xl border border-accent/40 bg-accent-wash/60 p-3 text-center text-xs leading-relaxed text-ink">
+            {tr("Inscription à")} <strong>{formationName}</strong>
+          </p>
+        )}
 
         <ChoiceCard
           active={false}
@@ -286,7 +339,7 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
         />
 
         <Button variant="ghost" className="w-full gap-2" onClick={onCancel}>
-          <ArrowLeft className="h-4 w-4" /> {tr("Retour à la connexion")}
+          <ArrowLeft className="h-4 w-4" /> {tr(cancelLabel ?? "Retour à la connexion")}
         </Button>
       </div>
     );
@@ -308,6 +361,9 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
         </button>
         <h2 className="font-display text-base font-bold text-ink">
           {tr(isParent ? "Compte parent" : "Compte chevalier")}
+          {formationName && (
+            <span className="block text-[10px] font-normal text-muted">{formationName}</span>
+          )}
         </h2>
       </div>
 
@@ -526,7 +582,11 @@ export function SignupFlow({ onCancel }: { onCancel: () => void }) {
       )}
 
       <p className="rounded-xl border border-line bg-canvas/50 p-2.5 text-[10px] leading-relaxed text-muted">
-        {tr("Votre compte sera créé tout de suite et vous pourrez vous connecter — mais il n'affichera vos données qu'une fois ACTIVÉ PAR L'INTENDANCE du club.")}
+        {tr(
+          formationName
+            ? "Votre compte sera créé tout de suite et vous pourrez vous connecter. Votre place sur cette formation, elle, est VÉRIFIÉE PAR LE CLUB avant d'être confirmée — et rien ne vous est facturé tant que vous n'êtes pas passé régler sur place."
+            : "Votre compte sera créé tout de suite et vous pourrez vous connecter — mais il n'affichera vos données qu'une fois ACTIVÉ PAR L'INTENDANCE du club.",
+        )}
       </p>
 
       <div className="flex gap-2">

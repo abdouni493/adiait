@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, PanelLeftClose, PanelLeftOpen, ScanLine } from "lucide-react";
+import { Globe, Menu, PanelLeftClose, PanelLeftOpen, ScanLine } from "lucide-react";
 import { ThemeToggle } from "@/components/controls/ThemeToggle";
 import { LanguageSwitcher } from "@/components/controls/LanguageSwitcher";
 import { ScanModal } from "@/components/ScanModal";
@@ -54,6 +54,21 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       </span>
 
       <div className="ms-auto flex items-center gap-2 md:gap-3">
+        {/* LE SITE PUBLIC, dans un AUTRE ONGLET.
+            Celui qui règle la vitrine veut la voir telle qu'un visiteur la
+            voit — et il veut y retourner sans avoir perdu l'écran qu'il était
+            en train de remplir. D'où le nouvel onglet, et non une navigation. */}
+        <a
+          href="/site"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t("nav.website")}
+          aria-label={t("nav.website")}
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-ink transition-colors hover:bg-primary-50 hover:text-accent-ink"
+        >
+          <Globe className="h-5 w-5" />
+        </a>
+
         {canScan && (
           <Button size="sm" onClick={() => setScanOpen(true)} className="hidden sm:inline-flex">
             <ScanLine className="h-4 w-4" />

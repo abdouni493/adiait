@@ -76,6 +76,9 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { key: "cash", href: "/cash", section: "stewardship" },
     { key: "reports", href: "/reports", section: "stewardship" },
 
+    { key: "website", href: "/website", section: "gate" },
+    { key: "website-inscriptions", href: "/website-inscriptions", section: "gate" },
+
     { key: "settings", href: "/settings", section: "keep" },
     logout,
   ],
@@ -91,6 +94,9 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
 
     { key: "announcements", href: "/announcements", section: "stewardship" },
     { key: "expenses", href: "/expenses", section: "stewardship" },
+
+    { key: "website", href: "/website", section: "gate" },
+    { key: "website-inscriptions", href: "/website-inscriptions", section: "gate" },
 
     { key: "settings", href: "/settings", section: "keep" },
     logout,
@@ -126,5 +132,11 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   ],
 };
 
-/** L'ordre dans lequel les quartiers du menu se suivent. */
-export const NAV_SECTIONS = ["order", "company", "stewardship", "keep"] as const;
+/**
+ * L'ordre dans lequel les quartiers du menu se suivent.
+ *
+ * `gate` — LA HERSE — est le quartier qui donne sur le dehors : la vitrine du
+ * club et ce qu'elle rapporte. Il se tient entre l'intendance, qui regarde
+ * l'intérieur, et le donjon, qui ne regarde que soi.
+ */
+export const NAV_SECTIONS = ["order", "company", "stewardship", "gate", "keep"] as const;

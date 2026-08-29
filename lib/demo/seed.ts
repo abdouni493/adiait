@@ -650,6 +650,8 @@ export function buildDemoDatabase(): Database {
     // La démonstration ne fabrique aucune demande de compte : elles naissent
     // de la page de connexion, jamais d'un jeu de données.
     accountRequests: [],
+    formations: [],
+    formationEnrollments: [],
   };
 }
 

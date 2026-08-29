@@ -27,7 +27,11 @@
  */
 
 import { rpcAnon, supabase, errorMessage } from "@/lib/supabase/client";
-import type { AccountRequestChild, AccountRequestKind } from "@/lib/types";
+import type {
+  AccountRequestChild,
+  AccountRequestKind,
+  AccountRequestSource,
+} from "@/lib/types";
 
 export interface AccountRequestPayload {
   kind: AccountRequestKind;
@@ -45,6 +49,23 @@ export interface AccountRequestPayload {
   childrenSubscribed?: boolean;
   /** parent : les fils déclarés, quand ils ne sont pas encore inscrits */
   children?: AccountRequestChild[];
+  /**
+   * PAR QUELLE PORTE LA DEMANDE EST ENTRÉE.
+   *
+   * `login` — la page de connexion de l'application ; `website` — le site
+   * public du club, au bas d'une formation. Les deux créent le même compte
+   * inactif ; elles ne s'affichent simplement pas dans la même file d'attente.
+   */
+  source?: AccountRequestSource;
+  /**
+   * LA FORMATION D'OÙ LA DEMANDE EST PARTIE.
+   *
+   * Elle ne réserve rien et n'engage aucun argent : c'est une INTENTION, que
+   * l'intendance transforme en inscription réelle quand elle vérifie la
+   * demande. Tant qu'elle n'a pas vérifié, personne n'est inscrit et rien n'est
+   * facturé.
+   */
+  formationId?: string;
 }
 
 /**
@@ -74,6 +95,8 @@ export async function requestAccount(payload: AccountRequestPayload): Promise<st
     p_existing_member: payload.existingMember,
     p_children_subscribed: payload.childrenSubscribed ?? null,
     p_children: payload.children ?? [],
+    p_source: payload.source ?? "login",
+    p_formation_id: payload.formationId ?? null,
   });
 
   if (error) {

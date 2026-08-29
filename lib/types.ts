@@ -86,6 +86,43 @@ export interface School {
   /** weekday the absence week opens on (0 = sunday … 5 = friday, the default):
    *  a week runs from that day to the same day of the next week */
   absenceWeekStartDay?: number;
+
+  // ---- LA VITRINE PUBLIQUE ------------------------------------------------
+  //
+  // LE SITE DU CLUB VIT SUR CETTE LIGNE-LÀ, ET C'EST VOULU.
+  //
+  // `schools` est la SEULE table que le schéma laisse lire à un visiteur non
+  // connecté (politique `schools_public_read`, section 6). Ranger ici le
+  // favicon, les textes de présentation, l'image et la vidéo d'accueil ainsi
+  // que les coordonnées, c'est permettre au site de s'afficher AVANT que
+  // quiconque ait un compte — sans ouvrir la moindre autre table à `anon`.
+  //
+  // Tout est FACULTATIF : un club qui n'a rien réglé garde un site qui se
+  // rabat sur son nom, son logo et sa description ordinaire.
+
+  /** l'icône de l'onglet du site public */
+  siteFavicon?: string;
+  /** la présentation principale, affichée sous le titre de la page d'accueil */
+  siteDescription?: string;
+  /** une seconde présentation, plus longue, affichée en dessous */
+  siteDescription2?: string;
+  /** la photographie de fond de la page d'accueil */
+  siteHeroImage?: string;
+  /** la vidéo de la page d'accueil (fichier déposé ou adresse) */
+  siteVideoUrl?: string;
+
+  // Les coordonnées telles que le site les publie. Elles sont DISTINCTES de
+  // `phone` / `address`, qui sont celles de l'administration : le numéro qu'on
+  // donne au public n'est pas toujours celui du bureau.
+  siteFacebook?: string;
+  siteInstagram?: string;
+  siteTiktok?: string;
+  siteSnapchat?: string;
+  siteWhatsapp?: string;
+  /** le lien Google Maps du club */
+  siteMapsUrl?: string;
+  sitePhone?: string;
+  sitePhone2?: string;
 }
 
 /** Sur QUI portent les frais d'inscription — voir `School.registrationFeeScope`. */
@@ -1140,7 +1177,15 @@ export interface Payment extends Authored {
  *    jamais entrer : la famille le doit désormais au club, et c'est ce frais
  *    qui le dit.
  */
-export type StudentChargeOrigin = "manual" | "school_advance" | "engagement";
+export type StudentChargeOrigin =
+  | "manual"
+  | "school_advance"
+  | "engagement"
+  | "formation";
+// `formation` : le prix d'une formation ou d'un évènement de la vitrine, porté
+// au compte du chevalier le jour où on l'y inscrit. Il naît impayé — l'argent
+// arrive au comptoir, parfois des semaines plus tard — et se règle comme
+// n'importe quel autre frais.
 // `engagement` : le frais d'entrée d'un emploi du temps (`Subscription.engagementFee`),
 // porté automatiquement le jour où le chevalier s'inscrit sur ce créneau. Il ne
 // naît jamais deux fois pour le même emploi : c'est ce qui le distingue d'une
@@ -1503,6 +1548,9 @@ export interface GroupSeance extends Authored {
  */
 export type AccountRequestKind = "student" | "parent";
 
+/** D'où vient la demande — voir `AccountRequest.source`. */
+export type AccountRequestSource = "login" | "website";
+
 /**
  * OÙ EN EST LA DEMANDE.
  *
@@ -1549,6 +1597,24 @@ export interface AccountRequest extends Authored {
   /** le compte créé dans `auth.users` (= `profiles.id`) */
   accountId: string;
   kind: AccountRequestKind;
+  /**
+   * D'OÙ LA DEMANDE VIENT.
+   *
+   *  `login`   — de la page de connexion de l'application, comme depuis
+   *              toujours. C'est la valeur par défaut, et celle que portent
+   *              toutes les demandes déjà en base ;
+   *  `website` — du SITE PUBLIC du club, au bas d'une formation ou d'un
+   *              évènement. Elle porte alors `formationId`, et son traitement
+   *              inscrit d'office la personne sur cette formation.
+   *
+   * Les deux se traitent avec le même geste — rattacher ou créer la fiche —
+   * mais elles ne s'affichent pas au même endroit : les demandes du site ont
+   * leur écran, pour que l'intendance sache d'un coup d'œil ce que la vitrine
+   * a rapporté.
+   */
+  source?: AccountRequestSource;
+  /** la formation ou l'évènement d'où la demande est partie (site public) */
+  formationId?: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -1571,5 +1637,115 @@ export interface AccountRequest extends Authored {
   reviewedAt?: string;
   reviewedBy?: string;
   reviewedByName?: string;
+  createdAt: string;
+}
+
+
+// =============================================================================
+//  LA VITRINE — LES FORMATIONS ET LES ÉVÈNEMENTS DU SITE PUBLIC
+// =============================================================================
+
+/**
+ * FORMATION OU ÉVÈNEMENT ?
+ *
+ * Les deux se créent, se publient et se remplissent EXACTEMENT de la même
+ * façon : un titre, une période, des jours, un encadrant, un prix, des images.
+ * Seul le mot change sur la carte du site — un stage de trois mois n'est pas
+ * un tournoi d'un après-midi, et le visiteur doit le voir sans lire.
+ */
+export type FormationKind = "formation" | "event";
+
+/**
+ * UNE FORMATION OU UN ÉVÈNEMENT PUBLIÉ SUR LE SITE DU CLUB.
+ *
+ * C'est la seule chose que le site montre en propre — le reste de la vitrine
+ * (le fond, la vidéo, les textes, les coordonnées) tient sur la fiche de
+ * l'établissement. Une formation est donc lisible SANS COMPTE : c'est ce qui
+ * permet à quelqu'un qui passe de la découvrir, d'en lire le détail et de s'y
+ * inscrire avant même d'exister au club.
+ *
+ * LES JOURS SONT DES DATES, PAS DES JOURS DE SEMAINE. Une formation ne « tient
+ * pas tous les mardis » : elle tient LES 4, 11 et 18 mars. L'écran de création
+ * déplie le calendrier de la période et l'on coche les journées réelles, ce qui
+ * permet de sauter une fête, une semaine de vacances ou un week-end sans
+ * inventer une règle de récurrence que personne ne saurait relire.
+ *
+ * L'ENCADRANT EST RECOPIÉ (`trainerName`), et pas seulement désigné. Le site
+ * est lu par des visiteurs non connectés, à qui la RLS ne rend PAS la table des
+ * entraîneurs : sans cette copie, la carte afficherait un identifiant. Le nom
+ * est donc figé au moment où on choisit l'encadrant, exactement comme la
+ * signature d'une opération l'est.
+ */
+export interface Formation extends Authored {
+  id: string;
+  kind: FormationKind;
+  name: string;
+  description: string;
+
+  /** le premier jour (YYYY-MM-DD) et l'heure d'ouverture (HH:mm) */
+  startDate: string;
+  startTime: string;
+  /** le dernier jour et l'heure de fermeture */
+  endDate: string;
+  endTime: string;
+  /**
+   * LES JOURNÉES RÉELLEMENT TENUES, cochées dans le calendrier de la période.
+   * Une liste vide veut dire « toute la période », ce qui est le cas d'un
+   * évènement d'un seul tenant.
+   */
+  days: string[];
+
+  /** l'entraîneur qui encadre — sa fiche, quand il en a une au club */
+  trainerId?: string;
+  /** son nom, RECOPIÉ : le site est lu sans compte, et sans accès aux fiches */
+  trainerName?: string;
+  /** ce que le club veut dire de lui en plus : titres, parcours, palmarès */
+  trainerNote?: string;
+
+  /** le prix demandé au participant */
+  price: number;
+  /** combien de séances la formation compte */
+  seances: number;
+
+  /** les illustrations, rangées dans le dépôt `logos` comme le reste */
+  images: string[];
+
+  /**
+   * RETIRÉE DE LA VITRINE, MAIS PAS SUPPRIMÉE.
+   *
+   * Une formation complète, reportée ou terminée n'a plus à s'afficher — sans
+   * pour autant emporter les inscriptions qu'elle a produites. `hidden` la
+   * retire du site ; elle reste entière dans la gestion.
+   */
+  hidden?: boolean;
+
+  createdAt: string;
+}
+
+/**
+ * UN CHEVALIER INSCRIT SUR UNE FORMATION.
+ *
+ * L'inscription et L'ARGENT sont deux choses séparées, et c'est tout l'intérêt :
+ * quelqu'un qui s'inscrit depuis le site n'a rien payé — il paiera au comptoir.
+ * La ligne naît donc TOUJOURS, et le prix est porté au compte du chevalier sous
+ * la forme d'un frais ordinaire (`StudentCharge`), qui se règle en une ou
+ * plusieurs fois comme n'importe quelle autre dette, et qui s'affiche déjà
+ * partout où le chevalier apparaît.
+ *
+ * `chargeId` est le lien vers ce frais : c'est lui qui dit si l'inscription est
+ * payée, et de combien. Une inscription offerte (prix nul) n'en porte aucun.
+ */
+export interface FormationEnrollment extends Authored {
+  id: string;
+  formationId: string;
+  studentId: string;
+  /** le prix au moment de l'inscription — celui de la formation peut changer */
+  price: number;
+  /** le frais porté au compte du chevalier, quand le prix n'est pas nul */
+  chargeId?: string;
+  /** le jour de l'inscription (YYYY-MM-DD) */
+  date: string;
+  /** d'où elle vient : le comptoir, ou le site public */
+  source?: AccountRequestSource;
   createdAt: string;
 }

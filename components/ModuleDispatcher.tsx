@@ -17,6 +17,8 @@ import { AnalyticsPage } from "@/components/pages/AnalyticsPage";
 import { CashPage } from "@/components/pages/CashPage";
 import { ReportsPage } from "@/components/pages/ReportsPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
+import { WebsitePage } from "@/components/pages/WebsitePage";
+import { WebsiteInscriptionsPage } from "@/components/pages/WebsiteInscriptionsPage";
 import { StudentPages } from "@/components/pages/StudentPages";
 import { TeacherPages } from "@/components/pages/TeacherPages";
 import { ParentPages } from "@/components/pages/ParentPages";
@@ -121,6 +123,10 @@ export function ModuleDispatcher({ slug }: { slug: string[] }) {
       return <CashPage />;
     case "reports":
       return <ReportsPage />;
+    case "website":
+      return <WebsitePage />;
+    case "website-inscriptions":
+      return <WebsiteInscriptionsPage />;
     case "settings":
       return <SettingsPage />;
     default:

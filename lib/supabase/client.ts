@@ -179,6 +179,69 @@ export async function rpcAnon<T>(
 }
 
 /**
+ * UNE LECTURE DE TABLE QUI NE DÉPEND PAS D'UNE SESSION.
+ *
+ * Le SITE PUBLIC du club est lu par des visiteurs qui n'ont pas de compte et
+ * n'en auront peut-être jamais. Deux choses seulement leur sont ouvertes par la
+ * RLS — la fiche de l'établissement (nom, logo, vitrine, coordonnées) et les
+ * formations publiées — et ni l'une ni l'autre n'a besoin d'un jeton.
+ *
+ * Elles passent donc par le même chemin que `rpcAnon`, et pour la même raison :
+ * `supabase-js` attend `auth.getSession()` avant CHAQUE requête, et cette
+ * attente met en jeu le stockage du navigateur et un verrou inter-onglets. Une
+ * page d'accueil publique ne doit pas pouvoir rester blanche parce qu'un jeton
+ * périmé traîne dans un autre onglet.
+ *
+ * `query` est la chaîne PostgREST telle quelle (« select=*&hidden=is.false »).
+ */
+export async function restAnon<T>(
+  table: string,
+  query = "select=*",
+): Promise<RpcResult<T[]>> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RPC_TIMEOUT);
+
+  try {
+    const response = await fetch(`${BASE_URL}/rest/v1/${table}?${query}`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    const payload: unknown = text ? JSON.parse(text) : null;
+
+    if (!response.ok) {
+      const body = (payload ?? {}) as { code?: string; message?: string };
+      return {
+        data: null,
+        error: {
+          code: body.code ?? String(response.status),
+          message: body.message ?? `HTTP ${response.status}`,
+        },
+      };
+    }
+    return { data: (payload ?? []) as T[], error: null };
+  } catch (err) {
+    const aborted = err instanceof Error && err.name === "AbortError";
+    return {
+      data: null,
+      error: {
+        code: aborted ? "TIMEOUT" : "NETWORK",
+        message: aborted
+          ? "Le serveur n'a pas répondu à temps."
+          : "Impossible de joindre le serveur.",
+      },
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Le message d'une erreur Supabase, dit en français quand on le peut.
  *
  * Les messages de la couche d'authentification arrivent en anglais et parlent

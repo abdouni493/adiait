@@ -48,7 +48,21 @@ export interface TableSpec {
 export const SCHOOL_TABLE: TableSpec = {
   table: "schools",
   pk: "id",
-  columns: ["id", "name", "description", "phone", "email", "logo", "address", "article_fiscal", "registre_commerce", "nif", "nis", "registration_fee", "registration_fee_scope", "registration_fee_levels", "registration_fee_class_ids", "registration_fee_session_ids", "absence_penalty_enabled", "absence_penalty_since", "absence_week_start_day", "updated_at"],
+  columns: ["id", "name", "description", "phone", "email", "logo", "address", "article_fiscal", "registre_commerce", "nif", "nis", "registration_fee", "registration_fee_scope", "registration_fee_levels", "registration_fee_class_ids", "registration_fee_session_ids", "absence_penalty_enabled", "absence_penalty_since", "absence_week_start_day",
+    // La vitrine publique — voir `School`, section « LA VITRINE PUBLIQUE ».
+    "site_favicon",
+    "site_description",
+    "site_description2",
+    "site_hero_image",
+    "site_video_url",
+    "site_facebook",
+    "site_instagram",
+    "site_tiktok",
+    "site_snapchat",
+    "site_whatsapp",
+    "site_maps_url",
+    "site_phone",
+    "site_phone2", "updated_at"],
 };
 
 /** La ligne unique de l'établissement. */
@@ -94,7 +108,9 @@ export const TABLES: Record<CollectionKey, TableSpec> = {
   coursework: { table: "coursework", pk: "id", columns: ["id", "name", "type", "dates", "price_per_session", "total", "teacher_id", "created_by", "created_by_name", "created_by_role"], emptyAsNull: ["teacher_id"] },
   independent: { table: "independent_sessions", pk: "id", columns: ["id", "student_id", "passager_name", "item_label", "price", "date", "session_id", "start_time", "end_time", "created_at", "teacher_paid", "school_share", "teacher_id", "created_by", "created_by_name", "created_by_role"], emptyAsNull: ["student_id", "session_id", "teacher_id"] },
   groupSeances: { table: "group_seances", pk: "id", columns: ["id", "teacher_id", "title", "description", "date", "start_time", "end_time", "students_count", "price_per_student", "school_per_student", "cash_in_id", "cash_out_id", "created_at", "created_by", "created_by_name", "created_by_role"], emptyAsNull: ["teacher_id", "cash_in_id", "cash_out_id"] },
-  accountRequests: { table: "account_requests", pk: "id", columns: ["id", "account_id", "kind", "first_name", "last_name", "phone", "phone2", "birth_date", "address", "email", "existing_member", "children_subscribed", "children", "status", "linked_entity_id", "linked_child_ids", "reviewed_at", "reviewed_by", "reviewed_by_name", "created_at", "created_by", "created_by_name", "created_by_role"], emptyAsNull: ["linked_entity_id"] },
+  accountRequests: { table: "account_requests", pk: "id", columns: ["id", "account_id", "kind", "source", "formation_id", "first_name", "last_name", "phone", "phone2", "birth_date", "address", "email", "existing_member", "children_subscribed", "children", "status", "linked_entity_id", "linked_child_ids", "reviewed_at", "reviewed_by", "reviewed_by_name", "created_at", "created_by", "created_by_name", "created_by_role"], emptyAsNull: ["linked_entity_id", "formation_id"] },
+  formations: { table: "website_formations", pk: "id", columns: ["id", "kind", "name", "description", "start_date", "start_time", "end_date", "end_time", "days", "trainer_id", "trainer_name", "trainer_note", "price", "seances", "images", "hidden", "created_at", "created_by", "created_by_name", "created_by_role"], emptyAsNull: ["trainer_id"] },
+  formationEnrollments: { table: "formation_enrollments", pk: "id", columns: ["id", "formation_id", "student_id", "price", "charge_id", "date", "source", "created_at", "created_by", "created_by_name", "created_by_role"], emptyAsNull: ["formation_id", "student_id", "charge_id"] },
 };
 
 /** L'ordre d'écriture : les dépendances d'abord. */
