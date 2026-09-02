@@ -22,6 +22,7 @@ import {
   subscriptionTitleOf,
 } from "@/lib/helpers";
 import { money, positiveMoney, formatDA } from "@/lib/utils";
+import { carteLayout, nextSessionDay, presenceLock } from "@/lib/semesters";
 import type {
   AbsencePenalty,
   AccountRequest,
@@ -57,6 +58,8 @@ import type {
   School,
   ScheduleSession,
   SchoolClass,
+  Semester,
+  EmploiCarte,
   Student,
   StudentCharge,
   StudentCredential,
@@ -103,6 +106,19 @@ export interface Database {
   /** les règlements versés aux travailleurs */
   workerPayments: WorkerPayment[];
   sessions: ScheduleSession[];
+  /**
+   * LES SEMESTRES — les saisons du club. Un semestre porte un nom, deux dates
+   * et tout ce qui se joue entre elles : les emplois du temps, leurs cartes,
+   * ce qui rentre et ce qui reste dû. Il ne se ferme pas à sa date de fin mais
+   * le jour où la dernière carte a donné sa dernière séance.
+   */
+  semesters: Semester[];
+  /**
+   * LES CARTES DE CHAQUE EMPLOI DU TEMPS — une ligne par pack de séances.
+   * La première naît avec l'emploi du temps ; la suivante n'existe pas tant que
+   * la précédente n'a pas donné toutes les siennes.
+   */
+  emploiCartes: EmploiCarte[];
   subscriptions: Subscription[];
   freePeriods: FreePeriod[];
   students: Student[];
@@ -639,6 +655,107 @@ interface DataActions {
    * Les chevaliers inscrits en sont sortis à la date du jour, exactement comme une
    * désinscription : leur fiche garde le module, daté de la sortie.
    */
+  /**
+   * CRÉE OU MODIFIE UN SEMESTRE.
+   *
+   * Un nom, deux dates, une description : c'est tout ce que le comptoir donne.
+   * La date de fin qu'il annonce est gardée telle quelle dans
+   * `plannedEndDate` — le moteur des cartes la repoussera peut-être, et
+   * l'écart doit rester lisible.
+   */
+  saveSemester: (input: {
+    id?: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    description?: string;
+  }) => Promise<{ ok: boolean; id?: string; messageKey?: string }>;
+  /**
+   * EFFACE UN SEMESTRE — et rien d'autre.
+   *
+   * Ses emplois du temps, leurs présences et leur argent restent : ils perdent
+   * simplement leur rattachement, et leurs cartes s'en vont avec le semestre
+   * qui les portait. Un semestre qui a déjà des présences pointées n'est pas
+   * effacé sans qu'on le dise.
+   */
+  deleteSemester: (id: string) => Promise<{ ok: boolean; sessions?: number; cartes?: number }>;
+  /**
+   * DÉCLARE UN SEMESTRE CLOS — quand toutes ses cartes ont donné leurs séances.
+   *
+   * Ferme aussi le pointage : plus aucune présence ne s'écrit tant que le
+   * semestre suivant n'a pas été créé.
+   */
+  closeSemester: (id: string) => Promise<{ ok: boolean; messageKey?: string }>;
+  /**
+   * OUVRE LA PREMIÈRE CARTE D'UN EMPLOI DU TEMPS.
+   *
+   * Appelée quand l'emploi du temps est créé (ou quand on lui donne un semestre
+   * après coup). La date passée est une INTENTION : la carte ne commence
+   * vraiment qu'au premier pointage, et prend alors ce jour-là.
+   */
+  openFirstCarte: (args: {
+    sessionId: string;
+    semesterId: string;
+    startDate: string;
+    size?: number;
+  }) => Promise<{ ok: boolean; id?: string; messageKey?: string }>;
+  /**
+   * REMET LES CARTES EN PHASE AVEC LES PRÉSENCES.
+   *
+   * C'est le moteur, et il ne fait que trois choses :
+   *
+   *  1. il DATE les cartes — une carte prend pour début le jour de sa première
+   *     présence réelle, et pour fin celui de la séance qui l'a complétée ;
+   *  2. il OUVRE LA SUIVANTE — mais seulement quand la précédente est close, et
+   *     seulement si le semestre n'a pas encore atteint sa date de fin ;
+   *  3. il REPOUSSE LA FIN DU SEMESTRE quand une carte déborde, et le DÉCLARE
+   *     CLOS quand plus rien ne court.
+   *
+   * Elle est appelée après chaque pointage et à l'ouverture des écrans qui
+   * lisent les cartes. Elle est IDEMPOTENTE : la relancer ne crée rien de neuf.
+   */
+  syncCartes: () => Promise<{
+    ok: boolean;
+    opened: number;
+    closed: number;
+    extended: string[];
+    finished: string[];
+  }>;
+  /**
+   * MUTE UN CHEVALIER D'UN EMPLOI DU TEMPS VERS UN AUTRE.
+   *
+   * Il quitte l'ancien créneau et rejoint le nouveau LÀ OÙ LE GROUPE EN EST —
+   * exactement comme une inscription ordinaire. Trois choses le suivent :
+   *
+   *  - SON HISTOIRE reste entière sur l'ancien emploi : ses présences, ses
+   *    paiements et ses dettes y demeurent, datés de sa sortie, et continuent
+   *    de s'afficher sur sa fiche ;
+   *  - SON SOLDE le suit : ce qui restait sur l'ancien créneau en est retiré et
+   *    recrédité sur le nouveau, au dinar près. Aucun argent n'entre ni ne sort
+   *    de la caisse — c'est le même argent qui change de case ;
+   *  - SA DETTE NE LE SUIT PAS : un solde dans le rouge reste dû sur l'emploi
+   *    où il a été creusé, sans quoi le nouveau groupe hériterait d'une dette
+   *    qu'il n'a pas faite.
+   *
+   * Il disparaît aussitôt des feuilles de présence de l'ancien groupe et
+   * apparaît sur celles du nouveau.
+   */
+  transferStudent: (args: {
+    studentId: string;
+    fromSubscriptionId: string;
+    toSubscriptionId: string;
+    /** le jour de la mutation (YYYY-MM-DD) — aujourd'hui quand absent */
+    date?: string;
+    /** transporter le solde restant (vrai par défaut) */
+    moveBalance?: boolean;
+    description?: string;
+  }) => Promise<{
+    ok: boolean;
+    moved?: number;
+    monthCode?: string;
+    slotIndex?: number;
+    messageKey?: string;
+  }>;
   archiveSession: (
     sessionId: string,
   ) => Promise<{ ok: boolean; students?: number; subscriptions?: number }>;
@@ -1269,6 +1386,9 @@ export const useData = create<DataStore>((set, get) => ({
   // ---------------------------------------------------------------------------
   scanCard: async (rfidOrStudentId, when) => {
     const db = get();
+    // Une saison terminée ne se pointe plus, badge compris — voir `setPresence`.
+    const scanLock = presenceLock(db, dateKey(when ?? new Date()));
+    if (scanLock.locked) return { ok: false, messageKey: "semester.closed" };
     const code = rfidOrStudentId.trim();
     const student = db.students.find((s) => s.rfid === code || s.id === code);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
@@ -1589,6 +1709,9 @@ export const useData = create<DataStore>((set, get) => ({
   // Manual attendance sheet — exactly the same rules as the badge.
   markAttendance: async (studentId, sessionId, status, opts) => {
     const db = get();
+    // Une saison terminée ne se pointe plus — voir `setPresence`.
+    const markLock = presenceLock(db, opts?.date || dateKey(new Date()));
+    if (markLock.locked) return { ok: false, messageKey: "semester.closed" };
     const student = db.students.find((s) => s.id === studentId);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
     const session = db.sessions.find((s) => s.id === sessionId);
@@ -1799,6 +1922,23 @@ export const useData = create<DataStore>((set, get) => ({
    */
   setPresence: async ({ studentId, sessionId, date, slot = 0, status }) => {
     const db = get();
+    /**
+     * UNE SAISON TERMINÉE NE SE POINTE PLUS.
+     *
+     * Quand le dernier semestre a été clos et qu'aucun autre n'a pris la
+     * suite, une présence n'appartiendrait à aucune carte, à aucune paie, à
+     * aucun compte. On refuse ici plutôt que dans les écrans : la feuille se
+     * pilote aussi au badge, et l'écriture elle-même doit savoir dire non.
+     *
+     * RETIRER un pointage reste toujours possible : corriger une erreur n'est
+     * pas travailler dans une saison fermée.
+     */
+    if (status !== null) {
+      const lock = presenceLock(db, date);
+      if (lock.locked) {
+        return { ok: false, messageKey: "semester.closed", moduleName: lock.reason };
+      }
+    }
     const student = db.students.find((s) => s.id === studentId);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
     const session = db.sessions.find((s) => s.id === sessionId);
@@ -1999,6 +2139,15 @@ export const useData = create<DataStore>((set, get) => ({
       return patch;
     });
 
+    /**
+     * LE POINTAGE FAIT AVANCER LA CARTE.
+     *
+     * C'est ici, et nulle part ailleurs, qu'une carte prend sa date de début,
+     * se ferme sur sa dernière séance, et laisse la place à la suivante. Le
+     * moteur est idempotent : l'appeler à chaque clic ne crée rien de trop.
+     */
+    void get().syncCartes();
+
     return {
       ok: true,
       messageKey: "attendance.saved",
@@ -2091,7 +2240,11 @@ export const useData = create<DataStore>((set, get) => ({
      */
     const studentLabel = `${student.firstName} ${student.lastName}`.trim();
     const cashRows: CashTransaction[] =
-      source === "teacher_salary" || source === "teacher_debt"
+      // `transfer` : le solde d'un autre emploi du temps, déplacé. L'argent
+      // était DÉJÀ entré le jour où la famille l'a versé — le compter une
+      // seconde fois gonflerait la recette d'une somme que personne n'a
+      // apportée.
+      source === "teacher_salary" || source === "teacher_debt" || source === "transfer"
         ? []
         : [
             {
@@ -2659,6 +2812,382 @@ export const useData = create<DataStore>((set, get) => ({
    * paiements, ni les parts dues à l'entraîneur — et l'historique continue donc
    * de les nommer correctement.
    */
+  // =========================================================================
+  //  LES SEMESTRES ET LES CARTES
+  // =========================================================================
+
+  saveSemester: async ({ id, name, startDate, endDate, description }) => {
+    const label = (name ?? "").trim();
+    if (!label) return { ok: false, messageKey: "semester.nameRequired" };
+    if (!startDate || !endDate) return { ok: false, messageKey: "semester.datesRequired" };
+    if (endDate < startDate) return { ok: false, messageKey: "semester.datesReversed" };
+
+    const db = get();
+    const existing = id ? db.semesters.find((x) => x.id === id) : undefined;
+
+    if (existing) {
+      // Rallonger ou raccourcir un semestre en cours est une decision du
+      // comptoir : on ecrit ce qu'il dit, et l'intention annoncee le suit.
+      const patched: Semester = {
+        ...existing,
+        name: label,
+        startDate,
+        endDate,
+        description: description?.trim() || undefined,
+        plannedEndDate:
+          endDate === existing.endDate
+            ? existing.plannedEndDate
+            : existing.plannedEndDate ?? existing.endDate,
+      };
+      set((state) => ({
+        semesters: state.semesters.map((x) => (x.id === existing.id ? patched : x)),
+      }));
+      return { ok: true, id: existing.id };
+    }
+
+    const semester: Semester = {
+      ...authorStamp(),
+      id: id ?? uid("sem"),
+      name: label,
+      startDate,
+      endDate,
+      plannedEndDate: endDate,
+      description: description?.trim() || undefined,
+      createdAt: new Date().toISOString(),
+    };
+    set((state) => ({ semesters: [...state.semesters, semester] }));
+    return { ok: true, id: semester.id };
+  },
+
+  deleteSemester: async (id) => {
+    const db = get();
+    if (!db.semesters.some((s) => s.id === id)) return { ok: false };
+    const sessions = db.sessions.filter((s) => s.semesterId === id);
+    const cartes = db.emploiCartes.filter((c) => c.semesterId === id);
+    set((state) => ({
+      semesters: state.semesters.filter((s) => s.id !== id),
+      // Les emplois du temps SURVIVENT : ils perdent seulement leur
+      // rattachement. Leurs presences, leurs paiements et leurs soldes ne
+      // regardent pas le semestre.
+      sessions: state.sessions.map((s) =>
+        s.semesterId === id ? { ...s, semesterId: undefined } : s,
+      ),
+      emploiCartes: state.emploiCartes.filter((c) => c.semesterId !== id),
+    }));
+    return { ok: true, sessions: sessions.length, cartes: cartes.length };
+  },
+
+  closeSemester: async (id) => {
+    const db = get();
+    const semester = db.semesters.find((s) => s.id === id);
+    if (!semester) return { ok: false, messageKey: "semester.notFound" };
+    if (semester.closedAt) return { ok: true };
+    set((state) => ({
+      semesters: state.semesters.map((s) =>
+        s.id === id ? { ...s, closedAt: dateKey(new Date()) } : s,
+      ),
+    }));
+    return { ok: true };
+  },
+
+  openFirstCarte: async ({ sessionId, semesterId, startDate, size }) => {
+    const db = get();
+    if (!db.sessions.some((s) => s.id === sessionId)) {
+      return { ok: false, messageKey: "session.notFound" };
+    }
+    if (!db.semesters.some((s) => s.id === semesterId)) {
+      return { ok: false, messageKey: "semester.notFound" };
+    }
+    // Deja ouverte : on ne la repose pas. Modifier un emploi du temps ne doit
+    // jamais fabriquer une deuxieme carte 1.
+    const existing = db.emploiCartes.find((c) => c.sessionId === sessionId && c.index === 1);
+    if (existing) {
+      const day = startDate || existing.plannedStartDate;
+      // Tant qu'elle n'a pas commence, sa date de depart reste modifiable.
+      if (!existing.startDate && (day !== existing.plannedStartDate || existing.semesterId !== semesterId)) {
+        set((state) => ({
+          emploiCartes: state.emploiCartes.map((c) =>
+            c.id === existing.id ? { ...c, plannedStartDate: day, semesterId } : c,
+          ),
+        }));
+      } else if (existing.semesterId !== semesterId) {
+        set((state) => ({
+          emploiCartes: state.emploiCartes.map((c) =>
+            c.id === existing.id ? { ...c, semesterId } : c,
+          ),
+        }));
+      }
+      return { ok: true, id: existing.id };
+    }
+
+    const sub = db.subscriptions.find((x) => x.sessionId === sessionId && !x.archivedAt);
+    const carte: EmploiCarte = {
+      ...authorStamp(),
+      id: uid("crt"),
+      semesterId,
+      sessionId,
+      index: 1,
+      code: "M1",
+      size: Math.max(1, Math.round(size || cycleSizeOf(sub))),
+      plannedStartDate: startDate || dateKey(new Date()),
+      status: "planned",
+      held: 0,
+      createdAt: new Date().toISOString(),
+    };
+    set((state) => ({ emploiCartes: [...state.emploiCartes, carte] }));
+    return { ok: true, id: carte.id };
+  },
+
+  /**
+   * LE MOTEUR DES CARTES.
+   *
+   * Il relit les presences, redate les cartes, ouvre celle qui doit l'etre, et
+   * dit au semestre ou il en est. Voir la description de l'action sur
+   * l'interface pour les trois regles qu'il applique.
+   */
+  syncCartes: async () => {
+    const db = get();
+    const today = dateKey(new Date());
+
+    const patched = new Map<string, EmploiCarte>();
+    const created: EmploiCarte[] = [];
+    const semesterPatch = new Map<string, Partial<Semester>>();
+    const extended: string[] = [];
+    const finished: string[] = [];
+    let closed = 0;
+
+    for (const semester of db.semesters) {
+      if (semester.closedAt) continue;
+      const sessions = db.sessions.filter((s) => s.semesterId === semester.id && !s.archivedAt);
+      /** La derniere seance tenue du semestre, tous emplois confondus. */
+      let lastSeance = "";
+      /** Combien d'emplois du temps ont encore une carte en cours. */
+      let pending = 0;
+      let opened = 0;
+
+      for (const session of sessions) {
+        const views = carteLayout(db, session.id);
+        if (views.length === 0) continue;
+
+        for (const v of views) {
+          const carte = v.carte;
+          const next: EmploiCarte = {
+            ...carte,
+            // LA DATE DE DEPART EST CELLE DE LA PREMIERE PRESENCE, pas celle
+            // qui avait ete annoncee : une carte prevue le 20 et pointee pour
+            // la premiere fois le 27 commence le 27.
+            startDate: v.startDate,
+            endDate: v.endDate,
+            held: v.held,
+            postponed: v.postponed.length > 0 ? v.postponed : undefined,
+            status: v.complete ? "complete" : v.held > 0 ? "running" : "planned",
+          };
+          if (
+            next.startDate !== carte.startDate ||
+            next.endDate !== carte.endDate ||
+            next.held !== carte.held ||
+            next.status !== carte.status ||
+            (next.postponed ?? []).join("|") !== (carte.postponed ?? []).join("|")
+          ) {
+            patched.set(carte.id, next);
+          }
+          const end = v.endDate ?? v.seances[v.seances.length - 1]?.date;
+          if (end && end > lastSeance) lastSeance = end;
+        }
+
+        const last = views[views.length - 1];
+        if (!last.complete) {
+          pending += 1;
+          continue;
+        }
+
+        /**
+         * LA CARTE SUIVANTE - et la seule regle qui la retient.
+         *
+         * Elle ne s'ouvre que si la precedente est CLOSE (c'est le cas ici) et
+         * si le semestre n'a pas atteint sa date de fin. Passe cette date, la
+         * carte close est la derniere : c'est ce qui fait qu'un semestre finit
+         * par finir, au lieu de fabriquer des cartes a l'infini.
+         */
+        const closeDay = last.endDate ?? today;
+        if (closeDay >= semester.endDate) {
+          finished.push(session.id);
+          continue;
+        }
+        const already = db.emploiCartes.some(
+          (c) => c.sessionId === session.id && c.index === last.carte.index + 1,
+        );
+        if (already) continue;
+        const sub = db.subscriptions.find((x) => x.sessionId === session.id && !x.archivedAt);
+        const fresh: EmploiCarte = {
+          ...authorStamp(),
+          id: uid("crt"),
+          semesterId: semester.id,
+          sessionId: session.id,
+          index: last.carte.index + 1,
+          code: `M${last.carte.index + 1}`,
+          size: Math.max(1, Math.round(cycleSizeOf(sub))),
+          // Elle s'ouvre sur le premier jour de creneau qui suit la derniere
+          // seance - une intention, que le premier pointage remplacera par la
+          // vraie date.
+          plannedStartDate: nextSessionDay(session, closeDay),
+          status: "planned",
+          held: 0,
+          createdAt: new Date().toISOString(),
+        };
+        created.push(fresh);
+        opened += 1;
+        pending += 1;
+      }
+
+      /**
+       * LA FIN DU SEMESTRE - repoussee, puis prononcee.
+       *
+       * Une carte qui deborde sur la date de fin repousse cette date jusqu'au
+       * jour de sa derniere seance : c'est le decalage, et le comptoir en est
+       * averti. Quand plus aucune carte ne court et que la date de fin est
+       * passee, le semestre est CLOS - et le pointage se ferme avec lui.
+       */
+      const patch: Partial<Semester> = {};
+      if (lastSeance && lastSeance > semester.endDate) {
+        patch.endDate = lastSeance;
+        patch.plannedEndDate = semester.plannedEndDate ?? semester.endDate;
+        extended.push(semester.id);
+      }
+      const endAfter = patch.endDate ?? semester.endDate;
+      if (sessions.length > 0 && pending === 0 && opened === 0 && today > endAfter) {
+        patch.closedAt = today;
+        closed += 1;
+      }
+      if (Object.keys(patch).length > 0) semesterPatch.set(semester.id, patch);
+    }
+
+    if (patched.size === 0 && created.length === 0 && semesterPatch.size === 0) {
+      return { ok: true, opened: 0, closed: 0, extended, finished };
+    }
+
+    set((state) => ({
+      emploiCartes: [...state.emploiCartes.map((c) => patched.get(c.id) ?? c), ...created],
+      semesters:
+        semesterPatch.size > 0
+          ? state.semesters.map((sem) => {
+              const patch = semesterPatch.get(sem.id);
+              return patch ? { ...sem, ...patch } : sem;
+            })
+          : state.semesters,
+    }));
+
+    return { ok: true, opened: created.length, closed, extended, finished };
+  },
+
+  /**
+   * LA MUTATION D'UN CHEVALIER - voir la description de l'action sur
+   * l'interface. Trois gestes, dans cet ordre : on transporte le solde, on le
+   * sort de l'ancien creneau, on l'inscrit sur le nouveau la ou en est le
+   * groupe.
+   */
+  transferStudent: async ({
+    studentId,
+    fromSubscriptionId,
+    toSubscriptionId,
+    date,
+    moveBalance = true,
+    description,
+  }) => {
+    const db = get();
+    const student = db.students.find((s) => s.id === studentId);
+    if (!student) return { ok: false, messageKey: "student.notFound" };
+    if (fromSubscriptionId === toSubscriptionId) {
+      return { ok: false, messageKey: "transfer.sameEmploi" };
+    }
+    if (!student.subscriptionIds.includes(fromSubscriptionId)) {
+      return { ok: false, messageKey: "transfer.notEnrolled" };
+    }
+    const from = db.subscriptions.find((x) => x.id === fromSubscriptionId);
+    const to = db.subscriptions.find((x) => x.id === toSubscriptionId);
+    if (!from || !to) return { ok: false, messageKey: "transfer.unknownEmploi" };
+    if (to.archivedAt) return { ok: false, messageKey: "transfer.archived" };
+
+    const day = date || dateKey(new Date());
+    const now = isoOn(day);
+    const fromLabel = subscriptionTitleOf(db, fromSubscriptionId);
+    const toLabel = subscriptionTitleOf(db, toSubscriptionId);
+    const note = description?.trim();
+
+    /**
+     * CE QUI SUIT LE CHEVALIER : ce qui RESTE sur l'ancien creneau, et rien
+     * d'autre. Un solde dans le rouge reste du la ou il a ete creuse - le
+     * nouveau groupe n'a pas a heriter d'une dette qu'il n'a pas faite.
+     */
+    const balance = soldFor(db, studentId, fromSubscriptionId);
+    const moved = moveBalance ? positiveMoney(balance) : 0;
+
+    if (moved > 0) {
+      const source = db.enrollments.find(
+        (e) => e.studentId === studentId && e.subscriptionId === fromSubscriptionId,
+      );
+      /**
+       * DEUX LIGNES QUI SE FONT FACE, ET AUCUN MOUVEMENT DE CAISSE.
+       *
+       * L'argent n'entre ni ne sort : il change de case. On ecrit donc un
+       * RETRAIT sur l'ancien emploi (montant negatif) et un VERSEMENT sur le
+       * nouveau, tous deux marques `transfer`, pour que l'historique du
+       * chevalier raconte le deplacement au lieu d'inventer une recette.
+       */
+      const out: Payment = {
+        ...authorStamp(),
+        id: uid("pay"),
+        studentId,
+        enrollmentId: source?.id,
+        subscriptionId: fromSubscriptionId,
+        monthCode: currentCycleCode(db, studentId, fromSubscriptionId),
+        seancesPurchased: 0,
+        unitPrice: 0,
+        grossTotal: -moved,
+        netTotal: -moved,
+        amountPaid: -moved,
+        rest: 0,
+        type: "subscription_payment",
+        paidFrom: "transfer",
+        date: now,
+        description: note
+          ? `Transfert de solde vers ${toLabel} - ${note}`
+          : `Solde transfere vers ${toLabel}`,
+      };
+      set((state) => ({
+        payments: [...state.payments, out],
+        enrollments: state.enrollments.map((e) =>
+          e.id === source?.id
+            ? { ...e, balance: money((e.balance ?? 0) - moved), paidSeances: e.consumedSeances }
+            : e,
+        ),
+      }));
+    }
+
+    await get().unsubscribeStudent(studentId, fromSubscriptionId);
+    const joined = await get().subscribeStudent({
+      studentId,
+      subscriptionId: toSubscriptionId,
+      date: day,
+    });
+
+    if (moved > 0) {
+      await get().addSold({
+        studentId,
+        subscriptionId: toSubscriptionId,
+        amount: moved,
+        monthCode: joined.monthCode,
+        source: "transfer",
+        date: day,
+        description: note
+          ? `Solde transfere depuis ${fromLabel} - ${note}`
+          : `Solde transfere depuis ${fromLabel}`,
+      });
+    }
+
+    return { ok: true, moved, monthCode: joined.monthCode, slotIndex: joined.slotIndex };
+  },
+
   archiveSession: async (sessionId) => {
     const db = get();
     const session = db.sessions.find((s) => s.id === sessionId);

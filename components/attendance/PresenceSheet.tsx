@@ -121,6 +121,7 @@ import {
   todayIso,
 } from "@/lib/helpers";
 import type { Day } from "@/lib/types";
+import { carteLayout } from "@/lib/semesters";
 
 const JS_DAYS: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -293,6 +294,29 @@ export function PresenceSheet({
    *
    * Les trois se règlent sur CET écran, sans jamais ouvrir la fiche du chevalier.
    */
+  /**
+   * LES CARTES DU GROUPE — celles de l'EMPLOI DU TEMPS, pas celles d'un
+   * chevalier en particulier.
+   *
+   * Elles disent trois choses que la feuille ne savait pas dire :
+   *
+   *  - QUAND la carte en cours a réellement commencé (la date de la première
+   *    présence pointée, jamais celle qui avait été annoncée) ;
+   *  - COMBIEN de séances elle a données sur celles qu'elle contient ;
+   *  - QUELLES SÉANCES ONT ÉTÉ ANNULÉES pour tout le monde — elles ne comptent
+   *    pas, le groupe les rejoue la semaine suivante, et la carte finit
+   *    simplement plus tard.
+   *
+   * Un emploi du temps sans semestre n'en a aucune : la bande ne s'affiche pas,
+   * et la feuille est exactement ce qu'elle était.
+   */
+  const cartes = useMemo(
+    () => carteLayout(db, session.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [db.emploiCartes, db.attendance, session.id],
+  );
+  const runningCarte = cartes.find((c) => !c.complete);
+
   const alerts = useMemo(() => {
     const rows = roster
       .map((st) => {
@@ -769,6 +793,50 @@ export function PresenceSheet({
           </Button>
         </div>
       </div>
+
+      {/* ---- les cartes du groupe ------------------------------------------ */}
+      {cartes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-accent/25 bg-accent-wash/25 px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+            Cartes du groupe
+          </span>
+          {cartes.map((v) => (
+            <span
+              key={v.carte.id}
+              title={
+                v.startDate
+                  ? `Commencée le ${formatDateFr(v.startDate)}${
+                      v.endDate ? `, close le ${formatDateFr(v.endDate)}` : ""
+                    }`
+                  : `Prévue le ${formatDateFr(v.carte.plannedStartDate)} — pas encore pointée`
+              }
+              className={`rounded-lg border px-2 py-1 text-[10px] font-bold ${
+                v.complete
+                  ? "border-success/40 bg-success/10 text-success"
+                  : v.running
+                    ? "border-warning/45 bg-warning/10 text-warning"
+                    : "border-line bg-surface text-muted"
+              }`}
+            >
+              {carteShort(v.carte.code)} · {v.held}/{v.size}
+              {v.startDate ? ` · ${formatDateFr(v.startDate)}` : " · non commencée"}
+              {v.endDate ? ` → ${formatDateFr(v.endDate)}` : ""}
+            </span>
+          ))}
+          {runningCarte && runningCarte.postponed.length > 0 && (
+            <span className="text-[10px] font-semibold text-warning">
+              {runningCarte.postponed.length} séance(s) annulée(s) pour tout le groupe —
+              décalée(s) à la semaine suivante, la carte finira d&apos;autant plus tard.
+            </span>
+          )}
+          {!runningCarte && (
+            <span className="text-[10px] font-semibold text-success">
+              Toutes les cartes ouvertes sont closes — la suivante s&apos;ouvrira d&apos;elle-même
+              tant que le semestre n&apos;a pas atteint sa date de fin.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* ---- search + day -------------------------------------------------- */}
       <div className="flex flex-wrap items-center gap-2">

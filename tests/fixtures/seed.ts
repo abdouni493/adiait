@@ -356,6 +356,11 @@ function rawSeed(): Database {
 
     // -----------------------------------------------------------------------
     // Timings — every one of them runs today or within the next three days.
+    // Les semestres et les cartes : vides par défaut. Un club d'avant la
+    // nouveauté travaille exactement comme avant — et les tests qui portent
+    // sur les cartes en posent eux-mêmes.
+    semesters: [],
+    emploiCartes: [],
     sessions: [
       {
         id: "ses-1",

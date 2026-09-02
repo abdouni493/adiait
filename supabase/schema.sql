@@ -11,8 +11,8 @@
 --
 --   1. Les extensions (pgcrypto : c'est lui qui chiffre les mots de passe).
 --   2. `public.profiles` — le pont entre `auth.users` et les fiches métier.
---   3. LE CATALOGUE DES DROITS : `app_pages` (les 17 écrans) et
---      `app_page_actions` (les 95 boutons), recopiés de `lib/permissions.ts`.
+--   3. LE CATALOGUE DES DROITS : `app_pages` (les 18 écrans) et
+--      `app_page_actions` (les 101 boutons), recopiés de `lib/permissions.ts`.
 --      C'est la table de vérité que l'écran « Droits d'accès » présente.
 --   4. Les 42 tables métier — une par collection du magasin (`lib/store/data.ts`),
 --      avec TOUTES leurs relations. Deux d'entre elles servent LE SITE PUBLIC :
@@ -146,28 +146,29 @@ create table if not exists public.app_page_actions (
   primary key (page_key, action_id)
 );
 
-comment on table public.app_pages is 'Les 17 écrans de l''application, dans l''ordre de la barre latérale.';
-comment on table public.app_page_actions is 'Les 95 boutons, écran par écran. Clé stockée : « écran:action ».';
+comment on table public.app_pages is 'Les 18 écrans de l''application, dans l''ordre de la barre latérale.';
+comment on table public.app_page_actions is 'Les 101 boutons, écran par écran. Clé stockée : « écran:action ».';
 
 -- ---- Les écrans -------------------------------------------------------------
 insert into public.app_pages (key, position, emoji, label, href, hint) values
   ('dashboard', 1, '📊', 'Tableau de bord', '/dashboard', 'Les emplois du temps du jour, les feuilles de présence et la caisse.'),
-  ('classes', 2, '🛡️', 'Catégories', '/classes', 'Les catégories de l''Ordre et la tranche d''âge de chacune.'),
-  ('planner', 3, '📅', 'Emplois du temps', '/planner', 'La grille des créneaux, les séances libres et les arènes.'),
-  ('students', 5, '⚔️', 'Chevaliers', '/students', 'Les fiches des chevaliers, leurs inscriptions, leurs paiements et leurs dettes.'),
-  ('attendance', 6, '✅', 'Présences', '/attendance', 'Les feuilles de présence et l''historique des pointages.'),
-  ('teachers', 7, '🏅', 'Entraîneurs', '/teachers', 'Les fiches des entraîneurs, leurs parts et leur paie.'),
-  ('workers', 9, '💼', 'Personnel', '/workers', 'Le personnel : métiers, comptes, droits, acomptes, absences et paie.'),
-  ('independent', 10, '🚩', 'Séances libres', '/independent', 'Les séances vendues à l''unité et les sorties libres de groupe.'),
-  ('parents', 11, '👨‍👩‍👧', 'Parents', '/parents', 'Les fiches des parents et leurs comptes.'),
-  ('announcements', 12, '📢', 'Annonces', '/announcements', 'Les annonces publiées aux chevaliers et aux parents.'),
-  ('expenses', 13, '🧾', 'Dépenses', '/expenses', 'Les dépenses du club et leurs catégories.'),
-  ('analytics', 14, '📈', 'Statistiques', '/analytics', 'L''affluence des chevaliers par catégorie et par entraîneur.'),
-  ('cash', 15, '💵', 'Caisse', '/cash', 'Les mouvements de caisse : dépôts, retraits, dépenses — et leurs rubriques.'),
-  ('reports', 16, '💰', 'Rapports', '/reports', 'Le bilan du club sur une période. Cet écran se consulte ; il n''écrit rien.'),
-  ('website', 17, '🌐', 'Site web', '/website', 'La vitrine du club : les formations et les évènements publiés, les coordonnées et l''habillage de la page d''accueil.'),
-  ('website-inscriptions', 18, '📥', 'Inscriptions du site', '/website-inscriptions', 'Les inscriptions venues du site public, en attente d''être vérifiées et rattachées à une fiche.'),
-  ('settings', 19, '⚙️', 'Paramètres', '/settings', 'Le club, la sécurité, WhatsApp et les sauvegardes.')
+  ('semesters', 2, '🗓️', 'Semestres', '/semesters', 'Les saisons du club : leurs categories, leurs emplois du temps, leurs cartes et leur argent.'),
+  ('classes', 3, '🛡️', 'Catégories', '/classes', 'Les catégories de l''Ordre et la tranche d''âge de chacune.'),
+  ('planner', 4, '📅', 'Emplois du temps', '/planner', 'La grille des créneaux, les séances libres et les arènes.'),
+  ('students', 6, '⚔️', 'Chevaliers', '/students', 'Les fiches des chevaliers, leurs inscriptions, leurs paiements et leurs dettes.'),
+  ('attendance', 7, '✅', 'Présences', '/attendance', 'Les feuilles de présence et l''historique des pointages.'),
+  ('teachers', 8, '🏅', 'Entraîneurs', '/teachers', 'Les fiches des entraîneurs, leurs parts et leur paie.'),
+  ('workers', 10, '💼', 'Personnel', '/workers', 'Le personnel : métiers, comptes, droits, acomptes, absences et paie.'),
+  ('independent', 11, '🚩', 'Séances libres', '/independent', 'Les séances vendues à l''unité et les sorties libres de groupe.'),
+  ('parents', 12, '👨‍👩‍👧', 'Parents', '/parents', 'Les fiches des parents et leurs comptes.'),
+  ('announcements', 13, '📢', 'Annonces', '/announcements', 'Les annonces publiées aux chevaliers et aux parents.'),
+  ('expenses', 14, '🧾', 'Dépenses', '/expenses', 'Les dépenses du club et leurs catégories.'),
+  ('analytics', 15, '📈', 'Statistiques', '/analytics', 'L''affluence des chevaliers par catégorie et par entraîneur.'),
+  ('cash', 16, '💵', 'Caisse', '/cash', 'Les mouvements de caisse : dépôts, retraits, dépenses — et leurs rubriques.'),
+  ('reports', 17, '💰', 'Rapports', '/reports', 'Le bilan du club sur une période. Cet écran se consulte ; il n''écrit rien.'),
+  ('website', 18, '🌐', 'Site web', '/website', 'La vitrine du club : les formations et les évènements publiés, les coordonnées et l''habillage de la page d''accueil.'),
+  ('website-inscriptions', 19, '📥', 'Inscriptions du site', '/website-inscriptions', 'Les inscriptions venues du site public, en attente d''être vérifiées et rattachées à une fiche.'),
+  ('settings', 20, '⚙️', 'Paramètres', '/settings', 'Le club, la sécurité, WhatsApp et les sauvegardes.')
 on conflict (key) do update set
   position = excluded.position,
   emoji    = excluded.emoji,
@@ -192,6 +193,12 @@ insert into public.app_page_actions (page_key, action_id, position, label, hint)
   ('dashboard', 'cash_deposit', 6, 'Dépôt en caisse', null),
   ('dashboard', 'cash_expense', 7, 'Saisir une dépense', null),
   ('dashboard', 'cash_withdraw', 8, 'Retrait de caisse', null),
+  ('semesters', 'create', 1, 'Creer un semestre', null),
+  ('semesters', 'view',   2, 'Ouvrir le detail d''un semestre', 'Categories, emplois du temps, cartes et chevaliers.'),
+  ('semesters', 'edit',   3, 'Modifier un semestre', null),
+  ('semesters', 'delete', 4, 'Supprimer un semestre', null),
+  ('semesters', 'close',  5, 'Clore un semestre', 'Ferme la saison -- et le pointage avec elle.'),
+  ('semesters', 'pay',    6, 'Encaisser la dette d''un chevalier', 'Depuis la liste des chevaliers d''un emploi du temps.'),
   ('classes', 'create', 1, 'Créer une classe', null),
   ('classes', 'view', 2, 'Voir le détail d''une classe', null),
   ('classes', 'edit', 3, 'Modifier une classe', null),
@@ -546,6 +553,30 @@ create table if not exists public.parents (
 );
 
 -- ---- Les emplois du temps ---------------------------------------------------
+-- ---- Les saisons du club ----------------------------------------------------
+-- Un semestre porte un nom, deux dates, et tout ce qui se joue entre elles.
+-- SA FIN N'EST PAS UNE DATE, C'EST UN TRAVAIL FINI : une seance annulee pour
+-- tout un groupe se rejoue la semaine suivante, la carte qu'elle devait clore
+-- deborde, et `end_date` est REPOUSSEE jusqu'au jour de la derniere presence.
+-- `planned_end_date` garde ce qui avait ete annonce, pour que l'ecart se lise.
+-- Une fois CLOS (`closed_at`), le semestre ferme le pointage : plus aucune
+-- presence ne s'ecrit tant que le suivant n'a pas ete cree.
+create table if not exists public.semesters (
+  id                text primary key,
+  name              text not null default '',
+  start_date        text not null default '',
+  end_date          text not null default '',
+  planned_end_date  text,
+  description       text,
+  closed_at         text,
+  extension_seen_at text,
+  created_at        text,
+  created_by        text,
+  created_by_name   text,
+  created_by_role   text
+);
+create index if not exists semesters_dates_idx on public.semesters (start_date, end_date);
+
 create table if not exists public.schedule_sessions (
   id               text primary key,
   class_id         text references public.classes (id) on delete set null,
@@ -573,12 +604,55 @@ create table if not exists public.schedule_sessions (
   salle_ids        jsonb,
   open_price       numeric,
   archived_at      text,
+  -- LE SEMESTRE de ce creneau : il decide jusqu'a quand ses cartes continuent
+  -- de se creer. La derniere ouverte avant la date de fin va jusqu'au bout, et
+  -- aucune ne s'ouvre apres. NULL = emploi du temps hors saison, qui fonctionne
+  -- exactement comme avant les semestres.
+  semester_id      text references public.semesters (id) on delete set null,
   created_by       text,
   created_by_name  text,
   created_by_role  text
 );
-create index if not exists sessions_teacher_idx on public.schedule_sessions (teacher_id);
-create index if not exists sessions_class_idx   on public.schedule_sessions (class_id);
+create index if not exists sessions_teacher_idx  on public.schedule_sessions (teacher_id);
+create index if not exists sessions_class_idx    on public.schedule_sessions (class_id);
+create index if not exists sessions_semester_idx on public.schedule_sessions (semester_id);
+
+-- ---- Les cartes de chaque emploi du temps -----------------------------------
+-- Une carte n'est pas une case du calendrier : c'est un PACK DE SEANCES que le
+-- groupe vit. La premiere nait avec l'emploi du temps, a la date que la
+-- reception fixe (`planned_start_date`) -- mais cette date n'est qu'une
+-- INTENTION : la carte commence vraiment au premier pointage, et `start_date`
+-- prend ce jour-la. Elle se ferme sur la seance qui complete `size`, et la
+-- SUIVANTE N'EXISTE PAS AVANT. Une seance annulee pour tout le groupe ne compte
+-- pas : elle est listee dans `postponed`, le groupe la rejoue la semaine
+-- d'apres, et la carte finit simplement plus tard.
+create table if not exists public.emploi_cartes (
+  id                  text primary key,
+  semester_id         text references public.semesters (id) on delete cascade,
+  session_id          text references public.schedule_sessions (id) on delete cascade,
+  "index"             integer not null default 1,
+  -- « M1 », « M2 » ... -- le code historique que la paie et les paiements
+  -- ecrivent deja partout. Seul l'affichage dit « Carte 1 ».
+  code                text not null default 'M1',
+  size                integer not null default 4,
+  planned_start_date  text not null default '',
+  start_date          text,
+  end_date            text,
+  held                integer not null default 0,
+  postponed           jsonb,
+  status              text not null default 'planned'
+                      check (status in ('planned','running','complete')),
+  created_at          text,
+  created_by          text,
+  created_by_name     text,
+  created_by_role     text
+);
+create index if not exists emploi_cartes_session_idx  on public.emploi_cartes (session_id);
+create index if not exists emploi_cartes_semester_idx on public.emploi_cartes (semester_id);
+-- Une carte par rang et par emploi du temps : le moteur est idempotent, la base
+-- le garantit.
+create unique index if not exists emploi_cartes_session_index_uniq
+  on public.emploi_cartes (session_id, "index");
 
 create table if not exists public.subscriptions (
   id                  text primary key,
@@ -688,7 +762,11 @@ create table if not exists public.payments (
   rest               numeric not null default 0,
   type               text not null default 'subscription_payment'
                      check (type in ('subscription_payment','debt_payment')),
-  paid_from          text check (paid_from in ('cash','teacher_salary','teacher_debt','school_cash')),
+  -- `transfer` : le solde d'un AUTRE emploi du temps, deplace avec le chevalier
+  -- qu'on mute d'un groupe a un autre. Un retrait (montant negatif) sur
+  -- l'ancien, un versement sur le nouveau, et AUCUN mouvement de caisse :
+  -- l'argent n'entre ni ne sort, il change de case.
+  paid_from          text check (paid_from in ('cash','teacher_salary','teacher_debt','school_cash','transfer')),
   charge_id          text,
   date               text not null default '',
   description        text,
@@ -1316,7 +1394,7 @@ as $$
       (select array(select jsonb_array_elements_text(w.nav_keys))
          from public.reception_staff w
         where w.id = public.my_entity_id() and w.nav_keys is not null),
-      array['dashboard','classes','planner','subscriptions','students','attendance',
+      array['dashboard','semesters','classes','planner','subscriptions','students','attendance',
             'independent','parents','announcements','expenses','settings']
     )
     else array[]::text[]
@@ -1430,6 +1508,12 @@ begin
       ('modules',                     any_signed,                           $w$public.can_write(array['classes','planner','subscriptions'])$w$),
       ('groups',                      any_signed,                           $w$public.can_write(array['classes','planner'])$w$),
       ('salles',                      any_signed,                           $w$public.can_write(array['classes','planner'])$w$),
+      -- LA SAISON ET SES CARTES. Tout compte connecte les lit -- un entraineur
+      -- doit voir ou en sont les cartes de ses groupes, une famille ou en est
+      -- la saison. Les cartes sont ecrites par le MOTEUR, qui tourne partout ou
+      -- l'on pointe : leur droit d'ecriture suit ces ecrans-la.
+      ('semesters',                   any_signed,                           $w$public.can_write(array['semesters','planner'])$w$),
+      ('emploi_cartes',               any_signed,                           $w$public.can_write(array['semesters','planner','attendance','dashboard'])$w$),
       ('schedule_sessions',           any_signed,                           $w$public.can_write(array['planner','classes'])$w$),
       ('subscriptions',               any_signed,                           $w$public.can_write(array['subscriptions','planner'])$w$),
       ('free_periods',                any_signed,                           $w$public.can_write(array['subscriptions','planner','settings'])$w$),
@@ -2618,7 +2702,7 @@ grant select on public.website_formations to anon;
 --    select tablename, rowsecurity from pg_tables
 --     where schemaname = 'public' order by tablename;
 --
---    -- Le catalogue des droits (17 écrans, 95 boutons)
+--    -- Le catalogue des droits (18 écrans, 101 boutons)
 --    select page_key, action_id, permission_key from public.app_permission_catalog;
 --
 --    -- CE QUE LE DEHORS PEUT LIRE. Deux tables, et pas une de plus :

@@ -46,7 +46,7 @@ const LABELS = {
     phone: "Téléphone :",
     email: "Email :",
     contract: "Rémunération :",
-    monthlyContract: (a: number) => `Fixe Par carte (${formatDA(a)}/mois)`,
+    monthlyContract: (a: number) => `Fixe par carte (${formatDA(a)} / carte)`,
     percentContract: (p: number) => `Pourcentage — ${p}% par chevalier présent`,
     passagerContract: "Entraîneur passager (réglé à la séance)",
     groupContract: "Par groupe — tarif entraîneur de chaque emploi du temps",

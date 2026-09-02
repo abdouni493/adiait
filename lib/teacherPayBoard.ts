@@ -100,11 +100,24 @@ export interface MonthTile {
 }
 
 /**
- * Les douze pastilles d'un emploi du temps.
+ * LES CARTES D'UN EMPLOI DU TEMPS — CELLES QUI EXISTENT, ET ELLES SEULES.
  *
- * La liste va TOUJOURS de M1 à M12, même si le groupe n'en est qu'à son
- * deuxième carte : c'est un calendrier, pas un journal — on doit pouvoir ouvrir
- * M7 pour voir qu'il n'a rien, comme on ouvre une page blanche d'un agenda.
+ * L'écran montrait douze pastilles, de M1 à M12, comme on ouvre les pages d'un
+ * agenda. C'était faux : une carte n'est pas une case du calendrier, c'est un
+ * PACK DE SÉANCES qui a réellement eu lieu. Onze cartes vides proposées au
+ * règlement d'un entraîneur qui n'en a assurée qu'une seule ne disaient rien de
+ * vrai et invitaient à régler du vide.
+ *
+ * La liste est donc celle des cartes OUVERTES sur ce créneau :
+ *
+ *  - AUCUNE tant que l'emploi du temps n'a pas reçu sa première carte (elle
+ *    naît avec lui, sur l'écran « Emplois du temps ») ;
+ *  - la SUIVANTE n'apparaît que le jour où la précédente a donné toutes ses
+ *    séances — c'est le moteur des cartes qui l'ouvre, personne d'autre.
+ *
+ * UN EMPLOI D'AVANT LES CARTES garde l'ancien comportement : sans aucune carte
+ * en base, on retombe sur les douze pastilles, pour que les règlements déjà
+ * pris et les groupes en cours restent lisibles et payables.
  */
 export function monthTiles(
   db: Database,
@@ -112,8 +125,23 @@ export function monthTiles(
   teacherId: string,
 ): MonthTile[] {
   const paidMonths = settledMonthCodes(db, teacherId, emploi.sessionId);
-  return Array.from({ length: PAY_MONTHS }, (_, i) => {
-    const code = `M${i + 1}`;
+  const opened = db.emploiCartes
+    .filter((c) => c.sessionId === emploi.sessionId)
+    .sort((a, b) => a.index - b.index);
+  /**
+   * Les cartes à afficher. Celles qui EXISTENT quand l'emploi en a ; sinon les
+   * douze d'autrefois — plus tout carte qu'un règlement a déjà soldé, qui doit
+   * rester ouvrable même si l'emploi a changé de régime entre-temps.
+   */
+  const codes =
+    opened.length > 0
+      ? [...new Set([...opened.map((c) => c.code), ...paidMonths.keys()])].sort(
+          (a, b) => (Number(a.slice(1)) || 0) - (Number(b.slice(1)) || 0),
+        )
+      : Array.from({ length: PAY_MONTHS }, (_, i) => `M${i + 1}`);
+
+  return codes.map((code) => {
+    const i = Math.max(0, (Number(code.slice(1)) || 1) - 1);
     const month = emploi.months[i];
     const settlement = paidMonths.get(code);
     const held = month?.held ?? 0;

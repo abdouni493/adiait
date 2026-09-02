@@ -1698,6 +1698,23 @@ export function studentChargeDebt(db: Database, studentId: string): number {
   return money(studentOpenCharges(db, studentId).reduce((t, c) => t + chargeRemaining(c), 0));
 }
 
+/**
+ * L'ENGAGEMENT ENCORE DÛ — le frais d'entrée des créneaux qu'il a rejoints.
+ *
+ * Il ne se confond ni avec la cotisation (qui se paie carte après carte) ni
+ * avec les droits d'entrée du club (qui se règlent une fois pour toutes) : il
+ * appartient à UN emploi du temps, et c'est ce qui lui vaut son alerte propre
+ * sur la fiche du chevalier. Un club qui ne demande aucun engagement n'en voit
+ * jamais aucune.
+ */
+export function studentEngagementDebt(db: Database, studentId: string): number {
+  return money(
+    studentOpenCharges(db, studentId)
+      .filter((c) => c.origin === "engagement")
+      .reduce((t, c) => t + chargeRemaining(c), 0),
+  );
+}
+
 /** Les frais que le club s'est avancée à elle-même et qui restent à récupérer. */
 export function studentAdvanceDebt(db: Database, studentId: string): number {
   return money(

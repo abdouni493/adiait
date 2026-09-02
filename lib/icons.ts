@@ -5,6 +5,7 @@ import {
   Bell,
   Briefcase,
   CalendarDays,
+  CalendarRange,
   CreditCard,
   Flag,
   Globe,
@@ -39,6 +40,7 @@ import {
 export const NAV_ICONS: Record<string, LucideIcon> = {
   // — L'Ordre —
   dashboard: LayoutDashboard,
+  semesters: CalendarRange,
   classes: Shield,
   planner: CalendarDays,
   subscriptions: Ticket,

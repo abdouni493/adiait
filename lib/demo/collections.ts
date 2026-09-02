@@ -28,6 +28,8 @@ const PRESENT: Record<CollectionKey, true> = {
   reception: true,
   parents: true,
   sessions: true,
+  semesters: true,
+  emploiCartes: true,
   subscriptions: true,
   students: true,
   studentCredentials: true,

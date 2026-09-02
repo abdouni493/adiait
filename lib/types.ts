@@ -700,6 +700,15 @@ export interface DayTime {
 
 export interface ScheduleSession extends Authored {
   id: string;
+  /**
+   * LE SEMESTRE AUQUEL CET EMPLOI DU TEMPS APPARTIENT.
+   *
+   * C'est lui qui décide jusqu'à quand les cartes de ce créneau continuent de
+   * se créer : la dernière carte ouverte avant la date de fin va jusqu'au bout,
+   * et aucune ne s'ouvre après. Absent = emploi du temps d'avant les semestres,
+   * qui continue de fonctionner comme il l'a toujours fait.
+   */
+  semesterId?: string;
   classId: string;
   moduleId: string;
   groupId: string;
@@ -788,6 +797,114 @@ export interface ScheduleSession extends Authored {
    * Absent = emploi du temps vivant.
    */
   archivedAt?: string;
+}
+
+/**
+ * =============================================================================
+ *  LE SEMESTRE — la saison du club, et ce qui la ferme
+ * =============================================================================
+ *
+ * Un semestre est la PÉRIODE pendant laquelle le club travaille : il porte un
+ * nom, une date de début, une date de fin annoncée, et tout ce qui se joue
+ * entre les deux — les emplois du temps, leurs cartes, les chevaliers, ce qui
+ * rentre et ce qui reste dû.
+ *
+ * SA FIN N'EST PAS UNE DATE, C'EST UN TRAVAIL FINI. La date annoncée
+ * (`endDate`) dit quand le club ESPÈRE fermer. Mais une séance annulée pour
+ * tout un groupe se décale d'une semaine, et la carte qu'elle devait clore
+ * déborde alors sur la date de fin. Le semestre ne se ferme donc PAS tant
+ * qu'un emploi du temps n'a pas fini ses cartes : sa date de fin est REPOUSSÉE
+ * jusqu'au jour de la dernière présence, et `plannedEndDate` garde ce qui avait
+ * été annoncé pour que l'écart se lise.
+ *
+ * UNE FOIS FERMÉ, IL FERME AUSSI LE POINTAGE. Plus aucune présence ne s'écrit —
+ * ni au tableau de bord, ni sur l'écran Présences — tant que le semestre
+ * suivant n'a pas été créé. C'est ce qui empêche une séance de janvier de
+ * tomber dans une saison terminée.
+ */
+export interface Semester extends Authored {
+  id: string;
+  /** ce que le club l'appelle : « Saison 2026-2027 — 1er semestre » */
+  name: string;
+  startDate: string; // YYYY-MM-DD
+  /**
+   * La fin RÉELLE : celle qui est annoncée, puis repoussée d'elle-même quand
+   * une carte déborde. C'est cette date-là que les écrans affichent.
+   */
+  endDate: string; // YYYY-MM-DD
+  /**
+   * La fin ANNONCÉE à la création, gardée telle quelle. Elle n'existe que pour
+   * dire « on avait dit le 15 janvier, on a fini le 20 » — absente tant que
+   * rien n'a débordé.
+   */
+  plannedEndDate?: string;
+  description?: string;
+  /**
+   * Le jour où le semestre a été DÉCLARÉ CLOS : toutes les cartes de tous ses
+   * emplois du temps ont donné toutes leurs séances. Tant qu'il est absent, le
+   * semestre vit — même passé sa date de fin.
+   */
+  closedAt?: string;
+  /** l'alerte de prolongation a déjà été vue par le comptoir */
+  extensionSeenAt?: string;
+  createdAt?: string;
+}
+
+/**
+ * =============================================================================
+ *  UNE CARTE D'UN EMPLOI DU TEMPS — le pack de séances que le groupe vit
+ * =============================================================================
+ *
+ * Jusqu'ici une carte était une DIVISION : on comptait les présences d'un
+ * chevalier et on les découpait quatre par quatre. Cela suffisait pour la paie,
+ * mais ne disait rien de ce que la réception veut savoir — quand la carte du
+ * GROUPE a commencé, quand elle finira, et laquelle est en cours.
+ *
+ * Une carte est donc désormais une LIGNE, tenue par l'emploi du temps :
+ *
+ *  - LA PREMIÈRE naît avec l'emploi du temps, à la date que la réception fixe
+ *    (« Date de début de la 1ʳᵉ carte »). Cette date n'est qu'une INTENTION :
+ *    tant qu'aucune présence n'y est pointée, la carte n'a pas commencé.
+ *  - ELLE COMMENCE VRAIMENT au premier pointage : `startDate` prend le jour de
+ *    cette première séance, et l'intention est simplement décalée. Une carte
+ *    prévue le 20 septembre mais pointée pour la première fois le 27 commence
+ *    le 27.
+ *  - ELLE SE FERME sur la séance qui complète le pack (`size`) : `endDate`
+ *    prend ce jour-là et l'état passe à `complete`.
+ *  - LA SUIVANTE N'EXISTE PAS AVANT. Aucune carte 2 tant que la carte 1 n'a pas
+ *    donné ses quatre séances — c'est ce qui empêche l'écran de paie de
+ *    proposer douze cartes dont onze n'ont jamais eu lieu.
+ *
+ * UNE SÉANCE ANNULÉE POUR TOUT LE GROUPE NE COMPTE PAS. Elle n'avance pas la
+ * carte, ne coûte rien à personne, et la carte se termine simplement une
+ * semaine plus tard : c'est le décalage, et il se lit sur `postponed`.
+ */
+export interface EmploiCarte extends Authored {
+  id: string;
+  /** le semestre dans lequel cette carte se joue */
+  semesterId: string;
+  /** l'emploi du temps dont elle est la carte */
+  sessionId: string;
+  /** 1, 2, 3 … — le rang de la carte sur CET emploi du temps */
+  index: number;
+  /** « M1 », « M2 » … — le code historique, celui que la paie et les paiements
+   *  écrivent déjà partout. Il ne change pas ; seul l'affichage dit « Carte 1 ». */
+  code: string;
+  /** combien de séances cette carte contient (copié du tarif à sa naissance) */
+  size: number;
+  /** la date que la réception a fixée — une intention, jamais un fait */
+  plannedStartDate: string;
+  /** le jour de la PREMIÈRE présence réellement pointée sur cette carte */
+  startDate?: string;
+  /** le jour de la séance qui l'a complétée */
+  endDate?: string;
+  /** séances effectivement tenues (les annulations pour tout le groupe exclues) */
+  held?: number;
+  /** les jours où la séance a été annulée pour TOUT le groupe, donc décalée */
+  postponed?: string[];
+  /** `planned` : pas encore commencée · `running` : en cours · `complete` : close */
+  status: "planned" | "running" | "complete";
+  createdAt?: string;
 }
 
 /**
@@ -1108,7 +1225,22 @@ export type PaymentType = "subscription_payment" | "debt_payment";
  *     both movements: the payment booked on the student, and the outflow that
  *     paid for it.
  */
-export type PaymentSource = "cash" | "teacher_salary" | "teacher_debt" | "school_cash";
+export type PaymentSource =
+  | "cash"
+  | "teacher_salary"
+  | "teacher_debt"
+  | "school_cash"
+  /**
+   * LE SOLDE D'UN AUTRE EMPLOI DU TEMPS, TRANSPORTÉ ICI.
+   *
+   * Un chevalier qu'on mute d'un groupe à un autre n'abandonne pas ce qu'il a
+   * déjà versé : ce qui restait sur l'ancien créneau est retiré de là et
+   * recrédité sur le nouveau, au dinar près. Aucun argent n'entre ni ne sort du
+   * tiroir — c'est le MÊME argent qui change de case — donc la caisse ne bouge
+   * pas, et les deux lignes se lisent l'une en face de l'autre dans son
+   * historique.
+   */
+  | "transfer";
 
 /**
  * One cash movement of a student: either a purchase of séances (with its

@@ -88,7 +88,7 @@ async function loadTable(table: string, orderBy: string): Promise<Record<string,
 /**
  * TOUTE LA BASE, en un seul passage.
  *
- * Les 39 collections partent EN PARALLÈLE : elles ne dépendent pas les unes des
+ * Les 41 collections partent EN PARALLÈLE : elles ne dépendent pas les unes des
  * autres à la lecture, et les attendre en file rendrait la connexion trois fois
  * plus lente.
  *

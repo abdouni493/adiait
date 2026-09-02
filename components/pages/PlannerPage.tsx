@@ -44,8 +44,11 @@ import {
   transportMonthShareOf,
   transportPerSeanceOf,
   weeklySeanceCount,
+  carteShort,
+  todayIso,
 } from "@/lib/helpers";
 import { formatDA, money, positiveMoney } from "@/lib/utils";
+import { activeSemester, carteLayout, semestersOf } from "@/lib/semesters";
 import { formatDateFr } from "@/lib/helpers";
 import { printHtmlDocument } from "@/lib/print";
 import {
@@ -128,6 +131,8 @@ export function PlannerPage() {
     updateItem,
     setSubscriptionPrice,
     archiveSession,
+    openFirstCarte,
+    syncCartes,
   } = db;
   /**
    * La grille ne montre QUE les emplois du temps vivants. Un emploi supprimé est
@@ -247,6 +252,21 @@ export function PlannerPage() {
   const [monthSeances, setMonthSeances] = useState<number>(0);
   const [monthPrice, setMonthPrice] = useState<number>(0);
   /**
+   * LE SEMESTRE DE CE CRENEAU, ET LE JOUR OU SA PREMIERE CARTE COMMENCE.
+   *
+   * Le semestre dit jusqu'a quand les cartes de cet emploi continuent de se
+   * creer : la derniere ouverte avant la date de fin va jusqu'au bout, et
+   * aucune ne s'ouvre apres.
+   *
+   * La date de depart, elle, n'est qu'une INTENTION. La carte 1 ne commence
+   * vraiment qu'au PREMIER POINTAGE : prevue le 20 septembre mais pointee pour
+   * la premiere fois le 27, elle commence le 27, et tout ce qui suit se decale
+   * avec elle. C'est ce qui evite qu'une carte se croie a moitie faite parce
+   * que le club a ouvert une semaine plus tard que prevu.
+   */
+  const [semesterId, setSemesterId] = useState<string>("");
+  const [firstCarteStart, setFirstCarteStart] = useState<string>("");
+  /**
    * LE TRANSPORT — prélevé sur le prix de la carte AVANT tout partage.
    *
    * Le prix d'une carte se coupe désormais en TROIS : le bus d'abord, puis la
@@ -300,6 +320,10 @@ export function PlannerPage() {
   const resetPricing = () => {
     setMonthSeances(0);
     setMonthPrice(0);
+    // Le semestre en cours est propose d'office : c'est celui dans lequel on
+    // travaille aujourd'hui, et un club n'en fait pas tourner deux a la fois.
+    setSemesterId(activeSemester(db)?.id ?? "");
+    setFirstCarteStart(todayIso());
     setTransportShare(0);
     setSchoolShare(0);
     setEngagementFee(0);
@@ -1478,8 +1502,10 @@ export function PlannerPage() {
       alert(`L'heure de fin doit suivre l'heure de début : ${formatDays(invalidDays)}.`);
       return;
     }
+    if (!confirmSalleClashes()) return;
     const newSession: ScheduleSession = {
       id: uid("ses"),
+      semesterId: semesterId || undefined,
       moduleId,
       teacherId,
       ...levelPayload(),
@@ -1489,8 +1515,53 @@ export function PlannerPage() {
     };
     push("sessions", newSession);
     savePricing(newSession.id);
+    void openCarteOne(newSession.id);
     setIsCreateOpen(false);
     resetForm();
+  };
+
+  /**
+   * LA PREMIERE CARTE DE CE CRENEAU.
+   *
+   * Elle naît avec l'emploi du temps, à la date que la réception a fixée — mais
+   * seulement s'il a un semestre : sans saison, il n'y a rien pour dire quand
+   * les cartes cessent de se créer, et on n'en ouvre donc aucune.
+   */
+  const openCarteOne = async (sessionId: string) => {
+    if (!semesterId) return;
+    await openFirstCarte({
+      sessionId,
+      semesterId,
+      startDate: firstCarteStart || todayIso(),
+      size: monthSeances > 0 ? monthSeances : undefined,
+    });
+    await syncCartes();
+  };
+
+  /**
+   * DEUX GROUPES DANS LA MEME ARENE, A LA MEME HEURE.
+   *
+   * Ce n'est pas une erreur : un club double volontiers un créneau — deux
+   * moitiés de groupe, deux entraîneurs, une seule salle assez grande. On ne
+   * REFUSE donc jamais. Mais on ne laisse pas non plus passer en silence ce qui
+   * est presque toujours une inattention : on nomme les emplois déjà là, les
+   * jours et les heures qui se chevauchent, et on demande de confirmer.
+   */
+  const confirmSalleClashes = () => {
+    const taken = salleAvailability.filter(
+      (sa) => !sa.free && (sa.id === salleId || orderedDays.some((d) => daySalles[d] === sa.id)),
+    );
+    if (taken.length === 0) return true;
+    const lines = taken.flatMap((sa) =>
+      sa.clashes.map(
+        (c) => `  • ${sa.name} — ${c.label} : ${formatDays(c.days)} ${c.timeLabel}`,
+      ),
+    );
+    return confirm(
+      `Cette arène est déjà occupée sur ce créneau :\n\n${lines.join("\n")}\n\n` +
+        "Ce n'est pas interdit — plusieurs groupes peuvent partager la même arène au même " +
+        "moment. Enregistrer quand même ?",
+    );
   };
 
   const handleEditSession = () => {
@@ -1503,7 +1574,9 @@ export function PlannerPage() {
       alert(`L'heure de fin doit suivre l'heure de début : ${formatDays(invalidDays)}.`);
       return;
     }
+    if (!confirmSalleClashes()) return;
     const updated: Partial<ScheduleSession> = {
+      semesterId: semesterId || undefined,
       moduleId,
       teacherId,
       ...levelPayload(),
@@ -1513,6 +1586,7 @@ export function PlannerPage() {
     };
     updateItem("sessions", selectedSession.id, updated);
     savePricing(selectedSession.id);
+    void openCarteOne(selectedSession.id);
     setIsEditOpen(false);
     resetForm();
   };
@@ -1613,6 +1687,12 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
         Record<Day, DayTime[]>
       >,
     );
+    setSemesterId(s.semesterId ?? activeSemester(db)?.id ?? "");
+    // La date de depart de la 1re carte reste modifiable TANT QU'ELLE N'A PAS
+    // COMMENCE : une carte deja pointee tient sa date des presences, et la
+    // reecrire ferait mentir l'historique.
+    const firstCarte = db.emploiCartes.find((c) => c.sessionId === s.id && c.index === 1);
+    setFirstCarteStart(firstCarte?.startDate ?? firstCarte?.plannedStartDate ?? todayIso());
     const sub = subscriptions.find((x) => x.sessionId === s.id);
     setMonthSeances(sub?.monthlySeances ?? 0);
     setMonthPrice(monthlyPriceOf(sub));
@@ -2213,7 +2293,7 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
         {renderStep({
           step: 4,
           title: "Le tarif de la carte",
-          hint: "Combien coûte une carte, et comment son prix se coupe : transport, club, entraîneur.",
+          hint: "La saison, le jour où la 1re carte commence, ce qu'elle coûte, et comment son prix se coupe : transport, club, entraîneur.",
           icon: <CircleDollarSign className="h-3.5 w-3.5 text-primary" />,
           status: {
             label: monthSeances > 0 && monthPrice > 0 ? "tarifé" : "sans tarif",
@@ -2252,11 +2332,122 @@ ${enrolled > 0 ? `${enrolled} chevalier(s) en seront désinscrits à la date du 
    * l'entraîneur se partagent ensuite ce qui reste — et c'est pour cela que la
    * part du club est plafonnée à ce reste, jamais au prix entier.
    */
+  /**
+   * LE SEMESTRE, ET LE JOUR OU LA PREMIERE CARTE COMMENCE.
+   *
+   * Deux champs, et ils commandent tout le reste du cycle de vie du créneau :
+   *
+   *  - LE SEMESTRE dit jusqu'à quand les cartes de cet emploi continuent de se
+   *    créer. Sans lui, aucune carte n'est ouverte : l'emploi du temps
+   *    fonctionne, se pointe et se paie exactement comme avant la nouveauté,
+   *    mais il ne participe à aucune saison.
+   *  - LA DATE DE DÉPART de la 1ʳᵉ carte est une INTENTION, jamais un fait. La
+   *    carte commence au premier pointage : prévue le 20 et pointée le 27, elle
+   *    commence le 27 — et tout le reste se décale avec elle.
+   */
+  const renderSemesterAndStart = () => {
+    const list = semestersOf(db);
+    const chosen = list.find((x) => x.id === semesterId);
+    const carte1 = selectedSession
+      ? db.emploiCartes.find((c) => c.sessionId === selectedSession.id && c.index === 1)
+      : undefined;
+    const started = !!carte1?.startDate;
+    const cartes = selectedSession ? carteLayout(db, selectedSession.id) : [];
+
+    return (
+      <div className="space-y-2.5 rounded-xl border border-accent/30 bg-accent-wash/30 p-3">
+        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+          <CalendarIcon className="h-3.5 w-3.5" /> La saison et la 1<sup>re</sup> carte
+        </span>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+              Semestre
+            </label>
+            <Select
+              value={semesterId}
+              onChange={(e) => setSemesterId(e.target.value)}
+              className="w-full"
+            >
+              <option value="">Aucun semestre</option>
+              {list.map((sem) => (
+                <option key={sem.id} value={sem.id}>
+                  {sem.name} ({formatDateFr(sem.startDate)} → {formatDateFr(sem.endDate)})
+                  {sem.closedAt ? " — terminé" : ""}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-[9px] leading-relaxed text-muted">
+              {list.length === 0 ? (
+                <span className="font-semibold text-warning">
+                  Aucun semestre créé — allez d&apos;abord sur l&apos;écran « Semestres ».
+                </span>
+              ) : chosen ? (
+                <>
+                  Les cartes se créeront l&apos;une après l&apos;autre jusqu&apos;au{" "}
+                  <strong className="text-ink">{formatDateFr(chosen.endDate)}</strong>. La dernière
+                  ouverte avant cette date ira jusqu&apos;au bout, même si elle déborde.
+                </>
+              ) : (
+                "Sans semestre, aucune carte n'est ouverte : l'emploi du temps fonctionne, mais il ne participe à aucune saison."
+              )}
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
+              Date de début de la 1<sup>re</sup> carte
+            </label>
+            <Input
+              type="date"
+              value={firstCarteStart}
+              disabled={started}
+              onChange={(e) => setFirstCarteStart(e.target.value)}
+            />
+            <p className="mt-1 text-[9px] leading-relaxed text-muted">
+              {started ? (
+                <>
+                  La carte 1 a <strong className="text-ink">déjà commencé</strong> le{" "}
+                  <strong className="text-ink">{formatDateFr(carte1?.startDate)}</strong> : sa date
+                  vient des présences pointées et ne se réécrit plus.
+                </>
+              ) : (
+                <>
+                  Une <em>intention</em> : si la 1<sup>re</sup> présence est pointée plus tard, la
+                  carte commencera <strong className="text-ink">ce jour-là</strong>.
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {cartes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {cartes.map((v) => (
+              <Badge
+                key={v.carte.id}
+                tone={v.complete ? "success" : v.running ? "warning" : "neutral"}
+                className="text-[9px] font-bold"
+              >
+                {carteShort(v.carte.code)} · {v.held}/{v.size}
+                {v.startDate ? ` · ${formatDateFr(v.startDate)}` : " · non commencée"}
+                {v.endDate ? ` → ${formatDateFr(v.endDate)}` : ""}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderPricingBlock = () => (
     <div className="space-y-3">
+      {renderSemesterAndStart()}
+
       <p className="rounded-xl border border-primary/25 bg-primary-50/40 p-2 text-[10px] leading-relaxed text-muted">
-        La carte d&apos;un chevalier s&apos;ouvre à sa 1<sup>re</sup> présence et se ferme à la
-        dernière séance du pack.
+        La carte s&apos;ouvre à la 1<sup>re</sup> présence pointée et se ferme à la dernière séance
+        du pack. La carte suivante n&apos;existe qu&apos;une fois celle-ci close.
       </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

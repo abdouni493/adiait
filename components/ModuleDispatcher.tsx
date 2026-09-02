@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/store/session";
 import { ClassesPage } from "@/components/pages/ClassesPage";
+import { SemestersPage } from "@/components/pages/SemestersPage";
 import { PlannerPage } from "@/components/pages/PlannerPage";
 import { StudentsPage } from "@/components/pages/StudentsPage";
 import { AttendancePage } from "@/components/pages/AttendancePage";
@@ -96,6 +97,8 @@ export function ModuleDispatcher({ slug }: { slug: string[] }) {
   }
 
   switch (pageSlug) {
+    case "semesters":
+      return <SemestersPage />;
     case "classes":
       return <ClassesPage />;
     case "planner":

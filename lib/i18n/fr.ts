@@ -36,6 +36,7 @@ export const fr = {
   },
   nav: {
     dashboard: "Tableau de bord",
+    semesters: "Semestres",
     classes: "Catégories",
     planner: "Emplois du temps",
     subscriptions: "Cartes & tarifs",

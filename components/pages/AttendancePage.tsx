@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PresenceSheet } from "@/components/attendance/PresenceSheet";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
+import { SemesterAlerts, useSemesterAlerts } from "@/components/semesters/SemesterAlerts";
 import { formatDA } from "@/lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Clock, Search, UserCheck } from "lucide-react";
 import type { Day, ScheduleSession } from "@/lib/types";
@@ -87,6 +88,8 @@ export function AttendancePage() {
   const [histStatus, setHistStatus] = useState<"all" | "present" | "late" | "absent" | "cancelled">("all");
 
   const sheetDow = JS_DAYS[new Date(`${sheetDate}T12:00:00`).getDay()];
+  /** Une saison close ferme le pointage : les boutons ne doivent plus écrire. */
+  const { lock } = useSemesterAlerts(sheetDate);
 
   /** Emplois du temps that actually exist on the selected day. Un emploi
    *  SUPPRIMÉ n'y figure plus : on ne pointe pas un groupe qui n'existe plus —
@@ -187,6 +190,10 @@ export function AttendancePage() {
         title="Présences"
         subtitle="Pointage des emplois du temps, carte par carte"
       />
+
+      {/* LA SAISON A SON MOT À DIRE : une saison close ferme le pointage, une
+          saison prolongée le dit ici plutôt que dans un rapport. */}
+      <SemesterAlerts day={sheetDate} />
 
       <div className="flex gap-2">
         {(
@@ -315,7 +322,7 @@ export function AttendancePage() {
                   onSlotChange={setActiveSlot}
                   monthCode={month}
                   onMonthChange={setMonth}
-                  canMark={can("mark")}
+                  canMark={can("mark") && !lock.locked}
                   canCollect={can("collect_payment")}
                   onCreateStudent={() => {
                     const sub = db.subscriptions.find((x) => x.sessionId === activeSession.id);

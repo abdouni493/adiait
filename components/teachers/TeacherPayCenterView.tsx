@@ -572,7 +572,7 @@ function EmploiList({
 }
 
 // ---------------------------------------------------------------------------
-// 2. Mes carte, M1 → M12
+// 2. Mes cartes — celles qui existent, et elles seules
 // ---------------------------------------------------------------------------
 
 function MonthList({
@@ -630,11 +630,21 @@ function MonthList({
         </p>
       </div>
 
+      {tiles.length === 0 ? (
+        <p className="rounded-2xl border border-warning/40 bg-warning/10 p-4 text-[11px] leading-relaxed text-warning">
+          <strong>Aucune carte ouverte sur cet emploi du temps.</strong> La première carte naît
+          avec l&apos;emploi du temps, sur l&apos;écran « Emplois du temps » : on lui donne un
+          semestre et le jour où elle commence. Les suivantes s&apos;ouvrent toutes seules, chacune
+          le jour où la précédente a donné sa dernière séance — il n&apos;y a donc jamais de carte
+          à régler qui n&apos;ait pas eu lieu.
+        </p>
+      ) : (
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
         {tiles.map((t, i) => (
           <MonthCard key={t.code} tile={t} delay={Math.min(i * 0.03, 0.35)} onClick={() => onPick(t.code)} />
         ))}
       </div>
+      )}
     </div>
   );
 }
@@ -669,7 +679,7 @@ function MonthCard({
       className={`rounded-2xl border-2 p-3 text-start transition-colors ${style.ring}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <strong className="text-lg font-black text-ink">{tile.code}</strong>
+        <strong className="text-lg font-black text-ink">{carteShort(tile.code)}</strong>
         <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${style.chip}`}>
           {style.label}
         </span>

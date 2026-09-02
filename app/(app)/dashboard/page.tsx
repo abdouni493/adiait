@@ -35,6 +35,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { TeacherPages } from "@/components/pages/TeacherPages";
 import { PresenceSheet } from "@/components/attendance/PresenceSheet";
+import { SemesterAlerts, useSemesterAlerts } from "@/components/semesters/SemesterAlerts";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
 import { StudentSituationModal } from "@/components/students/StudentSituationModal";
 import { WorkerPaymentsAlert } from "@/components/dashboard/WorkerPaymentsAlert";
@@ -177,6 +178,8 @@ function AdminDashboard() {
   const [cashDate, setCashDate] = useState(todayIso);
 
   const dow = JS_DAYS[new Date(`${date}T12:00:00`).getDay()];
+  /** Une saison close ferme le pointage : la feuille ne doit plus écrire. */
+  const { lock: semesterLock } = useSemesterAlerts(date);
   const isToday = date === todayIso;
   const isPast = date < todayIso;
 
@@ -603,6 +606,10 @@ function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* LA SAISON A SON MOT À DIRE : une saison close ferme le pointage, une
+          saison prolongée le dit ici — le seul écran qu'on ouvre chaque matin. */}
+      <SemesterAlerts day={date} />
 
       {/* ---- search & filters ------------------------------------------- */}
       <Card className="border border-line card-shadow">
@@ -1100,7 +1107,7 @@ function AdminDashboard() {
               onSlotChange={setOpenSlot}
               monthCode={month}
               onMonthChange={setMonth}
-              canMark={can("mark_presence")}
+              canMark={can("mark_presence") && !semesterLock.locked}
               canCollect={can("collect_payment")}
               onCreateStudent={() => {
                 const sub = db.subscriptions.find((x) => x.sessionId === openSession.id);

@@ -47,6 +47,7 @@ import {
   Check,
   Gift,
   KeyRound,
+  ShieldCheck,
   Trash2,
   Users,
   Wallet,
@@ -249,6 +250,25 @@ function StudentFiche({
   );
   const [solds, setSolds] = useState<Record<string, number>>({});
   /**
+   * L'ENGAGEMENT, REGLE AU GUICHET LE JOUR DE L'INSCRIPTION.
+   *
+   * L'engagement est le frais d'entree propre a UN creneau — la tenue,
+   * l'equipement, l'assurance du groupe. Il naissait toujours IMPAYE : la
+   * famille payait au comptoir, et personne ne pouvait le saisir avant d'avoir
+   * enregistre la fiche, puis rouvert « Dettes & frais ».
+   *
+   * Le guichet le regle donc ICI, dans le meme geste :
+   *
+   *  - on COCHE l'emploi dont l'engagement est verse aujourd'hui,
+   *  - le montant arrive PRE-REMPLI au total de l'engagement de ce creneau, et
+   *    se corrige a la main — une famille qui ne donne que la moitie est le cas
+   *    ordinaire, pas l'exception,
+   *  - LE RESTE se calcule tout seul et part en dette sur sa fiche, ou il
+   *    continue d'alerter jusqu'a ce qu'il soit solde.
+   */
+  const [engagementPaidOn, setEngagementPaidOn] = useState<string[]>([]);
+  const [engagementPaid, setEngagementPaid] = useState<Record<string, number>>({});
+  /**
    * OÙ LA RÉCEPTION EN EST dans le catalogue : le niveau (« catégorie ») et
    * l'année. Ils sont enregistrés MÊME SANS emploi du temps coché, pour que la
    * modification de la fiche rouvre là où le chevalier a été inscrit au lieu d'un
@@ -413,6 +433,8 @@ function StudentFiche({
     setFreeSubIds(defaultSubIds);
     setSchoolOnlySubIds(defaultSubIds);
     setSolds({});
+    setEngagementPaidOn([]);
+    setEngagementPaid({});
     setFeePaidNow(0);
   };
 
@@ -433,6 +455,8 @@ function StudentFiche({
       for (const id of next) clean[id] = prev[id] ?? 0;
       return clean;
     });
+    // Un emploi decoche emporte son engagement : il n'y a plus rien a regler.
+    setEngagementPaidOn((prev) => prev.filter((id) => next.includes(id)));
   };
 
   const toggleFree = (subId: string) =>
@@ -464,6 +488,86 @@ function StudentFiche({
       studentMonthPrice(asStudent as Student, sub) ||
       sub.pricePerSession * cycleSizeOf(sub)
     );
+  };
+
+  /** L'engagement demande par CE creneau — 0 quand il n'en demande aucun. */
+  const engagementFeeOf = (subId: string) =>
+    positiveMoney(subscriptions.find((x) => x.id === subId)?.engagementFee ?? 0);
+
+  /** Cet engagement est-il deja porte au compte du chevalier ? (une fiche qu'on
+   *  modifie ne le repaie pas) */
+  const engagementAlreadyCharged = (subId: string) =>
+    !!editing &&
+    db.studentCharges.some(
+      (c) => c.studentId === editing.id && c.origin === "engagement" && c.subscriptionId === subId,
+    );
+
+  /** Le guichet regle-t-il l'engagement de ce creneau aujourd'hui ? */
+  const engagementChecked = (subId: string) => engagementPaidOn.includes(subId);
+
+  /** Ce qui est verse dessus — plafonne au montant demande. */
+  const engagementAmountOf = (subId: string) =>
+    Math.min(positiveMoney(engagementPaid[subId] ?? engagementFeeOf(subId)), engagementFeeOf(subId));
+
+  const toggleEngagement = (subId: string) =>
+    setEngagementPaidOn((prev) => {
+      if (prev.includes(subId)) return prev.filter((id) => id !== subId);
+      // Coche = « il paie », et le montant arrive au total. La reception le
+      // corrige si la famille ne donne qu'une partie.
+      setEngagementPaid((amounts) => ({
+        ...amounts,
+        [subId]: amounts[subId] ?? engagementFeeOf(subId),
+      }));
+      return [...prev, subId];
+    });
+
+  /** Ce que les engagements coutent en tout, ce qui est verse, ce qui reste du. */
+  const engagementTotals = useMemo(() => {
+    let due = 0;
+    let paid = 0;
+    for (const subId of paidSubIds) {
+      const fee = engagementFeeOf(subId);
+      if (fee <= 0 || engagementAlreadyCharged(subId)) continue;
+      due += fee;
+      if (engagementChecked(subId)) paid += engagementAmountOf(subId);
+    }
+    return { due, paid, rest: positiveMoney(due - paid) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paidSubIds.join("|"), engagementPaidOn.join("|"), JSON.stringify(engagementPaid), subscriptions]);
+
+  /**
+   * LES ENGAGEMENTS REGLES AU GUICHET, ENCAISSES DANS LA FOULEE.
+   *
+   * `applyEngagementCharges` vient de porter les frais au compte du chevalier ;
+   * on retrouve ceux qui viennent de naitre et on verse dessus ce que la
+   * famille a donne. Un versement partiel laisse le frais ouvert : c'est
+   * exactement ce que fait « Dettes & frais » au comptoir, et c'est bien la
+   * meme action qui l'ecrit.
+   */
+  const settleEngagements = async (studentId: string, day: string) => {
+    const lines: { chargeId: string; amount: number }[] = [];
+    const fresh = useData.getState().studentCharges;
+    for (const subId of paidSubIds) {
+      if (!engagementChecked(subId)) continue;
+      const amount = engagementAmountOf(subId);
+      if (amount <= 0) continue;
+      const charge = fresh.find(
+        (c) =>
+          c.studentId === studentId &&
+          c.origin === "engagement" &&
+          c.subscriptionId === subId &&
+          positiveMoney(c.amount - (c.paidAmount ?? 0)) > 0,
+      );
+      if (charge) lines.push({ chargeId: charge.id, amount });
+    }
+    if (lines.length === 0) return { paid: 0 };
+    const res = await db.payStudentCharges({
+      studentId,
+      lines,
+      date: day,
+      description: "Engagement reglé à l'inscription",
+    });
+    return { paid: res.paid ?? 0 };
   };
 
   const submit = async () => {
@@ -568,6 +672,10 @@ function StudentFiche({
             description: `Solde versé (${subLabel(subId)})`,
           });
         }
+
+        // Un emploi coche a l'instant a porte son engagement : ce que la
+        // famille verse dessus s'encaisse ici, comme a la creation.
+        await settleEngagements(editing.id, arrivalDay);
 
         addToast({
           type: "success",
@@ -791,6 +899,9 @@ function StudentFiche({
        * tous. Les emplois OFFERTS sont sautés par l'action elle-même.
        */
       const engagements = await db.applyEngagementCharges(studentId, subIds, arrivalDay);
+      // Ce que la famille verse DESSUS, dans le meme geste : le reste part en
+      // dette sur sa fiche et continue d'alerter jusqu'a ce qu'il soit solde.
+      const engagementSettled = await settleEngagements(studentId, arrivalDay);
 
       // L'AVANCE est créditée sur son propre emploi, à la carte où le chevalier ENTRE :
       // un enfant inscrit en M2 paie pour M2, jamais pour une carte qu'il a
@@ -837,7 +948,12 @@ function StudentFiche({
                 joinPointOf(subIds[0]).monthCode
               } · séance ${joinPointOf(subIds[0]).slotIndex + 1}.` +
               (engagements.written > 0
-                ? ` Engagement de ${formatDA(engagements.total)} porté à sa fiche.`
+                ? ` Engagement de ${formatDA(engagements.total)} porté à sa fiche` +
+                  (engagementSettled.paid > 0
+                    ? ` — ${formatDA(engagementSettled.paid)} réglés, reste ${formatDA(
+                        Math.max(0, engagements.total - engagementSettled.paid),
+                      )}.`
+                    : ".")
                 : "")
             : "Aucun emploi du temps pour le moment.",
         studentName: `${firstName} ${lastName}`,
@@ -1617,9 +1733,115 @@ function StudentFiche({
                           </>
                         )}
                       </div>
+
+                      {/* L'ENGAGEMENT DE CE CRÉNEAU — réglé ici, ou porté en dette.
+                          Il est distinct de la cotisation : c'est le frais d'entrée
+                          du groupe (tenue, équipement, assurance), et il ne se paie
+                          qu'une fois. */}
+                      {!offered && engagementFeeOf(subId) > 0 && !engagementAlreadyCharged(subId) && (
+                        <div
+                          className={`mt-2 rounded-lg border px-2.5 py-2 ${
+                            engagementChecked(subId)
+                              ? "border-success/45 bg-success/10"
+                              : "border-warning/45 bg-warning/10"
+                          }`}
+                        >
+                          <label className="flex cursor-pointer items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={engagementChecked(subId)}
+                              onChange={() => toggleEngagement(subId)}
+                              className="mt-0.5 h-4 w-4 shrink-0"
+                            />
+                            <span className="min-w-0">
+                              <strong className="flex items-center gap-1 text-[11px] text-ink">
+                                <ShieldCheck className="h-3 w-3 text-accent-ink" />
+                                Engagement payé — {formatDA(engagementFeeOf(subId))}
+                              </strong>
+                              <span className="block text-[9px] leading-relaxed text-muted">
+                                {subscriptions.find((x) => x.id === subId)?.engagementDescription ||
+                                  "Le frais d'entrée de ce créneau : tenue, équipement, assurance du groupe."}
+                              </span>
+                            </span>
+                          </label>
+
+                          {engagementChecked(subId) && (
+                            <div className="mt-2 flex flex-wrap items-end gap-2">
+                              <div>
+                                <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
+                                  Versé aujourd&apos;hui (DA)
+                                </label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={engagementFeeOf(subId)}
+                                  value={engagementPaid[subId] ?? engagementFeeOf(subId)}
+                                  onChange={(e) =>
+                                    setEngagementPaid({
+                                      ...engagementPaid,
+                                      [subId]: Math.max(0, Number(e.target.value) || 0),
+                                    })
+                                  }
+                                  className="w-32"
+                                />
+                              </div>
+                              <div className="pb-1">
+                                <span className="block text-[9px] font-bold uppercase tracking-wider text-muted">
+                                  Reste dû
+                                </span>
+                                <strong
+                                  className={`block text-sm ${
+                                    engagementFeeOf(subId) - engagementAmountOf(subId) > 0
+                                      ? "text-danger"
+                                      : "text-success"
+                                  }`}
+                                >
+                                  {formatDA(
+                                    Math.max(0, engagementFeeOf(subId) - engagementAmountOf(subId)),
+                                  )}
+                                </strong>
+                              </div>
+                              <button
+                                onClick={() =>
+                                  setEngagementPaid({
+                                    ...engagementPaid,
+                                    [subId]: engagementFeeOf(subId),
+                                  })
+                                }
+                                className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
+                              >
+                                Tout l&apos;engagement
+                              </button>
+                            </div>
+                          )}
+
+                          {!engagementChecked(subId) && (
+                            <p className="mt-1 text-[9px] font-semibold text-warning">
+                              Non coché : les {formatDA(engagementFeeOf(subId))} partent en dette
+                              sur sa fiche, et l&apos;alerte le rappellera à chaque passage.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
+
+                {engagementTotals.due > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/35 bg-accent-wash/40 px-3 py-2">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
+                      <ShieldCheck className="h-3.5 w-3.5 text-accent-ink" /> Engagements des
+                      créneaux rejoints
+                    </span>
+                    <span className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <Badge tone="neutral">Total {formatDA(engagementTotals.due)}</Badge>
+                      <Badge tone="success">Réglé {formatDA(engagementTotals.paid)}</Badge>
+                      <Badge tone={engagementTotals.rest > 0 ? "danger" : "success"}>
+                        Reste {formatDA(engagementTotals.rest)}
+                      </Badge>
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary-50/40 px-3 py-2">
                   <span className="text-xs font-semibold text-muted">

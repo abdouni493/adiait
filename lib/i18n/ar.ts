@@ -37,6 +37,7 @@ export const ar: Dictionary = {
   },
   nav: {
     dashboard: "لوحة التحكم",
+    semesters: "الفصول الدراسية",
     classes: "الفئات",
     planner: "جداول التدريب",
     subscriptions: "البطاقات والأسعار",

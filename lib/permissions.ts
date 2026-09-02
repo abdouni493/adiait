@@ -67,6 +67,21 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     ],
   },
   {
+    key: "semesters",
+    emoji: "🗓️",
+    label: "Semestres",
+    href: "/semesters",
+    hint: "Les saisons du club : leurs catégories, leurs emplois du temps, leurs cartes et leur argent.",
+    actions: [
+      { id: "create", label: "Créer un semestre" },
+      { id: "view", label: "Ouvrir le détail d'un semestre", hint: "Catégories, emplois du temps, cartes et chevaliers." },
+      { id: "edit", label: "Modifier un semestre" },
+      { id: "delete", label: "Supprimer un semestre" },
+      { id: "close", label: "Clore un semestre", hint: "Ferme la saison — et le pointage avec elle." },
+      { id: "pay", label: "Encaisser la dette d'un chevalier", hint: "Depuis la liste des chevaliers d'une carte." },
+    ],
+  },
+  {
     key: "classes",
     emoji: "🏫",
     label: "Catégories",

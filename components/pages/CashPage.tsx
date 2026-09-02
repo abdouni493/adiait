@@ -1163,6 +1163,11 @@ function StudentPaymentsHistory({
       style: "bg-danger/15 text-danger border border-danger/30",
       hint: "Le club a couvert la dette sur sa propre caisse ; la sortie qui l'a financée est dans le journal.",
     },
+    transfer: {
+      label: "Solde transféré",
+      style: "bg-accent/15 text-accent-ink border border-accent/35",
+      hint: "Le chevalier a été muté d'un emploi du temps à un autre : son solde a suivi. Aucun argent n'est entré ni sorti — c'est le même qui a changé de case.",
+    },
   };
 
   const rows = useMemo(() => {

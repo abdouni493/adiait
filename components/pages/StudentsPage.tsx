@@ -11,7 +11,7 @@ import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AccountRequestsPanel, usePendingRequests } from "@/components/accounts/AccountRequests";
 import { AssignFormationModal } from "@/components/students/AssignFormationModal";
-import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, Megaphone, MessageCircle, MoreVertical, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Swords, Trash2, User, Wallet } from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, Megaphone, MessageCircle, MoreVertical, MoveRight, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Shield, ShieldCheck, Swords, Trash2, User, Wallet } from "lucide-react";
 import type {
   AbsencePenalty,
   AttendanceRecord,
@@ -32,6 +32,7 @@ import {
   netPriceFor,
   remainingSeances,
   studentDebt,
+  studentEngagementDebt,
   studentEnrollments,
   studentPayments,
   totalRemainingSeances,
@@ -56,6 +57,7 @@ import { CreateStudentModal } from "@/components/students/CreateStudentModal";
 import { StudentSituationModal } from "@/components/students/StudentSituationModal";
 import { formatDA } from "@/lib/utils";
 import { SoldManagerModal } from "@/components/students/SoldManagerModal";
+import { TransferStudentModal } from "@/components/students/TransferStudentModal";
 import {
   ChargeCard,
   ChargeFormModal,
@@ -212,6 +214,14 @@ export function StudentsPage() {
    * l'inscription, et le règlement — immédiat ou porté à la dette.
    */
   const [formationStudent, setFormationStudent] = useState<Student | null>(null);
+  /**
+   * LE CHEVALIER QU'ON MUTE D'UN GROUPE À UN AUTRE.
+   *
+   * Il grandit, il change d'horaire, l'entraîneur réorganise ses catégories :
+   * il ne s'agit ni d'une désinscription ni d'une inscription, mais d'un
+   * DÉPLACEMENT — et son solde restant doit faire le voyage avec lui.
+   */
+  const [transferTarget, setTransferTarget] = useState<Student | null>(null);
 
   // Scanner state
   const [scanRfidInput, setScanRfidInput] = useState("");
@@ -1745,6 +1755,14 @@ export function StudentsPage() {
           const debt = debtFor(stu);
           /** ses frais hors cotisation, avances du club comprises */
           const chargeDue = studentChargeDebt(db, stu.id);
+          /**
+           * L'ENGAGEMENT ENCORE DÛ — le frais d'entrée des créneaux qu'il a
+           * rejoints. Il vit dans `chargeDue` avec les autres frais, mais il a
+           * son alerte à lui : ce n'est ni de la cotisation ni un livre oublié,
+           * c'est ce qu'on verse pour ENTRER dans un groupe, et le comptoir le
+           * réclame dans une phrase à part.
+           */
+          const engagementDue = studentEngagementDebt(db, stu.id);
           const number = registrationNumberOf(db, stu);
           const caseLabel = studentCaseLabel(stu);
 
@@ -1805,6 +1823,30 @@ export function StudentsPage() {
                           </span>
                         </button>
                       </div>
+                      )}
+
+                      {/* LA MUTATION — d'un emploi du temps vers un autre.
+                          Deux gestes séparés (désinscrire, réinscrire) laissaient
+                          son solde bloqué sur un groupe qu'il ne fréquentait
+                          plus : ici il fait le voyage avec lui. */}
+                      {can("edit") && stu.subscriptionIds.length > 0 && (
+                        <div>
+                          <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                            Groupe
+                          </span>
+                          <button
+                            onClick={() => setTransferTarget(stu)}
+                            className="flex w-full items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-[11px] font-bold hover:bg-white/25"
+                          >
+                            <MoveRight className="h-4 w-4 shrink-0" />
+                            <span className="min-w-0 text-start">
+                              Transférer vers un autre emploi du temps
+                              <span className="block text-[9px] font-semibold text-white/70">
+                                Son solde le suit ; ses présences et ses paiements restent
+                              </span>
+                            </span>
+                          </button>
+                        </div>
                       )}
 
                       {/* LA DETTE QUI N'EST PAS DE LA SCOLARITÉ — un livre, une
@@ -2054,6 +2096,29 @@ export function StudentsPage() {
                         </span>
                         <span className="flex items-center gap-1 text-[10px] font-bold text-danger">
                           <Receipt className="h-3.5 w-3.5" /> Encaisser
+                        </span>
+                      </button>
+                    ) : null}
+
+                    {/* L'ENGAGEMENT — le frais d'entrée d'un créneau, réclamé à
+                        part parce qu'il ne se paie qu'une fois et qu'il conditionne
+                        l'entrée dans le groupe. */}
+                    {engagementDue > 0 ? (
+                      <button
+                        onClick={() => openCharges(stu, "pay")}
+                        title="Régler l'engagement : le frais d'entrée de ses emplois du temps"
+                        className="flex w-full items-center justify-between rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-start transition-colors hover:bg-warning/20"
+                      >
+                        <span>
+                          <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted">
+                            Engagement non réglé
+                          </span>
+                          <strong className="block text-sm text-warning">
+                            {formatDA(engagementDue)}
+                          </strong>
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-warning">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Encaisser
                         </span>
                       </button>
                     ) : null}
@@ -3086,6 +3151,15 @@ export function StudentsPage() {
           );
         })()}
       </Modal>
+
+      {/* LA MUTATION D'UN CHEVALIER — d'un emploi du temps vers un autre. */}
+      {transferTarget && (
+        <TransferStudentModal
+          student={students.find((s) => s.id === transferTarget.id) ?? transferTarget}
+          open
+          onClose={() => setTransferTarget(null)}
+        />
+      )}
 
       {/* Card scanner Modal */}
       <Modal open={isScanOpen} onClose={() => { setIsScanOpen(false); setScanResult(null); }} title="Scanner de carte RFID">

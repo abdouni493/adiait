@@ -60,6 +60,7 @@ export function navMetaForHref(href: string): { key: string } | null {
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   admin: [
     { key: "dashboard", href: "/dashboard", section: "order" },
+    { key: "semesters", href: "/semesters", section: "order" },
     { key: "classes", href: "/classes", section: "order" },
     { key: "planner", href: "/planner", section: "order" },
 
@@ -84,6 +85,7 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   ],
   reception: [
     { key: "dashboard", href: "/dashboard", section: "order" },
+    { key: "semesters", href: "/semesters", section: "order" },
     { key: "classes", href: "/classes", section: "order" },
     { key: "planner", href: "/planner", section: "order" },
 
