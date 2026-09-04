@@ -1,4 +1,4 @@
-<#
+﻿<#
 =============================================================================
  DÉMARRER LA PASSERELLE — et vérifier les deux pannes qui RESSEMBLENT à une
  réussite

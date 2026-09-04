@@ -1,4 +1,4 @@
-<#
+﻿<#
 =============================================================================
  DIAGNOSTIC DE LA PASSERELLE — sept contrôles, aucune modification
 =============================================================================
@@ -20,7 +20,10 @@
  tailnet, la résolution passe par l'IP interne et RÉUSSIT même si le chemin
  public est mort. Le seul test qui tranche vient d'un réseau tiers.
 
- Usage :  pwsh ./check-gateway.ps1 -AppUrl https://mon-club.vercel.app
+ Usage :  ./check-gateway.ps1 -AppUrl https://mon-club.vercel.app
+
+ Fonctionne sur Windows PowerShell 5.1 comme sur PowerShell 7 : les appels HTTP
+ passent par `Invoke-Http`, qui rend le code de statut dans les deux cas.
 =============================================================================
 #>
 
@@ -38,6 +41,44 @@ function Ok  ([string]$t) { Say "  [OK]   $t" "Green" }
 function Warn([string]$t) { Say "  [!]    $t" "Yellow" }
 function Bad ([string]$t) { Say "  [X]    $t" "Red" }
 function Fix ([string]$t) { Say "         -> $t" "Yellow" }
+
+<#
+  UN APPEL HTTP QUI REND SON CODE DE STATUT SUR LES DEUX POWERSHELL.
+
+  `-SkipHttpErrorCheck` n'existe qu'à partir de PowerShell 7 ; sous Windows
+  PowerShell 5.1 — celui qui est installé par défaut, donc celui sur lequel ce
+  script tournera le plus souvent — un 401 lève une exception au lieu de rendre
+  une réponse. Or c'est précisément le 401 que ce diagnostic doit LIRE : sans
+  cette enveloppe, le contrôle qui vérifie que l'endpoint refuse bien les appels
+  sans jeton échouerait en annonçant une panne là où tout va bien.
+
+  Rend $null quand la requête n'a même pas abouti (hôte injoignable), et
+  l'appelant distingue alors « pas de réponse » de « réponse en erreur ».
+#>
+function Invoke-Http {
+  param(
+    [string]$Uri,
+    [string]$Method = "Get",
+    $Headers = @{},
+    [string]$Body = $null,
+    [int]$TimeoutSec = 20
+  )
+  # PAS `$args` : c'est une variable AUTOMATIQUE de PowerShell (les arguments de
+  # la fonction). L'ecraser marche, jusqu'au jour ou cela ne marche plus.
+  $req = @{ Uri = $Uri; Method = $Method; Headers = $Headers; TimeoutSec = $TimeoutSec; UseBasicParsing = $true }
+  if ($Body) { $req.Body = $Body; $req.ContentType = "application/json" }
+  try {
+    $r = Invoke-WebRequest @req
+    return [pscustomobject]@{ StatusCode = [int]$r.StatusCode; Content = $r.Content; Failed = $false }
+  } catch {
+    $resp = $_.Exception.Response
+    if ($resp -and $resp.StatusCode) {
+      # Une reponse, meme en erreur, PROUVE que l'hote est joignable.
+      return [pscustomobject]@{ StatusCode = [int]$resp.StatusCode; Content = ""; Failed = $false }
+    }
+    return [pscustomobject]@{ StatusCode = 0; Content = ""; Failed = $true; Error = $_.Exception.Message }
+  }
+}
 
 if (-not (Test-Path ".env")) { Bad "Aucun .env. Rien a diagnostiquer."; exit 1 }
 
@@ -58,14 +99,14 @@ Say "  Instance   : $instance`n"
 #  1. La passerelle répond
 # -----------------------------------------------------------------------------
 $reachable = $false
-try {
-  $r = Invoke-WebRequest -Uri "$base/" -TimeoutSec 20 -SkipHttpErrorCheck
+$r = Invoke-Http -Uri "$base/"
+if (-not $r.Failed) {
   $reachable = $true
   Ok "1. La passerelle repond (HTTP $($r.StatusCode))"
-} catch {
-  Bad "1. La passerelle ne repond pas : $($_.Exception.Message)"
-  Fix "Poste allume ? Docker lance ? `docker compose -f docker-compose.funnel.yml ps`"
-  Fix "Funnel accorde ? `pwsh ./start-gateway.ps1` le verifie."
+} else {
+  Bad "1. La passerelle ne repond pas : $($r.Error)"
+  Fix "Poste allume ? Docker lance ?  docker compose -f docker-compose.funnel.yml ps"
+  Fix "Funnel accorde ?  ./start-gateway.ps1  le verifie."
 }
 
 # -----------------------------------------------------------------------------
@@ -138,42 +179,35 @@ if ($connected -or $instances) {
 if ($AppUrl) {
   $endpoint = "$($AppUrl.TrimEnd('/'))/api/whatsapp/webhook"
 
-  try {
-    $r = Invoke-WebRequest -Uri $endpoint -Method Post -Body "{}" `
-      -ContentType "application/json" -TimeoutSec 20 -SkipHttpErrorCheck
-    if ($r.StatusCode -eq 401) {
-      Ok "5. L'endpoint webhook repond 401 SANS jeton (c'est ce qu'il doit faire)"
-    } else {
-      Bad "5. L'endpoint repond $($r.StatusCode) sans jeton — il devrait repondre 401."
-      Fix "EVOLUTION_WEBHOOK_TOKEN est-elle posee chez l'hebergeur ? Avez-vous REDEPLOYE ?"
-    }
-  } catch {
-    Bad "5. L'endpoint webhook est injoignable : $($_.Exception.Message)"
+  $r = Invoke-Http -Uri $endpoint -Method Post -Body "{}"
+  if ($r.Failed) {
+    Bad "5. L'endpoint webhook est injoignable : $($r.Error)"
+  } elseif ($r.StatusCode -eq 401) {
+    Ok "5. L'endpoint webhook repond 401 SANS jeton (c'est ce qu'il doit faire)"
+  } else {
+    Bad "5. L'endpoint repond $($r.StatusCode) sans jeton -- il devrait repondre 401."
+    Fix "EVOLUTION_WEBHOOK_TOKEN est-elle posee chez l'hebergeur ? Avez-vous REDEPLOYE ?"
   }
 
   # LE CONTRÔLE ACTIF : un évènement INCONNU, que la route accepte et ignore.
   # Rien n'est écrit ; seule l'authentification est éprouvée.
   $token = $env_map["EVOLUTION_WEBHOOK_TOKEN"]
   if ($token) {
-    try {
-      $body = @{ event = "diagnostic.ping"; server_url = $base } | ConvertTo-Json
-      $r = Invoke-WebRequest -Uri $endpoint -Method Post -Body $body `
-        -ContentType "application/json" `
-        -Headers @{ Authorization = "Bearer $token" } -TimeoutSec 20 -SkipHttpErrorCheck
-      if ($r.StatusCode -eq 200) {
-        Ok "6. Le jeton est RELLEMENT accepte par l'application"
-      } elseif ($r.StatusCode -eq 401) {
-        Bad "6. JETON DIVERGENT : l'application refuse celui-ci."
-        Fix "Les messages partiraient, les accuses reviendraient en 401, et l'ecran"
-        Fix "afficherait « prete ». Reenregistrez le webhook."
-      } elseif ($r.StatusCode -eq 403) {
-        Bad "6. server_url INATTENDU : l'application attend une autre adresse de passerelle."
-        Fix "TUNNEL_PUBLIC_URL et EVOLUTION_BASE_URL doivent etre identiques AU CARACTERE PRES."
-      } else {
-        Warn "6. Reponse inattendue : $($r.StatusCode)"
-      }
-    } catch {
-      Warn "6. Controle actif impossible : $($_.Exception.Message)"
+    $body = @{ event = "diagnostic.ping"; server_url = $base } | ConvertTo-Json
+    $r = Invoke-Http -Uri $endpoint -Method Post -Body $body -Headers @{ Authorization = "Bearer $token" }
+    if ($r.Failed) {
+      Warn "6. Controle actif impossible : $($r.Error)"
+    } elseif ($r.StatusCode -eq 200) {
+      Ok "6. Le jeton est REELLEMENT accepte par l'application"
+    } elseif ($r.StatusCode -eq 401) {
+      Bad "6. JETON DIVERGENT : l'application refuse celui-ci."
+      Fix "Les messages partiraient, les accuses reviendraient en 401, et l'ecran"
+      Fix "afficherait « prete ». Reenregistrez le webhook."
+    } elseif ($r.StatusCode -eq 403) {
+      Bad "6. server_url INATTENDU : l'application attend une autre adresse de passerelle."
+      Fix "TUNNEL_PUBLIC_URL et EVOLUTION_BASE_URL doivent etre identiques AU CARACTERE PRES."
+    } else {
+      Warn "6. Reponse inattendue : $($r.StatusCode)"
     }
   } else {
     Warn "6. EVOLUTION_WEBHOOK_TOKEN absente du .env local : controle actif saute."
