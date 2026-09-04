@@ -1527,7 +1527,32 @@ export type CashTxType =
   | "acompte"
   /** the school covered a student's debt from its own money: the outflow that
    *  balances the `student_payment` booked on that student */
-  | "student_debt";
+  | "student_debt"
+  /** l'achat d'un cheval — une sortie */
+  | "horse_purchase"
+  /** la vente d'un cheval, et les versements qui règlent son crédit */
+  | "horse_sale"
+  /** une dépense portée sur un cheval DU CLUB — une sortie */
+  | "horse_expense"
+  /** ce qu'un propriétaire de cheval en pension a versé sur ses dépenses */
+  | "horse_owner_payment"
+  /** le règlement d'une « autre dette » */
+  | "other_debt_payment";
+
+/**
+ * DE QUELLE CAISSE VIENT LE MOUVEMENT.
+ *
+ * Le club en tient deux : la caisse GÉNÉRALE, qui voit tout, et une caisse
+ * SECONDAIRE — celle des travailleurs — qui ne voit que ce qu'elle a elle-même
+ * saisi. Les deux alimentent le même solde ; c'est l'écran qui filtre, pas
+ * l'argent.
+ *
+ * Un mouvement SANS caisse est antérieur à cette distinction : il appartient à
+ * la caisse générale, et se lit comme tel. C'est pourquoi le champ est
+ * facultatif plutôt que rempli d'office — une valeur par défaut écrite en base
+ * aurait réécrit tout l'historique.
+ */
+export type CaisseKind = "general" | "secondary";
 /**
  * LA RUBRIQUE D'UN MOUVEMENT DE CAISSE.
  *
@@ -1561,6 +1586,14 @@ export interface CashTransaction extends Authored {
    * déjà classés par leur `type`.
    */
   categoryId?: string;
+  /**
+   * LA CAISSE QUI A SAISI LE MOUVEMENT — voir `CaisseKind`.
+   *
+   * Absent = caisse générale : c'est le cas de tout ce qui a été écrit avant
+   * que la caisse secondaire existe, et de tout ce que les autres écrans
+   * (paiements, paie, dépenses) écrivent sans se poser la question.
+   */
+  caisse?: CaisseKind;
 }
 
 export interface Parent extends Authored {
@@ -1894,4 +1927,241 @@ export interface FormationEnrollment extends Authored {
   /** d'où elle vient : le comptoir, ou le site public */
   source?: AccountRequestSource;
   createdAt: string;
+}
+
+// =============================================================================
+//  L'ÉCURIE — les chevaux, leur achat, leur vente et ce qu'ils coûtent
+// =============================================================================
+
+/**
+ * LE SEXE D'UN CHEVAL, dans les trois formes que le monde équestre distingue.
+ * L'entier (`stallion`), la jument (`mare`) et le hongre (`gelding`) ne se
+ * valent ni au travail, ni à la reproduction, ni au prix.
+ */
+export type HorseGender = "stallion" | "mare" | "gelding";
+
+/** Disponible, ou déjà vendu. Un cheval vendu quitte l'écurie mais garde sa
+ *  fiche : c'est elle qui porte l'historique de sa vente. */
+export type HorseStatus = "available" | "sold";
+
+/**
+ * À QUI LE CHEVAL APPARTIENT.
+ *
+ * C'est la question qui décide où va l'argent de ses dépenses : un cheval du
+ * club se soigne SUR LA CAISSE ; un cheval en pension se soigne AU COMPTE DE
+ * SON PROPRIÉTAIRE, qui reçoit une dette. Rien d'autre ne change entre les
+ * deux — même fiche, même suivi, même historique.
+ */
+export type HorseOwnerKind = "club" | "student" | "parent" | "external";
+
+/** D'où la fiche vient : de l'écran « Achat & vente », ou créée directement à
+ *  l'écurie sans achat (un cheval né sur place, une pension). */
+export type HorseOrigin = "purchase" | "stable";
+
+/**
+ * UN CHEVAL.
+ *
+ * TOUT EST FACULTATIF SAUF LE NOM. Une écurie ne connaît pas la robe, la taille
+ * et le pedigree de chaque cheval le jour où il arrive : exiger vingt champs
+ * pour enregistrer une arrivée ferait saisir vingt approximations. On enregistre
+ * ce qu'on sait, et on complète.
+ *
+ * Les deux prix vivent ici plutôt que sur une ligne de vente : le prix d'achat
+ * est un fait passé, et le prix de vente une INTENTION — celui qu'on affiche
+ * tant que personne n'a acheté. La vente réelle, elle, porte son propre montant
+ * (remise comprise) sur `HorseSale`.
+ */
+export interface Horse extends Authored {
+  id: string;
+  /** le seul champ obligatoire, avec les prix de l'écran d'achat */
+  name: string;
+  /** le numéro de référence / matricule, quand il y en a un */
+  reference?: string;
+  breed?: string;
+  gender?: HorseGender;
+  birthDate?: string;
+  /** l'âge saisi tel quel, quand la date de naissance est inconnue */
+  age?: string;
+  color?: string;
+  /** la taille au garrot, en toutes lettres ("1,65 m") */
+  height?: string;
+  weight?: string;
+
+  // — La santé —
+  vaccination?: string;
+  medicalHistory?: string;
+  vetExam?: string;
+
+  // — Le travail —
+  discipline?: string;
+  trainingLevel?: string;
+  competitionHistory?: string;
+  awards?: string;
+
+  // — Les origines —
+  sire?: string;
+  dam?: string;
+  pedigreeDocs?: string;
+
+  // — L'achat —
+  purchasePrice?: number;
+  sellerName?: string;
+  sellerPhone?: string;
+  sellerNote?: string;
+  purchaseDate?: string;
+
+  // — La vente —
+  /** le prix affiché tant qu'aucune vente n'est faite */
+  sellingPrice?: number;
+
+  status: HorseStatus;
+  origin: HorseOrigin;
+
+  // — Le propriétaire —
+  ownerKind: HorseOwnerKind;
+  ownerStudentId?: string;
+  ownerParentId?: string;
+  /** le nom du propriétaire quand il n'a pas de fiche au club */
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerNote?: string;
+
+  createdAt?: string;
+}
+
+/**
+ * LA VENTE D'UN CHEVAL.
+ *
+ * L'acheteur peut être un chevalier du club, un parent, ou quelqu'un du dehors
+ * dont on ne connaît qu'un nom et un numéro. Quand il a une fiche, la vente
+ * remonte sur SON compte — c'est ce qui fait qu'un parent retrouve, au même
+ * endroit, ce qu'il doit pour ses enfants et ce qu'il doit pour son cheval.
+ *
+ * `total` est ce qui est réellement dû, remise déduite. `paid` est ce qui a été
+ * versé le jour de la vente, `rest` ce qui manque : une vente dont `rest` est
+ * positif est une VENTE À CRÉDIT, et l'écran principal la signale.
+ */
+export interface HorseSale extends Authored {
+  id: string;
+  horseId: string;
+  /** le nom du cheval, RECOPIÉ : une fiche supprimée ne doit pas effacer
+   *  l'objet d'une vente encaissée */
+  horseName: string;
+  buyerKind: "student" | "parent" | "external";
+  buyerStudentId?: string;
+  buyerParentId?: string;
+  buyerName: string;
+  buyerPhone?: string;
+  buyerNote?: string;
+  date: string;
+  /** le prix de départ proposé par la fiche, avant remise */
+  basePrice: number;
+  discountType?: DiscountType;
+  discountValue?: number;
+  /** le net à payer, remise déduite */
+  total: number;
+  /** ce qui a été versé au moment de la vente */
+  paid: number;
+  rest: number;
+  status: "completed" | "debt";
+  /** le mouvement de caisse de l'encaissement initial */
+  cashId?: string;
+  description?: string;
+  createdAt?: string;
+}
+
+/** UN VERSEMENT SUR UNE VENTE À CRÉDIT. Il descend le reste dû, et s'imprime. */
+export interface HorseSalePayment extends Authored {
+  id: string;
+  saleId: string;
+  amount: number;
+  date: string;
+  description?: string;
+  cashId?: string;
+  createdAt?: string;
+}
+
+/** LA RUBRIQUE D'UNE DÉPENSE DE CHEVAL — « Vétérinaire », « Fourrage »,
+ *  « Maréchal-ferrant ». Elle se crée depuis le formulaire lui-même. */
+export interface HorseExpenseCategory extends Authored {
+  id: string;
+  name: string;
+  createdAt?: string;
+}
+
+/**
+ * CE QU'UN CHEVAL COÛTE.
+ *
+ * La même ligne raconte deux histoires selon le propriétaire :
+ *
+ *  - cheval DU CLUB (`ownerDebt: false`) : la somme SORT DE LA CAISSE, et le
+ *    mouvement est écrit (`cashId`) ;
+ *  - cheval EN PENSION (`ownerDebt: true`) : rien ne sort de la caisse — la
+ *    somme devient une DETTE DU PROPRIÉTAIRE, qu'il réglera plus tard.
+ *
+ * Le nom de la rubrique est RECOPIÉ : supprimer une rubrique ne doit pas rendre
+ * illisible un historique de dépenses vieux de deux ans.
+ */
+export interface HorseExpense extends Authored {
+  id: string;
+  horseId: string;
+  categoryId?: string;
+  categoryName?: string;
+  amount: number;
+  date: string;
+  description?: string;
+  /** `true` = portée au compte du propriétaire ; `false` = sortie de caisse */
+  ownerDebt: boolean;
+  cashId?: string;
+  createdAt?: string;
+}
+
+/** CE QU'UN PROPRIÉTAIRE A VERSÉ sur les dépenses de son cheval. */
+export interface HorseOwnerPayment extends Authored {
+  id: string;
+  horseId: string;
+  amount: number;
+  date: string;
+  description?: string;
+  cashId?: string;
+  createdAt?: string;
+}
+
+// =============================================================================
+//  LES AUTRES DETTES — ce que quelqu'un doit au club sans être une cotisation
+// =============================================================================
+
+/**
+ * UNE DETTE QUI N'EST PAS UNE COTISATION.
+ *
+ * Un fournisseur avancé, une casse à rembourser, un prêt de matériel non rendu :
+ * des sommes qui n'appartiennent à aucun emploi du temps et n'ont donc leur
+ * place ni sur une carte, ni sur un frais de chevalier.
+ *
+ * La personne peut être un chevalier du club — on la retrouve alors par sa
+ * fiche — ou n'importe qui d'autre, dont on ne garde qu'un nom, un numéro et
+ * une description.
+ */
+export interface OtherDebt extends Authored {
+  id: string;
+  studentId?: string;
+  parentId?: string;
+  personName: string;
+  phone?: string;
+  note?: string;
+  amount: number;
+  description?: string;
+  date: string;
+  createdAt?: string;
+}
+
+/** UN VERSEMENT SUR UNE AUTRE DETTE. */
+export interface OtherDebtPayment extends Authored {
+  id: string;
+  debtId: string;
+  amount: number;
+  date: string;
+  description?: string;
+  cashId?: string;
+  createdAt?: string;
 }

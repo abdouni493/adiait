@@ -656,6 +656,17 @@ export function buildDemoDatabase(): Database {
     accountRequests: [],
     formations: [],
     formationEnrollments: [],
+    // L'écurie et les autres dettes : la démonstration n'en met aucune en
+    // scène, mais les collections doivent EXISTER — un écran qui lit un tableau
+    // absent tombe, là où un tableau vide s'affiche simplement vide.
+    horses: [],
+    horseSales: [],
+    horseSalePayments: [],
+    horseExpenseCategories: [],
+    horseExpenses: [],
+    horseOwnerPayments: [],
+    otherDebts: [],
+    otherDebtPayments: [],
   };
 }
 

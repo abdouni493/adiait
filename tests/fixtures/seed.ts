@@ -1206,5 +1206,19 @@ function rawSeed(): Database {
     // Séances libres vendues à un groupe entier : la base démarre sans aucune.
     groupSeances: [],
     accountRequests: [],
+    formations: [],
+    formationEnrollments: [],
+    // L'ÉCURIE ET LES AUTRES DETTES. Vides, mais PRÉSENTES : les tests
+    // réinitialisent le magasin par `setState`, qui fusionne — une collection
+    // absente laisserait derrière elle les lignes du test précédent, et les
+    // suivants échoueraient sur des chiffres venus de nulle part.
+    horses: [],
+    horseSales: [],
+    horseSalePayments: [],
+    horseExpenseCategories: [],
+    horseExpenses: [],
+    horseOwnerPayments: [],
+    otherDebts: [],
+    otherDebtPayments: [],
   };
 }

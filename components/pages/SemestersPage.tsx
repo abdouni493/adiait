@@ -33,11 +33,15 @@ import {
   Edit,
   Eye,
   Layers,
+  MessageCircle,
+  PhoneOff,
   Plus,
+  Send,
   Shield,
   Swords,
   Trash2,
   TrendingDown,
+  Users,
   Wallet,
 } from "lucide-react";
 import { useData } from "@/lib/store/data";
@@ -50,6 +54,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SoldManagerModal } from "@/components/students/SoldManagerModal";
+import {
+  WhatsAppMessageModal,
+  type WhatsAppTarget,
+} from "@/components/whatsapp/WhatsAppMessageModal";
+import { targetFor } from "@/lib/whatsapp/situation";
+import { isSendablePhone } from "@/lib/whatsapp/phone";
 import { formatDA } from "@/lib/utils";
 import { useCan } from "@/lib/usePermissions";
 import type { ScheduleSession, Semester, Student } from "@/lib/types";
@@ -61,6 +71,7 @@ import {
   moduleName as moduleNameOf,
   registrationNumberOf,
   salleName,
+  sessionTimeLabel,
   studentName,
   teacherName,
   todayIso,
@@ -108,6 +119,30 @@ export function SemestersPage() {
   const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
   const [payTarget, setPayTarget] = useState<Student | null>(null);
+
+  /**
+   * L'ENVOI WHATSAPP DEPUIS LA LISTE DES CHEVALIERS.
+   *
+   * Une seule fenêtre sert les deux usages : un chevalier (un seul élément) ou
+   * toute une sélection d'endettés (plusieurs). C'est elle qui compose le
+   * message de CHACUN avec SA situation — carte, groupe, horaires, présences —
+   * et qui refuse d'envoyer à qui n'a aucun numéro, en le disant.
+   */
+  const [waTargets, setWaTargets] = useState<WhatsAppTarget[] | null>(null);
+  /** Les chevaliers cochés dans la liste d'un emploi du temps. */
+  const [picked, setPicked] = useState<string[]>([]);
+
+  /**
+   * CE QUE CE COMPTE A LE DROIT DE VOIR EN ARGENT ENCAISSÉ.
+   *
+   * Sans le droit « Voir l'argent encaissé », les cartes de semestre, de
+   * catégorie et d'emploi du temps n'affichent QUE les dettes : un travailleur
+   * à qui l'on ouvre cet écran pour qu'il relance les impayés n'a pas à lire le
+   * chiffre d'affaires du club. Le détail chevalier par chevalier, lui, reste
+   * lisible dans la liste d'un emploi du temps — c'est précisément ce dont il a
+   * besoin pour encaisser et pour écrire.
+   */
+  const showTotals = can("totals");
 
   /**
    * LES CARTES SE REMETTENT EN PHASE À L'OUVERTURE DE L'ÉCRAN.
@@ -221,19 +256,28 @@ export function SemestersPage() {
     gains: number;
     debts: number;
   }) => (
-    <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-line pt-3 text-center">
+    <div
+      className={`mt-3 grid gap-1.5 border-t border-line pt-3 text-center ${
+        showTotals ? "grid-cols-3" : "grid-cols-2"
+      }`}
+    >
       <div className="rounded-xl bg-primary-50/70 px-1.5 py-2">
         <span className="block text-[9px] font-bold uppercase tracking-wide text-muted">
           Chevaliers
         </span>
         <strong className="block text-sm font-black text-primary tabular-nums">{students}</strong>
       </div>
-      <div className="rounded-xl bg-success/10 px-1.5 py-2">
-        <span className="block text-[9px] font-bold uppercase tracking-wide text-muted">Gains</span>
-        <strong className="block text-sm font-black text-success tabular-nums">
-          {formatDA(gains)}
-        </strong>
-      </div>
+      {/* L'argent encaissé ne s'affiche QUE pour qui en a le droit. */}
+      {showTotals && (
+        <div className="rounded-xl bg-success/10 px-1.5 py-2">
+          <span className="block text-[9px] font-bold uppercase tracking-wide text-muted">
+            Gains
+          </span>
+          <strong className="block text-sm font-black text-success tabular-nums">
+            {formatDA(gains)}
+          </strong>
+        </div>
+      )}
       <div
         className={`rounded-xl px-1.5 py-2 ${debts > 0 ? "bg-danger/10" : "bg-canvas/60"}`}
       >
@@ -563,6 +607,38 @@ export function SemestersPage() {
     const cartes = carteLayout(db, sessionId);
     const students = studentsOfSession(db, sessionId);
     const totals = sessionTotals(db, sessionId);
+    const currentCarte = cartes.find((c) => !c.complete) ?? cartes[cartes.length - 1];
+
+    /**
+     * LA LIGNE DE CHAQUE CHEVALIER, MONTÉE UNE FOIS.
+     *
+     * Le tableau et l'envoi WhatsApp lisent la MÊME ligne : ce qui s'affiche à
+     * l'écran est exactement ce que le message racontera. Deux calculs séparés
+     * finiraient par se contredire, et un rappel de dette qui contredit le
+     * tableau du comptoir est pire que pas de rappel du tout.
+     */
+    const rows = students.map((st) => {
+      const money = studentSessionMoney(db, st.id, sessionId);
+      const parent = st.parentId ? db.parents.find((p) => p.id === st.parentId) : undefined;
+      let presences = 0;
+      let absences = 0;
+      for (const a of db.attendance) {
+        if (a.studentId !== st.id || a.sessionId !== sessionId) continue;
+        if (a.status === "absent") absences += 1;
+        else if (a.status !== "cancelled") presences += 1;
+      }
+      const reachable = isSendablePhone(st.phone) || isSendablePhone(parent?.phone);
+      return { student: st, money, parent, presences, absences, reachable };
+    });
+
+    const debtors = rows.filter((r) => r.money.debts > 0);
+    const pickedRows = rows.filter((r) => picked.includes(r.student.id));
+    const openWhatsApp = (list: typeof rows) => {
+      if (list.length === 0) return;
+      setWaTargets(
+        list.map((r) => targetFor(db, r.student, session, { semesterId, classId })),
+      );
+    };
 
     return (
       <>
@@ -572,9 +648,38 @@ export function SemestersPage() {
           trail={[semester.name, cat?.name ?? "Catégorie", sessionTitle(session)]}
         />
 
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* LE RAPPEL DE CE QU'ON REGARDE — c'est aussi ce que les messages
+            enverront, et le lire ici évite d'aller le vérifier ailleurs. */}
+        <Card className="mb-4">
+          <CardBody className="grid grid-cols-2 gap-2 py-3 text-[11px] sm:grid-cols-3 lg:grid-cols-6">
+            <Meta label="Semestre" value={semester.name} />
+            <Meta label="Catégorie" value={cat?.name ?? "—"} />
+            <Meta label="Groupe" value={groupName(db, session.groupId) || "—"} />
+            <Meta label="Jours" value={formatDays(session.days) || "—"} />
+            <Meta label="Horaire" value={sessionTimeLabel(session)} />
+            <Meta
+              label="Carte en cours"
+              value={
+                currentCarte
+                  ? `${carteShort(currentCarte.carte.code)} · ${currentCarte.held}/${currentCarte.size}`
+                  : "—"
+              }
+            />
+          </CardBody>
+        </Card>
+
+        <div
+          className={`mb-6 grid grid-cols-1 gap-3 ${showTotals ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+        >
           <SmallStat icon={Swords} label="Chevaliers" value={String(totals.students)} tone="primary" />
-          <SmallStat icon={Coins} label="Total des gains" value={formatDA(totals.gains)} tone="success" />
+          {showTotals && (
+            <SmallStat
+              icon={Coins}
+              label="Total des gains"
+              value={formatDA(totals.gains)}
+              tone="success"
+            />
+          )}
           <SmallStat
             icon={TrendingDown}
             label="Total des dettes"
@@ -603,7 +708,12 @@ export function SemestersPage() {
             ) : (
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {cartes.map((v) => (
-                  <CarteCard key={v.carte.id} view={v} totals={carteTotals(db, v)} />
+                  <CarteCard
+                    key={v.carte.id}
+                    view={v}
+                    totals={carteTotals(db, v)}
+                    showGains={showTotals}
+                  />
                 ))}
               </div>
             )}
@@ -613,30 +723,82 @@ export function SemestersPage() {
         {/* ---- La liste des chevaliers ---- */}
         <Card>
           <CardBody>
-            <h3 className="font-display mb-3 text-sm font-bold text-ink">
-              Les chevaliers de cet emploi du temps ({students.length})
-            </h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-display text-sm font-bold text-ink">
+                Les chevaliers de cet emploi du temps ({students.length})
+                {debtors.length > 0 && (
+                  <Badge tone="danger" className="ms-2 align-middle text-[10px]">
+                    {debtors.length} en dette
+                  </Badge>
+                )}
+              </h3>
+
+              {/* ---- L'ENVOI GROUPÉ ----
+                  Cocher les endettés puis écrire à tous en un geste : c'est
+                  l'usage qui a motivé cet écran. Chaque chevalier reçoit SON
+                  message, composé avec SA situation — jamais un texte commun
+                  qui ne dirait rien de précis à personne. */}
+              {can("whatsapp") && students.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() =>
+                      setPicked(
+                        picked.length === debtors.length && debtors.length > 0
+                          ? []
+                          : debtors.map((r) => r.student.id),
+                      )
+                    }
+                    disabled={debtors.length === 0}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    {picked.length === debtors.length && debtors.length > 0
+                      ? "Tout décocher"
+                      : `Cocher les ${debtors.length} endettés`}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={pickedRows.length === 0}
+                    onClick={() => openWhatsApp(pickedRows)}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    Écrire aux {pickedRows.length} cochés
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {students.length === 0 ? (
               <p className="py-8 text-center text-xs italic text-muted">
                 Aucun chevalier inscrit sur cet emploi du temps.
               </p>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-line">
-                <table className="w-full min-w-[720px] text-xs">
+                <table className="w-full min-w-[1100px] text-xs">
                   <thead className="bg-canvas/60">
                     <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
+                      {can("whatsapp") && <th className="w-8 px-2 py-2.5" />}
                       <th className="px-3 py-2.5 text-start">N°</th>
                       <th className="px-3 py-2.5 text-start">Chevalier</th>
                       <th className="px-3 py-2.5 text-start">Téléphone</th>
+                      <th className="px-3 py-2.5 text-start">Parent</th>
+                      <th className="px-3 py-2.5 text-start">Groupe</th>
+                      <th className="px-3 py-2.5 text-start">Carte</th>
+                      <th className="px-3 py-2.5 text-center">Présences</th>
+                      <th className="px-3 py-2.5 text-center">Absences</th>
                       <th className="px-3 py-2.5 text-end">Total payé</th>
                       <th className="px-3 py-2.5 text-end">Solde</th>
                       <th className="px-3 py-2.5 text-end">Dette</th>
-                      <th className="px-3 py-2.5 text-end">Action</th>
+                      <th className="px-3 py-2.5 text-end">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map((st) => {
-                      const money = studentSessionMoney(db, st.id, sessionId);
+                    {rows.map((row) => {
+                      const { student: st, money, parent } = row;
+                      const checked = picked.includes(st.id);
                       return (
                         <tr
                           key={st.id}
@@ -644,11 +806,60 @@ export function SemestersPage() {
                             money.debts > 0 ? "bg-danger/5" : "hover:bg-primary-50/30"
                           }`}
                         >
+                          {can("whatsapp") && (
+                            <td className="px-2 py-2">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  setPicked((prev) =>
+                                    prev.includes(st.id)
+                                      ? prev.filter((x) => x !== st.id)
+                                      : [...prev, st.id],
+                                  )
+                                }
+                                aria-label={`Sélectionner ${studentName(st)}`}
+                                className="h-4 w-4 rounded border-line bg-surface text-primary focus:ring-primary"
+                              />
+                            </td>
+                          )}
                           <td className="px-3 py-2 font-mono text-muted">
                             {registrationNumberOf(db, st)}
                           </td>
                           <td className="px-3 py-2 font-semibold text-ink">{studentName(st)}</td>
-                          <td className="px-3 py-2 text-muted">{st.phone || "—"}</td>
+                          <td className="px-3 py-2 text-muted">
+                            {st.phone || <span className="italic">aucun</span>}
+                          </td>
+                          <td className="px-3 py-2 text-muted">
+                            {parent ? (
+                              <span className="block leading-tight">
+                                {parent.firstName} {parent.lastName}
+                                <span className="block text-[10px] opacity-80">
+                                  {parent.phone || "aucun numéro"}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="italic">non rattaché</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-muted">
+                            {groupName(db, session.groupId) || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-muted">
+                            {currentCarte
+                              ? `${carteShort(currentCarte.carte.code)} · ${currentCarte.held}/${currentCarte.size}`
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center font-mono text-success">
+                            {row.presences}
+                          </td>
+                          <td className="px-3 py-2 text-center font-mono text-danger">
+                            {row.absences || "—"}
+                          </td>
+                          {/* LE DÉTAIL PAR CHEVALIER RESTE LISIBLE MÊME SANS LE
+                              DROIT « voir l'argent encaissé » : c'est ce qu'il
+                              faut pour encaisser et pour relancer. Seuls les
+                              TOTAUX des cartes de l'écran sont masqués. */}
                           <td className="px-3 py-2 text-end font-mono text-success">
                             {formatDA(money.gains)}
                           </td>
@@ -666,33 +877,69 @@ export function SemestersPage() {
                               <span className="text-muted">—</span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-end">
-                            {money.debts > 0 && can("pay") ? (
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                className="gap-1.5"
-                                onClick={() => setPayTarget(st)}
-                              >
-                                <Wallet className="h-3.5 w-3.5" /> Payer la dette
-                              </Button>
-                            ) : can("pay") ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1.5"
-                                onClick={() => setPayTarget(st)}
-                              >
-                                <Wallet className="h-3.5 w-3.5" /> Recharger
-                              </Button>
-                            ) : (
-                              <span className="text-[10px] text-muted">—</span>
-                            )}
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              {can("whatsapp") &&
+                                (row.reachable ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    title="Écrire au chevalier ET à son parent"
+                                    onClick={() => openWhatsApp([row])}
+                                  >
+                                    <MessageCircle className="h-3.5 w-3.5" /> Message
+                                  </Button>
+                                ) : (
+                                  /* NI LUI NI SON PARENT N'ONT DE NUMÉRO : on
+                                     l'annonce à l'endroit où l'on aurait cliqué,
+                                     plutôt que d'ouvrir une fenêtre qui ne peut
+                                     rien envoyer. */
+                                  <span
+                                    title={
+                                      parent
+                                        ? "Ni le chevalier ni son parent n'ont de numéro exploitable."
+                                        : "Ce chevalier n'a pas de numéro et n'est rattaché à aucun parent."
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-lg border border-danger/35 bg-danger/10 px-2 py-1 text-[10px] font-semibold text-danger"
+                                  >
+                                    <PhoneOff className="h-3 w-3" /> Injoignable
+                                  </span>
+                                ))}
+                              {can("pay") && (
+                                <Button
+                                  size="sm"
+                                  variant={money.debts > 0 ? "danger" : "outline"}
+                                  className="gap-1.5"
+                                  onClick={() => setPayTarget(st)}
+                                >
+                                  <Wallet className="h-3.5 w-3.5" />
+                                  {money.debts > 0 ? "Payer la dette" : "Recharger"}
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
+                  <tfoot className="border-t-2 border-line bg-canvas/60">
+                    <tr className="text-[11px] font-bold text-ink">
+                      <td colSpan={can("whatsapp") ? 9 : 8} className="px-3 py-2.5 text-end">
+                        Totaux de cet emploi du temps
+                      </td>
+                      <td className="px-3 py-2.5 text-end font-mono text-success">
+                        {formatDA(rows.reduce((s, r) => s + r.money.gains, 0))}
+                      </td>
+                      <td className="px-3 py-2.5 text-end font-mono">
+                        {formatDA(rows.reduce((s, r) => s + r.money.sold, 0))}
+                      </td>
+                      <td className="px-3 py-2.5 text-end font-mono text-danger">
+                        {formatDA(rows.reduce((s, r) => s + r.money.debts, 0))}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}
@@ -815,6 +1062,30 @@ export function SemestersPage() {
           onClose={() => setPayTarget(null)}
         />
       )}
+
+      {/* L'ENVOI WHATSAPP — un chevalier, ou toute la sélection d'endettés. */}
+      {waTargets && (
+        <WhatsAppMessageModal
+          onClose={() => setWaTargets(null)}
+          targets={waTargets}
+          origin="semesters"
+          title={
+            waTargets.length > 1
+              ? `Écrire à ${waTargets.length} chevaliers`
+              : "Envoyer un message WhatsApp"
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+/** Un repère de contexte : ce qu'on regarde, en deux lignes serrées. */
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <span className="block text-[9px] font-bold uppercase tracking-wide text-muted">{label}</span>
+      <strong className="block truncate text-xs text-ink">{value}</strong>
     </div>
   );
 }
@@ -883,9 +1154,12 @@ function SmallStat({
 function CarteCard({
   view,
   totals,
+  showGains,
 }: {
   view: CarteView;
   totals: { students: number; gains: number; debts: number };
+  /** l'encaissé ne s'affiche que pour qui a le droit de le lire */
+  showGains: boolean;
 }) {
   const { carte } = view;
   const tone = view.complete ? "success" : view.running ? "warning" : "neutral";
@@ -938,15 +1212,21 @@ function CarteCard({
         )}
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-1.5 border-t border-line pt-2 text-center">
-        <div>
-          <span className="block text-[9px] font-bold uppercase tracking-wide text-muted">
-            Encaissé
-          </span>
-          <strong className="block text-xs font-black text-success tabular-nums">
-            {formatDA(totals.gains)}
-          </strong>
-        </div>
+      <div
+        className={`mt-2 grid gap-1.5 border-t border-line pt-2 text-center ${
+          showGains ? "grid-cols-2" : "grid-cols-1"
+        }`}
+      >
+        {showGains && (
+          <div>
+            <span className="block text-[9px] font-bold uppercase tracking-wide text-muted">
+              Encaissé
+            </span>
+            <strong className="block text-xs font-black text-success tabular-nums">
+              {formatDA(totals.gains)}
+            </strong>
+          </div>
+        )}
         <div>
           <span className="block text-[9px] font-bold uppercase tracking-wide text-muted">
             Reste dû

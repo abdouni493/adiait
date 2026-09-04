@@ -1,0 +1,150 @@
+# =============================================================================
+#  LA PASSERELLE WHATSAPP DU CLUB — Evolution API + Postgres + Tailscale Funnel
+# =============================================================================
+#
+#  POURQUOI CE MONTAGE, ET PAS UNE API HÉBERGÉE.
+#
+#  Une session WhatsApp Web (moteur Baileys) maintient une connexion OUVERTE EN
+#  PERMANENCE. Un hébergeur sans serveur éteint la fonction entre deux requêtes :
+#  les deux modèles sont incompatibles. La passerelle vit donc sur une machine
+#  qui reste allumée — un poste de l'écurie — et l'application la pilote en
+#  HTTPS à travers un Funnel Tailscale, sans domaine, sans VPS, sans abonnement.
+#
+#      Application (Vercel)  ──HTTPS──►  passerelle (poste allumé)  ──►  WhatsApp
+#      Application (webhook) ◄──HTTPS──  passerelle                 ◄──  statuts
+#
+#  LA CONTREPARTIE, DITE FRANCHEMENT : poste éteint = aucun message ne part.
+#  Ils ne sont pas perdus — la file d'attente de l'application les garde et les
+#  rejoue au rallumage — mais rien ne prévient personne.
+#
+#  ---------------------------------------------------------------------------
+#  DÉMARRER
+#
+#      cp .env.example .env      # puis remplir les cinq valeurs
+#      docker compose -f docker-compose.funnel.yml up -d
+#      pwsh ./check-gateway.ps1  # les sept contrôles
+#
+#  ⚠️ NE JAMAIS MODIFIER `name:` SUR UNE INSTALLATION EN SERVICE. Compose s'en
+#  sert pour nommer les volumes : le changer rend les volumes existants
+#  orphelins, donc la session WhatsApp perdue et le QR à rescanner.
+# =============================================================================
+
+name: adiyet-wa
+
+services:
+  # ---------------------------------------------------------------------------
+  #  La passerelle
+  # ---------------------------------------------------------------------------
+  evolution:
+    # IMAGE ÉPINGLÉE, JAMAIS `latest` : une montée de version silencieuse casse
+    # la session et impose un nouveau scan du QR, un matin, sans prévenir.
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: adiyet-wa-evolution
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # SUR 127.0.0.1 UNIQUEMENT. Le port sert au diagnostic depuis le poste ;
+      # le trafic public passe EXCLUSIVEMENT par le Funnel. Le choisir distinct
+      # de tout autre montage du poste (8081, 8082…) évite qu'une seconde
+      # passerelle se retrouve devant celle-ci.
+      - "127.0.0.1:8082:8080"
+    environment:
+      # ⚠️ CETTE VALEUR DOIT ÊTRE IDENTIQUE, AU CARACTÈRE PRÈS, à la variable
+      # EVOLUTION_BASE_URL de l'application. Elle est estampillée dans le champ
+      # `server_url` de chaque webhook, que l'application compare : un slash
+      # final en trop d'un seul côté ⇒ TOUS les accusés de remise refusés en 403,
+      # et rien nulle part ne le signale.
+      SERVER_URL: ${TUNNEL_PUBLIC_URL}
+
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      # La clé ne doit pas ressortir dans la liste des instances : cet appel est
+      # relayé jusqu'à l'écran de réglages.
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${POSTGRES_PASSWORD}@postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: adiyet
+      # Le journal applicatif vit dans la base du projet : inutile de dupliquer
+      # chaque message sur le disque du poste.
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+
+      # ⚠️ ESSENTIEL. Une instance déconnectée ne doit PAS être supprimée : sans
+      # cela, une simple coupure imposerait de tout reconfigurer au lieu d'un
+      # simple rescan.
+      DEL_INSTANCE: "false"
+
+      # Les webhooks sont déclarés PAR INSTANCE, depuis l'application, avec un
+      # jeton. Un webhook global enverrait tout, partout, sans authentification.
+      WEBHOOK_GLOBAL_ENABLED: "false"
+
+      QRCODE_LIMIT: "30"
+      LOG_LEVEL: ERROR
+      CACHE_LOCAL_ENABLED: "true"
+      CACHE_REDIS_ENABLED: "false"
+    volumes:
+      # C'EST LA SESSION WHATSAPP. La perdre impose un nouveau scan du QR.
+      - evolution_instances:/evolution/instances
+
+  # ---------------------------------------------------------------------------
+  #  Sa base
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: adiyet-wa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      # ⚠️ CE MOT DE PASSE NE PEUT PLUS CHANGER. Il n'est appliqué qu'à
+      # l'initialisation du volume ; le modifier ensuite fait rejeter la
+      # connexion, et la passerelle ne démarre plus.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Sans ce contrôle, Evolution démarre en erreur AVANT que la base accepte
+      # les connexions — et le conteneur boucle sans rien dire d'utile.
+      test: ["CMD-SHELL", "pg_isready -U evolution -d evolution"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---------------------------------------------------------------------------
+  #  Le tunnel public
+  # ---------------------------------------------------------------------------
+  tailscale:
+    image: tailscale/tailscale:stable
+    container_name: adiyet-wa-tailscale
+    restart: unless-stopped
+    depends_on:
+      - evolution
+    environment:
+      TS_AUTHKEY: ${TAILSCALE_AUTHKEY}
+      # Il décide de la première moitié de l'adresse publique. Ce n'est pas une
+      # valeur qu'on récupère quelque part : c'est un nom que l'on CHOISIT.
+      TS_HOSTNAME: ${TAILSCALE_HOSTNAME}
+      TS_SERVE_CONFIG: /config/funnel.json
+      TS_STATE_DIR: /var/lib/tailscale
+      # Indispensables sous Docker Desktop : le mode userspace évite
+      # /dev/net/tun et les privilèges réseau ; --accept-dns=false empêche le
+      # conteneur de détourner la résolution DNS du poste.
+      TS_USERSPACE: "true"
+      TS_EXTRA_ARGS: --accept-dns=false
+    volumes:
+      # SANS CE VOLUME, le nœud se réenregistre à chaque démarrage et reçoit un
+      # nom suffixé (`<nom>-1`) : L'ADRESSE PUBLIQUE CHANGE, et tout se met à
+      # échouer en silence.
+      - tailscale_state:/var/lib/tailscale
+      # MONTER LE DOSSIER, JAMAIS LE FICHIER SEUL : un bind-mount de fichier
+      # unique empêche le conteneur de voir les modifications.
+      - ./tailscale:/config:ro
+
+volumes:
+  evolution_instances:
+  evolution_pgdata:
+  tailscale_state:

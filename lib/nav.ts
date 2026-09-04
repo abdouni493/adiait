@@ -71,9 +71,15 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { key: "workers", href: "/workers", section: "company" },
     { key: "independent", href: "/independent", section: "company" },
 
+    { key: "horses", href: "/horses", section: "stable" },
+    { key: "stable", href: "/stable", section: "stable" },
+    { key: "stable-reports", href: "/stable-reports", section: "stable" },
+
     { key: "announcements", href: "/announcements", section: "stewardship" },
+    { key: "other-debts", href: "/other-debts", section: "stewardship" },
     { key: "expenses", href: "/expenses", section: "stewardship" },
     { key: "analytics", href: "/analytics", section: "stewardship" },
+    { key: "cash-secondary", href: "/cash-secondary", section: "stewardship" },
     { key: "cash", href: "/cash", section: "stewardship" },
     { key: "reports", href: "/reports", section: "stewardship" },
 
@@ -94,8 +100,14 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { key: "parents", href: "/parents", section: "company" },
     { key: "independent", href: "/independent", section: "company" },
 
+    { key: "horses", href: "/horses", section: "stable" },
+    { key: "stable", href: "/stable", section: "stable" },
+    { key: "stable-reports", href: "/stable-reports", section: "stable" },
+
     { key: "announcements", href: "/announcements", section: "stewardship" },
+    { key: "other-debts", href: "/other-debts", section: "stewardship" },
     { key: "expenses", href: "/expenses", section: "stewardship" },
+    { key: "cash-secondary", href: "/cash-secondary", section: "stewardship" },
 
     { key: "website", href: "/website", section: "gate" },
     { key: "website-inscriptions", href: "/website-inscriptions", section: "gate" },
@@ -137,8 +149,20 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
 /**
  * L'ordre dans lequel les quartiers du menu se suivent.
  *
+ * `stable` — L'ÉCURIE — est le quartier des chevaux : ce que le club achète et
+ * revend, les bêtes qu'il héberge, et ce que leur entretien coûte. Il se tient
+ * entre la compagnie, qui compte les gens, et l'intendance, qui compte
+ * l'argent : un cheval est exactement entre les deux.
+ *
  * `gate` — LA HERSE — est le quartier qui donne sur le dehors : la vitrine du
  * club et ce qu'elle rapporte. Il se tient entre l'intendance, qui regarde
  * l'intérieur, et le donjon, qui ne regarde que soi.
  */
-export const NAV_SECTIONS = ["order", "company", "stewardship", "gate", "keep"] as const;
+export const NAV_SECTIONS = [
+  "order",
+  "company",
+  "stable",
+  "stewardship",
+  "gate",
+  "keep",
+] as const;

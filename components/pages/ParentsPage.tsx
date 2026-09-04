@@ -19,10 +19,11 @@ import { Check, Edit, Eye, MessageCircle, MoreVertical, Phone, Plus, Search, Sen
 import type { Parent, Student } from "@/lib/types";
 import {
   WhatsAppMessageModal,
-  type WhatsAppRecipient,
-  type WhatsAppStudentContext,
+  type WhatsAppTarget,
 } from "@/components/whatsapp/WhatsAppMessageModal";
 import { isSendablePhone } from "@/lib/whatsapp/phone";
+import { targetFor } from "@/lib/whatsapp/situation";
+import { OwnerHorsesPanel } from "@/components/stable/OwnerHorsesPanel";
 import { studentDebt, totalRemainingSeances } from "@/lib/helpers";
 import { formatDA } from "@/lib/utils";
 
@@ -69,11 +70,9 @@ export function ParentsPage() {
 
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // WhatsApp
-  const [waTarget, setWaTarget] = useState<{
-    recipients: WhatsAppRecipient[];
-    students: WhatsAppStudentContext[];
-  } | null>(null);
+  // WhatsApp — une cible PAR ENFANT : chaque message porte la situation de
+  // l'enfant dont il parle, et le parent les reçoit tous.
+  const [waTarget, setWaTarget] = useState<WhatsAppTarget[] | null>(null);
 
   // Helpers
   const getParentChildren = (parent: Parent) => {
@@ -277,24 +276,15 @@ export function ParentsPage() {
   /** Envoi WhatsApp au parent. Les enfants rattachés alimentent les modèles
    *  d'alerte (dette, séances épuisées) ; le chevalier concerné se choisit dans la
    *  fenêtre quand le parent en a plusieurs. */
+  /**
+   * OUVRE L'ENVOI WHATSAPP DEPUIS UNE FICHE PARENT.
+   *
+   * Une cible par enfant : le message parle d'UN chevalier, avec SA situation.
+   * Le parent — et l'enfant, s'il a un numéro — les reçoit tous. Un parent sans
+   * enfant rattaché n'a aucune situation à décrire : la fenêtre le dira.
+   */
   const openWhatsApp = (p: Parent) => {
-    setWaTarget({
-      recipients: [
-        {
-          id: `parent-${p.id}`,
-          name: `${p.firstName} ${p.lastName}`,
-          phone: p.phone,
-          role: "parent",
-        },
-      ],
-      students: getParentChildren(p).map((c) => ({
-        id: c.id,
-        name: `${c.firstName} ${c.lastName}`,
-        remainingSeances: totalRemainingSeances(db, c.id),
-        debt: studentDebt(db, c.id),
-        registrationDue: c.registrationDue,
-      })),
-    });
+    setWaTarget(getParentChildren(p).map((c) => targetFor(db, c)));
     setActiveMenuId(null);
   };
 
@@ -706,6 +696,22 @@ export function ParentsPage() {
               </div>
             </div>
 
+            {/*
+              L'ÉCURIE SUR LA FICHE DU PARENT.
+
+              Un parent peut avoir un cheval en pension, en avoir acheté un au
+              club, ou porter une dette qui n'est pas une cotisation. Ces
+              sommes-là n'apparaissent sur aucune carte de chevalier : sans ce
+              bloc, elles ne se lisent nulle part depuis sa fiche. Il ne
+              s'affiche que s'il y a quelque chose a montrer.
+            */}
+            <div>
+              <h4 className="font-bold text-ink mb-3 uppercase tracking-wider">
+                Ecurie &amp; autres dettes
+              </h4>
+              <OwnerHorsesPanel parentId={selectedParent.id} />
+            </div>
+
             <div className="flex justify-end pt-2 border-t border-line">
               <Button onClick={() => setIsDetailsOpen(false)}>Fermer</Button>
             </div>
@@ -745,8 +751,8 @@ export function ParentsPage() {
       {waTarget && (
         <WhatsAppMessageModal
           onClose={() => setWaTarget(null)}
-          recipients={waTarget.recipients}
-          students={waTarget.students}
+          targets={waTarget}
+          origin="parents"
         />
       )}
     </div>

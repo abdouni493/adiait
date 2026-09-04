@@ -4,6 +4,8 @@ import {
   Banknote,
   Bell,
   Briefcase,
+  ClipboardList,
+  HandCoins,
   CalendarDays,
   CalendarRange,
   CreditCard,
@@ -14,6 +16,7 @@ import {
   LogOut,
   Megaphone,
   MailOpen,
+  PiggyBank,
   Receipt,
   Settings,
   Shield,
@@ -23,6 +26,7 @@ import {
   UserCheck,
   Users,
   Wallet,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
@@ -54,10 +58,17 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   administration: Briefcase,
   independent: Flag,
 
+  // — L'Écurie : les chevaux, leur commerce et leur entretien —
+  horses: HandCoins,
+  stable: Warehouse,
+  "stable-reports": ClipboardList,
+
   // — L'Intendance —
   announcements: Megaphone,
+  "other-debts": Receipt,
   expenses: Receipt,
   analytics: BarChart3,
+  "cash-secondary": PiggyBank,
   cash: Banknote,
   reports: Wallet,
 

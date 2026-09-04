@@ -14,6 +14,7 @@ import { useAccessRights } from "@/lib/usePermissions";
 import { PendingActivation } from "./PendingActivation";
 
 import { GlobalRFIDListener } from "@/components/controls/GlobalRFIDListener";
+import { WhatsAppOutboxRunner } from "@/components/whatsapp/WhatsAppOutboxRunner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -70,6 +71,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">
       <GlobalRFIDListener />
+      {/*
+        LE RATTRAPAGE DE LA FILE WHATSAPP.
+
+        Monté ici, donc présent sur TOUS les écrans de la gestion : le poste du
+        comptoir a l'application ouverte toute la journée, et c'est le même
+        poste qui héberge la passerelle. Il ne s'affiche que si quelque chose
+        attend réellement.
+      */}
+      <WhatsAppOutboxRunner />
       {/* Desktop sidebar — hidden on demand from the navbar */}
       <div className={sidebarHidden ? "hidden" : "hidden lg:block"}>
         <Sidebar />

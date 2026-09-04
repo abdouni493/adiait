@@ -16,6 +16,11 @@ import { AnnouncementsPage } from "@/components/pages/AnnouncementsPage";
 import { ExpensesPage } from "@/components/pages/ExpensesPage";
 import { AnalyticsPage } from "@/components/pages/AnalyticsPage";
 import { CashPage } from "@/components/pages/CashPage";
+import { SecondaryCashPage } from "@/components/pages/SecondaryCashPage";
+import { HorseTradePage } from "@/components/pages/HorseTradePage";
+import { StablePage } from "@/components/pages/StablePage";
+import { StableReportsPage } from "@/components/pages/StableReportsPage";
+import { OtherDebtsPage } from "@/components/pages/OtherDebtsPage";
 import { ReportsPage } from "@/components/pages/ReportsPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
 import { WebsitePage } from "@/components/pages/WebsitePage";
@@ -122,6 +127,16 @@ export function ModuleDispatcher({ slug }: { slug: string[] }) {
       return <ExpensesPage />;
     case "analytics":
       return <AnalyticsPage />;
+    case "horses":
+      return <HorseTradePage />;
+    case "stable":
+      return <StablePage />;
+    case "stable-reports":
+      return <StableReportsPage />;
+    case "other-debts":
+      return <OtherDebtsPage />;
+    case "cash-secondary":
+      return <SecondaryCashPage />;
     case "cash":
       return <CashPage />;
     case "reports":

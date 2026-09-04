@@ -11,7 +11,7 @@ import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AccountRequestsPanel, usePendingRequests } from "@/components/accounts/AccountRequests";
 import { AssignFormationModal } from "@/components/students/AssignFormationModal";
-import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, Megaphone, MessageCircle, MoreVertical, MoveRight, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Shield, ShieldCheck, Swords, Trash2, User, Wallet } from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, Landmark, Megaphone, MessageCircle, MoreVertical, MoveRight, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Shield, ShieldCheck, Swords, Trash2, User, Wallet } from "lucide-react";
 import type {
   AbsencePenalty,
   AttendanceRecord,
@@ -46,11 +46,14 @@ import { speakMessage, speechCaseForScan } from "@/lib/speech";
 import { useToast } from "@/lib/store/toast";
 import {
   WhatsAppMessageModal,
-  type WhatsAppRecipient,
-  type WhatsAppStudentContext,
+  type WhatsAppTarget,
 } from "@/components/whatsapp/WhatsAppMessageModal";
 import { isSendablePhone } from "@/lib/whatsapp/phone";
 import { buildBalanceAlert } from "@/lib/whatsapp/alert";
+import { sendMessages } from "@/lib/whatsapp/client";
+import { targetFor } from "@/lib/whatsapp/situation";
+import { OwnerHorsesPanel } from "@/components/stable/OwnerHorsesPanel";
+import { horsesOfStudent, salesOfStudent } from "@/lib/stable";
 import {
 } from "@/components/students/ClassTimingPicker";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
@@ -140,12 +143,10 @@ export function StudentsPage() {
   const [selectedAlertStudentIds, setSelectedAlertStudentIds] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-  // WhatsApp — fenêtre d'envoi partagée par les boutons « chevalier » et « parent »
-  const [waTarget, setWaTarget] = useState<{
-    recipients: WhatsAppRecipient[];
-    students: WhatsAppStudentContext[];
-    defaultRecipientIds: string[];
-  } | null>(null);
+  // WhatsApp — fenêtre d'envoi partagée par les boutons « chevalier » et « parent ».
+  // Le chevalier ET son parent sont toujours visés ensemble : c'est la fenêtre
+  // qui laisse décocher, pas l'écran qui décide à sa place.
+  const [waTarget, setWaTarget] = useState<WhatsAppTarget[] | null>(null);
   const [sendingAlerts, setSendingAlerts] = useState(false);
 
 
@@ -235,7 +236,9 @@ export function StudentsPage() {
   } | null>(null);
 
   // Tab state in Details modal
-  const [detailsTab, setDetailsTab] = useState<"personal" | "subs" | "payments" | "attendance">("personal");
+  const [detailsTab, setDetailsTab] = useState<
+    "personal" | "subs" | "payments" | "attendance" | "horses"
+  >("personal");
 
   // Details modal filters — transactions per module; presences per module and
   // per date (by month or custom period)
@@ -648,40 +651,17 @@ export function StudentsPage() {
     setOverlayStudentId(null);
   };
 
-  /** Ouvre l'envoi WhatsApp pour un chevalier. Les deux numéros (chevalier et parent
-   *  rattaché) sont toujours proposés ; `focus` détermine celui coché d'emblée,
-   *  pour pouvoir prévenir les deux en une fois sans rouvrir la fenêtre. */
-  const openWhatsApp = (stu: Student, focus: "student" | "parent") => {
-    const parent = parents.find((p) => p.id === stu.parentId);
-    const studentName = `${stu.firstName} ${stu.lastName}`;
-
-    const recipients: WhatsAppRecipient[] = [
-      { id: `student-${stu.id}`, name: studentName, phone: stu.phone, role: "student" },
-    ];
-    if (parent) {
-      recipients.push({
-        id: `parent-${parent.id}`,
-        name: `${parent.firstName} ${parent.lastName}`,
-        phone: parent.phone,
-        role: "parent",
-      });
-    }
-
-    setWaTarget({
-      recipients,
-      students: [
-        {
-          id: stu.id,
-          name: studentName,
-          remainingSeances: seancesLeftFor(stu),
-          debt: debtFor(stu),
-          registrationDue: stu.registrationDue,
-        },
-      ],
-      defaultRecipientIds: [
-        focus === "parent" && parent ? `parent-${parent.id}` : `student-${stu.id}`,
-      ],
-    });
+  /**
+   * OUVRE L'ENVOI WHATSAPP POUR UN CHEVALIER.
+   *
+   * Les deux numéros — le sien et celui de son parent rattaché — sont proposés
+   * et cochés ensemble : prévenir les deux en une fois est le cas ordinaire, et
+   * rouvrir la fenêtre pour le second serait une corvée que personne ne ferait.
+   * Si aucun des deux n'est joignable, la fenêtre le DIT plutôt que de laisser
+   * croire à un envoi.
+   */
+  const openWhatsApp = (stu: Student) => {
+    setWaTarget([targetFor(db, stu)]);
     setOverlayStudentId(null);
   };
 
@@ -710,24 +690,31 @@ export function StudentsPage() {
     });
 
     const msgLang = language === "ar" ? "ar" : "fr";
-    // Même résolution destinataire + modèle que l'alerte automatique du scan
-    // (lib/whatsapp/alert) : le parent rattaché s'il est joignable, sinon
-    // le chevalier. `low: true` — ce bouton EST l'alerte « séances bientôt épuisées »,
-    // qui exige un modèle approuvé par Meta (message proactif).
+    // Même résolution de destinataire que l'alerte automatique du scan
+    // (`lib/whatsapp/alert`) : le chevalier ET son parent, ensemble. `low: true`
+    // — ce bouton EST l'alerte « séances bientôt épuisées ».
     const waRecipients = selected.flatMap((stu) => {
-      const parent = parents.find((p) => p.id === stu.parentId);
       const payload = buildBalanceAlert({
         student: {
           ...stu,
           remainingSeances: seancesLeftFor(stu),
           debt: debtFor(stu),
         },
-        parent,
+        parent: parents.find((p) => p.id === stu.parentId),
         school,
         lang: msgLang,
         low: true,
       });
-      return payload ? [payload] : [];
+      return payload
+        ? payload.recipients.map((r) => ({
+            phone: r.phone,
+            name: r.name,
+            text: r.text,
+            studentId: r.studentId,
+            parentId: r.parentId,
+            origin: "students:low-balance",
+          }))
+        : [];
     });
 
     if (waRecipients.length === 0) {
@@ -736,20 +723,34 @@ export function StudentsPage() {
       addToast({
         type: "warning",
         title: "Alertes enregistrées",
-        message: `${selected.length} notification(s) créée(s) dans l'application, mais aucun numéro exploitable pour un envoi WhatsApp.`,
+        message: `${selected.length} notification(s) créée(s) dans l'application, mais AUCUN numéro exploitable : ni les chevaliers ni leurs parents ne peuvent être joints par WhatsApp.`,
       });
       return;
     }
 
-    // Mode démo : les notifications internes sont bien créées, mais aucun
-    // message ne part — il n'y a pas de passerelle WhatsApp branchée.
-    addToast({
-      type: "info",
-      title: "WhatsApp désactivé en mode démo",
-      message: `${selected.length} notification(s) créée(s) dans l'application. ${waRecipients.length} destinataire(s) auraient été contactés par WhatsApp.`,
-    });
-    setIsAlertLowBalanceOpen(false);
-    setSendingAlerts(false);
+    try {
+      const res = await sendMessages(waRecipients);
+      // Trois issues, jamais confondues — « en attente » n'est pas un échec.
+      addToast({
+        type: res.failed > 0 ? "danger" : res.queued > 0 ? "warning" : "success",
+        title: "Alertes envoyées",
+        message:
+          `${selected.length} notification(s) créée(s) dans l'application. ` +
+          `WhatsApp : ${res.sent} envoyé(s)` +
+          (res.queued > 0 ? `, ${res.queued} en attente (passerelle éteinte — ils repartiront seuls)` : "") +
+          (res.failed > 0 ? `, ${res.failed} refusé(s)` : "") +
+          ".",
+      });
+    } catch (err) {
+      addToast({
+        type: "danger",
+        title: "Envoi WhatsApp impossible",
+        message: err instanceof Error ? err.message : "La passerelle n'a pas répondu.",
+      });
+    } finally {
+      setIsAlertLowBalanceOpen(false);
+      setSendingAlerts(false);
+    }
   };
 
   const openPrintPayments = (stu: Student) => {
@@ -1959,40 +1960,34 @@ export function StudentsPage() {
                         <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
                           Contact
                         </span>
-                        <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                          <button
-                            onClick={() => openWhatsApp(stu, "student")}
-                            disabled={!isSendablePhone(stu.phone)}
-                            title={
-                              isSendablePhone(stu.phone)
-                                ? "Envoyer un message WhatsApp au chevalier"
-                                : "Aucun numéro exploitable pour ce chevalier"
-                            }
-                            className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/90 py-2 font-semibold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" /> Chevalier
-                          </button>
-                          {(() => {
-                            const parent = parents.find((p) => p.id === stu.parentId);
-                            const canSend = isSendablePhone(parent?.phone);
-                            return (
-                              <button
-                                onClick={() => openWhatsApp(stu, "parent")}
-                                disabled={!canSend}
-                                title={
-                                  !parent
-                                    ? "Aucun parent rattaché à ce chevalier"
-                                    : canSend
-                                      ? `Envoyer un message WhatsApp à ${parent.firstName} ${parent.lastName}`
-                                      : "Le parent rattaché n'a pas de numéro exploitable"
-                                }
-                                className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/90 py-2 font-semibold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                <MessageCircle className="h-3.5 w-3.5" /> Parent
-                              </button>
-                            );
-                          })()}
-                        </div>
+                        {/* UN SEUL BOUTON : le chevalier et son parent sont
+                            visés ENSEMBLE, et c'est la fenêtre d'envoi qui
+                            laisse décocher l'un des deux. Deux boutons
+                            obligeaient à rouvrir la fenêtre pour prévenir le
+                            second — ce que personne ne faisait. */}
+                        {(() => {
+                          const parent = parents.find((p) => p.id === stu.parentId);
+                          const reachable =
+                            isSendablePhone(stu.phone) || isSendablePhone(parent?.phone);
+                          return (
+                            <button
+                              onClick={() => openWhatsApp(stu)}
+                              title={
+                                reachable
+                                  ? "Envoyer un message WhatsApp au chevalier et à son parent"
+                                  : "Ni le chevalier ni son parent n'ont de numéro exploitable"
+                              }
+                              className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-[11px] font-semibold ${
+                                reachable
+                                  ? "bg-emerald-500/90 hover:bg-emerald-500"
+                                  : "bg-rose-500/80 hover:bg-rose-500"
+                              }`}
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              {reachable ? "WhatsApp — chevalier & parent" : "Aucun numéro joignable"}
+                            </button>
+                          );
+                        })()}
                       </div>
                       )}
 
@@ -2253,6 +2248,36 @@ export function StudentsPage() {
                   absencePenalties.filter((p) => p.studentId === selectedStudent.id).length}
                 )
               </button>
+              {/*
+                L'ÉCURIE SUR LA FICHE DU CHEVALIER.
+
+                Un chevalier peut posséder un cheval, en avoir acheté un au
+                club, ou devoir une somme qui n'est pas une cotisation. Ces
+                trois choses vivaient sur trois écrans séparés : personne ne les
+                voyait ensemble, et c'est pourtant ainsi qu'on présente une note.
+                L'onglet n'apparaît que s'il y a quelque chose à montrer.
+              */}
+              {(() => {
+                const owned = horsesOfStudent(db, selectedStudent.id).length;
+                const bought = salesOfStudent(db, selectedStudent.id).length;
+                const others = db.otherDebts.filter(
+                  (d) => d.studentId === selectedStudent.id,
+                ).length;
+                const total = owned + bought + others;
+                if (total === 0) return null;
+                return (
+                  <button
+                    onClick={() => setDetailsTab("horses")}
+                    className={`pb-2.5 px-4 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                      detailsTab === "horses"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted hover:text-ink"
+                    }`}
+                  >
+                    <Landmark className="h-4 w-4" /> Écurie &amp; dettes ({total})
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Tab Contents */}
@@ -3002,6 +3027,10 @@ export function StudentsPage() {
                   </div>
                 );
               })()}
+
+              {detailsTab === "horses" && (
+                <OwnerHorsesPanel studentId={selectedStudent.id} />
+              )}
             </div>
 
             <div className="flex justify-end pt-2 border-t border-line">
@@ -3420,13 +3449,12 @@ export function StudentsPage() {
         </div>
       </Modal>
 
-      {/* Envoi WhatsApp (chevalier et/ou parent rattaché) */}
+      {/* Envoi WhatsApp (chevalier et parent rattaché, ensemble) */}
       {waTarget && (
         <WhatsAppMessageModal
           onClose={() => setWaTarget(null)}
-          recipients={waTarget.recipients}
-          students={waTarget.students}
-          defaultRecipientIds={waTarget.defaultRecipientIds}
+          targets={waTarget}
+          origin="students"
         />
       )}
 

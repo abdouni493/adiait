@@ -30,7 +30,14 @@ import {
   transportMonthShareOf,
   transportPerSeanceOf,
 } from "@/lib/helpers";
-import { AlertCircle, ArrowDownLeft, ArrowUpRight, Banknote, BookOpen, Bus, Calendar, CalendarClock, ChevronRight, CircleDollarSign, ClipboardList, DollarSign, FileSpreadsheet, FileText, Filter, GraduationCap, HandCoins, Layers, PieChart as PieIcon, PiggyBank, Puzzle, Receipt, RotateCcw, Route, Search, Sparkles, Tag, Ticket, TrendingUp, UserCog, Users, Wallet, X } from "lucide-react";
+import { AlertCircle, ArrowDownLeft, ArrowUpRight, Banknote, BookOpen, Bus, Calendar, CalendarClock, ChevronRight, CircleDollarSign, ClipboardList, DollarSign, FileSpreadsheet, FileText, Filter, GraduationCap, HandCoins, Landmark, Layers, PieChart as PieIcon, PiggyBank, Puzzle, Receipt, RotateCcw, Route, Search, Sparkles, Tag, Ticket, TrendingUp, UserCog, Users, Wallet, Warehouse, X } from "lucide-react";
+import {
+  buyerName as horseBuyerName,
+  expenseCategoryLabel,
+  horseMoney,
+  horseOwnerName,
+  otherDebtMoney,
+} from "@/lib/stable";
 
 /* ------------------------------------------------------------------ */
 /* Types & small helpers                                               */
@@ -413,6 +420,13 @@ export function ReportsPage() {
     categories,
     parents,
     teacherPayments,
+    horses,
+    horseSales,
+    horseSalePayments,
+    horseExpenses,
+    horseOwnerPayments,
+    otherDebts,
+    otherDebtPayments,
   } = db;
 
   const [startDate, setStartDate] = useState(
@@ -3054,6 +3068,347 @@ export function ReportsPage() {
       ],
     };
 
+    /* ============================== ÉCURIE ============================ */
+    /*
+     * L'écurie a sa propre économie : on achète des chevaux, on les entretient,
+     * on les revend, et l'on refacture l'entretien des pensions. Noyés dans
+     * « dépenses » et « caisse », ces flux ne répondaient à aucune question ;
+     * rassemblés, ils disent enfin si l'écurie coûte ou rapporte.
+     */
+    const fHorseExpenses = horseExpenses.filter((e) => inRange(e.date));
+    const fHorseOwnerPayments = horseOwnerPayments.filter((p) => inRange(p.date));
+    const fHorseSales = horseSales.filter((x) => inRange(x.date));
+    const fHorseSalePayments = horseSalePayments.filter((p) => inRange(p.date));
+
+    const stablePurchases = sum(
+      horses.filter((h) => h.purchaseDate && inRange(h.purchaseDate)),
+      (h) => h.purchasePrice ?? 0,
+    );
+    const clubUpkeep = sum(
+      fHorseExpenses.filter((e) => !e.ownerDebt),
+      (e) => e.amount,
+    );
+    const boardedCharged = sum(
+      fHorseExpenses.filter((e) => e.ownerDebt),
+      (e) => e.amount,
+    );
+    const ownersPaid = sum(fHorseOwnerPayments, (p) => p.amount);
+    const salesCashed =
+      sum(fHorseSales, (x) => x.paid) + sum(fHorseSalePayments, (p) => p.amount);
+    const salesCredit = sum(
+      horseSales.filter((x) => x.rest > 0),
+      (x) => x.rest,
+    );
+    /** La dette d'entretien COURANTE des pensions — tous exercices confondus :
+     *  c'est celle qu'on réclame, et non le solde de la seule période. */
+    const ownersDebt = sum(
+      horses.filter((h) => h.ownerKind !== "club"),
+      (h) => horseMoney(db, h.id).debt,
+    );
+    const stableNet = salesCashed + ownersPaid - stablePurchases - clubUpkeep;
+
+    const stableCatRows = (() => {
+      const map = new Map<string, { name: string; count: number; total: number }>();
+      for (const e of fHorseExpenses) {
+        const name = expenseCategoryLabel(db, e);
+        const row = map.get(name) ?? { name, count: 0, total: 0 };
+        row.count += 1;
+        row.total += e.amount;
+        map.set(name, row);
+      }
+      return [...map.values()].sort((a, b) => b.total - a.total);
+    })();
+
+    const horseNameOf = (id: string) => horses.find((h) => h.id === id)?.name ?? "Cheval supprimé";
+    const ownerOfHorseId = (id: string) => {
+      const h = horses.find((x) => x.id === id);
+      return h ? horseOwnerName(db, h) : "—";
+    };
+
+    const stableSection: Section = {
+      id: "stable",
+      label: "Écurie",
+      icon: <Warehouse className="h-4 w-4" />,
+      subtitle:
+        "Ce que les chevaux coûtent et ce qu'ils rapportent : achats, entretien, ventes et refacturation aux pensions.",
+      cards: [
+        {
+          label: "Ventes encaissées",
+          value: inflow(salesCashed),
+          tone: "success",
+          icon: <HandCoins className="h-5 w-5" />,
+          featured: true,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Cheval", render: (r) => <span className="font-bold text-ink">{r.horseName}</span> },
+              { label: "Acheteur", render: (r) => <span className="text-muted">{horseBuyerName(db, r)}</span> },
+              { label: "Net", align: "right", render: (r) => <span className="text-muted">{formatDA(r.total)}</span> },
+              { label: "Versé", align: "right", render: (r) => <strong className="text-success">{inflow(r.paid)}</strong> },
+              { label: "Reste", align: "right", render: (r) => (r.rest > 0 ? <strong className="text-danger">{formatDA(r.rest)}</strong> : <span className="text-muted">—</span>) },
+            ],
+            rows: [...fHorseSales].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            totalLabel: "Encaissé sur la période",
+            totalValue: inflow(salesCashed),
+            totalTone: "success",
+            empty: "Aucune vente sur la période.",
+            searchable: (r) => `${r.horseName} ${horseBuyerName(db, r)}`,
+          },
+        },
+        {
+          label: "Achats de chevaux",
+          value: outflow(stablePurchases),
+          tone: "danger",
+          icon: <ArrowDownLeft className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.purchaseDate) },
+              { label: "Cheval", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
+              { label: "Vendeur", render: (r) => <span className="text-muted">{r.sellerName || "—"}</span> },
+              { label: "Prix", align: "right", render: (r) => <strong className="text-danger">{outflow(r.purchasePrice ?? 0)}</strong> },
+            ],
+            rows: horses.filter((h) => h.purchaseDate && inRange(h.purchaseDate)),
+            totalLabel: "Total des achats",
+            totalValue: outflow(stablePurchases),
+            totalTone: "danger",
+            empty: "Aucun achat sur la période.",
+            searchable: (r) => `${r.name} ${r.sellerName ?? ""}`,
+          },
+        },
+        {
+          label: "Entretien des chevaux du club",
+          value: outflow(clubUpkeep),
+          tone: "danger",
+          icon: <Receipt className="h-5 w-5" />,
+          hint: "Sorties de caisse : ces chevaux n'ont personne à facturer.",
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Cheval", render: (r) => <span className="font-bold text-ink">{horseNameOf(r.horseId)}</span> },
+              { label: "Rubrique", render: (r) => <Badge tone="neutral">{expenseCategoryLabel(db, r)}</Badge> },
+              { label: "Description", render: (r) => <span className="text-muted">{r.description || "—"}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-danger">{outflow(r.amount)}</strong> },
+            ],
+            rows: fHorseExpenses.filter((e) => !e.ownerDebt),
+            totalLabel: "Total",
+            totalValue: outflow(clubUpkeep),
+            totalTone: "danger",
+            empty: "Aucune dépense sur les chevaux du club.",
+            searchable: (r) => `${horseNameOf(r.horseId)} ${expenseCategoryLabel(db, r)}`,
+          },
+        },
+        {
+          label: "Refacturé aux pensions",
+          value: formatDA(boardedCharged),
+          tone: "warning",
+          icon: <Landmark className="h-5 w-5" />,
+          hint: "Porté au compte des propriétaires — la caisse ne bouge qu'au règlement.",
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Cheval", render: (r) => <span className="font-bold text-ink">{horseNameOf(r.horseId)}</span> },
+              { label: "Propriétaire", render: (r) => <span className="text-muted">{ownerOfHorseId(r.horseId)}</span> },
+              { label: "Rubrique", render: (r) => <Badge tone="neutral">{expenseCategoryLabel(db, r)}</Badge> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-warning">{formatDA(r.amount)}</strong> },
+            ],
+            rows: fHorseExpenses.filter((e) => e.ownerDebt),
+            totalLabel: "Total refacturé",
+            totalValue: formatDA(boardedCharged),
+            totalTone: "warning",
+            empty: "Aucune dépense refacturée sur la période.",
+            searchable: (r) => `${horseNameOf(r.horseId)} ${ownerOfHorseId(r.horseId)}`,
+          },
+        },
+        {
+          label: "Règlements des propriétaires",
+          value: inflow(ownersPaid),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Cheval", render: (r) => <span className="font-bold text-ink">{horseNameOf(r.horseId)}</span> },
+              { label: "Propriétaire", render: (r) => <span className="text-muted">{ownerOfHorseId(r.horseId)}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.amount)}</strong> },
+            ],
+            rows: fHorseOwnerPayments,
+            totalLabel: "Total",
+            totalValue: inflow(ownersPaid),
+            totalTone: "success",
+            empty: "Aucun règlement sur la période.",
+            searchable: (r) => `${horseNameOf(r.horseId)} ${ownerOfHorseId(r.horseId)}`,
+          },
+        },
+        {
+          label: "Dettes des pensions (à ce jour)",
+          value: formatDA(ownersDebt),
+          tone: "danger",
+          icon: <AlertCircle className="h-5 w-5" />,
+          hint: "Tous exercices confondus — ce que les propriétaires doivent encore.",
+          detail: {
+            columns: [
+              { label: "Cheval", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
+              { label: "Propriétaire", render: (r) => <span className="text-muted">{horseOwnerName(db, r)}</span> },
+              { label: "Porté", align: "right", render: (r) => <span className="text-muted">{formatDA(horseMoney(db, r.id).charged)}</span> },
+              { label: "Réglé", align: "right", render: (r) => <span className="text-success">{formatDA(horseMoney(db, r.id).paid)}</span> },
+              { label: "Reste", align: "right", render: (r) => <strong className="text-danger">{formatDA(horseMoney(db, r.id).debt)}</strong> },
+            ],
+            rows: horses.filter((h) => h.ownerKind !== "club" && horseMoney(db, h.id).debt > 0),
+            totalLabel: "Total dû",
+            totalValue: formatDA(ownersDebt),
+            totalTone: "danger",
+            empty: "Aucune pension en dette.",
+            searchable: (r) => `${r.name} ${horseOwnerName(db, r)}`,
+          },
+        },
+        {
+          label: "Ventes à crédit en cours",
+          value: formatDA(salesCredit),
+          tone: "danger",
+          icon: <Ticket className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Cheval", render: (r) => <span className="font-bold text-ink">{r.horseName}</span> },
+              { label: "Acheteur", render: (r) => <span className="text-muted">{horseBuyerName(db, r)}</span> },
+              { label: "Reste", align: "right", render: (r) => <strong className="text-danger">{formatDA(r.rest)}</strong> },
+            ],
+            rows: horseSales.filter((x) => x.rest > 0),
+            totalLabel: "Total restant dû",
+            totalValue: formatDA(salesCredit),
+            totalTone: "danger",
+            empty: "Aucune vente à crédit.",
+            searchable: (r) => `${r.horseName} ${horseBuyerName(db, r)}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "L'écurie coûte-t-elle ou rapporte-t-elle ?",
+          subtitle: `Période du ${reportRange.start} au ${reportRange.end}`,
+          icon: <Warehouse className="h-4 w-4 text-primary" />,
+          lines: [
+            { label: "Ventes encaissées", value: inflow(salesCashed), tone: "success" },
+            { label: "Règlements des propriétaires", value: inflow(ownersPaid), tone: "success" },
+            { label: "Achats de chevaux", value: outflow(stablePurchases), tone: "danger" },
+            { label: "Entretien des chevaux du club", value: outflow(clubUpkeep), tone: "danger" },
+            {
+              label: "Solde de l'écurie sur la période",
+              value: `${stableNet >= 0 ? "+" : "-"}${formatDA(Math.abs(stableNet))}`,
+              tone: stableNet >= 0 ? ("success" as Tone) : ("danger" as Tone),
+              emphasis: true,
+              formula: "ventes + règlements − achats − entretien du club",
+            },
+          ],
+          note: "L'entretien REFACTURÉ aux pensions n'entre pas dans ce solde : il ne sort pas de la caisse, il devient une créance. On le lit dans « Dettes des pensions ».",
+        },
+        {
+          title: "Les dépenses de l'écurie, par rubrique",
+          icon: <Receipt className="h-4 w-4 text-danger" />,
+          lines: [
+            ...stableCatRows.map((c) => ({ label: `${c.name} (${c.count})`, value: formatDA(c.total), tone: "danger" as Tone })),
+            { label: "Total des dépenses de l'écurie", value: formatDA(clubUpkeep + boardedCharged), tone: "danger" as Tone, emphasis: true },
+          ],
+          note: stableCatRows.length === 0 ? "Aucune dépense d'écurie sur la période." : undefined,
+        },
+      ],
+    };
+
+    /* =========================== AUTRES DETTES ======================== */
+    const fOtherDebts = otherDebts.filter((d) => inRange(d.date));
+    const fOtherPayments = otherDebtPayments.filter((p) => inRange(p.date));
+    const otherCreated = sum(fOtherDebts, (d) => d.amount);
+    const otherCollected = sum(fOtherPayments, (p) => p.amount);
+    const otherOutstanding = sum(otherDebts, (d) => otherDebtMoney(db, d.id).rest);
+    const debtNameOf = (id: string) =>
+      otherDebts.find((d) => d.id === id)?.personName ?? "Dette supprimée";
+
+    const otherDebtsSection: Section = {
+      id: "other-debts",
+      label: "Autres dettes",
+      icon: <Tag className="h-4 w-4" />,
+      subtitle:
+        "Ce que l'on doit au club en dehors des cotisations : ces sommes n'apparaissent sur aucune carte de chevalier.",
+      cards: [
+        {
+          label: "Dettes créées sur la période",
+          value: formatDA(otherCreated),
+          tone: "warning",
+          icon: <Tag className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Personne", render: (r) => <span className="font-bold text-ink">{r.personName}</span> },
+              { label: "Objet", render: (r) => <span className="text-muted">{r.description || "—"}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-warning">{formatDA(r.amount)}</strong> },
+              { label: "Reste", align: "right", render: (r) => <strong className="text-danger">{formatDA(otherDebtMoney(db, r.id).rest)}</strong> },
+            ],
+            rows: [...fOtherDebts].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            totalLabel: "Total créé",
+            totalValue: formatDA(otherCreated),
+            totalTone: "warning",
+            empty: "Aucune dette créée sur la période.",
+            searchable: (r) => `${r.personName} ${r.description ?? ""}`,
+          },
+        },
+        {
+          label: "Règlements encaissés",
+          value: inflow(otherCollected),
+          tone: "success",
+          icon: <ArrowUpRight className="h-5 w-5" />,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Personne", render: (r) => <span className="font-bold text-ink">{debtNameOf(r.debtId)}</span> },
+              { label: "Description", render: (r) => <span className="text-muted">{r.description || "—"}</span> },
+              { label: "Montant", align: "right", render: (r) => <strong className="text-success">{inflow(r.amount)}</strong> },
+            ],
+            rows: fOtherPayments,
+            totalLabel: "Total encaissé",
+            totalValue: inflow(otherCollected),
+            totalTone: "success",
+            empty: "Aucun règlement sur la période.",
+            searchable: (r) => debtNameOf(r.debtId),
+          },
+        },
+        {
+          label: "Reste dû (à ce jour)",
+          value: formatDA(otherOutstanding),
+          tone: "danger",
+          icon: <AlertCircle className="h-5 w-5" />,
+          featured: true,
+          detail: {
+            columns: [
+              { label: "Date", render: (r) => dateCell(r.date) },
+              { label: "Personne", render: (r) => <span className="font-bold text-ink">{r.personName}</span> },
+              { label: "Téléphone", render: (r) => <span className="text-muted">{r.phone || "—"}</span> },
+              { label: "Montant", align: "right", render: (r) => <span className="text-muted">{formatDA(r.amount)}</span> },
+              { label: "Réglé", align: "right", render: (r) => <span className="text-success">{formatDA(otherDebtMoney(db, r.id).paid)}</span> },
+              { label: "Reste", align: "right", render: (r) => <strong className="text-danger">{formatDA(otherDebtMoney(db, r.id).rest)}</strong> },
+            ],
+            rows: otherDebts.filter((d) => otherDebtMoney(db, d.id).rest > 0),
+            totalLabel: "Total restant dû",
+            totalValue: formatDA(otherOutstanding),
+            totalTone: "danger",
+            empty: "Aucune dette en cours.",
+            searchable: (r) => `${r.personName} ${r.phone ?? ""}`,
+          },
+        },
+      ],
+      panels: [
+        {
+          title: "Les autres dettes en un coup d'œil",
+          icon: <Tag className="h-4 w-4 text-warning" />,
+          lines: [
+            { label: "Dettes ouvertes", value: `${otherDebts.filter((d) => otherDebtMoney(db, d.id).rest > 0).length}`, strong: true },
+            { label: "Créé sur la période", value: formatDA(otherCreated), tone: "warning" as Tone },
+            { label: "Encaissé sur la période", value: inflow(otherCollected), tone: "success" as Tone },
+            { label: "Reste dû, tous exercices confondus", value: formatDA(otherOutstanding), tone: "danger" as Tone, emphasis: true },
+          ],
+        },
+      ],
+    };
+
     return {
       sections: [
         overviewSection,
@@ -3068,6 +3423,8 @@ export function ReportsPage() {
         parentsSection,
         receptionSection,
         independentSection,
+        stableSection,
+        otherDebtsSection,
         expensesSection,
         cashSection,
       ],
@@ -3106,6 +3463,13 @@ export function ReportsPage() {
     categories,
     parents,
     teacherPayments,
+    horses,
+    horseSales,
+    horseSalePayments,
+    horseExpenses,
+    horseOwnerPayments,
+    otherDebts,
+    otherDebtPayments,
   ]);
 
   const current = report?.sections.find((s) => s.id === activeSection) ?? report?.sections[0];

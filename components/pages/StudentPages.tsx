@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { OwnerHorsesPanel } from "@/components/stable/OwnerHorsesPanel";
 import { StatCard } from "@/components/ui/StatCard";
 import { CarteLedger, SlotLegend } from "@/components/portal/CarteLedger";
 import { Modal } from "@/components/ui/Modal";
@@ -940,6 +941,17 @@ function StudentPaymentsView({
         </Card>
       </div>
 
+
+      {/*
+        L'ÉCURIE DANS L'ESPACE DU CHEVALIER.
+
+        Un chevalier peut posséder un cheval en pension, en avoir acheté un au
+        club, ou porter une dette qui n'est pas une cotisation. Ces sommes
+        n'apparaissent sur AUCUNE de ses cartes : sans ce bloc, il découvrirait
+        son ardoise au comptoir. Le panneau ne s'affiche que s'il y a quelque
+        chose à montrer, et il se lit — il ne se modifie pas.
+      */}
+      <OwnerHorsesPanel studentId={student.id} readOnly />
       {/* Séances left per inscription */}
       <Card className="border border-line shadow-sm">
         <CardBody className="space-y-3 p-4">

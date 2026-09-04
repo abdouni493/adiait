@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { OwnerHorsesPanel } from "@/components/stable/OwnerHorsesPanel";
 import { StatCard } from "@/components/ui/StatCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CarteLedger, SlotLegend } from "@/components/portal/CarteLedger";
@@ -131,7 +132,14 @@ export function ParentPages({ slug }: PageProps) {
     case "schedule":
       return <ParentScheduleView myChildren={myChildren} getSessionInfo={getSessionInfo} subscriptions={subscriptions} />;
     case "payments":
-      return <ParentPaymentsView myChildren={myChildren} payments={childPayments} childInfo={childInfo} />;
+      return (
+        <ParentPaymentsView
+          parent={parent}
+          myChildren={myChildren}
+          payments={childPayments}
+          childInfo={childInfo}
+        />
+      );
     case "notifications":
       return <ParentNotificationsView parent={parent} notifications={notifications} myChildren={myChildren} />;
     case "announcements":
@@ -792,10 +800,12 @@ function ParentScheduleView({
 // 5. PAYMENTS HISTORY VIEW
 // ----------------------------------------------------
 function ParentPaymentsView({
+  parent,
   myChildren,
   payments,
   childInfo,
 }: {
+  parent: Parent;
   myChildren: Student[];
   payments: Payment[];
   childInfo: (id: string) => ChildSeanceInfo;
@@ -955,6 +965,17 @@ function ParentPaymentsView({
           );
         })}
       </div>
+
+      {/*
+        L'ÉCURIE DANS L'ESPACE DU PARENT.
+
+        Au même endroit que ce qu'il doit pour ses enfants : ce que coûte
+        l'entretien de son cheval, ce qui reste à payer sur un cheval acheté au
+        club, et ses autres dettes. C'est toute la raison du rattachement d'un
+        cheval à une fiche — sans lui, ces lignes ne remonteraient nulle part, et
+        la famille découvrirait son ardoise au comptoir.
+      */}
+      <OwnerHorsesPanel parentId={parent.id} readOnly />
 
       {/* Filter toolbar */}
       <Card className="border border-line shadow-sm">

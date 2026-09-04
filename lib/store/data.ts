@@ -30,6 +30,7 @@ import type {
   Announcement,
   AttendanceRecord,
   AttendanceStatus,
+  CaisseKind,
   CashCategory,
   CashTransaction,
   ClassCategory,
@@ -46,10 +47,18 @@ import type {
   FreePeriodStat,
   Group,
   GroupSeance,
+  Horse,
+  HorseExpense,
+  HorseExpenseCategory,
+  HorseOwnerPayment,
+  HorseSale,
+  HorseSalePayment,
   IndependentSession,
   Module,
   ModuleAbsenceRule,
   Notification,
+  OtherDebt,
+  OtherDebtPayment,
   Parent,
   Payment,
   PaymentSource,
@@ -167,6 +176,26 @@ export interface Database {
   formations: Formation[];
   /** QUI EST INSCRIT SUR QUOI — et le frais que l'inscription a porté. */
   formationEnrollments: FormationEnrollment[];
+
+  // — L'ÉCURIE —
+  /** LES CHEVAUX : ceux qu'on a achetés, ceux du club, ceux en pension. */
+  horses: Horse[];
+  /** LES VENTES de chevaux, au comptant ou à crédit. */
+  horseSales: HorseSale[];
+  /** LES VERSEMENTS qui règlent une vente à crédit. */
+  horseSalePayments: HorseSalePayment[];
+  /** LES RUBRIQUES de dépenses de l'écurie (vétérinaire, fourrage…). */
+  horseExpenseCategories: HorseExpenseCategory[];
+  /** CE QUE CHAQUE CHEVAL COÛTE — sur la caisse, ou au compte du propriétaire. */
+  horseExpenses: HorseExpense[];
+  /** CE QUE LES PROPRIÉTAIRES ONT VERSÉ sur les dépenses de leurs chevaux. */
+  horseOwnerPayments: HorseOwnerPayment[];
+
+  // — LES AUTRES DETTES —
+  /** Ce que quelqu'un doit au club sans que ce soit une cotisation. */
+  otherDebts: OtherDebt[];
+  /** Les versements qui les descendent. */
+  otherDebtPayments: OtherDebtPayment[];
 }
 
 // =============================================================================
@@ -1178,7 +1207,114 @@ interface DataActions {
     description: string,
     date?: string,
     categoryId?: string,
+    caisse?: CaisseKind,
   ) => void;
+
+  // -------------------------------------------------------------------------
+  //  L'ÉCURIE
+  // -------------------------------------------------------------------------
+  /**
+   * CRÉE OU MODIFIE UNE FICHE DE CHEVAL.
+   *
+   * Un cheval ACHETÉ (`origin: "purchase"`) avec un prix d'achat écrit un
+   * mouvement de caisse en sortie — l'argent est réellement parti. La
+   * modification ne le rejoue pas : elle AJUSTE le mouvement existant, sinon
+   * corriger une faute de frappe sur un prix doublerait la dépense.
+   */
+  saveHorse: (input: Partial<Horse> & { name: string }) => Promise<{ ok: boolean; id?: string }>;
+  /** Supprime un cheval, ses dépenses, ses versements et sa vente. */
+  deleteHorse: (id: string) => Promise<{ ok: boolean }>;
+
+  /** Enregistre la vente d'un cheval : la fiche passe à « vendu », l'acompte
+   *  entre en caisse, et le reste dû devient une vente à crédit. */
+  saveHorseSale: (input: {
+    id?: string;
+    horseId: string;
+    buyerKind: "student" | "parent" | "external";
+    buyerStudentId?: string;
+    buyerParentId?: string;
+    buyerName: string;
+    buyerPhone?: string;
+    buyerNote?: string;
+    date: string;
+    basePrice: number;
+    discountType?: DiscountType;
+    discountValue?: number;
+    total: number;
+    paid: number;
+    description?: string;
+  }) => Promise<{ ok: boolean; id?: string }>;
+  /** Supprime une vente : le cheval redevient disponible, la caisse est reprise. */
+  deleteHorseSale: (id: string) => Promise<{ ok: boolean }>;
+  /** Encaisse une part du reste dû sur une vente à crédit. */
+  payHorseSale: (args: {
+    saleId: string;
+    amount: number;
+    date?: string;
+    description?: string;
+  }) => Promise<{ ok: boolean; id?: string }>;
+  updateHorseSalePayment: (
+    id: string,
+    fields: { amount?: number; date?: string; description?: string },
+  ) => Promise<{ ok: boolean }>;
+  deleteHorseSalePayment: (id: string) => Promise<{ ok: boolean }>;
+
+  /**
+   * PORTE UNE DÉPENSE SUR UN CHEVAL.
+   *
+   * Cheval du club : la somme SORT DE LA CAISSE. Cheval en pension : elle
+   * devient une DETTE de son propriétaire, et la caisse ne bouge pas.
+   */
+  saveHorseExpense: (input: {
+    id?: string;
+    horseId: string;
+    categoryId?: string;
+    categoryName?: string;
+    amount: number;
+    date: string;
+    description?: string;
+  }) => Promise<{ ok: boolean; id?: string }>;
+  deleteHorseExpense: (id: string) => Promise<{ ok: boolean }>;
+  /** Encaisse ce qu'un propriétaire doit sur les dépenses de son cheval. */
+  payHorseOwner: (args: {
+    horseId: string;
+    amount: number;
+    date?: string;
+    description?: string;
+  }) => Promise<{ ok: boolean; id?: string }>;
+  updateHorseOwnerPayment: (
+    id: string,
+    fields: { amount?: number; date?: string; description?: string },
+  ) => Promise<{ ok: boolean }>;
+  deleteHorseOwnerPayment: (id: string) => Promise<{ ok: boolean }>;
+
+  // -------------------------------------------------------------------------
+  //  LES AUTRES DETTES
+  // -------------------------------------------------------------------------
+  saveOtherDebt: (input: {
+    id?: string;
+    studentId?: string;
+    parentId?: string;
+    personName: string;
+    phone?: string;
+    note?: string;
+    amount: number;
+    description?: string;
+    date: string;
+  }) => Promise<{ ok: boolean; id?: string }>;
+  deleteOtherDebt: (id: string) => Promise<{ ok: boolean }>;
+  payOtherDebt: (args: {
+    debtId: string;
+    amount: number;
+    date?: string;
+    description?: string;
+  }) => Promise<{ ok: boolean; id?: string }>;
+  updateOtherDebtPayment: (
+    id: string,
+    fields: { amount?: number; date?: string; description?: string },
+  ) => Promise<{ ok: boolean }>;
+  deleteOtherDebtPayment: (id: string) => Promise<{ ok: boolean }>;
+
   updateSchool: (updatedFields: Partial<School>) => void;
   restoreState: (dump: Partial<Database>) => void;
   reset: () => void;
@@ -5198,7 +5334,7 @@ export const useData = create<DataStore>((set, get) => ({
     });
   },
 
-  cashMove: (type, amount, description, date, categoryId) => {
+  cashMove: (type, amount, description, date, categoryId, caisse) => {
     let isoDate = new Date().toISOString();
     if (date) {
       isoDate =
@@ -5216,8 +5352,528 @@ export const useData = create<DataStore>((set, get) => ({
       description,
       // Une rubrique vide reste ABSENTE : la colonne est une clé étrangère.
       ...(categoryId ? { categoryId } : {}),
+      // Sans précision, c'est la caisse générale — le comportement de toujours.
+      caisse: caisse ?? "general",
     };
     set((state) => ({ cash: [...state.cash, item] }));
+  },
+
+  // ===========================================================================
+  //  L'ÉCURIE — les chevaux, leur achat, leur vente, ce qu'ils coûtent
+  // ===========================================================================
+
+  saveHorse: async (input) => {
+    const name = input.name.trim();
+    if (!name) return { ok: false };
+    const db = get();
+    const existing = input.id ? db.horses.find((h) => h.id === input.id) : undefined;
+    const id = existing?.id ?? uid("hrs");
+
+    const horse: Horse = {
+      ...(existing ?? {}),
+      ...authorStamp(),
+      ...input,
+      id,
+      name,
+      status: input.status ?? existing?.status ?? "available",
+      origin: input.origin ?? existing?.origin ?? "stable",
+      ownerKind: input.ownerKind ?? existing?.ownerKind ?? "club",
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    } as Horse;
+
+    /**
+     * L'ARGENT DE L'ACHAT NE SORT QU'UNE FOIS.
+     *
+     * Un cheval acheté à 400 000 DA sort 400 000 DA de la caisse le jour de sa
+     * saisie. Corriger ensuite le prix ne doit pas les sortir une seconde fois :
+     * on cherche le mouvement déjà écrit et on l'AJUSTE. C'est aussi ce qui
+     * permet de ramener un prix à zéro (un cheval né sur place, finalement) sans
+     * laisser une dépense fantôme derrière soi.
+     */
+    const price = positiveMoney(horse.purchasePrice ?? 0);
+    const cashId = `csh-horse-${id}`;
+    const buys = horse.origin === "purchase" && price > 0;
+    const previous = db.cash.find((c) => c.id === cashId);
+    const purchaseRow: CashTransaction | null = buys
+      ? {
+          ...authorStamp(),
+          ...(previous ?? {}),
+          id: cashId,
+          type: "horse_purchase",
+          amount: -price,
+          date: isoOn(horse.purchaseDate),
+          description: `Achat du cheval « ${name} »${horse.sellerName ? ` — ${horse.sellerName}` : ""}`,
+          caisse: "general",
+        }
+      : null;
+
+    set((state) => ({
+      horses: existing
+        ? state.horses.map((h) => (h.id === id ? horse : h))
+        : [...state.horses, horse],
+      cash: purchaseRow
+        ? previous
+          ? state.cash.map((c) => (c.id === cashId ? purchaseRow : c))
+          : [...state.cash, purchaseRow]
+        : state.cash.filter((c) => c.id !== cashId),
+    }));
+    return { ok: true, id };
+  },
+
+  deleteHorse: async (id) => {
+    set((state) => {
+      const sales = state.horseSales.filter((s) => s.horseId === id);
+      const saleIds = new Set(sales.map((s) => s.id));
+      const payments = state.horseSalePayments.filter((p) => saleIds.has(p.saleId));
+      const expenses = state.horseExpenses.filter((e) => e.horseId === id);
+      const ownerPayments = state.horseOwnerPayments.filter((p) => p.horseId === id);
+      // Tous les mouvements que ce cheval a écrits partent avec lui : l'achat,
+      // la vente, ses versements, ses dépenses de club et ses règlements.
+      const cashIds = new Set(
+        [
+          `csh-horse-${id}`,
+          ...sales.map((s) => s.cashId),
+          ...payments.map((p) => p.cashId),
+          ...expenses.map((e) => e.cashId),
+          ...ownerPayments.map((p) => p.cashId),
+        ].filter(Boolean) as string[],
+      );
+      return {
+        horses: state.horses.filter((h) => h.id !== id),
+        horseSales: state.horseSales.filter((s) => s.horseId !== id),
+        horseSalePayments: state.horseSalePayments.filter((p) => !saleIds.has(p.saleId)),
+        horseExpenses: state.horseExpenses.filter((e) => e.horseId !== id),
+        horseOwnerPayments: state.horseOwnerPayments.filter((p) => p.horseId !== id),
+        cash: state.cash.filter((c) => !cashIds.has(c.id)),
+      };
+    });
+    return { ok: true };
+  },
+
+  saveHorseSale: async (input) => {
+    const db = get();
+    const horse = db.horses.find((h) => h.id === input.horseId);
+    if (!horse) return { ok: false };
+    const existing = input.id ? db.horseSales.find((s) => s.id === input.id) : undefined;
+    const id = existing?.id ?? uid("hsl");
+
+    const total = positiveMoney(input.total);
+    const paid = Math.min(positiveMoney(input.paid), total);
+    const rest = money(total - paid);
+    const cashId = existing?.cashId ?? `csh-hsale-${id}`;
+
+    const sale: HorseSale = {
+      ...(existing ?? {}),
+      ...authorStamp(),
+      ...input,
+      id,
+      horseName: horse.name,
+      total,
+      paid,
+      rest,
+      status: rest > 0 ? "debt" : "completed",
+      cashId: paid > 0 ? cashId : undefined,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    } as HorseSale;
+
+    const previous = db.cash.find((c) => c.id === cashId);
+    const cashRow: CashTransaction | null =
+      paid > 0
+        ? {
+            ...authorStamp(),
+            ...(previous ?? {}),
+            id: cashId,
+            type: "horse_sale",
+            amount: paid,
+            date: isoOn(input.date),
+            description: `Vente du cheval « ${horse.name} » — ${sale.buyerName}`,
+            caisse: "general",
+          }
+        : null;
+
+    set((state) => ({
+      horseSales: existing
+        ? state.horseSales.map((s) => (s.id === id ? sale : s))
+        : [...state.horseSales, sale],
+      // Le cheval quitte l'écurie : il est vendu.
+      horses: state.horses.map((h) =>
+        h.id === input.horseId ? { ...h, status: "sold" as const } : h,
+      ),
+      cash: cashRow
+        ? previous
+          ? state.cash.map((c) => (c.id === cashId ? cashRow : c))
+          : [...state.cash, cashRow]
+        : state.cash.filter((c) => c.id !== cashId),
+    }));
+    return { ok: true, id };
+  },
+
+  deleteHorseSale: async (id) => {
+    set((state) => {
+      const sale = state.horseSales.find((s) => s.id === id);
+      if (!sale) return {};
+      const payments = state.horseSalePayments.filter((p) => p.saleId === id);
+      const cashIds = new Set(
+        [sale.cashId, ...payments.map((p) => p.cashId)].filter(Boolean) as string[],
+      );
+      return {
+        horseSales: state.horseSales.filter((s) => s.id !== id),
+        horseSalePayments: state.horseSalePayments.filter((p) => p.saleId !== id),
+        // La vente annulée rend le cheval à l'écurie.
+        horses: state.horses.map((h) =>
+          h.id === sale.horseId ? { ...h, status: "available" as const } : h,
+        ),
+        cash: state.cash.filter((c) => !cashIds.has(c.id)),
+      };
+    });
+    return { ok: true };
+  },
+
+  payHorseSale: async ({ saleId, amount, date, description }) => {
+    const db = get();
+    const sale = db.horseSales.find((s) => s.id === saleId);
+    if (!sale) return { ok: false };
+    const value = Math.min(positiveMoney(amount), sale.rest);
+    if (value <= 0) return { ok: false };
+
+    const id = uid("hsp");
+    const cashId = `csh-hsp-${id}`;
+    const row: HorseSalePayment = {
+      ...authorStamp(),
+      id,
+      saleId,
+      amount: value,
+      date: date ?? dateKey(new Date()),
+      description,
+      cashId,
+      createdAt: new Date().toISOString(),
+    };
+    const cashRow: CashTransaction = {
+      ...authorStamp(),
+      id: cashId,
+      type: "horse_sale",
+      amount: value,
+      date: isoOn(row.date),
+      description: `Versement sur la vente du cheval « ${sale.horseName} » — ${sale.buyerName}`,
+      caisse: "general",
+    };
+
+    set((state) => ({
+      horseSalePayments: [...state.horseSalePayments, row],
+      horseSales: state.horseSales.map((s) =>
+        s.id === saleId
+          ? {
+              ...s,
+              paid: money(s.paid + value),
+              rest: money(s.rest - value),
+              status: money(s.rest - value) > 0 ? ("debt" as const) : ("completed" as const),
+            }
+          : s,
+      ),
+      cash: [...state.cash, cashRow],
+    }));
+    return { ok: true, id };
+  },
+
+  updateHorseSalePayment: async (id, fields) => {
+    const db = get();
+    const row = db.horseSalePayments.find((p) => p.id === id);
+    if (!row) return { ok: false };
+    const sale = db.horseSales.find((s) => s.id === row.saleId);
+    if (!sale) return { ok: false };
+    // Le nouveau montant ne peut pas dépasser ce qui reste dû UNE FOIS l'ancien
+    // repris : sans cela, corriger un versement pourrait faire payer deux fois.
+    const ceiling = money(sale.rest + row.amount);
+    const next = fields.amount === undefined ? row.amount : Math.min(positiveMoney(fields.amount), ceiling);
+    const delta = money(next - row.amount);
+
+    set((state) => ({
+      horseSalePayments: state.horseSalePayments.map((p) =>
+        p.id === id ? { ...p, ...fields, amount: next } : p,
+      ),
+      horseSales: state.horseSales.map((s) =>
+        s.id === row.saleId
+          ? {
+              ...s,
+              paid: money(s.paid + delta),
+              rest: money(s.rest - delta),
+              status: money(s.rest - delta) > 0 ? ("debt" as const) : ("completed" as const),
+            }
+          : s,
+      ),
+      cash: state.cash.map((c) =>
+        c.id === row.cashId
+          ? { ...c, amount: next, date: fields.date ? isoOn(fields.date) : c.date }
+          : c,
+      ),
+    }));
+    return { ok: true };
+  },
+
+  deleteHorseSalePayment: async (id) => {
+    set((state) => {
+      const row = state.horseSalePayments.find((p) => p.id === id);
+      if (!row) return {};
+      return {
+        horseSalePayments: state.horseSalePayments.filter((p) => p.id !== id),
+        horseSales: state.horseSales.map((s) =>
+          s.id === row.saleId
+            ? {
+                ...s,
+                paid: money(s.paid - row.amount),
+                rest: money(s.rest + row.amount),
+                status: "debt" as const,
+              }
+            : s,
+        ),
+        cash: state.cash.filter((c) => c.id !== row.cashId),
+      };
+    });
+    return { ok: true };
+  },
+
+  saveHorseExpense: async (input) => {
+    const db = get();
+    const horse = db.horses.find((h) => h.id === input.horseId);
+    if (!horse) return { ok: false };
+    const amount = positiveMoney(input.amount);
+    if (amount <= 0) return { ok: false };
+
+    const existing = input.id ? db.horseExpenses.find((e) => e.id === input.id) : undefined;
+    const id = existing?.id ?? uid("hex");
+    // Le cheval du club paie sur la caisse ; celui d'un pensionnaire porte la
+    // dépense au compte de son propriétaire, et la caisse ne bouge pas.
+    const ownerDebt = horse.ownerKind !== "club";
+    const cashId = `csh-hex-${id}`;
+
+    const row: HorseExpense = {
+      ...(existing ?? {}),
+      ...authorStamp(),
+      ...input,
+      id,
+      amount,
+      ownerDebt,
+      cashId: ownerDebt ? undefined : cashId,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    } as HorseExpense;
+
+    const previous = db.cash.find((c) => c.id === cashId);
+    const cashRow: CashTransaction | null = ownerDebt
+      ? null
+      : {
+          ...authorStamp(),
+          ...(previous ?? {}),
+          id: cashId,
+          type: "horse_expense",
+          amount: -amount,
+          date: isoOn(input.date),
+          description: `Écurie — ${input.categoryName || "dépense"} · cheval « ${horse.name} »`,
+          caisse: "general",
+        };
+
+    set((state) => ({
+      horseExpenses: existing
+        ? state.horseExpenses.map((e) => (e.id === id ? row : e))
+        : [...state.horseExpenses, row],
+      cash: cashRow
+        ? previous
+          ? state.cash.map((c) => (c.id === cashId ? cashRow : c))
+          : [...state.cash, cashRow]
+        : state.cash.filter((c) => c.id !== cashId),
+    }));
+    return { ok: true, id };
+  },
+
+  deleteHorseExpense: async (id) => {
+    set((state) => {
+      const row = state.horseExpenses.find((e) => e.id === id);
+      if (!row) return {};
+      return {
+        horseExpenses: state.horseExpenses.filter((e) => e.id !== id),
+        cash: row.cashId ? state.cash.filter((c) => c.id !== row.cashId) : state.cash,
+      };
+    });
+    return { ok: true };
+  },
+
+  payHorseOwner: async ({ horseId, amount, date, description }) => {
+    const db = get();
+    const horse = db.horses.find((h) => h.id === horseId);
+    if (!horse) return { ok: false };
+    const value = positiveMoney(amount);
+    if (value <= 0) return { ok: false };
+
+    const id = uid("hop");
+    const cashId = `csh-hop-${id}`;
+    const row: HorseOwnerPayment = {
+      ...authorStamp(),
+      id,
+      horseId,
+      amount: value,
+      date: date ?? dateKey(new Date()),
+      description,
+      cashId,
+      createdAt: new Date().toISOString(),
+    };
+    const cashRow: CashTransaction = {
+      ...authorStamp(),
+      id: cashId,
+      type: "horse_owner_payment",
+      amount: value,
+      date: isoOn(row.date),
+      description: `Écurie — règlement du propriétaire du cheval « ${horse.name} »`,
+      caisse: "general",
+    };
+
+    set((state) => ({
+      horseOwnerPayments: [...state.horseOwnerPayments, row],
+      cash: [...state.cash, cashRow],
+    }));
+    return { ok: true, id };
+  },
+
+  updateHorseOwnerPayment: async (id, fields) => {
+    set((state) => {
+      const row = state.horseOwnerPayments.find((p) => p.id === id);
+      if (!row) return {};
+      const amount = fields.amount === undefined ? row.amount : positiveMoney(fields.amount);
+      return {
+        horseOwnerPayments: state.horseOwnerPayments.map((p) =>
+          p.id === id ? { ...p, ...fields, amount } : p,
+        ),
+        cash: state.cash.map((c) =>
+          c.id === row.cashId
+            ? { ...c, amount, date: fields.date ? isoOn(fields.date) : c.date }
+            : c,
+        ),
+      };
+    });
+    return { ok: true };
+  },
+
+  deleteHorseOwnerPayment: async (id) => {
+    set((state) => {
+      const row = state.horseOwnerPayments.find((p) => p.id === id);
+      if (!row) return {};
+      return {
+        horseOwnerPayments: state.horseOwnerPayments.filter((p) => p.id !== id),
+        cash: state.cash.filter((c) => c.id !== row.cashId),
+      };
+    });
+    return { ok: true };
+  },
+
+  // ===========================================================================
+  //  LES AUTRES DETTES
+  // ===========================================================================
+
+  saveOtherDebt: async (input) => {
+    const name = input.personName.trim();
+    const amount = positiveMoney(input.amount);
+    if (!name || amount <= 0) return { ok: false };
+    const db = get();
+    const existing = input.id ? db.otherDebts.find((d) => d.id === input.id) : undefined;
+    const id = existing?.id ?? uid("odb");
+
+    const row: OtherDebt = {
+      ...(existing ?? {}),
+      ...authorStamp(),
+      ...input,
+      id,
+      personName: name,
+      amount,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    } as OtherDebt;
+
+    set((state) => ({
+      otherDebts: existing
+        ? state.otherDebts.map((d) => (d.id === id ? row : d))
+        : [...state.otherDebts, row],
+    }));
+    return { ok: true, id };
+  },
+
+  deleteOtherDebt: async (id) => {
+    set((state) => {
+      const payments = state.otherDebtPayments.filter((p) => p.debtId === id);
+      const cashIds = new Set(payments.map((p) => p.cashId).filter(Boolean) as string[]);
+      return {
+        otherDebts: state.otherDebts.filter((d) => d.id !== id),
+        otherDebtPayments: state.otherDebtPayments.filter((p) => p.debtId !== id),
+        cash: state.cash.filter((c) => !cashIds.has(c.id)),
+      };
+    });
+    return { ok: true };
+  },
+
+  payOtherDebt: async ({ debtId, amount, date, description }) => {
+    const db = get();
+    const debt = db.otherDebts.find((d) => d.id === debtId);
+    if (!debt) return { ok: false };
+    const already = db.otherDebtPayments
+      .filter((p) => p.debtId === debtId)
+      .reduce((s, p) => s + p.amount, 0);
+    const value = Math.min(positiveMoney(amount), money(debt.amount - already));
+    if (value <= 0) return { ok: false };
+
+    const id = uid("odp");
+    const cashId = `csh-odp-${id}`;
+    const row: OtherDebtPayment = {
+      ...authorStamp(),
+      id,
+      debtId,
+      amount: value,
+      date: date ?? dateKey(new Date()),
+      description,
+      cashId,
+      createdAt: new Date().toISOString(),
+    };
+    const cashRow: CashTransaction = {
+      ...authorStamp(),
+      id: cashId,
+      type: "other_debt_payment",
+      amount: value,
+      date: isoOn(row.date),
+      description: `Autre dette — règlement de ${debt.personName}`,
+      caisse: "general",
+    };
+
+    set((state) => ({
+      otherDebtPayments: [...state.otherDebtPayments, row],
+      cash: [...state.cash, cashRow],
+    }));
+    return { ok: true, id };
+  },
+
+  updateOtherDebtPayment: async (id, fields) => {
+    set((state) => {
+      const row = state.otherDebtPayments.find((p) => p.id === id);
+      if (!row) return {};
+      const amount = fields.amount === undefined ? row.amount : positiveMoney(fields.amount);
+      return {
+        otherDebtPayments: state.otherDebtPayments.map((p) =>
+          p.id === id ? { ...p, ...fields, amount } : p,
+        ),
+        cash: state.cash.map((c) =>
+          c.id === row.cashId
+            ? { ...c, amount, date: fields.date ? isoOn(fields.date) : c.date }
+            : c,
+        ),
+      };
+    });
+    return { ok: true };
+  },
+
+  deleteOtherDebtPayment: async (id) => {
+    set((state) => {
+      const row = state.otherDebtPayments.find((p) => p.id === id);
+      if (!row) return {};
+      return {
+        otherDebtPayments: state.otherDebtPayments.filter((p) => p.id !== id),
+        cash: state.cash.filter((c) => c.id !== row.cashId),
+      };
+    });
+    return { ok: true };
   },
 
   updateSchool: (updatedFields) => {

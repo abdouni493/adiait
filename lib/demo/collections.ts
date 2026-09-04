@@ -62,6 +62,15 @@ const PRESENT: Record<CollectionKey, true> = {
   accountRequests: true,
   formations: true,
   formationEnrollments: true,
+  // L'écurie et les autres dettes.
+  horses: true,
+  horseSales: true,
+  horseSalePayments: true,
+  horseExpenseCategories: true,
+  horseExpenses: true,
+  horseOwnerPayments: true,
+  otherDebts: true,
+  otherDebtPayments: true,
 };
 
 export const COLLECTION_ORDER = Object.keys(PRESENT) as CollectionKey[];

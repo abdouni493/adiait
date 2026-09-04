@@ -43,6 +43,35 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-cle-anon
 
 Autres scripts : `npm run build`, `npm run test` (vitest), `npm run lint`.
 
+### 3. Les variables d'environnement de l'hébergeur
+
+Six variables, **toutes côté serveur**, à poser chez l'hébergeur (Vercel →
+*Settings → Environment Variables*, cochées **Production ET Preview**), **puis à
+redéployer** : elles ne sont lues qu'au déploiement.
+
+| Variable | Rôle | Sans elle |
+| --- | --- | --- |
+| `EVOLUTION_BASE_URL` | L'adresse publique de la passerelle WhatsApp, **sans slash final** | Aucun message ne peut partir |
+| `EVOLUTION_API_KEY` | Doit valoir **exactement** `AUTHENTICATION_API_KEY` du conteneur | La passerelle refuse tout en 401 |
+| `EVOLUTION_INSTANCE` | Le nom de l'instance (`adiyet`) | Retombe sur `station` |
+| `EVOLUTION_WEBHOOK_TOKEN` | Le `Bearer` que la passerelle présente à chaque accusé de remise | Les messages partent, aucun accusé ne revient |
+| `SUPABASE_URL` | Le projet visé par le journal et la file d'attente | La file n'existe pas |
+| `SUPABASE_SERVICE_ROLE_KEY` | La clé de service — **jamais** dans un navigateur | Tout message émis passerelle éteinte est **perdu** |
+
+**Aucune ne porte le préfixe `NEXT_PUBLIC_`, et c'est tout le sujet** : ce préfixe
+ferait entrer la clé de la passerelle dans le paquet JavaScript téléchargé par
+chaque visiteur — le numéro WhatsApp du club offert à qui sait ouvrir l'onglet
+réseau. Un test le vérifie (`tests/whatsappGateway.test.ts`).
+
+⚠️ **Ne définissez PAS `EVOLUTION_WEBHOOK_URL`.** L'adresse du webhook se
+**déduit** du domaine sur lequel l'application répond. Recopier un `.env` local
+en bloc emporte `http://host.docker.internal:3000`, et la mise en service échoue
+sur une 400 muette. Si la variable est posée malgré tout, elle est **écartée et
+nommée** dans le diagnostic de Réglages → WhatsApp.
+
+Le montage du poste qui héberge la passerelle est décrit dans
+[`evolution/README.md`](evolution/README.md).
+
 ## Se connecter
 
 ### Le premier compte
@@ -1200,6 +1229,236 @@ Le prix peut être corrigé pour ce chevalier-là (une remise, un tarif de famil
 inscription emporte le frais **sur lequel rien n'a été versé** ; dès qu'un dinar est tombé, le
 frais reste — l'encaissement et son reçu désigneraient sinon une dette qui n'existe plus.
 
+## L'écurie — les chevaux, ce qu'ils coûtent, ce qu'ils rapportent
+
+Trois écrans, un seul quartier de la barre latérale, et **une règle qui gouverne
+tout le reste : à qui le cheval appartient.**
+
+- **cheval du club** — ses dépenses **sortent de la caisse**. Il n'a personne à
+  facturer, donc **pas de dette** : lui en inventer une ferait un impayé
+  imaginaire dans les rapports ;
+- **cheval en pension** — ses dépenses deviennent une **dette de son
+  propriétaire**, et la caisse ne bouge **qu'au moment où il règle**.
+
+Ce n'est pas un réglage de la saisie : la valeur est **déduite** du propriétaire
+inscrit sur la fiche. Laisser choisir au moment de la dépense ouvrirait la porte
+à une dépense de club facturée par erreur à un pensionnaire — le genre d'erreur
+qu'on découvre au moment de présenter la note.
+
+### Achat & vente
+
+La fiche d'un cheval porte tout ce qu'une écurie sait d'un animal : identité,
+santé, travail, origines, prix. **Seul le nom est obligatoire** (avec les deux
+prix, sur un achat). Une écurie ne connaît pas la robe, la taille et le carnet de
+vaccination de chaque cheval le jour où il arrive : exiger vingt champs ferait
+saisir vingt approximations, et une approximation dans un carnet de vaccination
+est pire qu'une case vide.
+
+Le **prix d'achat sort de la caisse** au jour indiqué. Le modifier **ajuste** ce
+mouvement au lieu d'en créer un second : corriger une faute de frappe ne double
+jamais la dépense.
+
+La **vente** cherche le cheval par son nom et déplie sa fiche — race, âge,
+discipline, prix affiché — **et le total de ce qu'il a coûté**. C'est ce dernier
+chiffre qui compte : vendre un cheval 300 000 DA alors qu'il en a coûté 180 000
+en vétérinaire et en fourrage n'est pas la même affaire que de le vendre au même
+prix sans aucune dépense derrière. L'information existait, éparpillée ; elle est
+là, au moment où elle sert.
+
+L'acheteur peut être un **chevalier ou un parent du club** : c'est ce
+rattachement, et lui seul, qui fait remonter la vente — et sa dette éventuelle —
+sur son compte. Saisi à la main, le nom reste une chaîne que rien ne relie à
+personne.
+
+Le montant versé est **pré-rempli au total** (on paie comptant neuf fois sur
+dix) et modifiable ; le descendre ouvre une **vente à crédit**, annoncée en rouge
+en haut de l'écran principal. Une dette qui dort au fond d'un onglet n'est jamais
+recouvrée.
+
+### L'écurie
+
+Tous les chevaux **présents** : ceux que le club a achetés et ceux qui n'ont
+jamais été achetés — nés sur place, ou mis en pension. On y porte les dépenses,
+on y encaisse les propriétaires, et l'on y ouvre le **relevé d'une période** :
+le total par rubrique entre deux dates, ce qui a été versé, ce qui reste dû —
+avec l'en-tête complet du club. C'est ce document-là qu'on tend à un
+propriétaire, pas une liste de lignes à l'écran.
+
+### Gestion de l'écurie
+
+Le bilan sur une période, **une ligne par propriétaire — pas par cheval** : c'est
+au propriétaire qu'on présente une note, et quelqu'un qui a trois chevaux en
+pension veut un seul total. Les colonnes sont les rubriques **rencontrées sur la
+période** : une rubrique sans dépense ne fabrique pas de colonne vide.
+
+⚠️ Le « reste dû » de ce tableau est celui **de la période**. La dette courante
+d'un propriétaire — tous exercices confondus — se lit sur la fiche de son cheval.
+Mélanger les deux ferait apparaître un impayé là où quelqu'un a réglé le mois
+suivant.
+
+### Sur le compte des familles
+
+Un chevalier ou un parent qui possède un cheval, en a acheté un, ou porte une
+« autre dette » retrouve **tout cela dans son espace**, à côté de ce qu'il doit
+pour ses cotisations — dépense par dépense, règlement par règlement. Sans ce
+bloc, il découvrirait son ardoise au comptoir.
+
+## Les autres dettes
+
+Un fournisseur avancé, une casse à rembourser, du matériel prêté non rendu : des
+sommes qui n'appartiennent à aucun emploi du temps et n'ont leur place ni sur une
+carte, ni sur un frais de chevalier. Faute d'un endroit à elles, elles
+finissaient sur un papier au fond d'un tiroir.
+
+La personne peut être une **fiche du club** — la dette remonte alors sur son
+compte — ou n'importe qui d'autre, dont on ne garde qu'un nom, un numéro et une
+description. Chaque règlement entre en caisse et s'imprime.
+
+## Les deux caisses
+
+Le club tient désormais **deux postes de saisie** :
+
+- la **caisse générale**, qui voit tout et affiche l'origine de chaque
+  mouvement ;
+- la **caisse secondaire** — celle des travailleurs — qui n'affiche **que ce
+  qu'elle a elle-même saisi**. C'est toute sa raison d'être : un travailleur y
+  enregistre ses mouvements sans lire le chiffre d'affaires du club, ni la paie
+  des entraîneurs, ni les encaissements du comptoir.
+
+⚠️ **L'argent, lui, n'est pas séparé.** Les deux alimentent la même trésorerie.
+Deux caisses réellement distinctes auraient demandé deux soldes, deux
+rapprochements et deux vérités — ce qui n'est pas ce qu'on veut d'un poste de
+travail secondaire.
+
+Un mouvement **sans caisse** est antérieur à cette distinction : il appartient à
+la générale, et se lit comme tel. La colonne est donc facultative plutôt que
+remplie d'office — une valeur par défaut écrite en base aurait réécrit tout
+l'historique pour affirmer ce que son absence disait déjà.
+
+## WhatsApp — le numéro du club, sans Business API
+
+Les messages partent du **numéro WhatsApp du club**, depuis une passerelle
+(Evolution API, moteur Baileys) hébergée sur un poste de l'écurie et publiée en
+HTTPS par un **Funnel Tailscale**. Pas de modèle à faire approuver, pas de frais
+par message, pas de VPS.
+
+```
+Application (Vercel)  ──HTTPS──►  passerelle (poste allumé)  ──►  WhatsApp
+Application (webhook) ◄──HTTPS──  passerelle                 ◄──  statuts
+```
+
+**La contrepartie, dite franchement : poste éteint = aucun message ne part.**
+Ils ne sont pas perdus — la **file d'attente** les garde et les rejoue toute
+seule au rallumage — mais rien ne prévient personne pendant ce temps.
+
+### Ce qui protège le numéro
+
+WhatsApp bannit les comptes qui écrivent vite et à beaucoup de monde, et **un
+numéro banni l'est sans recours** : le montage est auto-hébergé, personne ne
+viendra plaider le dossier.
+
+| Réglage | Valeur | Motif |
+| --- | --- | --- |
+| Attente entre deux destinataires | **3 à 7 s, tirée au hasard** | Un intervalle régulier au millième près fait robot |
+| Destinataires par appel | 40 | Au-delà, la file prend le relais |
+| Messages par vidage | 15 | Le rattrapage traite des lots : c'est là qu'on ressemble le plus à un robot |
+| Budget d'une requête | 45 s (route : 60 s) | Au-delà, **le reste part en file** plutôt que d'accélérer |
+
+Ces constantes vivent dans `lib/whatsapp/core.ts`, **partagées** par le
+navigateur et le serveur. Les dupliquer les laisserait diverger, et **le vidage
+de la file respecte exactement la même cadence que l'envoi direct**.
+
+### Deux tables, et elles ne se confondent pas
+
+| Table | Ce qu'elle porte | Sans elle |
+| --- | --- | --- |
+| `whatsapp_messages` | Le **journal** : destinataire, **texte réellement envoyé**, avancement (`queued → sent → delivered → read → failed`) | On ne peut pas relire six mois plus tard ce qu'une famille a reçu |
+| `whatsapp_outbox` | La **file** : ce qui n'a **pas pu** partir, avec son texte | Tout message émis passerelle éteinte est **purement perdu** |
+
+Les deux partagent le **même identifiant** : un message rattrapé depuis la file
+se retrouve dans le journal **au même endroit**, jamais en double.
+
+**Trois règles de reprise**, et elles comptent toutes les trois :
+
+1. **une passerelle injoignable ne consomme jamais de tentative** — sinon un
+   week-end hors ligne épuiserait le compteur de toute la file et ferait
+   abandonner des messages parfaitement valides ;
+2. **un refus propre au destinataire en consomme une**, trois au maximum ;
+3. **au-delà de sept jours, le message est périmé** : un rappel d'une semaine
+   peut être devenu faux — la famille est peut-être déjà passée payer.
+
+Un **numéro invalide est refusé tout de suite**, jamais mis en file : le
+découvrir trois jours plus tard au fond d'un journal ne sert personne.
+
+### Qui déclenche le rattrapage
+
+Rien ne tourne entre deux requêtes chez un hébergeur sans serveur : c'est
+l'application **ouverte dans le navigateur** qui s'en charge
+(`components/whatsapp/WhatsAppOutboxRunner.tsx`, monté dans la coquille). Ce
+n'est pas un pis-aller — le poste du comptoir a l'application ouverte toute la
+journée, et **c'est le même poste qui héberge la passerelle**.
+
+### À qui l'on écrit
+
+**Au chevalier ET à son parent, en même temps.** Ce n'est pas de la redondance :
+le chevalier est parfois mineur et ne porte pas de téléphone, le parent est
+parfois injoignable la journée, et une dette qui traîne coûte plus cher qu'un
+message de trop. Si le chevalier n'a pas de numéro, le message part au parent
+seul. **Si aucun des deux n'en a, l'écran le dit** — un envoi silencieusement
+perdu est pire qu'un refus visible.
+
+### Ce que l'on envoie
+
+L'application **écrit le premier jet**. Devant un champ vide on écrit vite et mal
+— pas de salutation, pas de nom de club, pas de moyen de répondre — et une
+famille qui reçoit un rappel sec d'un numéro inconnu **bloque le numéro** ; un
+numéro bloqué par plusieurs personnes finit banni.
+
+Le modèle **« Situation détaillée »** déplie tout ce que l'écran sait :
+semestre et ses dates, catégorie, groupe, emploi du temps avec ses jours et ses
+horaires, arène, entraîneur, carte en cours et son avancement, séances suivies,
+absences, total versé, reste à payer. La famille n'a plus à téléphoner pour
+comprendre — ce qui est le seul but d'un rappel. Chaque ligne **disparaît d'elle-même**
+quand l'écran ne connaît pas l'information : on ne montre jamais « Groupe : — ».
+
+Le **message libre** reste possible, avec ses jetons `{chevalier}`, `{parent}`,
+`{club}`, `{dette}`, `{seances}`, `{groupe}`, `{categorie}`, `{semestre}`. **Un
+jeton inconnu reste tel quel** plutôt que remplacé par du vide : mieux vaut voir
+`{truc}` à la relecture que d'envoyer une phrase amputée.
+
+Depuis la liste des chevaliers d'un emploi du temps (écran **Semestres**), on
+coche **tous les endettés d'un clic** et chacun reçoit **son** message, composé
+avec **sa** situation — dépliable ligne par ligne avant l'envoi. Ce n'est jamais
+un aperçu du premier : c'est celui de chacun.
+
+**Trois issues, jamais confondues** : *envoyé*, *en attente* (la passerelle était
+éteinte — ce n'est **pas** un échec, et cela ne s'affiche pas en rouge), *échec*.
+
+### L'écran de réglages
+
+Réglages → WhatsApp connecte le téléphone **de bout en bout, sans terminal** :
+initialiser l'instance, afficher le QR, le voir passer au vert **tout seul**.
+
+Il **n'affiche jamais** la clé d'API, le jeton du webhook, ni l'adresse complète
+de la passerelle — hôte seul, nom d'instance masqué : il est ouvert devant du
+personnel administratif et visible dans l'onglet réseau du navigateur.
+
+Deux détails viennent de pannes réelles :
+
+- **« Réenregistrer le webhook » est disponible session ouverte.** C'est
+  exactement le cas qui en a besoin — webhook périmé, session saine. Sans lui, le
+  seul contournement serait de délier le téléphone : casser une session valide
+  pour corriger une URL.
+- **« La passerelle est prête » exige un webhook réellement vérifié.** Constater
+  qu'une variable existe côté serveur ne dit rien de ce que la passerelle, elle,
+  enverra. L'application **relit** le webhook enregistré et distingue *non
+  configuré*, *adresse périmée*, *jeton divergent*, *jeton vérifié*.
+
+`setup` et `logout` sont **refusés depuis un déploiement de prévisualisation** :
+il n'existe qu'une passerelle et qu'un emplacement de webhook, et une branche
+détournerait les accusés de remise de la production sans qu'aucune erreur ne le
+signale.
+
 ## Structure
 
 | Domaine                          | Fichiers                                                              |
@@ -1232,6 +1491,19 @@ frais reste — l'encaissement et son reçu désigneraient sinon une dette qui n
 | Inscriptions venues du site      | `components/pages/WebsiteInscriptionsPage.tsx`, `components/accounts/AccountRequests.tsx` |
 | Inscrire un chevalier au comptoir| `components/students/AssignFormationModal.tsx`                          |
 | Pastilles de la barre latérale   | `lib/useNavAlerts.ts`                                                  |
+| Écurie (sélecteurs, rapports)    | `lib/stable.ts`, `lib/reports/stable.ts`                               |
+| Achat & vente des chevaux        | `components/pages/HorseTradePage.tsx`, `components/stable/HorseSaleModal.tsx` |
+| L'écurie (suivi, dépenses)       | `components/pages/StablePage.tsx`, `components/stable/`                |
+| Gestion de l'écurie (bilan)      | `components/pages/StableReportsPage.tsx`                               |
+| Chevaux sur le compte d'une famille | `components/stable/OwnerHorsesPanel.tsx`                            |
+| Autres dettes                    | `components/pages/OtherDebtsPage.tsx`                                  |
+| Caisse secondaire                | `components/pages/SecondaryCashPage.tsx`                               |
+| WhatsApp — noyau partagé         | `lib/whatsapp/core.ts`, `lib/whatsapp/templates.ts`, `lib/whatsapp/alert.ts` |
+| WhatsApp — les six routes        | `lib/whatsapp/server/router.ts`, `app/api/whatsapp/[...path]/route.ts` |
+| WhatsApp — la passerelle, la clé | `lib/whatsapp/server/gateway.ts`, `lib/whatsapp/server/env.ts`         |
+| WhatsApp — journal & file        | `lib/whatsapp/server/store.ts`, `components/whatsapp/WhatsAppOutboxRunner.tsx` |
+| WhatsApp — écrans                | `components/whatsapp/WhatsAppSettingsPanel.tsx`, `components/whatsapp/WhatsAppMessageModal.tsx` |
+| Le poste qui héberge la passerelle | `evolution/`                                                         |
 
 L'**application** n'affiche aucun favicon de son cru : l'onglet reste à l'écusson de l'Ordre
 (`app/icon.svg`), et le logo téléversé dans **Paramètres** ne sert que dans l'application et sur

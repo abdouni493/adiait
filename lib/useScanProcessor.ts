@@ -7,6 +7,7 @@ import { useToast } from "@/lib/store/toast";
 import { studentDebt, studentName, totalRemainingSeances } from "@/lib/helpers";
 import { speakMessage, speechCaseForScan } from "@/lib/speech";
 import { buildBalanceAlert } from "@/lib/whatsapp/alert";
+import { sendMessages } from "@/lib/whatsapp/client";
 import type { Parent, School, Student } from "@/lib/types";
 
 /** Alertes automatiques déjà traitées dans cette session applicative, pour ne
@@ -15,10 +16,17 @@ import type { Parent, School, Student } from "@/lib/types";
  *  séance + jour. */
 const sentAlertKeys = new Set<string>();
 
-/** Alerte automatique de solde. En mode démo il n'y a aucune passerelle Meta :
- *  le message est composé exactement comme en production (pour vérifier la
- *  résolution destinataire et le modèle), puis simplement journalisé. La
- *  notification interne au parent, elle, est bien écrite par l'appelant. */
+/**
+ * L'ALERTE AUTOMATIQUE DE SOLDE, ENVOYÉE AU BADGE.
+ *
+ * Le chevalier ET son parent la reçoivent en même temps — le mineur ne porte
+ * pas toujours de téléphone, le parent n'est pas toujours joignable la journée.
+ *
+ * L'envoi n'est PAS bloquant : le verdict du scan et son annonce vocale
+ * s'affichent sans attendre la passerelle, et un échec d'envoi reste sans effet
+ * sur la présence et le débit déjà écrits. Une passerelle éteinte n'est pas un
+ * échec : le message part en file et repartira tout seul.
+ */
 async function sendAutoBalanceAlert(opts: {
   student: Student;
   remainingSeances: number;
@@ -42,13 +50,29 @@ async function sendAutoBalanceAlert(opts: {
     lang: opts.lang,
     low: opts.low,
   });
-  // Aucun numéro exploitable (ni parent ni chevalier), ou rien à signaler.
+  // Aucun numéro exploitable (ni chevalier ni parent), ou rien à signaler.
   if (!payload) return;
 
+  // La clé est posée AVANT l'envoi : un second badge pendant que la requête
+  // court ne doit pas produire un second message.
   sentAlertKeys.add(opts.dedupKey);
-  console.info(
-    `[demo] alerte WhatsApp non envoyée (mode démo) — destinataire ${payload.name ?? payload.phone}`,
-  );
+  try {
+    await sendMessages(
+      payload.recipients.map((r) => ({
+        phone: r.phone,
+        name: r.name,
+        text: r.text,
+        studentId: r.studentId,
+        parentId: r.parentId,
+        origin: "scan",
+      })),
+    );
+  } catch (err) {
+    // On relâche la clé : la panne est peut-être passagère, et le prochain
+    // badge de la journée doit pouvoir réessayer.
+    sentAlertKeys.delete(opts.dedupKey);
+    console.error("[whatsapp] alerte automatique non envoyée :", err);
+  }
 }
 
 /**

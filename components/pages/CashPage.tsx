@@ -68,7 +68,11 @@ export function CashPage() {
   const [customStart, setCustomStart] = useState(getLocalDateString(new Date()));
   const [customEnd, setCustomEnd] = useState(getLocalDateString(new Date()));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "students" | "teachers" | "school_expenses" | "manual">("all");
+  /** Quelle caisse regarde-t-on ? La générale voit TOUT — c'est sa définition. */
+  const [caisseFilter, setCaisseFilter] = useState<"all" | "general" | "secondary">("all");
+  const [activeTab, setActiveTab] = useState<
+    "all" | "students" | "teachers" | "school_expenses" | "manual" | "stable" | "debts"
+  >("all");
 
   // Modals
   const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -154,6 +158,13 @@ export function CashPage() {
 
       if (!inPeriod) return false;
 
+      // La caisse d'origine. « Absent » vaut générale : c'est le cas de tout ce
+      // qui a été écrit avant que la caisse secondaire existe.
+      if (caisseFilter !== "all") {
+        const origin = tx.caisse ?? "general";
+        if (origin !== caisseFilter) return false;
+      }
+
       // Filter by search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -214,6 +225,32 @@ export function CashPage() {
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   /**
+   * L'ÉCURIE DANS LA CAISSE.
+   *
+   * Quatre types de mouvements viennent des chevaux : l'achat (sortie), la
+   * vente et ses versements (entrées), l'entretien d'un cheval DU CLUB
+   * (sortie), et ce qu'un propriétaire de pension règle (entrée). Ils étaient
+   * déjà dans le journal — ils sont ici RÉSUMÉS, parce qu'un total mêlé au
+   * reste ne dit pas si l'écurie coûte ou rapporte.
+   */
+  const STABLE_TYPES: CashTxType[] = [
+    "horse_purchase",
+    "horse_sale",
+    "horse_expense",
+    "horse_owner_payment",
+  ];
+  const stableTx = filteredTx.filter((t) => STABLE_TYPES.includes(t.type));
+  const stableIn = stableTx.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const stableOut = stableTx
+    .filter((t) => t.amount < 0)
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
+
+  /** Les règlements d'« autres dettes » — des entrées qui n'appartiennent à
+   *  aucune cotisation et se perdraient dans « divers ». */
+  const otherDebtTx = filteredTx.filter((t) => t.type === "other_debt_payment");
+  const otherDebtIn = otherDebtTx.reduce((s, t) => s + t.amount, 0);
+
+  /**
    * LES MOUVEMENTS MANUELS DE LA PÉRIODE, RANGÉS PAR RUBRIQUE.
    *
    * Seuls les dépôts et les retraits en portent une : tout le reste — paiements
@@ -246,6 +283,10 @@ export function CashPage() {
         return filteredTx.filter((t) => t.type === "expense");
       case "manual":
         return filteredTx.filter((t) => t.type === "deposit" || t.type === "withdraw");
+      case "stable":
+        return stableTx;
+      case "debts":
+        return otherDebtTx;
       default:
         return filteredTx;
     }
@@ -445,6 +486,11 @@ export function CashPage() {
       acompte: { label: "Acompte", style: "bg-warning/15 text-warning border border-warning/30" },
       student_debt: { label: "Dette chevalier avancée", style: "bg-danger/15 text-danger border border-danger/30" },
       registration: { label: "Inscription", style: "bg-success/15 text-success border border-success/30" },
+      horse_purchase: { label: "Achat d'un cheval", style: "bg-amber-500/15 text-amber-700 border border-amber-500/30" },
+      horse_sale: { label: "Vente d'un cheval", style: "bg-success/15 text-success border border-success/30" },
+      horse_expense: { label: "Dépense d'écurie", style: "bg-amber-500/15 text-amber-700 border border-amber-500/30" },
+      horse_owner_payment: { label: "Règlement propriétaire", style: "bg-success/15 text-success border border-success/30" },
+      other_debt_payment: { label: "Règlement d'autre dette", style: "bg-success/15 text-success border border-success/30" },
     };
     const info = labels[type] ?? { label: type, style: "bg-canvas text-ink border border-line" };
     return <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold ${info.style}`}>{info.label}</span>;
@@ -556,6 +602,97 @@ export function CashPage() {
             </Card>
           </div>
         </div>
+
+        {/* ---- L'ÉCURIE ET LES AUTRES DETTES ----
+             Ces mouvements sont déjà dans le journal ; ils sont ISOLÉS ici,
+             parce qu'un total mêlé au reste ne dit pas si l'écurie coûte ou
+             rapporte — et c'est précisément la question qu'on lui pose. */}
+        {(stableTx.length > 0 || otherDebtTx.length > 0) && (
+          <div>
+            <span className="text-[10px] text-muted font-bold uppercase tracking-wider block mb-2.5">
+              L&apos;écurie et les autres dettes (période affichée)
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border border-line bg-surface card-shadow">
+                <CardBody className="flex justify-between items-center p-5">
+                  <div>
+                    <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">
+                      Écurie — entrées
+                    </span>
+                    <strong className="text-2xl font-black text-success block mt-1.5">
+                      +{formatDA(stableIn)}
+                    </strong>
+                    <span className="text-[10px] text-muted block mt-0.5">
+                      ventes et règlements des propriétaires
+                    </span>
+                  </div>
+                  <div className="h-11 w-11 rounded-2xl bg-success/10 text-success flex items-center justify-center">
+                    <ArrowUpRight className="h-5 w-5" />
+                  </div>
+                </CardBody>
+              </Card>
+
+              <Card className="border border-line bg-surface card-shadow">
+                <CardBody className="flex justify-between items-center p-5">
+                  <div>
+                    <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">
+                      Écurie — sorties
+                    </span>
+                    <strong className="text-2xl font-black text-danger block mt-1.5">
+                      -{formatDA(stableOut)}
+                    </strong>
+                    <span className="text-[10px] text-muted block mt-0.5">
+                      achats et entretien des chevaux du club
+                    </span>
+                  </div>
+                  <div className="h-11 w-11 rounded-2xl bg-danger/10 text-danger flex items-center justify-center">
+                    <ArrowDownLeft className="h-5 w-5" />
+                  </div>
+                </CardBody>
+              </Card>
+
+              <Card className="border border-line bg-surface card-shadow">
+                <CardBody className="flex justify-between items-center p-5">
+                  <div>
+                    <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">
+                      Écurie — solde
+                    </span>
+                    <strong
+                      className={`text-2xl font-black block mt-1.5 ${
+                        stableIn - stableOut >= 0 ? "text-success" : "text-danger"
+                      }`}
+                    >
+                      {stableIn - stableOut >= 0 ? "+" : ""}
+                      {formatDA(stableIn - stableOut)}
+                    </strong>
+                  </div>
+                  <div className="h-11 w-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                    <ArrowUpDown className="h-5 w-5" />
+                  </div>
+                </CardBody>
+              </Card>
+
+              <Card className="border border-line bg-surface card-shadow">
+                <CardBody className="flex justify-between items-center p-5">
+                  <div>
+                    <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">
+                      Autres dettes réglées
+                    </span>
+                    <strong className="text-2xl font-black text-success block mt-1.5">
+                      +{formatDA(otherDebtIn)}
+                    </strong>
+                    <span className="text-[10px] text-muted block mt-0.5">
+                      {otherDebtTx.length} règlement(s)
+                    </span>
+                  </div>
+                  <div className="h-11 w-11 rounded-2xl bg-success/10 text-success flex items-center justify-center">
+                    <Tag className="h-5 w-5" />
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {/* Row 2: All-Time Application Cash Flow */}
         <div>
@@ -675,6 +812,27 @@ export function CashPage() {
           </div>
         )}
 
+        {/* LA CAISSE D'ORIGINE — la générale voit tout, et peut se restreindre. */}
+        <div className="flex items-center gap-1 shrink-0">
+          {(
+            [
+              ["all", "Les deux caisses"],
+              ["general", "Caisse générale"],
+              ["secondary", "Caisse secondaire"],
+            ] as const
+          ).map(([id, label]) => (
+            <Button
+              key={id}
+              size="sm"
+              variant={caisseFilter === id ? "primary" : "outline"}
+              onClick={() => setCaisseFilter(id)}
+              className="rounded-xl font-bold py-1.5 px-3"
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
         {/* Search bar */}
         <div className="relative flex-1 max-w-md xl:ml-auto">
           <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-muted">
@@ -708,6 +866,8 @@ export function CashPage() {
             { id: "teachers", label: "Règlements Entraîneurs/Staff", count: filteredTx.filter((t) => t.type === "teacher_payment" || t.type === "acompte").length },
             { id: "school_expenses", label: "Dépenses Club", count: filteredTx.filter((t) => t.type === "expense").length },
             { id: "manual", label: "Dépôts & Retraits", count: filteredTx.filter((t) => t.type === "deposit" || t.type === "withdraw").length },
+            { id: "stable", label: "Écurie (chevaux)", count: stableTx.length },
+            { id: "debts", label: "Autres dettes", count: otherDebtTx.length },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -896,6 +1056,7 @@ export function CashPage() {
               <tr className="bg-canvas/50 border-b border-line text-muted font-bold text-[10px] uppercase tracking-wider">
                 <th className="p-4 ps-6">Date / Heure</th>
                 <th className="p-4">Type</th>
+                <th className="p-4">Caisse</th>
                 <th className="p-4">Description</th>
                 <th className="p-4">Détail de la pièce</th>
                 <th className="p-4 text-end">Montant</th>
@@ -906,7 +1067,7 @@ export function CashPage() {
             <tbody className="divide-y divide-line">
               {tabTxList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-muted italic bg-surface/30">
+                  <td colSpan={8} className="p-12 text-center text-muted italic bg-surface/30">
                     <div className="max-w-sm mx-auto flex flex-col items-center gap-2">
                       <AlertTriangle className="h-8 w-8 text-muted/65" />
                       <span className="block font-bold mt-1.5">Aucune transaction trouvée</span>
@@ -926,6 +1087,20 @@ export function CashPage() {
                       </div>
                     </td>
                     <td className="p-4">{getTxTypeBadge(tx.type)}</td>
+                    {/* D'OÙ VIENT LE MOUVEMENT. Un mouvement sans caisse est
+                        antérieur à la caisse secondaire : il appartient à la
+                        générale, et c'est ce qu'on affiche. */}
+                    <td className="p-4">
+                      <span
+                        className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${
+                          tx.caisse === "secondary"
+                            ? "bg-accent/15 text-accent-ink ring-1 ring-accent/30"
+                            : "bg-canvas text-muted ring-1 ring-line"
+                        }`}
+                      >
+                        {tx.caisse === "secondary" ? "Secondaire" : "Générale"}
+                      </span>
+                    </td>
                     <td className="p-4 font-semibold text-ink max-w-md truncate">{tx.description}</td>
                     <td className="p-4 text-[10px] text-muted max-w-xs">
                       {detailOf(tx) || <span className="italic text-muted/60">—</span>}
