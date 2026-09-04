@@ -46,10 +46,15 @@ services:
         condition: service_healthy
     ports:
       # SUR 127.0.0.1 UNIQUEMENT. Le port sert au diagnostic depuis le poste ;
-      # le trafic public passe EXCLUSIVEMENT par le Funnel. Le choisir distinct
-      # de tout autre montage du poste (8081, 8082…) évite qu'une seconde
-      # passerelle se retrouve devant celle-ci.
-      - "127.0.0.1:8082:8080"
+      # le trafic public passe EXCLUSIVEMENT par le Funnel.
+      #
+      # ⚠️ IL DOIT ÊTRE DISTINCT DE TOUT AUTRE MONTAGE DU POSTE. Celui-ci en
+      # héberge déjà deux : l'école sur 8081 (`evolution-funnel`) et la station
+      # sur 8082 (`rclmc-wa`). Le club prend donc 8083. Un port déjà pris ne
+      # produit pas une panne subtile — le conteneur refuse de démarrer, en le
+      # disant — mais c'est le genre de détail qu'on ne découvre qu'au premier
+      # démarrage, un jour de mise en service.
+      - "127.0.0.1:8083:8080"
     environment:
       # ⚠️ CETTE VALEUR DOIT ÊTRE IDENTIQUE, AU CARACTÈRE PRÈS, à la variable
       # EVOLUTION_BASE_URL de l'application. Elle est estampillée dans le champ

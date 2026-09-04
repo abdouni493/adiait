@@ -61,7 +61,12 @@ function Invoke-Http {
     [string]$Method = "Get",
     $Headers = @{},
     [string]$Body = $null,
-    [int]$TimeoutSec = 20
+    # 45 s, ET NON 20. La PREMIERE poignee de main TLS a travers le Funnel
+    # est lente quand le chemin public vient d'etre etabli : a 20 s, le
+    # diagnostic annoncait « la passerelle ne repond pas » sur une passerelle
+    # qui repondait tres bien. Un faux signalement apprend a ignorer le
+    # rapport — c'est le pire defaut qu'un diagnostic puisse avoir.
+    [int]$TimeoutSec = 45
   )
   # PAS `$args` : c'est une variable AUTOMATIQUE de PowerShell (les arguments de
   # la fonction). L'ecraser marche, jusqu'au jour ou cela ne marche plus.
@@ -112,11 +117,21 @@ if (-not $r.Failed) {
 # -----------------------------------------------------------------------------
 #  2. La clé d'API est acceptée
 # -----------------------------------------------------------------------------
-$instances = $null
+#  ⚠️ ON RETIENT LE VERDICT, PAS SEULEMENT LA LISTE.
+#
+#  Une passerelle neuve rend une liste VIDE, et PowerShell tient un tableau vide
+#  pour faux : brancher les contrôles suivants sur `if ($instances)` les faisait
+#  sauter EN SILENCE — le rapport annonçait « rien à signaler » sur des contrôles
+#  qu'il n'avait pas faits. Un diagnostic muet est pire qu'un diagnostic qui
+#  échoue : on le croit.
+$instances = @()
+$apiOk = $false
 if ($reachable) {
   try {
-    $instances = Invoke-RestMethod -Uri "$base/instance/fetchInstances" `
-      -Headers @{ apikey = $apiKey } -TimeoutSec 20
+    $raw = Invoke-RestMethod -Uri "$base/instance/fetchInstances" `
+      -Headers @{ apikey = $apiKey } -TimeoutSec 45
+    if ($null -ne $raw) { $instances = @($raw) }
+    $apiOk = $true
     Ok "2. La cle d'API est acceptee"
   } catch {
     Bad "2. La cle d'API est REFUSEE : $($_.Exception.Message)"
@@ -128,13 +143,16 @@ if ($reachable) {
 #  3. L'instance existe, et la session est connectée
 # -----------------------------------------------------------------------------
 $connected = $false
-if ($instances) {
+$instanceExists = $false
+if ($apiOk) {
   $row = $instances | ForEach-Object { if ($_.instance) { $_.instance } else { $_ } } |
          Where-Object { $_.instanceName -eq $instance -or $_.name -eq $instance }
   if (-not $row) {
-    Bad "3. L'instance « $instance » n'existe pas sur la passerelle."
+    Warn "3. L'instance « $instance » n'existe pas encore sur la passerelle."
+    Fix "C'est l'etat normal avant la mise en service."
     Fix "Reglages -> WhatsApp -> « Initialiser l'instance »."
   } else {
+    $instanceExists = $true
     $state = if ($row.connectionStatus) { $row.connectionStatus } else { $row.status }
     if ($state -eq "open") {
       $connected = $true
@@ -149,11 +167,17 @@ if ($instances) {
 # -----------------------------------------------------------------------------
 #  4. Le webhook est déclaré vers le BON domaine
 # -----------------------------------------------------------------------------
+#  Le webhook vit SUR l'instance : sans instance, il n'y a rien à relire — et on
+#  le DIT, plutôt que de sauter le contrôle sans un mot.
 $hook = $null
-if ($connected -or $instances) {
+if ($apiOk -and -not $instanceExists) {
+  Warn "4. Pas d'instance : aucun webhook a relire."
+  Fix "Il sera enregistre par « Initialiser l'instance », depuis le SITE DEPLOYE."
+}
+if ($instanceExists) {
   try {
     $hook = Invoke-RestMethod -Uri "$base/webhook/find/$instance" `
-      -Headers @{ apikey = $apiKey } -TimeoutSec 20
+      -Headers @{ apikey = $apiKey } -TimeoutSec 45
   } catch { $hook = $null }
 
   $hookUrl = if ($hook.webhook) { $hook.webhook.url } else { $hook.url }
