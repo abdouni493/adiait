@@ -46,7 +46,7 @@ export type WhatsAppAudience = "student" | "parent" | "mixed";
 export type MessageLanguage = "fr" | "ar";
 
 /**
- * LE DÉTAIL D'UNE SITUATION, tel que l'écran des semestres le connaît.
+ * LE DÉTAIL D'UNE SITUATION, tel que l'écran des périodes le connaît.
  *
  * C'est ce qui distingue un rappel utile d'un rappel agaçant : la famille lit
  * de quel groupe on parle, quel jour et à quelle heure il s'entraîne, sur
@@ -59,9 +59,10 @@ export type MessageLanguage = "fr" | "ar";
  * que de s'afficher vides.
  */
 export interface SituationDetail {
-  semesterName?: string;
-  semesterStart?: string;
-  semesterEnd?: string;
+  /** la période du rapport d'où part le message (« Semestre 1 »…) */
+  periodName?: string;
+  periodStart?: string;
+  periodEnd?: string;
   categoryName?: string;
   groupName?: string;
   /** le nom de l'emploi du temps (module ou titre libre) */
@@ -169,9 +170,9 @@ function detailBlock(ctx: TemplateContext, lang: MessageLanguage): string {
 
   const identity = [
     line(ar ? "رقم التسجيل" : "N° d'inscription", ctx.registrationNumber),
-    line(ar ? "الموسم" : "Semestre", d.semesterName),
-    d.semesterStart && d.semesterEnd
-      ? line(ar ? "فترة الموسم" : "Période", `${d.semesterStart} → ${d.semesterEnd}`)
+    line(ar ? "الفترة" : "Période", d.periodName),
+    d.periodStart && d.periodEnd
+      ? line(ar ? "مدة الفترة" : "Du / au", `${d.periodStart} → ${d.periodEnd}`)
       : null,
     line(ar ? "الفئة" : "Catégorie", d.categoryName),
     line(ar ? "الفوج" : "Groupe", d.groupName),
@@ -234,7 +235,7 @@ export const WHATSAPP_TEMPLATES: TemplateDefinition[] = [
     id: "situation",
     labelFr: "Situation détaillée",
     hintFr:
-      "Tout ce qui concerne le chevalier : semestre, catégorie, groupe, emploi du temps, carte, présences, absences, versements et reste à payer.",
+      "Tout ce qui concerne le chevalier : période, catégorie, groupe, emploi du temps, carte, présences, absences, versements et reste à payer.",
     build: (ctx, lang) => {
       const debt = Math.max(0, ctx.debt);
       const detail = detailBlock(ctx, lang);

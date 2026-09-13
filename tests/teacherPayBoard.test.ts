@@ -242,25 +242,45 @@ describe("les arriérés appartiennent à leur carte d'origine", () => {
   });
 });
 
-describe("la liste des cartes va toujours de M1 à M12", () => {
-  it("douze pastilles, avec l'état de chacune", async () => {
+describe("la liste n'affiche que les cartes QUI EXISTENT", () => {
+  it("une carte ouverte, une pastille — pas douze cases d'agenda", async () => {
     board(4);
     const days = scheduledDays(3);
     for (const day of days) await attend(STU, day);
+    await useData.getState().syncCartes();
 
     const tiles = monthTiles(useData.getState(), emploi(), TEACHER);
-    expect(tiles).toHaveLength(PAY_MONTHS);
-    expect(tiles.map((t) => t.code)).toEqual(
-      Array.from({ length: 12 }, (_, i) => `M${i + 1}`),
-    );
+    // La carte 1 court (3/4) : elle n'a pas encore ouvert la suivante, et onze
+    // cartes vides proposées au règlement ne diraient rien de vrai.
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].code).toBe("M1");
     // « 3/4 » : la carte court encore, il n'est pas à régler.
     expect(tiles[0].held).toBe(3);
     expect(tiles[0].size).toBe(4);
     expect(tiles[0].complete).toBe(false);
     expect(tiles[0].state).not.toBe("payable");
-    // Les cartes jamais atteints existent quand même, vides.
-    expect(tiles[11].held).toBe(0);
-    expect(tiles[11].state).toBe("empty");
+  });
+
+  it("la 4e séance ferme la carte 1 et fait apparaître la carte 2", async () => {
+    board(4);
+    for (const day of scheduledDays(4)) await attend(STU, day);
+    await useData.getState().syncCartes();
+
+    const tiles = monthTiles(useData.getState(), emploi(), TEACHER);
+    expect(tiles.map((t) => t.code)).toEqual(["M1", "M2"]);
+    expect(tiles[0].complete).toBe(true);
+    expect(tiles[1].held).toBe(0);
+    expect(tiles[1].state).toBe("empty");
+  });
+
+  it("un emploi du temps SANS la moindre carte garde les douze pastilles", async () => {
+    board(4);
+    // Aucun `syncCartes()` : rien n'a ouvert de carte sur ce créneau. L'écran
+    // de paie retombe alors sur son comportement d'avant, pour que les
+    // règlements déjà pris restent lisibles et payables.
+    useData.setState({ emploiCartes: [] });
+    const tiles = monthTiles(useData.getState(), emploi(), TEACHER);
+    expect(tiles).toHaveLength(PAY_MONTHS);
   });
 });
 

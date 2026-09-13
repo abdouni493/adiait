@@ -631,7 +631,10 @@ export function StudentSituationModal({ onClose }: { onClose: () => void }) {
                   Carte concerné
                 </label>
                 <Select
-                  value={carteShort(pay.monthCode)}
+                  /* Le code STOCKÉ (« M2 »), jamais la forme affichée
+                     (« C2 ») : les options le portent, et la logique des cartes
+                     ne sait lire que lui. */
+                  value={pay.monthCode}
                   onChange={(e) => setPay({ ...pay, monthCode: e.target.value })}
                   className="w-full"
                 >

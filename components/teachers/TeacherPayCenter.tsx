@@ -260,10 +260,13 @@ function PayCenter({ teacher, onClose }: { teacher: Teacher; onClose: () => void
               transition={{ duration: 0.2 }}
             >
               <MonthBoard
-                key={`${emploi.sessionId}|${carteShort(monthCode)}`}
+                key={`${emploi.sessionId}|${monthCode}`}
                 teacher={teacher}
                 emploi={emploi}
-                monthCode={carteShort(monthCode)}
+                /* LE CODE STOCKÉ. La forme courte (« C2 ») ne se comprend qu'à
+                   l'écran : passée au tableau de paie, elle le faisait lire la
+                   carte 1 quelle que soit la pastille ouverte. */
+                monthCode={monthCode}
                 onBack={() => setMonthCode(null)}
                 onDone={() => setMonthCode(null)}
               />
@@ -1792,7 +1795,8 @@ function MonthBoard({
         <CashInModal
           row={cashing}
           emploi={emploi}
-          monthCode={carteShort(monthCode)}
+          /* Le code stocké : c'est lui que l'encaissement écrit sur la carte. */
+          monthCode={monthCode}
           busy={busy}
           onConfirm={(amount) => applyCashIn(cashing, amount)}
           onClose={() => setCashing(null)}

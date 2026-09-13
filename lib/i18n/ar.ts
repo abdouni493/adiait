@@ -47,7 +47,7 @@ export const ar: Dictionary = {
     teachers: "المدرّبون",
     administration: "الإدارة",
     workers: "الموظفون",
-    independent: "الحصص الحرة",
+    independent: "برنامج النادي",
     parents: "أولياء الأمور",
     horses: "شراء وبيع الخيول",
     stable: "الإسطبل",

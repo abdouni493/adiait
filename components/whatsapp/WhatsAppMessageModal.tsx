@@ -76,7 +76,7 @@ import { formatDA } from "@/lib/utils";
  * UN CHEVALIER À QUI L'ON ÉCRIT, avec tout ce qui sert à composer son message.
  *
  * `detail` est facultatif : la fiche du chevalier n'en fournit pas, l'écran des
- * semestres oui. Les lignes absentes disparaissent du message plutôt que de
+ * périodes oui. Les lignes absentes disparaissent du message plutôt que de
  * s'afficher vides.
  */
 export interface WhatsAppTarget {
@@ -211,7 +211,7 @@ export function WhatsAppMessageModal({
               seances: row.target.student.remainingSeances,
               groupe: row.target.detail?.groupName ?? "",
               categorie: row.target.detail?.categoryName ?? "",
-              semestre: row.target.detail?.semesterName ?? "",
+              periode: row.target.detail?.periodName ?? "",
             })
           : bulk
             ? compose(row, r.role, templateId, lang)
@@ -519,7 +519,7 @@ export function WhatsAppMessageModal({
                       Jetons disponibles : <code>{"{chevalier}"}</code> <code>{"{parent}"}</code>{" "}
                       <code>{"{club}"}</code> <code>{"{dette}"}</code> <code>{"{seances}"}</code>{" "}
                       <code>{"{groupe}"}</code> <code>{"{categorie}"}</code>{" "}
-                      <code>{"{semestre}"}</code> — un jeton inconnu reste tel quel.
+                      <code>{"{periode}"}</code> — un jeton inconnu reste tel quel.
                     </>
                   ) : bulk ? (
                     "Chaque chevalier reçoit un message composé avec SA situation. Dépliez une ligne ci-dessus pour lire le sien."

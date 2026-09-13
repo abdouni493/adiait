@@ -180,7 +180,9 @@ describe("buildBalanceAlert — le message composé pour chacun", () => {
       lang: "fr",
       templateId: "situation",
       detail: {
-        semesterName: "Saison 2026 — 1er semestre",
+        periodName: "Semestre 1",
+        periodStart: "15/09/2026",
+        periodEnd: "15/01/2027",
         categoryName: "Poussins",
         groupName: "Groupe A",
         emploiTitle: "Équitation",
@@ -198,7 +200,7 @@ describe("buildBalanceAlert — le message composé pour chacun", () => {
     const text = out!.recipients[0].text;
     for (const needle of [
       "2026-0042",
-      "Saison 2026",
+      "Semestre 1",
       "Poussins",
       "Groupe A",
       "Équitation",

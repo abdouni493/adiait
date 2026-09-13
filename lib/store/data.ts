@@ -22,7 +22,7 @@ import {
   subscriptionTitleOf,
 } from "@/lib/helpers";
 import { money, positiveMoney, formatDA } from "@/lib/utils";
-import { carteLayout, nextSessionDay, presenceLock } from "@/lib/semesters";
+import { carriesCartes, carteLayout, nextSessionDay, sessionSeances } from "@/lib/cartes";
 import type {
   AbsencePenalty,
   AccountRequest,
@@ -67,7 +67,8 @@ import type {
   School,
   ScheduleSession,
   SchoolClass,
-  Semester,
+  PeriodTemplate,
+  ProgramCategory,
   EmploiCarte,
   Student,
   StudentCharge,
@@ -116,16 +117,16 @@ export interface Database {
   workerPayments: WorkerPayment[];
   sessions: ScheduleSession[];
   /**
-   * LES SEMESTRES — les saisons du club. Un semestre porte un nom, deux dates
-   * et tout ce qui se joue entre elles : les emplois du temps, leurs cartes,
-   * ce qui rentre et ce qui reste dû. Il ne se ferme pas à sa date de fin mais
-   * le jour où la dernière carte a donné sa dernière séance.
+   * LES MODÈLES DE PÉRIODE — deux dates qu'on a nommées pour ne pas les
+   * retaper. Ils ne commandent rien : ni carte, ni pointage, ni emploi du
+   * temps. Les effacer n'efface aucune donnée.
    */
-  semesters: Semester[];
+  periodTemplates: PeriodTemplate[];
   /**
    * LES CARTES DE CHAQUE EMPLOI DU TEMPS — une ligne par pack de séances.
-   * La première naît avec l'emploi du temps ; la suivante n'existe pas tant que
-   * la précédente n'a pas donné toutes les siennes.
+   * Elles naissent, vivent et se ferment TOUTES SEULES : la première avec le
+   * tarif du créneau, la suivante le jour où la précédente a donné sa dernière
+   * séance. Elles ne dépendent de rien d'autre que de leur emploi du temps.
    */
   emploiCartes: EmploiCarte[];
   subscriptions: Subscription[];
@@ -165,6 +166,8 @@ export interface Database {
   independent: IndependentSession[];
   /** séances libres vendues à un GROUPE de chevaliers, sans nommer personne */
   groupSeances: GroupSeance[];
+  /** LES NATURES DE PROGRAMME de groupe : randonnée, stage, compétition… */
+  programCategories: ProgramCategory[];
   /**
    * LES DEMANDES DE COMPTE VENUES DE LA PAGE DE CONNEXION — un chevalier ou un
    * parent qui s'est inscrit lui-même et attend que l'intendance le rattache à
@@ -685,71 +688,64 @@ interface DataActions {
    * désinscription : leur fiche garde le module, daté de la sortie.
    */
   /**
-   * CRÉE OU MODIFIE UN SEMESTRE.
+   * ENREGISTRE UN MODÈLE DE PÉRIODE — un nom, deux dates, et c'est tout.
    *
-   * Un nom, deux dates, une description : c'est tout ce que le comptoir donne.
-   * La date de fin qu'il annonce est gardée telle quelle dans
-   * `plannedEndDate` — le moteur des cartes la repoussera peut-être, et
-   * l'écart doit rester lisible.
+   * Il ne crée aucune saison, n'ouvre aucune carte et ne ferme rien : c'est un
+   * RACCOURCI vers deux dates qu'on ouvre souvent. Passer un `id` déjà connu le
+   * modifie au lieu d'en créer un second.
    */
-  saveSemester: (input: {
+  savePeriodTemplate: (input: {
     id?: string;
     name: string;
     startDate: string;
     endDate: string;
     description?: string;
   }) => Promise<{ ok: boolean; id?: string; messageKey?: string }>;
+  /** Efface un modèle de période. Aucune donnée métier ne part avec lui. */
+  deletePeriodTemplate: (id: string) => Promise<{ ok: boolean }>;
   /**
-   * EFFACE UN SEMESTRE — et rien d'autre.
+   * LE MOTEUR DES CARTES — il tourne seul, et ne dépend de rien.
    *
-   * Ses emplois du temps, leurs présences et leur argent restent : ils perdent
-   * simplement leur rattachement, et leurs cartes s'en vont avec le semestre
-   * qui les portait. Un semestre qui a déjà des présences pointées n'est pas
-   * effacé sans qu'on le dise.
-   */
-  deleteSemester: (id: string) => Promise<{ ok: boolean; sessions?: number; cartes?: number }>;
-  /**
-   * DÉCLARE UN SEMESTRE CLOS — quand toutes ses cartes ont donné leurs séances.
+   * Trois gestes, et pas un de plus :
    *
-   * Ferme aussi le pointage : plus aucune présence ne s'écrit tant que le
-   * semestre suivant n'a pas été créé.
-   */
-  closeSemester: (id: string) => Promise<{ ok: boolean; messageKey?: string }>;
-  /**
-   * OUVRE LA PREMIÈRE CARTE D'UN EMPLOI DU TEMPS.
-   *
-   * Appelée quand l'emploi du temps est créé (ou quand on lui donne un semestre
-   * après coup). La date passée est une INTENTION : la carte ne commence
-   * vraiment qu'au premier pointage, et prend alors ce jour-là.
-   */
-  openFirstCarte: (args: {
-    sessionId: string;
-    semesterId: string;
-    startDate: string;
-    size?: number;
-  }) => Promise<{ ok: boolean; id?: string; messageKey?: string }>;
-  /**
-   * REMET LES CARTES EN PHASE AVEC LES PRÉSENCES.
-   *
-   * C'est le moteur, et il ne fait que trois choses :
-   *
-   *  1. il DATE les cartes — une carte prend pour début le jour de sa première
+   *  1. il OUVRE LA PREMIÈRE CARTE de tout emploi du temps vivant et tarifé qui
+   *     n'en a pas encore. Personne n'a à la créer : un créneau qui a un prix
+   *     vend des cartes, donc il en a une ;
+   *  2. il DATE les cartes — une carte prend pour début le jour de sa première
    *     présence réelle, et pour fin celui de la séance qui l'a complétée ;
-   *  2. il OUVRE LA SUIVANTE — mais seulement quand la précédente est close, et
-   *     seulement si le semestre n'a pas encore atteint sa date de fin ;
-   *  3. il REPOUSSE LA FIN DU SEMESTRE quand une carte déborde, et le DÉCLARE
-   *     CLOS quand plus rien ne court.
+   *  3. il OUVRE LA SUIVANTE dès que la précédente est close, et jamais avant.
    *
    * Elle est appelée après chaque pointage et à l'ouverture des écrans qui
    * lisent les cartes. Elle est IDEMPOTENTE : la relancer ne crée rien de neuf.
    */
-  syncCartes: () => Promise<{
-    ok: boolean;
-    opened: number;
-    closed: number;
-    extended: string[];
-    finished: string[];
-  }>;
+  syncCartes: () => Promise<{ ok: boolean; opened: number; closed: number }>;
+  /**
+   * FIXE LE JOUR OÙ LA PREMIÈRE CARTE D'UN CRÉNEAU EST CENSÉE COMMENCER.
+   *
+   * Une INTENTION, jamais un fait : la carte ne commence vraiment qu'au premier
+   * pointage, et prend alors ce jour-là. Une carte déjà commencée ne se
+   * réécrit plus — sa date vient des présences, et la retoucher ferait mentir
+   * l'historique.
+   */
+  setFirstCarteStart: (
+    sessionId: string,
+    startDate: string,
+  ) => Promise<{ ok: boolean; id?: string }>;
+  /**
+   * CRÉE OU RENOMME UNE CATÉGORIE DE PROGRAMME (randonnée, stage, compétition…).
+   */
+  saveProgramCategory: (input: {
+    id?: string;
+    name: string;
+    color?: string;
+  }) => Promise<{ ok: boolean; id?: string; messageKey?: string }>;
+  /**
+   * EFFACE UNE CATÉGORIE DE PROGRAMME.
+   *
+   * Les programmes qui la portaient ne sont PAS effacés : ils perdent
+   * simplement leur nature, et se rangent sous « Sans catégorie ».
+   */
+  deleteProgramCategory: (id: string) => Promise<{ ok: boolean; programs?: number }>;
   /**
    * MUTE UN CHEVALIER D'UN EMPLOI DU TEMPS VERS UN AUTRE.
    *
@@ -1522,9 +1518,6 @@ export const useData = create<DataStore>((set, get) => ({
   // ---------------------------------------------------------------------------
   scanCard: async (rfidOrStudentId, when) => {
     const db = get();
-    // Une saison terminée ne se pointe plus, badge compris — voir `setPresence`.
-    const scanLock = presenceLock(db, dateKey(when ?? new Date()));
-    if (scanLock.locked) return { ok: false, messageKey: "semester.closed" };
     const code = rfidOrStudentId.trim();
     const student = db.students.find((s) => s.rfid === code || s.id === code);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
@@ -1845,9 +1838,6 @@ export const useData = create<DataStore>((set, get) => ({
   // Manual attendance sheet — exactly the same rules as the badge.
   markAttendance: async (studentId, sessionId, status, opts) => {
     const db = get();
-    // Une saison terminée ne se pointe plus — voir `setPresence`.
-    const markLock = presenceLock(db, opts?.date || dateKey(new Date()));
-    if (markLock.locked) return { ok: false, messageKey: "semester.closed" };
     const student = db.students.find((s) => s.id === studentId);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
     const session = db.sessions.find((s) => s.id === sessionId);
@@ -2058,23 +2048,6 @@ export const useData = create<DataStore>((set, get) => ({
    */
   setPresence: async ({ studentId, sessionId, date, slot = 0, status }) => {
     const db = get();
-    /**
-     * UNE SAISON TERMINÉE NE SE POINTE PLUS.
-     *
-     * Quand le dernier semestre a été clos et qu'aucun autre n'a pris la
-     * suite, une présence n'appartiendrait à aucune carte, à aucune paie, à
-     * aucun compte. On refuse ici plutôt que dans les écrans : la feuille se
-     * pilote aussi au badge, et l'écriture elle-même doit savoir dire non.
-     *
-     * RETIRER un pointage reste toujours possible : corriger une erreur n'est
-     * pas travailler dans une saison fermée.
-     */
-    if (status !== null) {
-      const lock = presenceLock(db, date);
-      if (lock.locked) {
-        return { ok: false, messageKey: "semester.closed", moduleName: lock.reason };
-      }
-    }
     const student = db.students.find((s) => s.id === studentId);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
     const session = db.sessions.find((s) => s.id === sessionId);
@@ -2949,137 +2922,67 @@ export const useData = create<DataStore>((set, get) => ({
    * de les nommer correctement.
    */
   // =========================================================================
-  //  LES SEMESTRES ET LES CARTES
+  //  LES MODÈLES DE PÉRIODE, LES CARTES, LES CATÉGORIES DE PROGRAMME
   // =========================================================================
 
-  saveSemester: async ({ id, name, startDate, endDate, description }) => {
+  savePeriodTemplate: async ({ id, name, startDate, endDate, description }) => {
     const label = (name ?? "").trim();
-    if (!label) return { ok: false, messageKey: "semester.nameRequired" };
-    if (!startDate || !endDate) return { ok: false, messageKey: "semester.datesRequired" };
-    if (endDate < startDate) return { ok: false, messageKey: "semester.datesReversed" };
+    if (!label) return { ok: false, messageKey: "period.nameRequired" };
+    if (!startDate || !endDate) return { ok: false, messageKey: "period.datesRequired" };
+    if (endDate < startDate) return { ok: false, messageKey: "period.datesReversed" };
 
     const db = get();
-    const existing = id ? db.semesters.find((x) => x.id === id) : undefined;
-
-    if (existing) {
-      // Rallonger ou raccourcir un semestre en cours est une decision du
-      // comptoir : on ecrit ce qu'il dit, et l'intention annoncee le suit.
-      const patched: Semester = {
-        ...existing,
-        name: label,
-        startDate,
-        endDate,
-        description: description?.trim() || undefined,
-        plannedEndDate:
-          endDate === existing.endDate
-            ? existing.plannedEndDate
-            : existing.plannedEndDate ?? existing.endDate,
-      };
-      set((state) => ({
-        semesters: state.semesters.map((x) => (x.id === existing.id ? patched : x)),
-      }));
-      return { ok: true, id: existing.id };
-    }
-
-    const semester: Semester = {
+    const existing = id ? db.periodTemplates.find((x) => x.id === id) : undefined;
+    const row: PeriodTemplate = {
       ...authorStamp(),
-      id: id ?? uid("sem"),
+      ...(existing ?? {}),
+      id: existing?.id ?? id ?? uid("per"),
       name: label,
       startDate,
       endDate,
-      plannedEndDate: endDate,
       description: description?.trim() || undefined,
-      createdAt: new Date().toISOString(),
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
-    set((state) => ({ semesters: [...state.semesters, semester] }));
-    return { ok: true, id: semester.id };
+    set((state) => ({
+      periodTemplates: existing
+        ? state.periodTemplates.map((x) => (x.id === row.id ? row : x))
+        : [...state.periodTemplates, row],
+    }));
+    return { ok: true, id: row.id };
   },
 
-  deleteSemester: async (id) => {
+  deletePeriodTemplate: async (id) => {
     const db = get();
-    if (!db.semesters.some((s) => s.id === id)) return { ok: false };
-    const sessions = db.sessions.filter((s) => s.semesterId === id);
-    const cartes = db.emploiCartes.filter((c) => c.semesterId === id);
-    set((state) => ({
-      semesters: state.semesters.filter((s) => s.id !== id),
-      // Les emplois du temps SURVIVENT : ils perdent seulement leur
-      // rattachement. Leurs presences, leurs paiements et leurs soldes ne
-      // regardent pas le semestre.
-      sessions: state.sessions.map((s) =>
-        s.semesterId === id ? { ...s, semesterId: undefined } : s,
-      ),
-      emploiCartes: state.emploiCartes.filter((c) => c.semesterId !== id),
-    }));
-    return { ok: true, sessions: sessions.length, cartes: cartes.length };
-  },
-
-  closeSemester: async (id) => {
-    const db = get();
-    const semester = db.semesters.find((s) => s.id === id);
-    if (!semester) return { ok: false, messageKey: "semester.notFound" };
-    if (semester.closedAt) return { ok: true };
-    set((state) => ({
-      semesters: state.semesters.map((s) =>
-        s.id === id ? { ...s, closedAt: dateKey(new Date()) } : s,
-      ),
-    }));
+    if (!db.periodTemplates.some((x) => x.id === id)) return { ok: false };
+    // Un modèle n'est que deux dates nommées : rien d'autre ne part avec lui.
+    set((state) => ({ periodTemplates: state.periodTemplates.filter((x) => x.id !== id) }));
     return { ok: true };
   },
 
-  openFirstCarte: async ({ sessionId, semesterId, startDate, size }) => {
+  setFirstCarteStart: async (sessionId, startDate) => {
     const db = get();
-    if (!db.sessions.some((s) => s.id === sessionId)) {
-      return { ok: false, messageKey: "session.notFound" };
-    }
-    if (!db.semesters.some((s) => s.id === semesterId)) {
-      return { ok: false, messageKey: "semester.notFound" };
-    }
-    // Deja ouverte : on ne la repose pas. Modifier un emploi du temps ne doit
-    // jamais fabriquer une deuxieme carte 1.
-    const existing = db.emploiCartes.find((c) => c.sessionId === sessionId && c.index === 1);
-    if (existing) {
-      const day = startDate || existing.plannedStartDate;
-      // Tant qu'elle n'a pas commence, sa date de depart reste modifiable.
-      if (!existing.startDate && (day !== existing.plannedStartDate || existing.semesterId !== semesterId)) {
-        set((state) => ({
-          emploiCartes: state.emploiCartes.map((c) =>
-            c.id === existing.id ? { ...c, plannedStartDate: day, semesterId } : c,
-          ),
-        }));
-      } else if (existing.semesterId !== semesterId) {
-        set((state) => ({
-          emploiCartes: state.emploiCartes.map((c) =>
-            c.id === existing.id ? { ...c, semesterId } : c,
-          ),
-        }));
-      }
-      return { ok: true, id: existing.id };
-    }
-
-    const sub = db.subscriptions.find((x) => x.sessionId === sessionId && !x.archivedAt);
-    const carte: EmploiCarte = {
-      ...authorStamp(),
-      id: uid("crt"),
-      semesterId,
-      sessionId,
-      index: 1,
-      code: "M1",
-      size: Math.max(1, Math.round(size || cycleSizeOf(sub))),
-      plannedStartDate: startDate || dateKey(new Date()),
-      status: "planned",
-      held: 0,
-      createdAt: new Date().toISOString(),
-    };
-    set((state) => ({ emploiCartes: [...state.emploiCartes, carte] }));
+    const carte = db.emploiCartes.find((c) => c.sessionId === sessionId && c.index === 1);
+    if (!carte) return { ok: false };
+    // Une carte DÉJÀ COMMENCÉE tient sa date des présences : la réécrire ferait
+    // mentir l'historique.
+    if (carte.startDate) return { ok: true, id: carte.id };
+    const day = startDate || carte.plannedStartDate;
+    if (day === carte.plannedStartDate) return { ok: true, id: carte.id };
+    set((state) => ({
+      emploiCartes: state.emploiCartes.map((c) =>
+        c.id === carte.id ? { ...c, plannedStartDate: day } : c,
+      ),
+    }));
     return { ok: true, id: carte.id };
   },
 
   /**
-   * LE MOTEUR DES CARTES.
+   * LE MOTEUR DES CARTES — voir la description de l'action sur l'interface.
    *
-   * Il relit les presences, redate les cartes, ouvre celle qui doit l'etre, et
-   * dit au semestre ou il en est. Voir la description de l'action sur
-   * l'interface pour les trois regles qu'il applique.
+   * Il ne consulte RIEN d'autre que les emplois du temps, leurs tarifs et les
+   * présences pointées. Pas de saison à ouvrir, pas de date de fin à
+   * surveiller : une carte close ouvre la suivante, indéfiniment, tant que le
+   * groupe s'entraîne.
    */
   syncCartes: async () => {
     const db = get();
@@ -3087,133 +2990,148 @@ export const useData = create<DataStore>((set, get) => ({
 
     const patched = new Map<string, EmploiCarte>();
     const created: EmploiCarte[] = [];
-    const semesterPatch = new Map<string, Partial<Semester>>();
-    const extended: string[] = [];
-    const finished: string[] = [];
     let closed = 0;
 
-    for (const semester of db.semesters) {
-      if (semester.closedAt) continue;
-      const sessions = db.sessions.filter((s) => s.semesterId === semester.id && !s.archivedAt);
-      /** La derniere seance tenue du semestre, tous emplois confondus. */
-      let lastSeance = "";
-      /** Combien d'emplois du temps ont encore une carte en cours. */
-      let pending = 0;
-      let opened = 0;
+    for (const session of db.sessions) {
+      const cartes = db.emploiCartes.filter((c) => c.sessionId === session.id);
 
-      for (const session of sessions) {
-        const views = carteLayout(db, session.id);
-        if (views.length === 0) continue;
-
-        for (const v of views) {
-          const carte = v.carte;
-          const next: EmploiCarte = {
-            ...carte,
-            // LA DATE DE DEPART EST CELLE DE LA PREMIERE PRESENCE, pas celle
-            // qui avait ete annoncee : une carte prevue le 20 et pointee pour
-            // la premiere fois le 27 commence le 27.
-            startDate: v.startDate,
-            endDate: v.endDate,
-            held: v.held,
-            postponed: v.postponed.length > 0 ? v.postponed : undefined,
-            status: v.complete ? "complete" : v.held > 0 ? "running" : "planned",
-          };
-          if (
-            next.startDate !== carte.startDate ||
-            next.endDate !== carte.endDate ||
-            next.held !== carte.held ||
-            next.status !== carte.status ||
-            (next.postponed ?? []).join("|") !== (carte.postponed ?? []).join("|")
-          ) {
-            patched.set(carte.id, next);
-          }
-          const end = v.endDate ?? v.seances[v.seances.length - 1]?.date;
-          if (end && end > lastSeance) lastSeance = end;
-        }
-
-        const last = views[views.length - 1];
-        if (!last.complete) {
-          pending += 1;
-          continue;
-        }
-
-        /**
-         * LA CARTE SUIVANTE - et la seule regle qui la retient.
-         *
-         * Elle ne s'ouvre que si la precedente est CLOSE (c'est le cas ici) et
-         * si le semestre n'a pas atteint sa date de fin. Passe cette date, la
-         * carte close est la derniere : c'est ce qui fait qu'un semestre finit
-         * par finir, au lieu de fabriquer des cartes a l'infini.
-         */
-        const closeDay = last.endDate ?? today;
-        if (closeDay >= semester.endDate) {
-          finished.push(session.id);
-          continue;
-        }
-        const already = db.emploiCartes.some(
-          (c) => c.sessionId === session.id && c.index === last.carte.index + 1,
-        );
-        if (already) continue;
+      /**
+       * LA PREMIÈRE CARTE NAÎT AVEC LE TARIF.
+       *
+       * Un créneau qui a un prix vend des cartes : il en a donc une, sans que
+       * personne ait à la créer. Sa date de départ prévue est le jour de la
+       * première présence déjà pointée s'il y en a une (le club a pu commencer
+       * avant d'ouvrir cet écran), et aujourd'hui sinon.
+       */
+      if (cartes.length === 0) {
+        if (!carriesCartes(db, session)) continue;
+        const first = sessionSeances(db, session.id)[0]?.date;
         const sub = db.subscriptions.find((x) => x.sessionId === session.id && !x.archivedAt);
-        const fresh: EmploiCarte = {
+        created.push({
           ...authorStamp(),
           id: uid("crt"),
-          semesterId: semester.id,
           sessionId: session.id,
-          index: last.carte.index + 1,
-          code: `M${last.carte.index + 1}`,
+          index: 1,
+          code: "M1",
           size: Math.max(1, Math.round(cycleSizeOf(sub))),
-          // Elle s'ouvre sur le premier jour de creneau qui suit la derniere
-          // seance - une intention, que le premier pointage remplacera par la
-          // vraie date.
-          plannedStartDate: nextSessionDay(session, closeDay),
+          plannedStartDate: first ?? today,
           status: "planned",
           held: 0,
           createdAt: new Date().toISOString(),
+        });
+        continue;
+      }
+
+      const views = carteLayout(db, session.id);
+      if (views.length === 0) continue;
+
+      for (const v of views) {
+        const carte = v.carte;
+        const next: EmploiCarte = {
+          ...carte,
+          // LA DATE DE DÉPART EST CELLE DE LA PREMIÈRE PRÉSENCE, pas celle qui
+          // avait été annoncée : une carte prévue le 20 et pointée pour la
+          // première fois le 27 commence le 27.
+          startDate: v.startDate,
+          endDate: v.endDate,
+          held: v.held,
+          postponed: v.postponed.length > 0 ? v.postponed : undefined,
+          status: v.complete ? "complete" : v.held > 0 ? "running" : "planned",
         };
-        created.push(fresh);
-        opened += 1;
-        pending += 1;
+        if (
+          next.startDate !== carte.startDate ||
+          next.endDate !== carte.endDate ||
+          next.held !== carte.held ||
+          next.status !== carte.status ||
+          (next.postponed ?? []).join("|") !== (carte.postponed ?? []).join("|")
+        ) {
+          patched.set(carte.id, next);
+          if (next.status === "complete" && carte.status !== "complete") closed += 1;
+        }
       }
 
       /**
-       * LA FIN DU SEMESTRE - repoussee, puis prononcee.
-       *
-       * Une carte qui deborde sur la date de fin repousse cette date jusqu'au
-       * jour de sa derniere seance : c'est le decalage, et le comptoir en est
-       * averti. Quand plus aucune carte ne court et que la date de fin est
-       * passee, le semestre est CLOS - et le pointage se ferme avec lui.
+       * LA CARTE SUIVANTE — ouverte dès que la précédente est close, et jamais
+       * avant. Un créneau archivé n'en ouvre plus : il a cessé de vendre.
        */
-      const patch: Partial<Semester> = {};
-      if (lastSeance && lastSeance > semester.endDate) {
-        patch.endDate = lastSeance;
-        patch.plannedEndDate = semester.plannedEndDate ?? semester.endDate;
-        extended.push(semester.id);
-      }
-      const endAfter = patch.endDate ?? semester.endDate;
-      if (sessions.length > 0 && pending === 0 && opened === 0 && today > endAfter) {
-        patch.closedAt = today;
-        closed += 1;
-      }
-      if (Object.keys(patch).length > 0) semesterPatch.set(semester.id, patch);
+      const last = views[views.length - 1];
+      if (!last.complete) continue;
+      if (!carriesCartes(db, session)) continue;
+      const already = db.emploiCartes.some(
+        (c) => c.sessionId === session.id && c.index === last.carte.index + 1,
+      );
+      if (already) continue;
+      const sub = db.subscriptions.find((x) => x.sessionId === session.id && !x.archivedAt);
+      created.push({
+        ...authorStamp(),
+        id: uid("crt"),
+        sessionId: session.id,
+        index: last.carte.index + 1,
+        code: `M${last.carte.index + 1}`,
+        size: Math.max(1, Math.round(cycleSizeOf(sub))),
+        // Elle s'ouvre sur le premier jour de créneau qui suit la dernière
+        // séance — une intention, que le premier pointage remplacera par la
+        // vraie date.
+        plannedStartDate: nextSessionDay(session, last.endDate ?? today),
+        status: "planned",
+        held: 0,
+        createdAt: new Date().toISOString(),
+      });
     }
 
-    if (patched.size === 0 && created.length === 0 && semesterPatch.size === 0) {
-      return { ok: true, opened: 0, closed: 0, extended, finished };
+    if (patched.size === 0 && created.length === 0) {
+      return { ok: true, opened: 0, closed: 0 };
     }
 
     set((state) => ({
       emploiCartes: [...state.emploiCartes.map((c) => patched.get(c.id) ?? c), ...created],
-      semesters:
-        semesterPatch.size > 0
-          ? state.semesters.map((sem) => {
-              const patch = semesterPatch.get(sem.id);
-              return patch ? { ...sem, ...patch } : sem;
-            })
-          : state.semesters,
     }));
 
-    return { ok: true, opened: created.length, closed, extended, finished };
+    return { ok: true, opened: created.length, closed };
+  },
+
+  saveProgramCategory: async ({ id, name, color }) => {
+    const label = (name ?? "").trim();
+    if (!label) return { ok: false, messageKey: "programCategory.nameRequired" };
+    const db = get();
+    const existing = id ? db.programCategories.find((c) => c.id === id) : undefined;
+    // Deux catégories du même nom n'aident personne à retrouver quoi que ce
+    // soit : on renvoie celle qui existe déjà plutôt que d'en poser une jumelle.
+    const twin = db.programCategories.find(
+      (c) => c.id !== existing?.id && c.name.trim().toLowerCase() === label.toLowerCase(),
+    );
+    if (twin) return { ok: true, id: twin.id };
+
+    const row: ProgramCategory = {
+      ...authorStamp(),
+      ...(existing ?? {}),
+      id: existing?.id ?? id ?? uid("pcat"),
+      name: label,
+      color: color?.trim() || existing?.color,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    };
+    set((state) => ({
+      programCategories: existing
+        ? state.programCategories.map((c) => (c.id === row.id ? row : c))
+        : [...state.programCategories, row],
+    }));
+    return { ok: true, id: row.id };
+  },
+
+  deleteProgramCategory: async (id) => {
+    const db = get();
+    if (!db.programCategories.some((c) => c.id === id)) return { ok: false };
+    const programs = db.groupSeances.filter((g) => g.categoryId === id).length;
+    set((state) => ({
+      programCategories: state.programCategories.filter((c) => c.id !== id),
+      // Les programmes SURVIVENT : ils perdent leur nature et se rangent sous
+      // « Sans catégorie ». Effacer une étiquette n'efface pas ce qu'elle
+      // étiquetait.
+      groupSeances: state.groupSeances.map((g) =>
+        g.categoryId === id ? { ...g, categoryId: undefined } : g,
+      ),
+    }));
+    return { ok: true, programs };
   },
 
   /**
@@ -4944,13 +4862,24 @@ export const useData = create<DataStore>((set, get) => ({
   // ---- Sorties libres de groupe --------------------------------------------
   saveGroupSeance: async (input) => {
     const db = get();
-    const teacher = db.teachers.find((t) => t.id === input.teacherId);
-    if (!teacher) return { ok: false };
+    /**
+     * LES ENCADRANTS — un au minimum, plusieurs le plus souvent.
+     *
+     * `teacherIds` porte la liste complète ; `teacherId` garde le PREMIER,
+     * la colonne historique que la caisse, les fiches et les rapports lisent
+     * depuis toujours. Aucun de ces écrans n'a besoin de savoir qu'un
+     * programme peut désormais en compter trois.
+     */
+    const trainers = [
+      ...new Set([...(input.teacherIds ?? []), input.teacherId].filter(Boolean)),
+    ].filter((id) => db.teachers.some((t) => t.id === id));
+    if (trainers.length === 0) return { ok: false };
+    const teacher = db.teachers.find((t) => t.id === trainers[0])!;
 
     const existing = db.groupSeances.find((g) => g.id === input.id);
     const totals = groupSeanceTotals(input);
     const when = input.date.length === 10 ? `${input.date}T12:00:00.000Z` : input.date;
-    const label = input.title?.trim() || "Sortie libre de groupe";
+    const label = input.title?.trim() || "Programme de groupe";
 
     const cashInId = existing?.cashInId ?? uid("csh");
     const cashOutId = existing?.cashOutId ?? uid("csh");
@@ -4960,20 +4889,33 @@ export const useData = create<DataStore>((set, get) => ({
       type: "student_payment",
       amount: totals.total,
       date: when,
-      description: `Sortie libre de groupe : ${label} — ${totals.students} chevalier(s) × ${formatDA(totals.pricePerStudent)}`,
+      description: `Programme de groupe : ${label} — ${totals.students} chevalier(s) × ${formatDA(totals.pricePerStudent)}`,
     };
+    /**
+     * LA SORTIE DE CAISSE — une seule ligne, quel que soit le nombre
+     * d'encadrants. Le club verse le MÊME total ; c'est son partage entre eux
+     * qui change, et il se lit sur chaque fiche de paie.
+     */
+    const others = trainers.length - 1;
     const cashOut: CashTransaction = {
       ...authorStamp(),
       id: cashOutId,
       type: "teacher_payment",
       amount: -totals.teacherTotal,
       date: when,
-      description: `Sortie libre de groupe : ${label} — ${teacher.firstName} ${teacher.lastName}`,
+      description:
+        `Programme de groupe : ${label} — ${teacher.firstName} ${teacher.lastName}` +
+        (others > 0 ? ` et ${others} autre(s) encadrant(s)` : ""),
     };
 
     const row: GroupSeance = {
       ...authorStamp(),
       ...input,
+      teacherId: trainers[0],
+      teacherIds: trainers,
+      workerIds: (input.workerIds ?? []).filter((id) =>
+        db.reception.some((w) => w.id === id),
+      ),
       title: label,
       studentsCount: totals.students,
       pricePerStudent: totals.pricePerStudent,

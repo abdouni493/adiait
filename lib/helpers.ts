@@ -1121,9 +1121,22 @@ export const SCHOOL_MONTHS: SchoolMonth[] = Array.from({ length: MONTH_CYCLE_COU
   monthCycleAt(i),
 );
 
-/** "M3" -> its descriptor. Accepts any Mn, even beyond the picker's list. */
+/**
+ * « M3 » -> sa description. N'importe quel Mn est accepté, même au-delà de la
+ * liste que proposent les sélecteurs.
+ *
+ * LA FORME COURTE EST ACCEPTÉE AUSSI, et ce n'est pas une complaisance. « M3 »
+ * est ce que la base ÉCRIT ; « C3 » est ce que l'écran AFFICHE. Le jour où un
+ * composant a passé la seconde là où la première était attendue, la carte n'a
+ * pas été reconnue, `monthOrder` a rendu -1, tout le monde a lu « carte 1 » —
+ * et la feuille de présence a montré les mêmes séances quelle que soit la carte
+ * choisie. Une panne muette, parce qu'un code non reconnu retombait sur un code
+ * valide au lieu de se signaler.
+ *
+ * Les deux formes désignent la même carte : on les comprend toutes les deux.
+ */
 export function schoolMonthByCode(code: string): SchoolMonth | null {
-  const m = /^M(\d+)$/.exec(code || "");
+  const m = /^[MC](\d+)$/i.exec((code || "").trim());
   return m ? monthCycleAt(Number(m[1]) - 1) : null;
 }
 
@@ -2451,14 +2464,41 @@ export function passagersOn(
 /** The sorties libres de groupe of one teacher, most recent first. */
 export function teacherGroupSeances(db: Database, teacherId: string): GroupSeance[] {
   return db.groupSeances
-    .filter((g) => g.teacherId === teacherId)
+    .filter((g) => groupSeanceTrainers(g).includes(teacherId))
     .sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`));
+}
+
+/**
+ * LES ENCADRANTS D'UN PROGRAMME DE GROUPE.
+ *
+ * Une sortie se mène rarement seul : deux ou trois entraîneurs partent avec les
+ * chevaliers. `teacherIds` les porte tous ; `teacherId` garde le premier, la
+ * colonne historique que la caisse et les fiches lisent depuis toujours. Un
+ * programme d'avant cette nouveauté n'a qu'un encadrant, et cette fonction le
+ * rend seul — sans que rien n'ait à savoir qu'il pourrait y en avoir plusieurs.
+ */
+export function groupSeanceTrainers(seance: GroupSeance): string[] {
+  const list = (seance.teacherIds ?? []).filter(Boolean);
+  if (list.length > 0) return [...new Set(list)];
+  return seance.teacherId ? [seance.teacherId] : [];
+}
+
+/**
+ * CE QU'UN PROGRAMME RAPPORTE À **UN** DE SES ENCADRANTS.
+ *
+ * La part entraîneur se partage à PARTS ÉGALES entre ceux qui sont partis. Le
+ * total versé ne change pas d'un dinar — c'est la même somme, répartie.
+ */
+export function groupSeanceShareFor(seance: GroupSeance, teacherId: string): number {
+  const trainers = groupSeanceTrainers(seance);
+  if (!trainers.includes(teacherId)) return 0;
+  return money(groupSeanceTotals(seance).teacherTotal / trainers.length);
 }
 
 /** What the sorties libres de groupe have paid a teacher in total. */
 export function teacherGroupSeanceTotal(db: Database, teacherId: string): number {
   return teacherGroupSeances(db, teacherId).reduce(
-    (s, g) => s + groupSeanceTotals(g).teacherTotal,
+    (s, g) => s + groupSeanceShareFor(g, teacherId),
     0,
   );
 }

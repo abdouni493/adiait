@@ -700,15 +700,6 @@ export interface DayTime {
 
 export interface ScheduleSession extends Authored {
   id: string;
-  /**
-   * LE SEMESTRE AUQUEL CET EMPLOI DU TEMPS APPARTIENT.
-   *
-   * C'est lui qui décide jusqu'à quand les cartes de ce créneau continuent de
-   * se créer : la dernière carte ouverte avant la date de fin va jusqu'au bout,
-   * et aucune ne s'ouvre après. Absent = emploi du temps d'avant les semestres,
-   * qui continue de fonctionner comme il l'a toujours fait.
-   */
-  semesterId?: string;
   classId: string;
   moduleId: string;
   groupId: string;
@@ -801,52 +792,30 @@ export interface ScheduleSession extends Authored {
 
 /**
  * =============================================================================
- *  LE SEMESTRE — la saison du club, et ce qui la ferme
+ *  UN MODÈLE DE PÉRIODE — deux dates qu'on a nommées
  * =============================================================================
  *
- * Un semestre est la PÉRIODE pendant laquelle le club travaille : il porte un
- * nom, une date de début, une date de fin annoncée, et tout ce qui se joue
- * entre les deux — les emplois du temps, leurs cartes, les chevaliers, ce qui
- * rentre et ce qui reste dû.
+ * Il n'y a pas de « saison » à créer, à ouvrir ni à fermer dans cette
+ * application. Une période n'est pas une chose qu'on déclare : c'est une
+ * QUESTION qu'on pose au rapport — « du 15 septembre au 15 janvier, qu'est-ce
+ * qui est rentré, et qui doit encore ? »
  *
- * SA FIN N'EST PAS UNE DATE, C'EST UN TRAVAIL FINI. La date annoncée
- * (`endDate`) dit quand le club ESPÈRE fermer. Mais une séance annulée pour
- * tout un groupe se décale d'une semaine, et la carte qu'elle devait clore
- * déborde alors sur la date de fin. Le semestre ne se ferme donc PAS tant
- * qu'un emploi du temps n'a pas fini ses cartes : sa date de fin est REPOUSSÉE
- * jusqu'au jour de la dernière présence, et `plannedEndDate` garde ce qui avait
- * été annoncé pour que l'écart se lise.
+ * Un modèle est simplement cette question, ENREGISTRÉE SOUS UN NOM, pour ne pas
+ * retaper deux dates qu'on ouvre chaque semaine : « Semestre 1 », « Stage
+ * d'été », « Mois de Ramadan ». Un clic dessus règle les deux dates du rapport,
+ * et c'est tout ce qu'il fait.
  *
- * UNE FOIS FERMÉ, IL FERME AUSSI LE POINTAGE. Plus aucune présence ne s'écrit —
- * ni au tableau de bord, ni sur l'écran Présences — tant que le semestre
- * suivant n'a pas été créé. C'est ce qui empêche une séance de janvier de
- * tomber dans une saison terminée.
+ * IL NE COMMANDE RIEN. Aucune carte n'en dépend, aucun pointage n'y est
+ * rattaché, aucun emploi du temps ne lui appartient. L'effacer n'efface donc
+ * rien : ni une présence, ni un paiement, ni une carte.
  */
-export interface Semester extends Authored {
+export interface PeriodTemplate extends Authored {
   id: string;
-  /** ce que le club l'appelle : « Saison 2026-2027 — 1er semestre » */
+  /** ce que le club l'appelle : « Semestre 1 », « Stage d'été » */
   name: string;
   startDate: string; // YYYY-MM-DD
-  /**
-   * La fin RÉELLE : celle qui est annoncée, puis repoussée d'elle-même quand
-   * une carte déborde. C'est cette date-là que les écrans affichent.
-   */
   endDate: string; // YYYY-MM-DD
-  /**
-   * La fin ANNONCÉE à la création, gardée telle quelle. Elle n'existe que pour
-   * dire « on avait dit le 15 janvier, on a fini le 20 » — absente tant que
-   * rien n'a débordé.
-   */
-  plannedEndDate?: string;
   description?: string;
-  /**
-   * Le jour où le semestre a été DÉCLARÉ CLOS : toutes les cartes de tous ses
-   * emplois du temps ont donné toutes leurs séances. Tant qu'il est absent, le
-   * semestre vit — même passé sa date de fin.
-   */
-  closedAt?: string;
-  /** l'alerte de prolongation a déjà été vue par le comptoir */
-  extensionSeenAt?: string;
   createdAt?: string;
 }
 
@@ -860,20 +829,22 @@ export interface Semester extends Authored {
  * mais ne disait rien de ce que la réception veut savoir — quand la carte du
  * GROUPE a commencé, quand elle finira, et laquelle est en cours.
  *
- * Une carte est donc désormais une LIGNE, tenue par l'emploi du temps :
+ * Une carte est donc une LIGNE, tenue par l'emploi du temps, et QUI NE DÉPEND
+ * DE RIEN D'AUTRE : ni d'une saison, ni d'un calendrier, ni d'une date décidée
+ * d'avance. Elle naît, vit et se ferme toute seule :
  *
- *  - LA PREMIÈRE naît avec l'emploi du temps, à la date que la réception fixe
- *    (« Date de début de la 1ʳᵉ carte »). Cette date n'est qu'une INTENTION :
- *    tant qu'aucune présence n'y est pointée, la carte n'a pas commencé.
+ *  - LA PREMIÈRE naît avec le tarif de l'emploi du temps. La réception peut lui
+ *    fixer un jour de départ (`plannedStartDate`), mais ce n'est qu'une
+ *    INTENTION : tant qu'aucune présence n'y est pointée, la carte n'a pas
+ *    commencé.
  *  - ELLE COMMENCE VRAIMENT au premier pointage : `startDate` prend le jour de
- *    cette première séance, et l'intention est simplement décalée. Une carte
- *    prévue le 20 septembre mais pointée pour la première fois le 27 commence
- *    le 27.
+ *    cette première séance. Une carte prévue le 20 septembre mais pointée pour
+ *    la première fois le 27 commence le 27.
  *  - ELLE SE FERME sur la séance qui complète le pack (`size`) : `endDate`
  *    prend ce jour-là et l'état passe à `complete`.
- *  - LA SUIVANTE N'EXISTE PAS AVANT. Aucune carte 2 tant que la carte 1 n'a pas
- *    donné ses quatre séances — c'est ce qui empêche l'écran de paie de
- *    proposer douze cartes dont onze n'ont jamais eu lieu.
+ *  - LA SUIVANTE S'OUVRE AUSSITÔT, et jamais avant. Aucune carte 2 tant que la
+ *    carte 1 n'a pas donné ses quatre séances — c'est ce qui empêche l'écran de
+ *    paie de proposer douze cartes dont onze n'ont jamais eu lieu.
  *
  * UNE SÉANCE ANNULÉE POUR TOUT LE GROUPE NE COMPTE PAS. Elle n'avance pas la
  * carte, ne coûte rien à personne, et la carte se termine simplement une
@@ -881,8 +852,6 @@ export interface Semester extends Authored {
  */
 export interface EmploiCarte extends Authored {
   id: string;
-  /** le semestre dans lequel cette carte se joue */
-  semesterId: string;
   /** l'emploi du temps dont elle est la carte */
   sessionId: string;
   /** 1, 2, 3 … — le rang de la carte sur CET emploi du temps */
@@ -1682,9 +1651,54 @@ export interface IndependentSession extends Authored {
  * deleting the row moves those two movements with it. The teacher's fiche de
  * paie prints the séance WITHOUT ever showing the school's share.
  */
+/**
+ * UNE CATÉGORIE DE PROGRAMME — la nature d'une sortie.
+ *
+ * « Randonnée », « Compétition », « Stage », « Démonstration » : le club nomme
+ * lui-même ce qu'il organise, et range ses programmes de groupe dessous. Une
+ * catégorie ne commande rien — ni tarif, ni paie, ni document : elle SERT À
+ * RETROUVER, et c'est déjà beaucoup.
+ */
+export interface ProgramCategory extends Authored {
+  id: string;
+  name: string;
+  /** une couleur pour la reconnaître d'un coup d'œil (optionnelle) */
+  color?: string;
+  createdAt?: string;
+}
+
 export interface GroupSeance extends Authored {
   id: string;
+  /**
+   * L'ENTRAÎNEUR PRINCIPAL — le premier de `teacherIds`.
+   *
+   * La colonne historique, celle que la paie, la caisse et les fiches lisent
+   * depuis toujours. Elle reste écrite pour que rien de ce qui existait n'ait à
+   * savoir qu'un programme peut désormais en encadrer plusieurs.
+   */
   teacherId: string;
+  /**
+   * TOUS LES ENTRAÎNEURS QUI ENCADRENT CE PROGRAMME.
+   *
+   * Une sortie de groupe se mène rarement seul : deux, trois entraîneurs
+   * partent avec les chevaliers. La part entraîneur du programme se PARTAGE
+   * alors entre eux, à parts égales — chacun voit sa part sur sa propre fiche
+   * de paie, et le total versé ne change pas d'un dinar.
+   *
+   * Absent ou vide = un seul encadrant, celui de `teacherId`.
+   */
+  teacherIds?: string[];
+  /**
+   * LES AUTRES QUI PARTENT AVEC — chauffeur, infirmier, cuisinier, intendant.
+   *
+   * Ce ne sont pas des entraîneurs : ils ne touchent aucune part sur le prix
+   * payé par les chevaliers, ils sont salariés par ailleurs. On les nomme ici
+   * parce qu'un programme doit dire QUI ÉTAIT LÀ — pour l'organisation, pour la
+   * responsabilité, et pour la fiche qu'on imprime avant de partir.
+   */
+  workerIds?: string[];
+  /** la nature de la sortie (voir `ProgramCategory`) */
+  categoryId?: string;
   /** what the séance is called on every document */
   title: string;
   description?: string;

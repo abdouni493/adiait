@@ -121,7 +121,7 @@ import {
   todayIso,
 } from "@/lib/helpers";
 import type { Day } from "@/lib/types";
-import { carteLayout } from "@/lib/semesters";
+import { carteLayout } from "@/lib/cartes";
 
 const JS_DAYS: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -1069,7 +1069,13 @@ export function PresenceSheet({
                   student={st}
                   session={session}
                   subscriptionId={sub.id}
-                  monthCode={carteShort(monthCode)}
+                  /* LE CODE STOCKÉ, jamais celui qui s'affiche. « C2 » est ce
+                     qu'on LIT ; « M2 » est ce que la base écrit et ce que
+                     `cycleSlots`, `cycleLead` et `cycleOf` savent lire. Leur
+                     passer la forme courte les faisait tous retomber sur la
+                     carte 1 — et la feuille affichait les présences de la
+                     carte 1 quelle que soit la carte choisie. */
+                  monthCode={monthCode}
                   monthIndex={monthIndex}
                   slotCount={slotCount}
                   daySlot={activeSlot}
@@ -1239,7 +1245,10 @@ export function PresenceSheet({
                   Carte concerné
                 </label>
                 <Select
-                  value={carteShort(pay.monthCode)}
+                  /* Les options portent le code STOCKÉ (« M2 ») : y comparer la
+                     forme courte ne trouvait jamais rien, et la liste retombait
+                     sur sa première ligne. */
+                  value={pay.monthCode}
                   onChange={(e) => setPay({ ...pay, monthCode: e.target.value })}
                   className="w-full"
                 >
@@ -1297,7 +1306,8 @@ export function PresenceSheet({
             <SeanceStepper
               student={pay.student}
               subscriptionId={pay.subscriptionId}
-              monthCode={carteShort(pay.monthCode)}
+              /* Le code stocké : le compteur lit la carte, il ne l'affiche pas. */
+              monthCode={pay.monthCode}
               amount={pay.amount || 0}
               onAmount={(next) => setPay({ ...pay, amount: next })}
             />

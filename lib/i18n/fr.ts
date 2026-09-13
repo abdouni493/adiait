@@ -46,7 +46,7 @@ export const fr = {
     teachers: "Entraîneurs",
     administration: "Administration",
     workers: "Personnel",
-    independent: "Séances libres",
+    independent: "Programme du club",
     parents: "Parents",
     horses: "Achat & vente",
     stable: "L'écurie",

@@ -5,7 +5,7 @@
  *
  *  Fichier volontairement PUR : aucune dépendance serveur, React ou navigateur.
  *  Il est partagé par le scan RFID (`useScanProcessor`), la fiche du chevalier,
- *  la fiche du parent et l'écran des semestres — pour qu'UNE SEULE logique
+ *  la fiche du parent et l'écran des périodes — pour qu'UNE SEULE logique
  *  décide à qui l'on écrit. L'envoi, lui, reste derrière `/api/whatsapp/send`,
  *  seul endroit où la clé de la passerelle est lue.
  *

@@ -8,12 +8,12 @@
  *  Un rappel de dette qui ne dit QUE le montant oblige la famille à téléphoner
  *  pour comprendre de quoi il s'agit — quel groupe, quelle carte, depuis quand.
  *  Ce module rassemble tout ce que l'application sait déjà et le range dans la
- *  forme que les modèles consomment : semestre, catégorie, groupe, emploi du
+ *  forme que les modèles consomment : période, catégorie, groupe, emploi du
  *  temps, jours et horaires, arène, entraîneur, carte en cours et son
  *  avancement, présences, absences, séances annulées, total versé, reste dû.
  *
  *  IL NE CALCULE RIEN DE NEUF. Chaque chiffre vient du même helper que celui
- *  qui l'affiche à l'écran (`lib/semesters.ts`, `lib/helpers.ts`) : le message
+ *  qui l'affiche à l'écran (`lib/periods.ts`, `lib/cartes.ts`) : le message
  *  et le tableau ne peuvent donc pas se contredire — ce qui serait le pire des
  *  défauts pour un rappel de paiement.
  */
@@ -34,7 +34,8 @@ import {
   teacherName,
   totalRemainingSeances,
 } from "@/lib/helpers";
-import { carteLayout, studentSessionMoney, subIdsOfSession } from "@/lib/semesters";
+import { carteLayout } from "@/lib/cartes";
+import { studentSessionMoney, subIdsOfSession, type PeriodWindow } from "@/lib/periods";
 import { soldFor } from "@/lib/helpers";
 import type { SituationDetail } from "./templates";
 import type { AlertParent, AlertStudent } from "./alert";
@@ -94,25 +95,22 @@ function attendanceOf(db: Database, studentId: string, sessionId?: string) {
 /**
  * LE DÉTAIL COMPLET D'UN CHEVALIER SUR UN EMPLOI DU TEMPS.
  *
- * C'est ce que l'écran des semestres fournit : il connaît le semestre, la
- * catégorie et l'emploi du temps ouverts, donc le message peut être précis
+ * C'est ce que l'écran des périodes fournit : il connaît la fenêtre de dates,
+ * la catégorie et l'emploi du temps ouverts, donc le message peut être précis
  * jusqu'à l'horaire.
  */
 export function sessionSituation(
   db: Database,
   student: Student,
   session: ScheduleSession,
-  opts: { semesterId?: string; classId?: string } = {},
+  opts: { window?: PeriodWindow; periodName?: string; classId?: string } = {},
 ): SituationDetail {
-  const semester = db.semesters.find(
-    (s) => s.id === (opts.semesterId ?? session.semesterId),
-  );
   const classId = opts.classId ?? session.classId;
   const category = db.classes.find((c) => c.id === classId);
 
   const cartes = carteLayout(db, session.id);
   const current = cartes.find((c) => !c.complete) ?? cartes[cartes.length - 1];
-  const money = studentSessionMoney(db, student.id, session.id);
+  const money = studentSessionMoney(db, student.id, session.id, opts.window);
   const counts = attendanceOf(db, student.id, session.id);
 
   const subIds = subIdsOfSession(db, session.id);
@@ -120,9 +118,9 @@ export function sessionSituation(
   const sold = subIds.reduce((sum, id) => sum + soldFor(db, student.id, id), 0);
 
   return {
-    semesterName: semester?.name,
-    semesterStart: semester ? formatDateFr(semester.startDate) : undefined,
-    semesterEnd: semester ? formatDateFr(semester.endDate) : undefined,
+    periodName: opts.periodName,
+    periodStart: opts.window ? formatDateFr(opts.window.from) : undefined,
+    periodEnd: opts.window ? formatDateFr(opts.window.to) : undefined,
     categoryName: category?.name,
     groupName: groupName(db, session.groupId),
     emploiTitle: session.title || moduleNameOf(db, session.moduleId) || "Emploi du temps",
@@ -164,11 +162,9 @@ export function globalSituation(db: Database, student: Student): SituationDetail
     .map((sub) => db.sessions.find((s) => s.id === sub!.sessionId))
     .filter(Boolean) as ScheduleSession[];
 
-  const semester = db.semesters.find((s) => s.id === sessions[0]?.semesterId);
   const category = db.classes.find((c) => c.id === sessions[0]?.classId);
 
   return {
-    semesterName: semester?.name,
     categoryName: category?.name,
     groupName: sessions.length > 0 ? groupName(db, sessions[0].groupId) : undefined,
     emploiTitle: sessions
@@ -191,7 +187,7 @@ export function targetFor(
   db: Database,
   student: Student,
   session?: ScheduleSession,
-  opts: { semesterId?: string; classId?: string } = {},
+  opts: { window?: PeriodWindow; periodName?: string; classId?: string } = {},
 ): WhatsAppTarget {
   return {
     student: alertStudentOf(db, student),

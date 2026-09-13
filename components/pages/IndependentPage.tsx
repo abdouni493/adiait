@@ -1,5 +1,22 @@
 "use client";
 
+/**
+ * PROGRAMME DU CLUB — ce que le club organise HORS des emplois du temps.
+ *
+ * Deux choses, et deux seulement, d'où les deux boutons de l'écran :
+ *
+ *   • PROGRAMME SOLO — une séance vendue à UN chevalier, nommé : un inscrit qui
+ *     vient en plus de son créneau, ou un visiteur de passage. On sait qui il
+ *     est, et son reçu porte son nom.
+ *   • PROGRAMME GROUPE — une sortie vendue à un GROUPE entier : randonnée,
+ *     stage, compétition. On saisit le nombre de chevaliers, jamais leurs noms ;
+ *     on coche les entraîneurs qui encadrent et les autres qui partent avec.
+ *
+ * C'étaient « les séances libres » — un nom qui ne disait ni ce qu'on y faisait,
+ * ni pour qui. L'écran s'ouvre désormais sur ces deux gestes, en grand, et tout
+ * le reste (la liste, les filtres, l'historique) vient après.
+ */
+
 import { useMemo, useState } from "react";
 import { useData } from "@/lib/store/data";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -8,7 +25,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Calendar, Clock, Edit, Eye, Filter, LayoutGrid, MapPin, MoreVertical, Plus, Printer, Search, Swords, Table as TableIcon, Trash2, User, Users, X } from "lucide-react";
+import { Calendar, Clock, Edit, Eye, Filter, Flag, LayoutGrid, MapPin, MoreVertical, Plus, Printer, Search, Table as TableIcon, Trash2, User, Users, UsersRound, X } from "lucide-react";
 import type { IndependentSession, Student } from "@/lib/types";
 import { printHtmlDocument } from "@/lib/print";
 import {
@@ -87,6 +104,12 @@ export function IndependentPage() {
 
   // Modals
   const [isFormOpen, setIsFormOpen] = useState(false);
+  /**
+   * LE BOUTON « PROGRAMME GROUPE » DU HAUT ouvre le formulaire qui vit dans
+   * `GroupSeanceSection`. On lui passe un COMPTEUR de clics : la section garde
+   * son propre état et ouvre dès qu'elle voit un nombre qu'elle ne connaît pas.
+   */
+  const [groupTick, setGroupTick] = useState(0);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedCasual, setSelectedCasual] = useState<IndependentSession | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -354,7 +377,7 @@ export function IndependentPage() {
     });
 
     if (!res.ok) {
-      alert("Cette séance libre n'a pas pu être enregistrée.");
+      alert("Ce programme solo n'a pas pu être enregistré.");
       return;
     }
 
@@ -383,7 +406,7 @@ export function IndependentPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Supprimer cette séance libre ?")) {
+    if (confirm("Supprimer ce programme solo ?")) {
       deleteFrom("independent", id);
       setActiveMenuId(null);
     }
@@ -433,22 +456,78 @@ export function IndependentPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <PageHeader
-          icon={Swords}
-          title="Séances libres"
-          subtitle="Enregistrer les séances ponctuelles des chevaliers inscrits et des passagers"
-        />
+      <PageHeader
+        icon={Flag}
+        title="Programme du club"
+        subtitle="Ce que le club organise hors des emplois du temps : un chevalier seul, ou une sortie entière"
+      />
+
+      {/* ---- LES DEUX GESTES DE CET ÉCRAN ----------------------------------
+          Solo : un chevalier nommé. Groupe : une sortie vendue à un nombre.
+          Tout le reste de l'écran n'est que la trace de ces deux-là. */}
+      {can("create") && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={openCreate}
+            className="group flex items-start gap-4 rounded-2xl border-2 border-primary/30 bg-primary-50/40 p-5 text-start transition-colors hover:border-primary/60 hover:bg-primary-50/70"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary transition-transform group-hover:scale-105">
+              <User className="h-6 w-6" />
+            </span>
+            <span className="min-w-0">
+              <strong className="font-display block text-base font-bold text-ink">
+                Programme solo
+              </strong>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">
+                Une séance vendue à <strong className="text-ink">UN chevalier</strong>, nommé : un
+                inscrit qui vient en plus de son créneau, ou un visiteur de passage. Son reçu porte
+                son nom.
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setGroupTick((n) => n + 1)}
+            className="group flex items-start gap-4 rounded-2xl border-2 border-accent/35 bg-accent-wash/40 p-5 text-start transition-colors hover:border-accent/70 hover:bg-accent-wash/70"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent-ink transition-transform group-hover:scale-105">
+              <UsersRound className="h-6 w-6" />
+            </span>
+            <span className="min-w-0">
+              <strong className="font-display block text-base font-bold text-ink">
+                Programme groupe
+              </strong>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">
+                Une sortie vendue à un <strong className="text-ink">groupe entier</strong> —
+                randonnée, stage, compétition. Plusieurs encadrants, les accompagnateurs qui partent
+                avec, et une catégorie.
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Les programmes de groupe : la liste, ses totaux et son formulaire. */}
+      <GroupSeanceSection openTick={groupTick} />
+
+      {/* ---- Les programmes solo ---- */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="flex items-center gap-2 text-base font-black text-ink">
+            <User className="h-5 w-5 text-primary" /> Programmes solo
+          </h3>
+          <p className="text-[11px] text-muted">
+            Les séances vendues à un chevalier nommé — inscrit ou de passage.
+          </p>
+        </div>
         {can("create") && (
-<Button onClick={openCreate} className="flex items-center gap-2 self-start sm:self-center">
-            <Plus className="h-4 w-4" /> Nouvelle Séance Libre
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="h-4 w-4" /> Nouveau programme solo
           </Button>
         )}
       </div>
-
-      {/* Séances libres vendues à un GROUPE entier — on saisit le nombre
-          de chevaliers, jamais leurs noms. */}
-      <GroupSeanceSection />
 
       {/* Filters toolbar */}
       <Card className="border border-line">
@@ -537,7 +616,7 @@ export function IndependentPage() {
 
       {filteredList.length === 0 ? (
         <div className="text-center p-12 bg-canvas/30 border border-line border-dashed rounded-2xl text-muted text-xs">
-          Aucune séance libre ne correspond aux filtres actuels.
+          Aucun programme solo ne correspond aux filtres actuels.
         </div>
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -788,7 +867,7 @@ export function IndependentPage() {
       <Modal
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title={selectedCasual ? "Modifier la séance libre" : "Enregistrer une séance libre"}
+        title={selectedCasual ? "Modifier le programme solo" : "Enregistrer un programme solo"}
         wide
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1140,7 +1219,7 @@ export function IndependentPage() {
       {/* ------------------------------------------------------------------ */}
       {/* Details                                                             */}
       {/* ------------------------------------------------------------------ */}
-      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Détails de la séance libre" wide>
+      <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Détails du programme solo" wide>
         {selectedCasual && (() => {
           const opt = optionForSession(selectedCasual.sessionId);
           const student = selectedCasual.studentId
@@ -1283,7 +1362,7 @@ export function IndependentPage() {
               ✔
             </div>
             <div className="space-y-2">
-              <h3 className="text-sm font-bold text-ink">Séance libre enregistrée avec succès !</h3>
+              <h3 className="text-sm font-bold text-ink">Programme solo enregistré avec succès !</h3>
               <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed">
                 <strong>{receiptData.itemLabel}</strong> pour <strong>{receiptData.personName}</strong> —{" "}
                 <strong>{formatDA(receiptData.price)}</strong> encaissés.

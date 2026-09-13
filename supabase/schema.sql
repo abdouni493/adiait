@@ -152,14 +152,14 @@ comment on table public.app_page_actions is 'Les 101 boutons, écran par écran.
 -- ---- Les écrans -------------------------------------------------------------
 insert into public.app_pages (key, position, emoji, label, href, hint) values
   ('dashboard', 1, '📊', 'Tableau de bord', '/dashboard', 'Les emplois du temps du jour, les feuilles de présence et la caisse.'),
-  ('semesters', 2, '🗓️', 'Semestres', '/semesters', 'Les saisons du club : leurs categories, leurs emplois du temps, leurs cartes et leur argent.'),
+  ('semesters', 2, '🗓️', 'Semestres', '/semesters', 'Le rapport d''une periode : ses categories, ses emplois du temps, ses cartes et son argent.'),
   ('classes', 3, '🛡️', 'Catégories', '/classes', 'Les catégories de l''Ordre et la tranche d''âge de chacune.'),
   ('planner', 4, '📅', 'Emplois du temps', '/planner', 'La grille des créneaux, les séances libres et les arènes.'),
   ('students', 5, '⚔️', 'Chevaliers', '/students', 'Les fiches des chevaliers, leurs inscriptions, leurs paiements et leurs dettes.'),
   ('attendance', 6, '✅', 'Présences', '/attendance', 'Les feuilles de présence et l''historique des pointages.'),
   ('teachers', 7, '🏅', 'Entraîneurs', '/teachers', 'Les fiches des entraîneurs, leurs parts et leur paie.'),
   ('workers', 8, '💼', 'Personnel', '/workers', 'Le personnel : métiers, comptes, droits, acomptes, absences et paie.'),
-  ('independent', 9, '🚩', 'Séances libres', '/independent', 'Les séances vendues à l''unité et les sorties libres de groupe.'),
+  ('independent', 9, '🚩', 'Programme du club', '/independent', 'Ce que le club organise hors des emplois du temps : les programmes solo (un chevalier) et les programmes de groupe (une sortie entiere).'),
   ('parents', 10, '👨‍👩‍👧', 'Parents', '/parents', 'Les fiches des parents et leurs comptes.'),
   -- L'ÉCURIE : le quartier des chevaux, entre la compagnie qui compte les gens
   -- et l'intendance qui compte l'argent. Un cheval est exactement entre les deux.
@@ -200,11 +200,10 @@ insert into public.app_page_actions (page_key, action_id, position, label, hint)
   ('dashboard', 'cash_deposit', 6, 'Dépôt en caisse', null),
   ('dashboard', 'cash_expense', 7, 'Saisir une dépense', null),
   ('dashboard', 'cash_withdraw', 8, 'Retrait de caisse', null),
-  ('semesters', 'create', 1, 'Creer un semestre', null),
-  ('semesters', 'view',   2, 'Ouvrir le detail d''un semestre', 'Categories, emplois du temps, cartes et chevaliers.'),
-  ('semesters', 'edit',   3, 'Modifier un semestre', null),
-  ('semesters', 'delete', 4, 'Supprimer un semestre', null),
-  ('semesters', 'close',  5, 'Clore un semestre', 'Ferme la saison -- et le pointage avec elle.'),
+  ('semesters', 'create', 1, 'Creer un modele de periode', 'Deux dates enregistrees sous un nom, pour ne plus les retaper.'),
+  ('semesters', 'view',   2, 'Generer et lire un rapport', 'Categories, emplois du temps, cartes et chevaliers.'),
+  ('semesters', 'edit',   3, 'Modifier un modele de periode', null),
+  ('semesters', 'delete', 4, 'Supprimer un modele de periode', null),
   ('semesters', 'pay',    6, 'Encaisser la dette d''un chevalier', 'Depuis la liste des chevaliers d''un emploi du temps.'),
   -- SANS « totals », les cartes de semestre, de categorie et d'emploi du temps
   -- n'affichent QUE les dettes : un travailleur a qui l'on ouvre cet ecran pour
@@ -261,10 +260,10 @@ insert into public.app_page_actions (page_key, action_id, position, label, hint)
   ('workers', 'history', 11, 'Consulter l''historique de travail', null),
   ('workers', 'print', 12, 'Imprimer un reçu ou une fiche de paie', null),
   ('workers', 'scan', 13, 'Pointage par badge', null),
-  ('independent', 'create', 1, 'Créer une séance libre', null),
-  ('independent', 'view', 2, 'Voir le détail d''une séance', null),
-  ('independent', 'edit', 3, 'Modifier une séance', null),
-  ('independent', 'delete', 4, 'Supprimer une séance', null),
+  ('independent', 'create', 1, 'Créer un programme', 'Solo (un chevalier) ou groupe (une sortie).'),
+  ('independent', 'view', 2, 'Voir le détail d''un programme', null),
+  ('independent', 'edit', 3, 'Modifier un programme', null),
+  ('independent', 'delete', 4, 'Supprimer un programme', null),
   ('independent', 'print', 5, 'Réimprimer le reçu', null),
   ('parents', 'create', 1, 'Créer un parent', null),
   ('parents', 'view', 2, 'Voir la fiche d''un parent', null),
@@ -590,29 +589,25 @@ create table if not exists public.parents (
 );
 
 -- ---- Les emplois du temps ---------------------------------------------------
--- ---- Les saisons du club ----------------------------------------------------
--- Un semestre porte un nom, deux dates, et tout ce qui se joue entre elles.
--- SA FIN N'EST PAS UNE DATE, C'EST UN TRAVAIL FINI : une seance annulee pour
--- tout un groupe se rejoue la semaine suivante, la carte qu'elle devait clore
--- deborde, et `end_date` est REPOUSSEE jusqu'au jour de la derniere presence.
--- `planned_end_date` garde ce qui avait ete annonce, pour que l'ecart se lise.
--- Une fois CLOS (`closed_at`), le semestre ferme le pointage : plus aucune
--- presence ne s'ecrit tant que le suivant n'a pas ete cree.
-create table if not exists public.semesters (
-  id                text primary key,
-  name              text not null default '',
-  start_date        text not null default '',
-  end_date          text not null default '',
-  planned_end_date  text,
-  description       text,
-  closed_at         text,
-  extension_seen_at text,
-  created_at        text,
-  created_by        text,
-  created_by_name   text,
-  created_by_role   text
+-- ---- Les modèles de période -------------------------------------------------
+-- Deux dates qu'on a nommées, pour ne pas les retaper : « Semestre 1 », « Stage
+-- d'été ». UN MODÈLE NE COMMANDE RIEN — aucune carte n'en dépend, aucun
+-- pointage n'y est rattaché, aucun emploi du temps ne lui appartient. C'est un
+-- raccourci vers une question qu'on pose souvent au rapport, et l'effacer
+-- n'efface aucune donnée.
+create table if not exists public.period_templates (
+  id              text primary key,
+  name            text not null default '',
+  start_date      text not null default '',
+  end_date        text not null default '',
+  description     text,
+  created_at      text,
+  created_by      text,
+  created_by_name text,
+  created_by_role text
 );
-create index if not exists semesters_dates_idx on public.semesters (start_date, end_date);
+create index if not exists period_templates_dates_idx
+  on public.period_templates (start_date, end_date);
 
 create table if not exists public.schedule_sessions (
   id               text primary key,
@@ -641,31 +636,27 @@ create table if not exists public.schedule_sessions (
   salle_ids        jsonb,
   open_price       numeric,
   archived_at      text,
-  -- LE SEMESTRE de ce creneau : il decide jusqu'a quand ses cartes continuent
-  -- de se creer. La derniere ouverte avant la date de fin va jusqu'au bout, et
-  -- aucune ne s'ouvre apres. NULL = emploi du temps hors saison, qui fonctionne
-  -- exactement comme avant les semestres.
-  semester_id      text references public.semesters (id) on delete set null,
   created_by       text,
   created_by_name  text,
   created_by_role  text
 );
 create index if not exists sessions_teacher_idx  on public.schedule_sessions (teacher_id);
 create index if not exists sessions_class_idx    on public.schedule_sessions (class_id);
-create index if not exists sessions_semester_idx on public.schedule_sessions (semester_id);
 
 -- ---- Les cartes de chaque emploi du temps -----------------------------------
 -- Une carte n'est pas une case du calendrier : c'est un PACK DE SEANCES que le
--- groupe vit. La premiere nait avec l'emploi du temps, a la date que la
--- reception fixe (`planned_start_date`) -- mais cette date n'est qu'une
--- INTENTION : la carte commence vraiment au premier pointage, et `start_date`
--- prend ce jour-la. Elle se ferme sur la seance qui complete `size`, et la
--- SUIVANTE N'EXISTE PAS AVANT. Une seance annulee pour tout le groupe ne compte
--- pas : elle est listee dans `postponed`, le groupe la rejoue la semaine
--- d'apres, et la carte finit simplement plus tard.
+-- groupe vit. ELLE NE DEPEND DE RIEN D'AUTRE QUE DE SON EMPLOI DU TEMPS : ni
+-- d'une saison, ni d'un calendrier, ni d'une date decidee d'avance.
+--
+-- La premiere nait avec le TARIF du creneau. La reception peut lui fixer un
+-- jour de depart (`planned_start_date`), mais ce n'est qu'une INTENTION : la
+-- carte commence vraiment au premier pointage, et `start_date` prend ce
+-- jour-la. Elle se ferme sur la seance qui complete `size`, et LA SUIVANTE
+-- S'OUVRE AUSSITOT -- jamais avant, jamais sur commande. Une seance annulee
+-- pour tout le groupe ne compte pas : elle est listee dans `postponed`, le
+-- groupe la rejoue la semaine d'apres, et la carte finit simplement plus tard.
 create table if not exists public.emploi_cartes (
   id                  text primary key,
-  semester_id         text references public.semesters (id) on delete cascade,
   session_id          text references public.schedule_sessions (id) on delete cascade,
   "index"             integer not null default 1,
   -- « M1 », « M2 » ... -- le code historique que la paie et les paiements
@@ -685,7 +676,6 @@ create table if not exists public.emploi_cartes (
   created_by_role     text
 );
 create index if not exists emploi_cartes_session_idx  on public.emploi_cartes (session_id);
-create index if not exists emploi_cartes_semester_idx on public.emploi_cartes (semester_id);
 -- Une carte par rang et par emploi du temps : le moteur est idempotent, la base
 -- le garantit.
 create unique index if not exists emploi_cartes_session_index_uniq
@@ -1225,9 +1215,34 @@ create index if not exists independent_student_idx on public.independent_session
 create index if not exists independent_date_idx    on public.independent_sessions (date);
 
 -- Une séance vendue à un GROUPE d'élèves, sans nommer personne.
+-- ---- La nature d'un programme de groupe -------------------------------------
+-- « Randonnee », « Stage », « Competition » : le club nomme lui-meme ce qu'il
+-- organise. Une categorie ne commande rien -- ni tarif, ni paie, ni document :
+-- elle SERT A RETROUVER, et c'est deja beaucoup.
+create table if not exists public.program_categories (
+  id              text primary key,
+  name            text not null default '',
+  color           text,
+  created_at      text,
+  created_by      text,
+  created_by_name text,
+  created_by_role text
+);
+
 create table if not exists public.group_seances (
   id                 text primary key,
+  -- L'ENCADRANT PRINCIPAL -- le premier de `teacher_ids`. La colonne
+  -- historique, celle que la caisse, les fiches et les rapports lisent depuis
+  -- toujours.
   teacher_id         text not null references public.teachers (id) on delete cascade,
+  -- TOUS les encadrants. Une sortie se mene rarement seul : la part entraineur
+  -- se partage a parts egales entre eux, et le club verse le meme total.
+  teacher_ids        jsonb,
+  -- LES AUTRES QUI PARTENT : chauffeur, infirmier, intendant. Ils ne touchent
+  -- rien sur le prix paye par les chevaliers -- ils sont salaries par ailleurs
+  -- -- mais un programme doit dire QUI ETAIT LA.
+  worker_ids         jsonb,
+  category_id        text references public.program_categories (id) on delete set null,
   title              text not null default '',
   description        text,
   date               text not null default '',
@@ -1243,7 +1258,8 @@ create table if not exists public.group_seances (
   created_by_name    text,
   created_by_role    text
 );
-create index if not exists group_seances_teacher_idx on public.group_seances (teacher_id);
+create index if not exists group_seances_teacher_idx  on public.group_seances (teacher_id);
+create index if not exists group_seances_category_idx on public.group_seances (category_id);
 
 -- ---- Les demandes de compte -------------------------------------------------
 --
@@ -1866,7 +1882,8 @@ begin
       -- doit voir ou en sont les cartes de ses groupes, une famille ou en est
       -- la saison. Les cartes sont ecrites par le MOTEUR, qui tourne partout ou
       -- l'on pointe : leur droit d'ecriture suit ces ecrans-la.
-      ('semesters',                   any_signed,                           $w$public.can_write(array['semesters','planner'])$w$),
+      ('period_templates',            any_signed,                           $w$public.can_write(array['semesters'])$w$),
+      ('program_categories',          any_signed,                           $w$public.can_write(array['independent','teachers'])$w$),
       ('emploi_cartes',               any_signed,                           $w$public.can_write(array['semesters','planner','attendance','dashboard'])$w$),
       ('schedule_sessions',           any_signed,                           $w$public.can_write(array['planner','classes'])$w$),
       ('subscriptions',               any_signed,                           $w$public.can_write(array['subscriptions','planner'])$w$),

@@ -622,10 +622,11 @@ export function buildDemoDatabase(): Database {
     workerAbsences: workerPayroll.absences,
     workerPayments: workerPayroll.payments,
     sessions: SESSIONS.map((s) => ({ ...s })),
-    // La démonstration ne met pas encore de semestre en scène : ses emplois du
-    // temps tournent hors saison, exactement comme un club d'avant la nouveauté.
-    semesters: [],
+    // Les cartes de la démonstration se posent toutes seules au premier
+    // pointage : `syncCartes()` s'en charge, personne d'autre.
     emploiCartes: [],
+    periodTemplates: [],
+    programCategories: [],
     subscriptions: SUBSCRIPTIONS.map((s) => ({ ...s })),
     freePeriods: FREE_PERIODS.map((f) => ({ ...f })),
     students,

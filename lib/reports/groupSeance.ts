@@ -19,7 +19,12 @@ import {
   printDocument,
   signaturesHtml,
 } from "@/lib/printTemplates";
-import { formatDateFr, groupSeanceTotals } from "@/lib/helpers";
+import {
+  formatDateFr,
+  groupSeanceShareFor,
+  groupSeanceTotals,
+  groupSeanceTrainers,
+} from "@/lib/helpers";
 
 function esc(s: unknown): string {
   return String(s ?? "")
@@ -37,11 +42,28 @@ export function groupSeancePayslipHtml(
 ): string {
   const { seance, teacher, language } = opts;
   const t = groupSeanceTotals(seance);
+  /**
+   * CE QUE **CE** ENCADRANT TOUCHE, et non ce que le programme rapporte en tout.
+   *
+   * Une sortie se mène rarement seul : la part entraîneur se partage à parts
+   * égales entre ceux qui sont partis. Imprimer le total sur la fiche de chacun
+   * promettrait trois fois la même somme — et le club ne verse qu'une fois.
+   */
+  const trainers = groupSeanceTrainers(seance);
+  const share = groupSeanceShareFor(seance, teacher.id);
+  const shared = trainers.length > 1;
+  const perStudent = shared ? t.teacherPerStudent / trainers.length : t.teacherPerStudent;
+  const trainerNames = trainers
+    .map((id) => {
+      const other = db.teachers.find((x) => x.id === id);
+      return other ? `${other.firstName} ${other.lastName}` : "—";
+    })
+    .join(", ");
 
   const body = `
     ${letterheadHtml(db.school)}
     ${bannerHtml(
-      "Fiche de paie — séance libre",
+      "Fiche de paie — programme de groupe",
       `${esc(teacher.firstName)} ${esc(teacher.lastName)} — ${esc(formatDateFr(seance.date))}`,
     )}
 
@@ -53,6 +75,7 @@ export function groupSeancePayslipHtml(
           <tr><th>Date</th><td>${esc(formatDateFr(seance.date))}</td></tr>
           <tr><th>Horaire</th><td><span style="font-family:monospace">${esc(seance.startTime)} → ${esc(seance.endTime)}</span></td></tr>
           <tr><th>Entraîneur</th><td><strong>${esc(teacher.firstName)} ${esc(teacher.lastName)}</strong>${teacher.phone ? ` — ${esc(teacher.phone)}` : ""}</td></tr>
+          ${shared ? `<tr><th>Encadrants</th><td>${esc(trainerNames)} — <strong>part partagée en ${trainers.length}</strong></td></tr>` : ""}
           ${seance.description ? `<tr><th>Description</th><td>${esc(seance.description)}</td></tr>` : ""}
         </tbody>
       </table>
@@ -73,8 +96,8 @@ export function groupSeancePayslipHtml(
           <tr>
             <td><strong>${esc(seance.title)}</strong></td>
             <td class="ctr"><strong>${t.students}</strong></td>
-            <td class="num">${da(t.teacherPerStudent)}</td>
-            <td class="num"><strong>${da(t.teacherTotal)}</strong></td>
+            <td class="num">${da(perStudent)}</td>
+            <td class="num"><strong>${da(share)}</strong></td>
           </tr>
         </tbody>
       </table>
@@ -83,8 +106,9 @@ export function groupSeancePayslipHtml(
     <div class="summary-card">
       <h3>Récapitulatif</h3>
       <div class="summary-line"><span>Chevaliers présents</span><strong>${t.students}</strong></div>
-      <div class="summary-line"><span>Part de l'entraîneur par chevalier</span><strong>${da(t.teacherPerStudent)}</strong></div>
-      <div class="net-pay-box"><span>Net à verser à l'entraîneur</span><span>${da(t.teacherTotal)}</span></div>
+      <div class="summary-line"><span>Part de l'entraîneur par chevalier</span><strong>${da(perStudent)}</strong></div>
+      ${shared ? `<div class="summary-line"><span>Part totale du programme, partagée en ${trainers.length}</span><strong>${da(t.teacherTotal)}</strong></div>` : ""}
+      <div class="net-pay-box"><span>Net à verser à l'entraîneur</span><span>${da(share)}</span></div>
     </div>
 
     ${signaturesHtml("La Direction", "L'Entraîneur")}
@@ -92,7 +116,7 @@ export function groupSeancePayslipHtml(
   `;
 
   return printDocument({
-    title: "Fiche de paie — sortie libre de groupe",
+    title: "Fiche de paie — programme de groupe",
     lang: language,
     bodyHtml: body,
   });

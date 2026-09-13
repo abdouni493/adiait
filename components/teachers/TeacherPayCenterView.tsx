@@ -390,7 +390,8 @@ export function TeacherPayCenterView({ teacher }: { teacher: Teacher }) {
             <MonthBoardView
               teacher={teacher}
               emploi={emploi}
-              monthCode={carteShort(monthCode)}
+              /* LE CODE STOCKÉ, pas la forme affichée : voir TeacherPayCenter. */
+              monthCode={monthCode}
               onBack={() => setMonthCode(null)}
             />
           </motion.div>
