@@ -25,15 +25,21 @@
  * apparaît ensuite dans l'historique de paiement de chaque encadrant, dans la
  * caisse et dans les rapports ; le modifier ou le supprimer déplace ces
  * trois-là avec lui.
+ *
+ * CETTE SECTION NE DESSINE AUCUNE LISTE. Elle n'est que les gestes — le
+ * formulaire, le détail, la fiche de paie, la suppression — et l'écran du
+ * Programme du club les déclenche par `ref` depuis SON historique, celui qui
+ * mêle les programmes solo et les programmes de groupe dans un seul tableau.
+ * Deux listes pour un même écran, c'était deux endroits où chercher la même
+ * sortie.
  */
 
-import { useMemo, useState } from "react";
+import { useImperativeHandle, useState, type Ref } from "react";
 import { useData, uid } from "@/lib/store/data";
 import { useSettings } from "@/lib/store/settings";
 import { useToast } from "@/lib/store/toast";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card, CardBody } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/SearchInput";
 import { printHtmlDocument } from "@/lib/print";
@@ -41,20 +47,7 @@ import { groupSeancePayslipHtml } from "@/lib/reports/groupSeance";
 import { formatDA } from "@/lib/utils";
 import { formatDateFr, groupSeanceTotals, groupSeanceTrainers, todayIso } from "@/lib/helpers";
 import type { GroupSeance } from "@/lib/types";
-import {
-  Briefcase,
-  CalendarRange,
-  Check,
-  Edit,
-  Eye,
-  Plus,
-  Printer,
-  Search,
-  Tag,
-  Trash2,
-  Users,
-  UsersRound,
-} from "lucide-react";
+import { Briefcase, CalendarRange, Check, Plus, Printer, Search, Tag, Trash2 } from "lucide-react";
 
 interface Draft {
   id: string;
@@ -89,20 +82,24 @@ const emptyDraft = (): Draft => ({
   schoolPerStudent: 0,
 });
 
-export function GroupSeanceSection({
-  openTick = 0,
-}: {
-  /**
-   * LE BOUTON « PROGRAMME GROUPE » DU HAUT DE L'ÉCRAN.
-   *
-   * Un COMPTEUR, et non un booléen : le parent l'incrémente à chaque clic, et
-   * la section ouvre son formulaire dès qu'elle voit un nombre qu'elle ne
-   * connaît pas. Un booléen aurait demandé au parent de le remettre à faux —
-   * donc à la section de modifier l'état de son parent pendant son propre
-   * rendu, ce que React refuse à juste titre.
-   */
-  openTick?: number;
-} = {}) {
+/**
+ * CE QUE L'ÉCRAN PEUT DEMANDER À UN PROGRAMME DE GROUPE.
+ *
+ * L'historique du Programme du club affiche les sorties de groupe au milieu
+ * des programmes solo, mais il ne sait rien de leur formulaire ni de leur
+ * fiche de paie. Il tient une `ref` sur cette section et lui passe la main :
+ * les cinq gestes ci-dessous sont tout ce qu'il a besoin de connaître.
+ */
+export interface GroupProgramApi {
+  /** ouvrir le formulaire vide — le bouton « Programme groupe » du haut */
+  openCreate: () => void;
+  openEdit: (seance: GroupSeance) => void;
+  openDetails: (seance: GroupSeance) => void;
+  printPayslip: (seance: GroupSeance) => void;
+  remove: (seance: GroupSeance) => void;
+}
+
+export function GroupSeanceSection({ ref }: { ref?: Ref<GroupProgramApi> } = {}) {
   const db = useData();
   const {
     groupSeances,
@@ -118,8 +115,6 @@ export function GroupSeanceSection({
   const { addToast } = useToast();
 
   const [formOpen, setFormOpen] = useState(false);
-  /** le dernier clic du bouton du haut que la section a déjà honoré */
-  const [seenTick, setSeenTick] = useState(openTick);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [teacherQuery, setTeacherQuery] = useState("");
@@ -127,9 +122,6 @@ export function GroupSeanceSection({
   const [workerQuery, setWorkerQuery] = useState("");
   /** la saisie d'une nature de sortie, sans quitter le formulaire */
   const [newCategory, setNewCategory] = useState("");
-  const [listQuery, setListQuery] = useState("");
-  /** la nature sur laquelle la liste est filtrée — « » = toutes */
-  const [catFilter, setCatFilter] = useState("");
   const [details, setDetails] = useState<GroupSeance | null>(null);
   /** la séance qu'on vient de créer : on propose sa fiche de paie */
   const [printAsk, setPrintAsk] = useState<GroupSeance | null>(null);
@@ -146,14 +138,6 @@ export function GroupSeanceSection({
 
   const categoryName = (id?: string) =>
     programCategories.find((c) => c.id === id)?.name ?? "Sans catégorie";
-
-  /** Les encadrants d'un programme, nommés — « Karim B. + 2 » quand ils sont trois. */
-  const trainersLabel = (g: GroupSeance) => {
-    const ids = groupSeanceTrainers(g);
-    if (ids.length === 0) return "—";
-    const first = teacherName(ids[0]);
-    return ids.length > 1 ? `${first} + ${ids.length - 1}` : first;
-  };
 
   /** Coche / décoche un encadrant. Le PREMIER coché reste le principal. */
   const toggleTrainer = (id: string) =>
@@ -195,38 +179,9 @@ export function GroupSeanceSection({
       return;
     await deleteProgramCategory(id);
     setDraft((d) => (d.categoryId === id ? { ...d, categoryId: "" } : d));
-    if (catFilter === id) setCatFilter("");
   };
 
-  const rows = useMemo(() => {
-    const q = listQuery.trim().toLowerCase();
-    return [...groupSeances]
-      .filter((g) => (catFilter ? g.categoryId === catFilter : true))
-      .filter((g) =>
-        q
-          ? `${g.title} ${g.description ?? ""} ${groupSeanceTrainers(g)
-              .map(teacherName)
-              .join(" ")} ${categoryName(g.categoryId)}`
-              .toLowerCase()
-              .includes(q)
-          : true,
-      )
-      .sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupSeances, listQuery, catFilter, teachers, programCategories]);
-
   const totals = groupSeanceTotals(draft);
-  const grand = rows.reduce(
-    (acc, g) => {
-      const t = groupSeanceTotals(g);
-      acc.total += t.total;
-      acc.school += t.schoolTotal;
-      acc.teacher += t.teacherTotal;
-      acc.students += t.students;
-      return acc;
-    },
-    { total: 0, school: 0, teacher: 0, students: 0 },
-  );
 
   const openCreate = () => {
     setDraft(emptyDraft());
@@ -236,18 +191,6 @@ export function GroupSeanceSection({
     setNewCategory("");
     setFormOpen(true);
   };
-
-  /**
-   * LE BOUTON DU HAUT OUVRE CE FORMULAIRE-CI, pendant le rendu.
-   *
-   * C'est le réglage d'état « en cours de rendu » que React documente : on
-   * compare le compteur reçu à celui qu'on a déjà vu, et on ouvre. Aucun effet,
-   * donc aucun rendu en cascade — et le parent n'a rien à remettre à zéro.
-   */
-  if (openTick !== seenTick) {
-    setSeenTick(openTick);
-    openCreate();
-  }
 
   const openEdit = (g: GroupSeance) => {
     setDraft({
@@ -348,6 +291,21 @@ export function GroupSeanceSection({
     printHtmlDocument(groupSeancePayslipHtml(db, { seance: g, teacher, language }));
   };
 
+  /**
+   * LES CINQ GESTES, tendus à l'écran qui porte l'historique.
+   *
+   * Recalculés à chaque rendu, et c'est voulu : chacun se referme sur l'état
+   * du moment, si bien qu'un clic dans le tableau du parent agit toujours sur
+   * ce que la section connaît maintenant.
+   */
+  useImperativeHandle(ref, () => ({
+    openCreate,
+    openEdit,
+    openDetails: setDetails,
+    printPayslip,
+    remove,
+  }));
+
   const shownTeachers = teachers.filter((t) =>
     `${t.firstName} ${t.lastName} ${t.phone ?? ""}`.toLowerCase().includes(teacherQuery.toLowerCase()),
   );
@@ -363,170 +321,6 @@ export function GroupSeanceSection({
 
   return (
     <>
-      <Card className="border border-line card-shadow">
-        <CardBody className="space-y-4 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="flex items-center gap-2 text-base font-black text-ink">
-                <UsersRound className="h-5 w-5 text-primary" /> Programmes de groupe
-              </h3>
-              <p className="text-[11px] text-muted">
-                Une sortie du club vendue à un groupe entier — on saisit le nombre de chevaliers,
-                pas leurs noms.
-              </p>
-            </div>
-            <Button onClick={openCreate} className="gap-2">
-              <UsersRound className="h-4 w-4" /> Nouveau programme groupe
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Tile label="Séances" value={String(rows.length)} tone="text-ink" />
-            <Tile label="Chevaliers cumulés" value={String(grand.students)} tone="text-primary" />
-            <Tile label="Total encaissé" value={formatDA(grand.total)} tone="text-success" />
-            <Tile label="Part entraîneurs" value={formatDA(grand.teacher)} tone="text-warning" />
-          </div>
-
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input
-                value={listQuery}
-                onChange={(e) => setListQuery(e.target.value)}
-                placeholder="Rechercher un programme — intitulé, encadrant ou catégorie…"
-                className="ps-9"
-              />
-            </div>
-
-            {/* LA NATURE DE LA SORTIE, en filtre. Les catégories se créent dans
-                le formulaire ; ici elles servent à retrouver. */}
-            {programCategories.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Tag className="h-3.5 w-3.5 text-muted" />
-                <button
-                  type="button"
-                  onClick={() => setCatFilter("")}
-                  className={`cursor-pointer rounded-lg border px-2.5 py-1 text-[10px] font-semibold transition-colors ${
-                    catFilter === ""
-                      ? "border-primary bg-primary text-white"
-                      : "border-line text-muted hover:border-primary/40 hover:text-ink"
-                  }`}
-                >
-                  Toutes
-                </button>
-                {programCategories.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setCatFilter(catFilter === c.id ? "" : c.id)}
-                    className={`cursor-pointer rounded-lg border px-2.5 py-1 text-[10px] font-semibold transition-colors ${
-                      catFilter === c.id
-                        ? "border-primary bg-primary text-white"
-                        : "border-line text-muted hover:border-primary/40 hover:text-ink"
-                    }`}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {rows.length === 0 ? (
-            <p className="py-8 text-center text-xs italic text-muted">
-              {catFilter
-                ? "Aucun programme dans cette catégorie."
-                : "Aucun programme de groupe pour le moment."}
-            </p>
-          ) : (
-            <div className="overflow-x-auto rounded-2xl border border-line">
-              <table className="w-full min-w-[900px] text-xs">
-                <thead className="bg-canvas/60">
-                  <tr className="text-start text-[10px] uppercase tracking-wide text-muted">
-                    <th className="px-3 py-2.5">Date &amp; horaire</th>
-                    <th className="px-3 py-2.5">Programme</th>
-                    <th className="px-3 py-2.5">Encadrants</th>
-                    <th className="px-3 py-2.5 text-center">Chevaliers</th>
-                    <th className="px-3 py-2.5 text-end">Prix / chevalier</th>
-                    <th className="px-3 py-2.5 text-end">Total</th>
-                    <th className="px-3 py-2.5 text-end">Club</th>
-                    <th className="px-3 py-2.5 text-end">Encadrants</th>
-                    <th className="px-3 py-2.5 text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((g) => {
-                    const t = groupSeanceTotals(g);
-                    return (
-                      <tr key={g.id} className="border-t border-line/60 hover:bg-primary-50/30">
-                        <td className="px-3 py-2.5">
-                          <span className="block font-semibold text-ink">{formatDateFr(g.date)}</span>
-                          <span className="block font-mono text-[10px] text-muted">
-                            {g.startTime} → {g.endTime}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <strong className="block text-ink">{g.title}</strong>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1">
-                            {g.categoryId && (
-                              <Badge tone="accent" className="text-[9px]">
-                                {categoryName(g.categoryId)}
-                              </Badge>
-                            )}
-                            {(g.workerIds?.length ?? 0) > 0 && (
-                              <Badge tone="neutral" className="gap-1 text-[9px]">
-                                <Briefcase className="h-2.5 w-2.5" /> {g.workerIds!.length} autre(s)
-                              </Badge>
-                            )}
-                          </span>
-                          {g.description && (
-                            <span className="block text-[10px] text-muted">{g.description}</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5 text-muted" title={groupSeanceTrainers(g).map(teacherName).join(" · ")}>
-                          {trainersLabel(g)}
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          <Badge tone="primary" className="gap-1 font-mono">
-                            <Users className="h-3 w-3" /> {t.students}
-                          </Badge>
-                        </td>
-                        <td className="px-3 py-2.5 text-end font-mono">{formatDA(t.pricePerStudent)}</td>
-                        <td className="px-3 py-2.5 text-end font-mono font-bold text-success">
-                          {formatDA(t.total)}
-                        </td>
-                        <td className="px-3 py-2.5 text-end font-mono text-primary">
-                          {formatDA(t.schoolTotal)}
-                        </td>
-                        <td className="px-3 py-2.5 text-end font-mono text-warning">
-                          {formatDA(t.teacherTotal)}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex items-center justify-end gap-1">
-                            <IconBtn title="Voir les détails" onClick={() => setDetails(g)}>
-                              <Eye className="h-3.5 w-3.5" />
-                            </IconBtn>
-                            <IconBtn title="Imprimer la fiche de paie" onClick={() => printPayslip(g)}>
-                              <Printer className="h-3.5 w-3.5" />
-                            </IconBtn>
-                            <IconBtn title="Modifier" onClick={() => openEdit(g)}>
-                              <Edit className="h-3.5 w-3.5" />
-                            </IconBtn>
-                            <IconBtn title="Supprimer" danger onClick={() => remove(g)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </IconBtn>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
       {/* ---- create / edit ---------------------------------------------- */}
       {formOpen && (
         <Modal
@@ -1025,29 +819,5 @@ function Tile({
       <strong className={`block font-mono text-sm ${tone}`}>{value}</strong>
       {hint && <span className="block text-[9px] text-muted">{hint}</span>}
     </div>
-  );
-}
-
-function IconBtn({
-  title,
-  onClick,
-  danger,
-  children,
-}: {
-  title: string;
-  onClick: () => void;
-  danger?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className={`flex h-7 w-7 items-center justify-center rounded-lg border border-line transition-colors ${
-        danger ? "text-danger hover:bg-danger/10" : "text-primary hover:bg-primary-50"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

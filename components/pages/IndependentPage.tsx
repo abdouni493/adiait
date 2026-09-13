@@ -13,11 +13,14 @@
  *     on coche les entraîneurs qui encadrent et les autres qui partent avec.
  *
  * C'étaient « les séances libres » — un nom qui ne disait ni ce qu'on y faisait,
- * ni pour qui. L'écran s'ouvre désormais sur ces deux gestes, en grand, et tout
- * le reste (la liste, les filtres, l'historique) vient après.
+ * ni pour qui. L'écran s'ouvre désormais sur ces deux gestes, en grand, et
+ * dessous vient L'HISTORIQUE — UN SEUL, solo et groupe mêlés, du plus récent au
+ * plus ancien. Le club organise une chose à la fois, pas deux registres
+ * séparés : on cherche « la randonnée de mars » sans avoir à se rappeler
+ * d'abord si elle avait été vendue à un chevalier ou à un groupe.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useData } from "@/lib/store/data";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -25,17 +28,19 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Calendar, Clock, Edit, Eye, Filter, Flag, LayoutGrid, MapPin, MoreVertical, Plus, Printer, Search, Table as TableIcon, Trash2, User, Users, UsersRound, X } from "lucide-react";
-import type { IndependentSession, Student } from "@/lib/types";
+import { Briefcase, Calendar, CalendarRange, Clock, Edit, Eye, Filter, Flag, LayoutGrid, MapPin, MoreVertical, Printer, Search, Table as TableIcon, Trash2, User, Users, UsersRound, X } from "lucide-react";
+import type { GroupSeance, IndependentSession, Student } from "@/lib/types";
 import { printHtmlDocument } from "@/lib/print";
 import {
   formatDateFr,
+  groupSeanceTotals,
+  groupSeanceTrainers,
   independentTotals,
   registrationNumberOf,
   studentMatches,
 } from "@/lib/helpers";
 import { seanceLibreInvoiceHtml } from "@/lib/reports/documents";
-import { GroupSeanceSection } from "@/components/independent/GroupSeanceSection";
+import { GroupSeanceSection, type GroupProgramApi } from "@/components/independent/GroupSeanceSection";
 import { useSettings } from "@/lib/store/settings";
 import { formatDA, money } from "@/lib/utils";
 
@@ -88,6 +93,8 @@ export function IndependentPage() {
   const db = useData();
   const {
     independent,
+    groupSeances,
+    programCategories,
     teachers,
     students,
     subscriptions,
@@ -105,20 +112,24 @@ export function IndependentPage() {
   // Modals
   const [isFormOpen, setIsFormOpen] = useState(false);
   /**
-   * LE BOUTON « PROGRAMME GROUPE » DU HAUT ouvre le formulaire qui vit dans
-   * `GroupSeanceSection`. On lui passe un COMPTEUR de clics : la section garde
-   * son propre état et ouvre dès qu'elle voit un nombre qu'elle ne connaît pas.
+   * LES GESTES DES PROGRAMMES DE GROUPE — créer, modifier, voir, imprimer,
+   * supprimer. Ils vivent dans `GroupSeanceSection`, qui ne dessine plus rien
+   * d'autre ; l'historique ci-dessous les déclenche ligne par ligne.
    */
-  const [groupTick, setGroupTick] = useState(0);
+  const groupApi = useRef<GroupProgramApi>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedCasual, setSelectedCasual] = useState<IndependentSession | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // Main list: search / filters / layout
+  // L'historique : recherche / filtres / mise en page
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [listSearch, setListSearch] = useState("");
+  /** solo, groupe, ou les deux — « all » par défaut, c'est tout l'historique */
+  const [typeFilter, setTypeFilter] = useState<"all" | "solo" | "groupe">("all");
   const [payerFilter, setPayerFilter] = useState<"all" | "student" | "passager">("all");
-  const [kindFilter, setKindFilter] = useState<"all" | "cours" | "timing">("all");
+  const [originFilter, setOriginFilter] = useState<"all" | "cours" | "timing">("all");
+  /** la nature d'une sortie de groupe — « » = toutes */
+  const [catFilter, setCatFilter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -255,35 +266,137 @@ export function IndependentPage() {
   const optionForSession = (sessionId?: string) =>
     sessionId ? seanceOptions.find((o) => o.sessionId === sessionId) : undefined;
 
-  // ---- Main list ------------------------------------------------------------
+  // ---- L'HISTORIQUE — UN SEUL, SOLO ET GROUPE MÊLÉS -------------------------
+  //
+  //  Le club organise une chose à la fois. Deux registres côte à côte
+  //  obligeaient à se rappeler, AVANT de chercher, si la sortie avait été
+  //  vendue à un chevalier nommé ou à un groupe entier : une question à
+  //  laquelle on ne répond qu'après avoir retrouvé la ligne. Un seul tableau,
+  //  daté du plus récent au plus ancien, et la question ne se pose plus.
 
-  const filteredList = useMemo(() => {
+  /** Une ligne de l'historique : ou bien un programme solo, ou bien un groupe. */
+  type HistoryEntry =
+    | { kind: "solo"; id: string; date: string; stamp: string; solo: IndependentSession }
+    | { kind: "groupe"; id: string; date: string; stamp: string; group: GroupSeance };
+
+  const teacherNameOf = (id?: string) => {
+    const t = teachers.find((x) => x.id === id);
+    return t ? `${t.firstName} ${t.lastName}` : "-";
+  };
+
+  const categoryNameOf = (id?: string) =>
+    programCategories.find((c) => c.id === id)?.name ?? "Sans catégorie";
+
+  /** Les encadrants d'une sortie, nommés — « Karim B. + 2 » quand ils sont trois. */
+  const trainersLabel = (g: GroupSeance) => {
+    const ids = groupSeanceTrainers(g);
+    if (ids.length === 0) return "-";
+    const first = teacherNameOf(ids[0]);
+    return ids.length > 1 ? `${first} + ${ids.length - 1}` : first;
+  };
+
+  /** L'heure de création, faute de quoi midi le jour de la séance. */
+  const stampOf = (row: { createdAt?: string; date: string }) =>
+    row.createdAt ?? `${row.date}T12:00:00.000Z`;
+
+  const filteredHistory = useMemo<HistoryEntry[]>(() => {
     const q = listSearch.trim().toLowerCase();
-    return independent
-      .filter((ind) => {
-        const person = ind.studentId ? getStudentName(ind.studentId) : ind.passagerName ?? "";
-        if (q && !`${person} ${ind.itemLabel}`.toLowerCase().includes(q)) return false;
-        if (payerFilter === "student" && !ind.studentId) return false;
-        if (payerFilter === "passager" && ind.studentId) return false;
-        if (kindFilter !== "all") {
-          const opt = optionForSession(ind.sessionId);
-          const kind = opt?.kind ?? "cours";
-          if (kind !== kindFilter) return false;
-        }
-        if (fromDate && ind.date < fromDate) return false;
-        if (toDate && ind.date > toDate) return false;
-        return true;
-      })
-      .sort((a, b) => (b.createdAt ?? b.date).localeCompare(a.createdAt ?? a.date));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [independent, listSearch, payerFilter, kindFilter, fromDate, toDate, students, seanceOptions]);
+    const entries: HistoryEntry[] = [];
 
-  const totalCollected = filteredList.reduce((s, i) => s + i.price, 0);
+    if (typeFilter !== "groupe") {
+      independent.forEach((ind) => {
+        const person = ind.studentId ? getStudentName(ind.studentId) : ind.passagerName ?? "";
+        if (q && !`${person} ${ind.itemLabel}`.toLowerCase().includes(q)) return;
+        if (payerFilter === "student" && !ind.studentId) return;
+        if (payerFilter === "passager" && ind.studentId) return;
+        if (originFilter !== "all") {
+          const kind = optionForSession(ind.sessionId)?.kind ?? "cours";
+          if (kind !== originFilter) return;
+        }
+        if (fromDate && ind.date < fromDate) return;
+        if (toDate && ind.date > toDate) return;
+        entries.push({ kind: "solo", id: ind.id, date: ind.date, stamp: stampOf(ind), solo: ind });
+      });
+    }
+
+    // Le payeur et l'origine ne disent rien d'une sortie de groupe : on n'y
+    // nomme personne, et elle ne sort d'aucun emploi du temps. Les filtrer
+    // là-dessus reviendrait à les faire disparaître sans raison — c'est la
+    // CATÉGORIE qui les trie.
+    if (typeFilter !== "solo" && payerFilter === "all" && originFilter === "all") {
+      groupSeances.forEach((g) => {
+        if (catFilter && g.categoryId !== catFilter) return;
+        if (
+          q &&
+          !`${g.title} ${g.description ?? ""} ${groupSeanceTrainers(g)
+            .map(teacherNameOf)
+            .join(" ")} ${categoryNameOf(g.categoryId)}`
+            .toLowerCase()
+            .includes(q)
+        )
+          return;
+        if (fromDate && g.date < fromDate) return;
+        if (toDate && g.date > toDate) return;
+        entries.push({ kind: "groupe", id: g.id, date: g.date, stamp: stampOf(g), group: g });
+      });
+    }
+
+    return entries.sort((a, b) => `${b.date}${b.stamp}`.localeCompare(`${a.date}${a.stamp}`));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    independent,
+    groupSeances,
+    programCategories,
+    listSearch,
+    typeFilter,
+    payerFilter,
+    originFilter,
+    catFilter,
+    fromDate,
+    toDate,
+    students,
+    teachers,
+    seanceOptions,
+  ]);
+
+  /** Ce que l'historique affiché pèse — en séances, en chevaliers et en dinars. */
+  const historyTotals = filteredHistory.reduce(
+    (acc, e) => {
+      if (e.kind === "solo") {
+        const t = independentTotals(e.solo);
+        acc.solo += 1;
+        acc.people += 1;
+        acc.total += t.price;
+        acc.school += t.school;
+        acc.teacher += t.teacher;
+      } else {
+        const t = groupSeanceTotals(e.group);
+        acc.group += 1;
+        acc.people += t.students;
+        acc.total += t.total;
+        acc.school += t.schoolTotal;
+        acc.teacher += t.teacherTotal;
+      }
+      return acc;
+    },
+    { solo: 0, group: 0, people: 0, total: 0, school: 0, teacher: 0 },
+  );
+
+  const hasListFilters =
+    !!listSearch ||
+    typeFilter !== "all" ||
+    payerFilter !== "all" ||
+    originFilter !== "all" ||
+    !!catFilter ||
+    !!fromDate ||
+    !!toDate;
 
   const clearListFilters = () => {
     setListSearch("");
+    setTypeFilter("all");
     setPayerFilter("all");
-    setKindFilter("all");
+    setOriginFilter("all");
+    setCatFilter("");
     setFromDate("");
     setToDate("");
   };
@@ -445,10 +558,9 @@ export function IndependentPage() {
     });
   };
 
-  const createdStamp = (ind: IndependentSession) => {
-    const iso = ind.createdAt ?? `${ind.date}T12:00:00.000Z`;
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return ind.date;
+  const createdStamp = (row: { createdAt?: string; date: string }) => {
+    const d = new Date(stampOf(row));
+    if (isNaN(d.getTime())) return row.date;
     return `${d.toLocaleDateString("fr-FR")} à ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
   };
 
@@ -489,7 +601,7 @@ export function IndependentPage() {
 
           <button
             type="button"
-            onClick={() => setGroupTick((n) => n + 1)}
+            onClick={() => groupApi.current?.openCreate()}
             className="group flex items-start gap-4 rounded-2xl border-2 border-accent/35 bg-accent-wash/40 p-5 text-start transition-colors hover:border-accent/70 hover:bg-accent-wash/70"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent-ink transition-transform group-hover:scale-105">
@@ -509,24 +621,20 @@ export function IndependentPage() {
         </div>
       )}
 
-      {/* Les programmes de groupe : la liste, ses totaux et son formulaire. */}
-      <GroupSeanceSection openTick={groupTick} />
+      {/* Les gestes des programmes de groupe — formulaire, détail, fiche de
+          paie, suppression. La section ne dessine aucune liste : l'historique
+          ci-dessous porte les sorties de groupe au milieu des solos, et
+          déclenche ces gestes ligne par ligne. */}
+      <GroupSeanceSection ref={groupApi} />
 
-      {/* ---- Les programmes solo ---- */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-base font-black text-ink">
-            <User className="h-5 w-5 text-primary" /> Programmes solo
-          </h3>
-          <p className="text-[11px] text-muted">
-            Les séances vendues à un chevalier nommé — inscrit ou de passage.
-          </p>
-        </div>
-        {can("create") && (
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="h-4 w-4" /> Nouveau programme solo
-          </Button>
-        )}
+      {/* ---- L'HISTORIQUE DE TOUT CE QUE LE CLUB A ORGANISÉ ---- */}
+      <div className="min-w-0">
+        <h3 className="flex items-center gap-2 text-base font-black text-ink">
+          <CalendarRange className="h-5 w-5 text-primary" /> Historique des programmes
+        </h3>
+        <p className="text-[11px] text-muted">
+          Les programmes solo et les programmes de groupe, mêlés, du plus récent au plus ancien.
+        </p>
       </div>
 
       {/* Filters toolbar */}
@@ -537,7 +645,7 @@ export function IndependentPage() {
               <Filter className="h-4 w-4 text-primary" /> Rechercher & Filtrer
             </span>
             <div className="flex items-center gap-2">
-              {(listSearch || payerFilter !== "all" || kindFilter !== "all" || fromDate || toDate) && (
+              {hasListFilters && (
                 <button onClick={clearListFilters} className="text-primary hover:underline font-bold text-[10px] flex items-center gap-1">
                   <X className="h-3 w-3" /> Réinitialiser
                 </button>
@@ -563,7 +671,7 @@ export function IndependentPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <div className="lg:col-span-2">
               <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Recherche</label>
               <div className="relative">
@@ -571,28 +679,53 @@ export function IndependentPage() {
                 <Input
                   value={listSearch}
                   onChange={(e) => setListSearch(e.target.value)}
-                  placeholder="Nom du chevalier, passager ou séance..."
+                  placeholder="Chevalier, passager, intitulé, encadrant ou catégorie..."
                   className="ps-9"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Type de payeur</label>
-              <Select value={payerFilter} onChange={(e) => setPayerFilter(e.target.value as typeof payerFilter)} className="w-full">
-                <option value="all">Tous</option>
-                <option value="student">Chevaliers inscrits</option>
-                <option value="passager">Passagers</option>
+              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Type</label>
+              <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)} className="w-full">
+                <option value="all">Tous les programmes</option>
+                <option value="solo">Programmes solo</option>
+                <option value="groupe">Programmes de groupe</option>
               </Select>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Origine</label>
-              <Select value={kindFilter} onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)} className="w-full">
-                <option value="all">Toutes</option>
-                <option value="timing">Créneaux séance libre</option>
-                <option value="cours">Cours normaux</option>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+            {/* Le payeur et l'origine ne décrivent qu'un programme solo : ils
+                disparaissent quand l'écran ne montre que des groupes. */}
+            {typeFilter !== "groupe" && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Type de payeur</label>
+                  <Select value={payerFilter} onChange={(e) => setPayerFilter(e.target.value as typeof payerFilter)} className="w-full">
+                    <option value="all">Tous</option>
+                    <option value="student">Chevaliers inscrits</option>
+                    <option value="passager">Passagers</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Origine</label>
+                  <Select value={originFilter} onChange={(e) => setOriginFilter(e.target.value as typeof originFilter)} className="w-full">
+                    <option value="all">Toutes</option>
+                    <option value="timing">Créneaux séance libre</option>
+                    <option value="cours">Cours normaux</option>
+                  </Select>
+                </div>
+              </>
+            )}
+            {typeFilter !== "solo" && programCategories.length > 0 && (
+              <div>
+                <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Catégorie</label>
+                <Select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="w-full">
+                  <option value="">Toutes</option>
+                  {programCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2 lg:col-span-2">
               <div>
                 <label className="block text-[10px] font-bold text-muted uppercase mb-1 font-sans">Du</label>
                 <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -604,33 +737,180 @@ export function IndependentPage() {
             </div>
           </div>
 
+          {/* Les filtres du solo mettent les sorties de groupe de côté : on le
+              dit, plutôt que de les laisser disparaître sans explication. */}
+          {typeFilter !== "solo" && (payerFilter !== "all" || originFilter !== "all") && (
+            <p className="rounded-xl bg-canvas/40 border border-line/60 px-3 py-2 text-[10px] text-muted">
+              Le payeur et l&apos;origine ne décrivent qu&apos;un programme solo — on ne nomme
+              personne dans une sortie de groupe, et elle ne sort d&apos;aucun emploi du temps. Les
+              programmes de groupe restent donc masqués tant que l&apos;un de ces deux filtres est
+              posé.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-2.5 text-[11px]">
-            <Badge tone="primary" className="font-bold">{filteredList.length} séance(s)</Badge>
-            <Badge tone="success" className="font-bold">{formatDA(totalCollected)} encaissés</Badge>
+            <Badge tone="primary" className="font-bold">{filteredHistory.length} programme(s)</Badge>
             <Badge tone="neutral" className="font-bold">
-              {filteredList.filter((i) => !i.studentId).length} passager(s)
+              {historyTotals.solo} solo · {historyTotals.group} groupe
             </Badge>
+            <Badge tone="neutral" className="font-bold">{historyTotals.people} chevalier(s)</Badge>
+            <Badge tone="success" className="font-bold">{formatDA(historyTotals.total)} encaissés</Badge>
+            <Badge tone="primary" className="font-bold">{formatDA(historyTotals.school)} part club</Badge>
+            <Badge tone="warning" className="font-bold">{formatDA(historyTotals.teacher)} part encadrants</Badge>
           </div>
         </CardBody>
       </Card>
 
-      {filteredList.length === 0 ? (
+      {filteredHistory.length === 0 ? (
         <div className="text-center p-12 bg-canvas/30 border border-line border-dashed rounded-2xl text-muted text-xs">
-          Aucun programme solo ne correspond aux filtres actuels.
+          {hasListFilters
+            ? "Aucun programme ne correspond aux filtres actuels."
+            : "Aucun programme pour le moment — commencez par l'un des deux gestes ci-dessus."}
         </div>
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredList.map((ind) => {
+          {filteredHistory.map((entry) => {
+            const cardClass = `relative transition-all duration-300 ${
+              activeMenuId === entry.id
+                ? "z-30 scale-[1.02] ring-2 ring-primary/45 shadow-2xl"
+                : "z-10 hover:z-20 hover:shadow-lg hover:-translate-y-0.5 border border-line"
+            }`;
+
+            // ---- UNE SORTIE DE GROUPE ------------------------------------
+            if (entry.kind === "groupe") {
+              const g = entry.group;
+              const t = groupSeanceTotals(g);
+              return (
+                <Card key={entry.id} className={cardClass}>
+                  <CardBody className="flex flex-col justify-between min-h-[230px] relative p-5">
+                    {activeMenuId === entry.id && (
+                      <div className="absolute inset-0 bg-surface/98 backdrop-blur-md rounded-2xl p-4 flex flex-col justify-between z-20 animate-in fade-in zoom-in-95 duration-200 border border-primary/20">
+                        <div className="flex justify-between items-center border-b border-line pb-2">
+                          <span className="font-bold text-[10px] text-muted uppercase tracking-wider truncate">
+                            Actions: {g.title}
+                          </span>
+                          <button
+                            onClick={() => setActiveMenuId(null)}
+                            className="p-1 rounded-lg hover:bg-canvas text-muted hover:text-ink transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 my-2 flex-1 items-center">
+                          {can("view") && (
+                            <button
+                              onClick={() => { groupApi.current?.openDetails(g); setActiveMenuId(null); }}
+                              className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-canvas border border-line text-ink hover:bg-primary-50 transition-colors"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> Détails
+                            </button>
+                          )}
+                          {can("edit") && (
+                            <button
+                              onClick={() => { groupApi.current?.openEdit(g); setActiveMenuId(null); }}
+                              className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-canvas border border-line text-ink hover:bg-primary-50 transition-colors"
+                            >
+                              <Edit className="h-3.5 w-3.5" /> Modifier
+                            </button>
+                          )}
+                          {can("print") && (
+                            <button
+                              onClick={() => { groupApi.current?.printPayslip(g); setActiveMenuId(null); }}
+                              className="col-span-2 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-canvas border border-line text-ink hover:bg-primary-50 transition-colors"
+                            >
+                              <Printer className="h-3.5 w-3.5" /> Fiche de paie
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="border-t border-line pt-2">
+                          {can("delete") && (
+                            <button
+                              onClick={() => { groupApi.current?.remove(g); setActiveMenuId(null); }}
+                              className="flex items-center justify-center gap-1.5 w-full py-2 px-3 text-xs font-bold rounded-xl bg-danger text-white hover:bg-danger/90 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-full bg-accent/15 border border-accent/25 text-accent-ink flex items-center justify-center shrink-0">
+                            <UsersRound className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-bold text-ink truncate">{g.title}</h4>
+                            <span className="text-[10px] text-muted block truncate">
+                              Programme groupe · {categoryNameOf(g.categoryId)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setActiveMenuId(activeMenuId === entry.id ? null : entry.id)}
+                          className="p-1.5 rounded-lg hover:bg-primary-50 text-muted hover:text-ink transition-colors shrink-0"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div className="flex items-start justify-between gap-2 text-xs bg-canvas/30 border border-line/60 rounded-xl p-2.5">
+                          <div className="min-w-0">
+                            <span className="text-[10px] text-muted block uppercase font-semibold">Chevaliers</span>
+                            <span className="font-semibold text-ink block truncate">
+                              {t.students} × {formatDA(t.pricePerStudent)}
+                            </span>
+                          </div>
+                          <div className="text-end shrink-0">
+                            <span className="text-[10px] text-muted block uppercase font-semibold">Total encaissé</span>
+                            <span className="font-bold text-success">{formatDA(t.total)}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <div className="bg-canvas/20 border border-line/50 p-2 rounded-xl">
+                            <span className="text-muted block text-[9px] uppercase font-sans">Date séance</span>
+                            <strong className="text-ink mt-0.5 font-mono block">{formatDateFr(g.date)}</strong>
+                            <span className="text-[9px] text-muted font-mono">{g.startTime} - {g.endTime}</span>
+                          </div>
+                          <div className="bg-canvas/20 border border-line/50 p-2 rounded-xl">
+                            <span className="text-muted block text-[9px] uppercase">Créé le</span>
+                            <strong className="text-ink mt-0.5 font-mono block text-[10px]">{createdStamp(g)}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-line/60 pt-3 mt-4 flex items-center justify-between">
+                      <span className="text-[10px] text-muted flex items-center gap-1.5 truncate">
+                        <Users className="h-3 w-3 shrink-0" />
+                        {trainersLabel(g)}
+                        {(g.workerIds?.length ?? 0) > 0 && (
+                          <Badge tone="neutral" className="gap-1 text-[8px] px-1 py-0">
+                            <Briefcase className="h-2.5 w-2.5" /> {g.workerIds!.length}
+                          </Badge>
+                        )}
+                      </span>
+                      <Badge tone="warning" className="font-mono font-bold text-[10px]">
+                        {formatDA(t.teacherTotal)}
+                      </Badge>
+                    </div>
+                  </CardBody>
+                </Card>
+              );
+            }
+
+            // ---- UN PROGRAMME SOLO ---------------------------------------
+            const ind = entry.solo;
             const opt = optionForSession(ind.sessionId);
             return (
-              <Card
-                key={ind.id}
-                className={`relative transition-all duration-300 ${
-                  activeMenuId === ind.id
-                    ? "z-30 scale-[1.02] ring-2 ring-primary/45 shadow-2xl"
-                    : "z-10 hover:z-20 hover:shadow-lg hover:-translate-y-0.5 border border-line"
-                }`}
-              >
+              <Card key={entry.id} className={cardClass}>
                 <CardBody className="flex flex-col justify-between min-h-[230px] relative p-5">
                   {/* Actions overlay panel */}
                   {activeMenuId === ind.id && (
@@ -734,7 +1014,7 @@ export function IndependentPage() {
                           )}
                         </div>
                         <div className="bg-canvas/20 border border-line/50 p-2 rounded-xl">
-                          <span className="text-muted block text-[9px] uppercase">Créée le</span>
+                          <span className="text-muted block text-[9px] uppercase">Créé le</span>
                           <strong className="text-ink mt-0.5 font-mono block text-[10px]">{createdStamp(ind)}</strong>
                         </div>
                       </div>
@@ -757,35 +1037,135 @@ export function IndependentPage() {
           })}
         </div>
       ) : (
-        /* TABLE VIEW */
+        /* TABLE VIEW — les deux natures de programme dans les mêmes colonnes */
         <div className="border border-line rounded-2xl overflow-hidden bg-surface">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-start border-collapse min-w-[860px]">
+            <table className="w-full text-xs text-start border-collapse min-w-[980px]">
               <thead>
                 <tr className="bg-canvas border-b border-line text-[10px] text-muted uppercase font-bold tracking-wider">
-                  <th className="p-3">Chevalier / Passager</th>
-                  <th className="p-3">Séance</th>
-                  <th className="p-3">Entraîneur</th>
+                  <th className="p-3">Programme</th>
+                  <th className="p-3">Détail</th>
+                  <th className="p-3">Encadrant(s)</th>
                   <th className="p-3">Date & horaire</th>
-                  <th className="p-3">Créée le</th>
-                  <th className="p-3 text-end">Tarif</th>
+                  <th className="p-3">Créé le</th>
+                  <th className="p-3 text-center">Chevaliers</th>
+                  <th className="p-3 text-end">Total</th>
                   <th className="p-3 text-end">Part club</th>
-                  <th className="p-3 text-end">Part entraîneur</th>
+                  <th className="p-3 text-end">Part encadrants</th>
                   <th className="p-3 text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredList.map((ind) => {
+                {filteredHistory.map((entry) => {
+                  // ---- UNE SORTIE DE GROUPE --------------------------------
+                  if (entry.kind === "groupe") {
+                    const g = entry.group;
+                    const t = groupSeanceTotals(g);
+                    const trainers = groupSeanceTrainers(g);
+                    return (
+                      <tr key={entry.id} className="border-b border-line last:border-0 hover:bg-canvas/30 transition-colors">
+                        <td className="p-3">
+                          <span className="font-bold text-ink block truncate max-w-[220px]">{g.title}</span>
+                          <Badge tone="accent" className="text-[9px] mt-0.5">Groupe</Badge>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-ink block truncate max-w-[220px]">
+                            {g.description || categoryNameOf(g.categoryId)}
+                          </span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                            {g.categoryId && (
+                              <Badge tone="neutral" className="text-[9px]">{categoryNameOf(g.categoryId)}</Badge>
+                            )}
+                            {(g.workerIds?.length ?? 0) > 0 && (
+                              <Badge tone="neutral" className="gap-1 text-[9px]">
+                                <Briefcase className="h-2.5 w-2.5" /> {g.workerIds!.length} autre(s)
+                              </Badge>
+                            )}
+                          </span>
+                        </td>
+                        <td className="p-3 text-ink" title={trainers.map(teacherNameOf).join(" · ")}>
+                          {trainersLabel(g)}
+                        </td>
+                        <td className="p-3 font-mono text-[10px]">
+                          {formatDateFr(g.date)}
+                          <span className="block text-muted">{g.startTime} - {g.endTime}</span>
+                        </td>
+                        <td className="p-3 font-mono text-[10px] text-muted">{createdStamp(g)}</td>
+                        <td className="p-3 text-center">
+                          <Badge tone="primary" className="gap-1 font-mono">
+                            <Users className="h-3 w-3" /> {t.students}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-end font-bold text-success font-mono">{formatDA(t.total)}</td>
+                        <td className="p-3 text-end font-mono text-muted">{formatDA(t.schoolTotal)}</td>
+                        <td className="p-3 text-end font-mono font-bold text-primary">
+                          {formatDA(t.teacherTotal)}
+                          {trainers.length > 1 && (
+                            <span className="block text-[9px] font-normal text-muted">
+                              {formatDA(t.teacherTotal / trainers.length)} chacun
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex justify-end gap-1">
+                            {can("view") && (
+                              <button
+                                onClick={() => groupApi.current?.openDetails(g)}
+                                className="p-1.5 rounded-lg hover:bg-primary-50 text-ink"
+                                title="Détails"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {can("print") && (
+                              <button
+                                onClick={() => groupApi.current?.printPayslip(g)}
+                                className="p-1.5 rounded-lg hover:bg-primary-50 text-ink"
+                                title="Fiche de paie"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {can("edit") && (
+                              <button
+                                onClick={() => groupApi.current?.openEdit(g)}
+                                className="p-1.5 rounded-lg hover:bg-primary-50 text-primary"
+                                title="Modifier"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {can("delete") && (
+                              <button
+                                onClick={() => groupApi.current?.remove(g)}
+                                className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // ---- UN PROGRAMME SOLO -----------------------------------
+                  const ind = entry.solo;
                   const opt = optionForSession(ind.sessionId);
+                  const split = independentTotals(ind);
                   return (
-                    <tr key={ind.id} className="border-b border-line last:border-0 hover:bg-canvas/30 transition-colors">
+                    <tr key={entry.id} className="border-b border-line last:border-0 hover:bg-canvas/30 transition-colors">
                       <td className="p-3">
                         <span className="font-bold text-ink block">
                           {ind.studentId ? getStudentName(ind.studentId) : ind.passagerName}
                         </span>
-                        <Badge tone={ind.studentId ? "primary" : "warning"} className="text-[9px] mt-0.5">
-                          {ind.studentId ? "Inscrit" : "Passager"}
-                        </Badge>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                          <Badge tone="success" className="text-[9px]">Solo</Badge>
+                          <Badge tone={ind.studentId ? "primary" : "warning"} className="text-[9px]">
+                            {ind.studentId ? "Inscrit" : "Passager"}
+                          </Badge>
+                        </span>
                       </td>
                       <td className="p-3">
                         <span className="text-ink block truncate max-w-[220px]">{ind.itemLabel}</span>
@@ -799,25 +1179,19 @@ export function IndependentPage() {
                         {ind.startTime && <span className="block text-muted">{ind.startTime} - {ind.endTime}</span>}
                       </td>
                       <td className="p-3 font-mono text-[10px] text-muted">{createdStamp(ind)}</td>
-                      {(() => {
-                        const split = independentTotals(ind);
-                        return (
-                          <>
-                            <td className="p-3 text-end font-bold text-success font-mono">
-                              {formatDA(split.price)}
-                            </td>
-                            <td className="p-3 text-end font-mono text-muted">
-                              {formatDA(split.school)}
-                            </td>
-                            <td className="p-3 text-end font-mono font-bold text-primary">
-                              {formatDA(split.teacher)}
-                              <span className="block text-[9px] font-normal text-muted">
-                                {ind.teacherPaid ? "réglée" : "à régler"}
-                              </span>
-                            </td>
-                          </>
-                        );
-                      })()}
+                      <td className="p-3 text-center">
+                        <Badge tone="primary" className="gap-1 font-mono">
+                          <Users className="h-3 w-3" /> 1
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-end font-bold text-success font-mono">{formatDA(split.price)}</td>
+                      <td className="p-3 text-end font-mono text-muted">{formatDA(split.school)}</td>
+                      <td className="p-3 text-end font-mono font-bold text-primary">
+                        {formatDA(split.teacher)}
+                        <span className="block text-[9px] font-normal text-muted">
+                          {ind.teacherPaid ? "réglée" : "à régler"}
+                        </span>
+                      </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-1">
                           {can("view") && (
