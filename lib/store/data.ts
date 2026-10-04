@@ -1327,12 +1327,6 @@ function courseKey(s: ScheduleSession): string {
   return s.isOpen ? `open-${s.id}` : `${s.classId}|${s.moduleId}|${s.teacherId}`;
 }
 
-function siblingIds(db: Database, sessionId: string): string[] {
-  const src = db.sessions.find((s) => s.id === sessionId);
-  if (!src) return [];
-  const key = courseKey(src);
-  return db.sessions.filter((s) => courseKey(s) === key).map((s) => s.id);
-}
 
 interface EnrollmentView {
   subscriptionId: string;
@@ -3422,7 +3416,9 @@ export const useData = create<DataStore>((set, get) => ({
     const session = db.sessions.find((s) => s.id === sessionId);
     if (!session) return { ok: false };
 
-    const ids = siblingIds(db, sessionId);
+    // CHAQUE EMPLOI DU TEMPS A SON PROPRE TARIF : deux groupes d'une même
+    // catégorie (vendredi matin, vendredi soir) ne se partagent plus le prix.
+    const ids = db.sessions.some((s) => s.id === sessionId) ? [sessionId] : [];
     // LE PRIX D'UNE SÉANCE GARDE SES DÉCIMALES : une carte à 4 000 DA sur 3
     // séances vaut 1 333,33 DA la séance, pas 1 333. Le même soin s'applique à
     // la part du club et à celle de l'entraîneur : arrondir chaque division
@@ -3524,7 +3520,9 @@ export const useData = create<DataStore>((set, get) => ({
 
   deleteSubscriptionPrice: async (sessionId) => {
     const db = get();
-    const ids = siblingIds(db, sessionId);
+    // CHAQUE EMPLOI DU TEMPS A SON PROPRE TARIF : deux groupes d'une même
+    // catégorie (vendredi matin, vendredi soir) ne se partagent plus le prix.
+    const ids = db.sessions.some((s) => s.id === sessionId) ? [sessionId] : [];
     const doomed = db.subscriptions.filter((s) => ids.includes(s.sessionId) && !s.archivedAt);
     const doomedIds = new Set(doomed.map((s) => s.id));
     if (doomedIds.size === 0) return { ok: true, deleted: 0 };
