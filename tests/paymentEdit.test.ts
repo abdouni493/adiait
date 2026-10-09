@@ -57,7 +57,12 @@ describe("corriger et supprimer un encaissement", () => {
     expect(cashOf()[0].amount).toBe(2000);
   });
 
-  it("déplace un versement d'une carte à l'autre sans toucher au solde", async () => {
+  /**
+   * Le code de carte d'un versement n'est plus qu'une ÉTIQUETTE (le reçu, la
+   * ligne de l'historique) : l'argent appartient à l'emploi du temps et paie
+   * les cartes dans l'ordre. Le changer ne déplace donc rien.
+   */
+  it("réétiquette un versement sur une autre carte sans rien déplacer", async () => {
     const res = await useData
       .getState()
       .addSold({ studentId: STU, subscriptionId: SUB, amount: 3000, monthCode: "M1" });
@@ -65,9 +70,11 @@ describe("corriger et supprimer un encaissement", () => {
     await useData.getState().updateStudentPayment(res.paymentId!, { monthCode: "M2" });
 
     const db = useData.getState();
+    expect(db.payments.find((p) => p.id === res.paymentId)?.monthCode).toBe("M2");
     expect(soldFor(db, STU, SUB)).toBe(3000);
-    expect(cycleOf(db, STU, SUB, "M1").credited).toBe(0);
-    expect(cycleOf(db, STU, SUB, "M2").credited).toBe(3000);
+    // La carte 1 n'est pas encore payée en entier : la bourse la paie d'abord.
+    expect(cycleOf(db, STU, SUB, "M1").credited).toBe(3000);
+    expect(cycleOf(db, STU, SUB, "M2").credited).toBe(0);
   });
 
   it("réécrit la description sans rien déplacer d'autre", async () => {

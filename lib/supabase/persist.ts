@@ -120,6 +120,35 @@ export function setBaseline(db: Database): void {
 //  L'envoi
 // ---------------------------------------------------------------------------
 
+/**
+ * UN CHAMP EFFACÉ DOIT S'EFFACER EN BASE AUSSI.
+ *
+ * `toRow` n'envoie jamais un champ `undefined` — c'est ce qui permet à une
+ * ligne de n'envoyer que ce qu'elle porte. Mais un `upsert` qui ne nomme pas
+ * une colonne ne la TOUCHE PAS : un champ que l'écran venait de vider (la date
+ * de début d'une carte recalculée, l'archivage d'un tarif remis en service)
+ * restait donc en base avec son ancienne valeur, et revenait au rechargement
+ * suivant comme si rien ne s'était passé.
+ *
+ * Toute colonne présente dans ce qui a été envoyé la fois d'avant, et absente
+ * maintenant, part donc à `null`. La référence, elle, garde la forme sans
+ * `null` : c'est celle que `snapshotOf` produit, et la comparaison suivante ne
+ * doit pas croire la ligne encore modifiée.
+ */
+export function withClearedColumns(row: Row, before: Row | undefined, pk: string): Row {
+  if (!before) return row;
+  let out = row;
+  for (const column of Object.keys(before)) {
+    if (column === pk || column in row) continue;
+    if (out === row) out = { ...row };
+    out[column] = null;
+  }
+  return out;
+}
+
+/** Le code PostgreSQL d'une colonne NOT NULL qu'on voulait vider. */
+const NOT_NULL_VIOLATION = "23502";
+
 async function pushCollection(
   key: CollectionKey,
   next: Map<string, Row>,
@@ -127,18 +156,30 @@ async function pushCollection(
 ): Promise<{ upserted: Row[]; failed: string | null }> {
   const spec = TABLES[key];
   const changed: Row[] = [];
+  const outgoing: Row[] = [];
 
   for (const [id, row] of next) {
     const before = previous.get(id);
-    if (!before || !sameRow(before, row)) changed.push(row);
+    if (before && sameRow(before, row)) continue;
+    changed.push(row);
+    outgoing.push(withClearedColumns(row, before, spec.pk));
   }
   if (!changed.length) return { upserted: [], failed: null };
 
   for (let i = 0; i < changed.length; i += CHUNK) {
-    const slice = changed.slice(i, i + CHUNK);
-    const { error } = await supabase()
-      .from(spec.table)
-      .upsert(slice, { onConflict: spec.pk });
+    // `defaultToNull: false` : dans un envoi groupé, une ligne qui ne porte pas
+    // une colonne que sa voisine porte reçoit la valeur PAR DÉFAUT de la
+    // colonne, et non `null` — qui ferait refuser tout le paquet sur une
+    // colonne NOT NULL.
+    const send = (rows: Row[]) =>
+      supabase().from(spec.table).upsert(rows, { onConflict: spec.pk, defaultToNull: false });
+    let { error } = await send(outgoing.slice(i, i + CHUNK));
+    if (error && error.code === NOT_NULL_VIOLATION) {
+      // Une colonne obligatoire a été vidée : on renvoie sans les effacements,
+      // pour que le reste de la ligne (une présence, un solde) parte quand même.
+      console.warn(`[supabase] ${spec.table} : une colonne obligatoire ne peut pas être vidée.`);
+      ({ error } = await send(changed.slice(i, i + CHUNK)));
+    }
     if (error) {
       return { upserted: changed.slice(0, i), failed: `${spec.table} : ${error.message}` };
     }
@@ -185,9 +226,12 @@ async function push(db: Database): Promise<void> {
 
   // L'établissement, puis les créations dans l'ordre des dépendances.
   if (!sameRow(baseline.school, next.school)) {
-    const { error } = await supabase()
-      .from(SCHOOL_TABLE.table)
-      .upsert({ ...next.school, id: SCHOOL_ROW_ID }, { onConflict: "id" });
+    const sendSchool = (row: Row) =>
+      supabase()
+        .from(SCHOOL_TABLE.table)
+        .upsert({ ...row, id: SCHOOL_ROW_ID }, { onConflict: "id" });
+    let { error } = await sendSchool(withClearedColumns(next.school, baseline.school, "id"));
+    if (error && error.code === NOT_NULL_VIOLATION) ({ error } = await sendSchool(next.school));
     if (error) failures.push(`${SCHOOL_TABLE.table} : ${error.message}`);
     else baseline.school = next.school;
   }

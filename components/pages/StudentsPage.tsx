@@ -58,7 +58,7 @@ import {
 } from "@/components/students/ClassTimingPicker";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
 import { StudentSituationModal } from "@/components/students/StudentSituationModal";
-import { formatDA } from "@/lib/utils";
+import { formatDA, money } from "@/lib/utils";
 import { SoldManagerModal } from "@/components/students/SoldManagerModal";
 import { TransferStudentModal } from "@/components/students/TransferStudentModal";
 import {
@@ -519,7 +519,7 @@ export function StudentsPage() {
     const res = await updateAttendance(editingAtt.id, {
       status: attEditStatus,
       occurredAt: dtInputToIso(attEditDate),
-      amount: Math.max(0, Math.round(attEditAmount || 0)),
+      amount: Math.max(0, money(attEditAmount || 0)),
     });
     setAttBusy(false);
     if (!res.ok) {
@@ -536,7 +536,7 @@ export function StudentsPage() {
     addToast({
       type: "success",
       title: "Présence modifiée",
-      message: `Prix de la séance retenu pour la part entraîneur : ${res.cost ?? 0} DA.`,
+      message: `Séance débitée de ${formatDA(res.cost ?? 0)} — le solde de l'emploi du temps a bougé de l'écart.`,
     });
     closeAttModals();
   };
@@ -2457,7 +2457,7 @@ export function StudentsPage() {
                                       }`}
                                     >
                                       <td className="py-1.5 font-bold text-ink">
-                                        {c.code}
+                                        {carteShort(c.code)}
                                         {c.index === current && (
                                           <span className="ms-1 text-[9px] font-semibold text-primary">
                                             en cours

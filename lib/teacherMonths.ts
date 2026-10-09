@@ -37,7 +37,6 @@ import {
   carteShort,
   consumesSeance,
   currentCycleCode,
-  cycleCredits,
   cycleSizeOf,
   dayKeyOf,
   enrollmentCycles,
@@ -289,9 +288,10 @@ const byDate = (a: AttendanceRecord, b: AttendanceRecord) => a.timestamp.localeC
 /**
  * La carte de CHAQUE ligne de présence d'un emploi du temps.
  *
- * Les lignes qui ne coûtent rien (séance annulée, première absence de
- * courtoisie) n'avancent pas le compteur : elles sont simplement rattachées au
- * carte en cours, exactement comme la feuille de présence les affiche.
+ * Les lignes qui ne coûtent rien (séance annulée — et, sur les anciennes
+ * lignes, une première absence de courtoisie) n'avancent pas le compteur :
+ * elles sont simplement rattachées au carte en cours, exactement comme la
+ * feuille de présence les affiche.
  *
  * `offset` est le point d'entrée du chevalier : inscrit en M2 sur la 3e séance,
  * ses présences sont comptées à partir de là — sa première séance appartient à
@@ -446,7 +446,9 @@ function buildEmploi(db: Database, teacherId: string, session: ScheduleSession):
   const cyclesOf = new Map<string, ReturnType<typeof enrollmentCycles>>();
   const startIndexOf = new Map<string, number>();
   for (const st of roster) {
-    cyclesOf.set(st.id, sub ? enrollmentCycles(db, st.id, sub.id) : []);
+    // Les cartes VÉCUES seulement : une carte que la bourse paie d'avance n'a
+    // encore rien fait gagner à l'entraîneur, et n'a rien à faire sur sa paie.
+    cyclesOf.set(st.id, sub ? enrollmentCycles(db, st.id, sub.id, { prepaid: false }) : []);
     startIndexOf.set(st.id, Math.floor((startOf.get(st.id) ?? 0) / size));
   }
 
@@ -1277,10 +1279,10 @@ export function teacherChildRows(db: Database, teacherId: string): TeacherChildR
             ?.discount ?? st.subscriptionDiscounts?.[subId],
         );
 
-        for (const cycle of enrollmentCycles(db, st.id, subId)) {
+        for (const cycle of enrollmentCycles(db, st.id, subId, { prepaid: false })) {
           // Une carte qui n'a ni séance ni versement n'a rien à raconter.
           if (cycle.consumed <= 0 && cycle.credited <= 0) continue;
-          const credits = cycleCredits(db, st.id, subId, cycle.code);
+          const credits = cycle.sources;
           const debt = Math.max(0, -cycle.balance);
           const state: ChildLineState =
             debt > 0

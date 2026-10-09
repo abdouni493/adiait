@@ -33,7 +33,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/SearchInput";
-import { formatDA, money } from "@/lib/utils";
+import { formatDA, money, positiveMoney } from "@/lib/utils";
 import { printHtmlDocument } from "@/lib/print";
 import { PrintAsk } from "@/components/ui/PrintAsk";
 import {
@@ -547,7 +547,7 @@ export function PresenceSheet({
   const submitPay = async () => {
     if (!canCollect) return refuse("encaisser un paiement");
     if (!pay || !sub) return;
-    const amount = Math.max(0, Math.round(pay.amount || 0));
+    const amount = positiveMoney(pay.amount || 0);
     if (amount <= 0) {
       addToast({ type: "danger", title: "Montant invalide", message: "Saisissez un montant." });
       return;
@@ -1258,6 +1258,10 @@ export function PresenceSheet({
                     </option>
                   ))}
                 </Select>
+                <span className="mt-1 block text-[10px] leading-snug text-muted">
+                  L&apos;argent rejoint le solde de l&apos;emploi du temps et paie ses cartes dans
+                  l&apos;ordre ; la carte choisie s&apos;imprime sur le reçu.
+                </span>
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">
@@ -1312,36 +1316,36 @@ export function PresenceSheet({
               onAmount={(next) => setPay({ ...pay, amount: next })}
             />
 
-            {/* Ce que ce versement laisse derrière lui. Un chevalier qui donne 2000
-                sur une carte à 1800 ne « perd » pas les 200 : ils restent sur le
-                solde de CET emploi du temps et paieront ses séances suivantes. */}
+            {/* Ce que ce versement laisse derrière lui. L'argent rejoint la bourse
+                de l'emploi du temps : il éponge d'abord la dette la plus ancienne,
+                et ce qui dépasse reste d'avance pour les séances et les cartes
+                suivantes — rien n'est « perdu » sur une carte. */}
             {(() => {
-              const amount = Math.max(0, Math.round(pay.amount || 0));
+              const amount = positiveMoney(pay.amount || 0);
               if (amount <= 0) return null;
               const balanceNow = soldFor(db, pay.student.id, pay.subscriptionId);
-              const after = balanceNow + amount;
-              const rest = Math.max(0, pay.suggestion - amount);
-              const advance = Math.max(0, amount - pay.suggestion);
+              const after = money(balanceNow + amount);
               return (
                 <div
                   className={`rounded-xl border p-2.5 text-[11px] leading-relaxed ${
-                    rest > 0
+                    after < 0
                       ? "border-warning/40 bg-warning/10 text-warning"
                       : "border-success/40 bg-success/10 text-success"
                   }`}
                 >
-                  {rest > 0 ? (
+                  {after < 0 ? (
                     <>
-                      Il restera <strong>{formatDA(rest)}</strong> à payer sur {carteShort(pay.monthCode)}.
+                      Les séances les plus anciennes sont réglées d&apos;abord ; il restera{" "}
+                      <strong>{formatDA(-after)}</strong> à payer sur cet emploi du temps.
                     </>
-                  ) : advance > 0 ? (
+                  ) : after > 0 ? (
                     <>
-                      {carteShort(pay.monthCode)} est soldé et <strong>{formatDA(advance)}</strong> restent
-                      d&apos;avance : cet argent est gardé sur le solde de cet emploi du temps et
-                      paiera ses prochaines séances.
+                      Toutes ses séances pointées sont payées, et <strong>{formatDA(after)}</strong>{" "}
+                      restent d&apos;avance : cet argent reste sur le solde de cet emploi du temps et
+                      paiera ses prochaines séances, carte après carte.
                     </>
                   ) : (
-                    <>{carteShort(pay.monthCode)} sera exactement soldé.</>
+                    <>Toutes ses séances pointées seront exactement payées.</>
                   )}
                   <span className="mt-0.5 block text-[10px] opacity-80">
                     Solde de l&apos;emploi après encaissement :{" "}
@@ -2626,8 +2630,11 @@ function StudentRow({
                   subscriptionId,
                   label,
                   monthCode,
-                  amount: monthDue || 0,
-                  suggestion: monthDue,
+                  // Ce qui est dû sur TOUT l'emploi : un versement règle d'abord
+                  // la carte la plus ancienne, donc proposer la seule dette de
+                  // la carte affichée laisserait celle-ci impayée.
+                  amount: Math.max(monthDue, -sold, 0),
+                  suggestion: Math.max(monthDue, -sold, 0),
                 })
               }
               title="Encaisser un solde sur cette carte"
@@ -2870,8 +2877,8 @@ function MarkButton({
  *
  * L'écran dit exactement ce qui va se passer avant de le faire, parce que c'est
  * de l'argent : quelle séance part, de quel jour, et combien revient sur le
- * solde. Une séance annulée ou une première absence n'ayant rien coûté, la
- * fenêtre le dit aussi plutôt que d'annoncer un remboursement de 0 DA.
+ * solde. Une séance annulée ou offerte n'ayant rien coûté, la fenêtre le dit
+ * aussi plutôt que d'annoncer un remboursement de 0 DA.
  */
 function RemovePresenceModal({
   student,
@@ -2931,8 +2938,8 @@ function RemovePresenceModal({
           </p>
         ) : (
           <p className="rounded-xl border border-line bg-canvas/50 p-2.5 text-[11px] text-muted">
-            Cette séance n&apos;avait rien débité (séance annulée, offerte, ou première absence sur
-            cet emploi) : il n&apos;y a donc rien à rendre.
+            Cette séance n&apos;avait rien débité (séance annulée ou offerte) : il n&apos;y a
+            donc rien à rendre.
           </p>
         )}
 

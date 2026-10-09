@@ -19,15 +19,18 @@ import {
   printDocument,
   signaturesHtml,
 } from "@/lib/printTemplates";
+import type { CategoryRoster, RosterBucket } from "@/lib/categoryRoster";
 import {
   enrollmentLabel,
   formatDateFr,
+  formatDays,
   groupName,
   monthCodeLabel,
   receiptNumberOf,
   registrationNumberOf,
   salleName,
   sessionLabel,
+  sessionTimeLabel,
   studentCaseLabel,
   studentChargeDebt,
   studentLevelLabel,
@@ -675,4 +678,84 @@ export function seanceLibreInvoiceHtml(
       },
     ],
   });
+}
+
+// ---------------------------------------------------------------------------
+// La liste d'une catégorie — groupe par groupe, chevalier par chevalier.
+// ---------------------------------------------------------------------------
+/**
+ * CE QUE L'ÉCRAN « CATÉGORIES » MONTRE, SUR PAPIER.
+ *
+ * Une section par groupe (ou par emploi du temps sans groupe), avec ses
+ * créneaux, son entraîneur, son effectif et ses chevaliers : N°, nom, âge,
+ * téléphone, carte en cours et solde. `onlyKey` limite l'impression à UN
+ * groupe — celui dont on a cliqué l'imprimante.
+ */
+export function categoryRosterHtml(
+  db: Database,
+  roster: CategoryRoster,
+  opts: { language: Language; onlyKey?: string },
+): string {
+  const { language, onlyKey } = opts;
+  const buckets = roster.buckets.filter(
+    (b) => (onlyKey ? b.key === onlyKey : true) && b.students.length > 0,
+  );
+  const kindLabel = (b: RosterBucket) =>
+    b.kind === "group" ? "Groupe" : b.kind === "nogroup" ? "Emploi sans groupe" : "En attente";
+
+  const sections = buckets
+    .map((b) => {
+      const sessions = b.sessions
+        .map(
+          (s) =>
+            `${esc(s.title || "Emploi du temps")} — ${esc(formatDays(s.days))} · ${esc(
+              sessionTimeLabel(s),
+            )} · ${esc(teacherName(db, s.teacherId))}`,
+        )
+        .join("<br/>");
+      const rows = b.students
+        .map(
+          (s, i) => `<tr>
+            <td class="ctr">${i + 1}</td>
+            <td class="ctr" style="font-family:monospace">${esc(s.number)}</td>
+            <td><strong>${esc(s.name)}</strong>${s.outOfAge ? ` <span class="badge badge-warning">hors tranche</span>` : ""}</td>
+            <td class="ctr">${s.age ?? "—"}</td>
+            <td>${esc(s.student.phone || "—")}</td>
+            <td class="ctr">${s.cardCode ? esc(monthCodeLabel(s.cardCode)) : "—"}</td>
+            <td class="num">${
+              s.free
+                ? `<span class="badge badge-success">offert</span>`
+                : `<span class="badge ${s.sold < 0 ? "badge-danger" : s.sold === 0 ? "badge-warning" : "badge-success"}">${da(s.sold)}</span>`
+            }</td>
+          </tr>`,
+        )
+        .join("");
+      return `
+        <div class="frame" style="margin-bottom:14px">
+          <h3>${esc(kindLabel(b))} : ${esc(b.name)} — ${b.students.length} chevalier(s)${
+            b.debtors > 0 ? ` · ${b.debtors} en dette (${da(b.debt)})` : ""
+          }</h3>
+          ${sessions ? `<p style="margin:4px 0 8px;font-size:0.8em;color:#59637a">${sessions}</p>` : ""}
+          <table>
+            <thead><tr>
+              <th class="ctr">#</th><th class="ctr">N°</th><th>Chevalier</th><th class="ctr">Âge</th>
+              <th>Téléphone</th><th class="ctr">Carte</th><th class="num">Solde</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    })
+    .join("");
+
+  const only = onlyKey ? roster.buckets.find((b) => b.key === onlyKey) : undefined;
+  const subtitle = only
+    ? `${esc(roster.cls.name)} — ${esc(only.name)}`
+    : `${esc(roster.cls.name)} — ${roster.total} chevalier(s), ${buckets.length} groupe(s)`;
+  const html = `
+    ${letterheadHtml(db.school)}
+    ${bannerHtml("Liste des chevaliers", subtitle)}
+    ${sections || `<div class="frame"><p class="ctr">Aucun chevalier inscrit.</p></div>`}
+    ${metaFooterHtml(db.school.name, language)}
+  `;
+  return printDocument({ title: "Liste des chevaliers", lang: language, bodyHtml: html });
 }

@@ -5,6 +5,7 @@ import { emptyDatabase, loadDatabase, loadSchool } from "@/lib/supabase/db";
 import {
   carteShort,
   caseReductionCut,
+  consumesSeance,
   currentCycleCode,
   cycleSizeOf,
   groupSeanceTotals,
@@ -450,7 +451,7 @@ export interface PresenceResult {
   refunded?: number;
   /** the solde of that emploi once the click is applied */
   balance?: number;
-  /** the row costs nothing (annulée, or a first-ever absence) */
+  /** the row costs nothing (séance annulée) */
   noCharge?: boolean;
   moduleName?: string;
 }
@@ -1745,11 +1746,35 @@ export const useData = create<DataStore>((set, get) => ({
       (isFreePeriod && (freePeriod?.payTeachers ?? true)) || beforeStart ? waived : cost;
     const teacherDue = teacherDueFor(db, matched, scannedSub, teacherBase, student);
 
+    /**
+     * UN CHEVALIER QUI N'A JAMAIS RIEN VERSÉ N'A PAS ENCORE DE LIGNE DE SOLDE.
+     *
+     * La feuille de présence la lui ouvre au premier pointage ; le badge, lui,
+     * le laissait entrer SANS rien débiter — si bien qu'un chevalier badgé
+     * toute une carte sans payer ne devait rien. La ligne est ouverte ici aussi,
+     * vide, et son solde plonge dans le rouge exactement comme sur la feuille.
+     */
+    const openedEnrollment: Enrollment | undefined =
+      ownGroup && enrollment && !enrollment.enrollmentId && scannedSub
+        ? {
+            id: uid("enr"),
+            studentId: student.id,
+            subscriptionId: scannedSub.id,
+            paidSeances: 0,
+            consumedSeances: 0,
+            balance: 0,
+            startDate: student.subscriptionDates?.[scannedSub.id]?.startDate,
+            monthSeances: cycleSizeOf(scannedSub),
+            createdAt: new Date().toISOString(),
+          }
+        : undefined;
+    const enrollmentId = enrollment?.enrollmentId ?? openedEnrollment?.id;
+
     // Burn ONE séance and take its price off the SOLDE of that emploi — exactly
     // what the présence sheet does, so a badge and a click can never disagree.
     // A student whose solde is already empty is still let in: it simply goes
     // into the red and the desk regularises it.
-    const consumes = !freeHere && !offered && !!enrollment?.enrollmentId;
+    const consumes = !freeHere && !offered && !!enrollmentId;
     const before = enrollment?.remaining ?? 0;
     const outOfSeances = consumes && before <= 0;
     const remaining = consumes ? Math.max(0, before - 1) : Math.max(0, before);
@@ -1774,12 +1799,13 @@ export const useData = create<DataStore>((set, get) => ({
         attendance: [...state.attendance, record],
       };
       if (consumes) {
-        patch.enrollments = state.enrollments.map((e) =>
-          e.id === enrollment!.enrollmentId
+        const rows = openedEnrollment ? [...state.enrollments, openedEnrollment] : state.enrollments;
+        patch.enrollments = rows.map((e) =>
+          e.id === enrollmentId
             ? {
                 ...e,
                 consumedSeances: e.consumedSeances + 1,
-                balance: (e.balance ?? 0) - cost,
+                balance: money((e.balance ?? 0) - cost),
               }
             : e,
         );
@@ -1804,6 +1830,10 @@ export const useData = create<DataStore>((set, get) => ({
       }
       return patch;
     });
+
+    // Le badge fait avancer la carte du groupe exactement comme un clic sur la
+    // feuille : sans cela, une carte pointée au badge ne se fermait jamais.
+    void get().syncCartes();
 
     return {
       ok: true,
@@ -1856,47 +1886,21 @@ export const useData = create<DataStore>((set, get) => ({
         (a.slot ?? 0) === daySlot,
     );
 
+    // UNE ABSENCE SE PAIE COMME UNE PRÉSENCE : elle passe par la même porte que
+    // la feuille de présence, qui débite le prix de la séance du solde. Elle ne
+    // « rend » plus la séance comme autrefois.
     if (status === "absent") {
-      if (!existing) {
-        return { ok: true, messageKey: "attendance.alreadyAbsent", cost: 0, refunded: 0 };
-      }
-      // Marking someone absent gives the séance back — never money.
-      const enrollment = enrollmentFor(db, student, session, date);
-      const refundSeance =
-        !existing.preStart &&
-        !existing.freePeriodId &&
-        !isFreeSub(student, db.subscriptions.find((x) => x.sessionId === sessionId)?.id) &&
-        !!enrollment?.enrollmentId;
-      set((state) => ({
-        attendance: state.attendance.filter((a) => a.id !== existing.id),
-        unpaidTeacher: state.unpaidTeacher.filter(
-          (u) =>
-            !(
-              u.studentId === studentId &&
-              u.sessionId === sessionId &&
-              !u.paid &&
-              dateKey(u.date) === date &&
-              (u.slot ?? 0) === daySlot
-            ),
-        ),
-        enrollments: refundSeance
-          ? state.enrollments.map((e) =>
-              e.id === enrollment!.enrollmentId
-                ? {
-                    ...e,
-                    consumedSeances: Math.max(0, e.consumedSeances - 1),
-                    balance: (e.balance ?? 0) + (existing.amountDeducted || 0),
-                  }
-                : e,
-            )
-          : state.enrollments,
-      }));
+      const res = await get().setPresence({ studentId, sessionId, date, slot: daySlot, status });
+      if (!res.ok) return { ok: false, messageKey: res.messageKey, moduleName };
       return {
         ok: true,
+        studentId,
+        sessionId,
+        cost: res.charged ?? 0,
+        status: "absent",
         messageKey: "attendance.markedAbsent",
-        refunded: refundSeance ? 1 : 0,
-        remaining: enrollment ? Math.max(0, enrollment.remaining + (refundSeance ? 1 : 0)) : undefined,
         moduleName,
+        groupName,
       };
     }
 
@@ -2125,7 +2129,7 @@ export const useData = create<DataStore>((set, get) => ({
                 ? {
                     ...e,
                     consumedSeances: Math.max(0, e.consumedSeances - (undoBillable ? 1 : 0)),
-                    balance: (e.balance ?? 0) + undoCharge,
+                    balance: money((e.balance ?? 0) + undoCharge),
                   }
                 : e,
             )
@@ -2136,7 +2140,7 @@ export const useData = create<DataStore>((set, get) => ({
         messageKey: "attendance.undone",
         status: null,
         refunded: undoCharge,
-        balance: balanceBefore + undoCharge,
+        balance: money(balanceBefore + undoCharge),
         moduleName,
       };
     }
@@ -2147,23 +2151,24 @@ export const useData = create<DataStore>((set, get) => ({
       return { ok: false, messageKey: "scan.wrongGroup", moduleName };
     }
 
-    // "First séance ever and he is not there": the month has not opened, so the
-    // absence is recorded but never billed.
-    const hasEarlierBillable = db.attendance.some((a) => {
-      if (a.studentId !== studentId || a.sessionId !== sessionId) return false;
-      if (a.id === existing?.id || a.status === "cancelled" || a.noCharge) return false;
-      const day = dateKey(a.timestamp);
-      // Une séance PLUS TÔT DANS LA MÊME JOURNÉE compte aussi : le matin ouvre
-      // la carte, le soir n'est donc plus la première séance de personne.
-      return day < date || (day === date && (a.slot ?? 0) < daySlot);
-    });
-    const firstAbsence = status === "absent" && !hasEarlierBillable;
-
+    /**
+     * UNE ABSENCE COÛTE UNE SÉANCE, COMME UNE PRÉSENCE — TOUJOURS.
+     *
+     * La place du chevalier était réservée, l'entraîneur était là : le club
+     * débite le prix de la séance de son solde, qu'il soit venu ou non. Il n'y
+     * avait autrefois qu'une exception — la toute première séance, quand elle
+     * était une absence — et c'est elle qui faisait dire à la réception que
+     * « l'absence ne descend pas du solde ». Elle disparaît.
+     *
+     * Seule une séance ANNULÉE pour le groupe ne coûte rien. Une séance tenue
+     * avant le début de sa facturation, ou pendant une période gratuite, reste
+     * offerte (la ligne le dit, `waivedAmount`).
+     */
     const freePeriod = activeFreePeriod(db, [session.classId, ...(session.classIds ?? [])], date);
     const startDate = enrollment?.startDate ?? student.subscriptionDates?.[sub?.id ?? ""]?.startDate;
     const beforeStart = !!startDate && startDate > date;
 
-    const noCharge = status === "cancelled" || firstAbsence;
+    const noCharge = status === "cancelled";
     const offered = !noCharge && (!!freePeriod || beforeStart || isFreeSub(student, sub?.id));
     const netPrice = netPriceFor(listPrice, discount);
     const charge = noCharge || offered ? 0 : netPrice;
@@ -2219,7 +2224,7 @@ export const useData = create<DataStore>((set, get) => ({
                   0,
                   e.consumedSeances - (undoBillable ? 1 : 0) + (billable ? 1 : 0),
                 ),
-                balance: (e.balance ?? 0) + undoCharge - charge,
+                balance: money((e.balance ?? 0) + undoCharge - charge),
               }
             : e,
         );
@@ -2257,7 +2262,7 @@ export const useData = create<DataStore>((set, get) => ({
       status,
       charged: charge,
       refunded: undoCharge,
-      balance: balanceBefore + undoCharge - charge,
+      balance: money(balanceBefore + undoCharge - charge),
       noCharge,
       moduleName,
     };
@@ -2289,7 +2294,7 @@ export const useData = create<DataStore>((set, get) => ({
     const unit = Math.max(1, netPriceFor(studentListPrice(student, sub), existing?.discount));
 
     const enrollment: Enrollment = existing
-      ? { ...existing, balance: (existing.balance ?? 0) + credit }
+      ? { ...existing, balance: money((existing.balance ?? 0) + credit) }
       : {
           id: enrollmentId,
           studentId,
@@ -3268,112 +3273,162 @@ export const useData = create<DataStore>((set, get) => ({
     return { ok: true, students: moved, subscriptions: subIds.length };
   },
 
-  // Cancelling a presence gives the séance back — the mirror of consuming it.
+  /**
+   * RETIRER UNE PRÉSENCE DEPUIS LA FICHE DU CHEVALIER — exactement ce que fait
+   * « Retirer » sur la feuille de présence : la ligne part, la séance cesse
+   * d'être consommée, et ce qu'elle avait débité revient sur le solde au dinar
+   * près. Une séance annulée n'avait rien coûté : rien ne revient.
+   */
   cancelAttendance: async (attendanceId) => {
     const db = get();
     const att = db.attendance.find((a) => a.id === attendanceId);
     if (!att) return { ok: false, messageKey: "attendance.notFound" };
-
-    const date = dateKey(att.timestamp);
-    const student = db.students.find((s) => s.id === att.studentId);
     const session = db.sessions.find((s) => s.id === att.sessionId);
-    const enrollment =
-      student && session ? enrollmentFor(db, student, session, date) : undefined;
-    const refundSeance =
-      !att.preStart &&
-      !att.freePeriodId &&
-      !isFreeSub(student, db.subscriptions.find((x) => x.sessionId === att.sessionId)?.id) &&
-      !!enrollment?.enrollmentId;
+    const sub = db.subscriptions.find((x) => x.sessionId === att.sessionId);
+    const billable = consumesSeance(att) && (att.amountDeducted || 0) > 0;
 
-    set((state) => ({
-      attendance: state.attendance.filter((a) => a.id !== attendanceId),
-      unpaidTeacher: state.unpaidTeacher.filter(
-        (u) =>
-          !(
-            u.studentId === att.studentId &&
-            u.sessionId === att.sessionId &&
-            !u.paid &&
-            dateKey(u.date) === date
-          ),
-      ),
-      enrollments: refundSeance
-        ? state.enrollments.map((e) =>
-            e.id === enrollment!.enrollmentId
-              ? {
-                  ...e,
-                  consumedSeances: Math.max(0, e.consumedSeances - 1),
-                  balance: (e.balance ?? 0) + (att.amountDeducted || 0),
-                }
-              : e,
-          )
-        : state.enrollments,
-    }));
+    const res = await get().setPresence({
+      studentId: att.studentId,
+      sessionId: att.sessionId,
+      date: dateKey(att.timestamp),
+      slot: att.slot ?? 0,
+      status: null,
+    });
+    if (!res.ok) return { ok: false, messageKey: res.messageKey };
 
+    const after = sub
+      ? get().enrollments.find((e) => e.studentId === att.studentId && e.subscriptionId === sub.id)
+      : undefined;
     return {
       ok: true,
-      refunded: refundSeance ? 1 : 0,
-      remaining: enrollment
-        ? Math.max(0, enrollment.remaining + (refundSeance ? 1 : 0))
-        : undefined,
+      refunded: billable ? 1 : 0,
+      remaining: after ? Math.max(0, after.paidSeances - after.consumedSeances) : undefined,
       moduleName: session ? MODULE_NAME(db, session.moduleId) : undefined,
       messageKey: "attendance.cancelled",
     };
   },
 
+  /**
+   * CORRIGER UNE PRÉSENCE — son état, son jour, ou le prix qu'elle a coûté.
+   *
+   * Le solde bouge EXACTEMENT de la différence : passer une présence à
+   * « annulée » rend son prix, ramener une annulée à « présent » ou « absent »
+   * le reprend, et corriger le prix débité de 625 à 500 rend 125. Sans cela,
+   * la ligne disait une chose et le solde en disait une autre.
+   */
   updateAttendance: async (attendanceId, fields) => {
     const db = get();
     const att = db.attendance.find((a) => a.id === attendanceId);
     if (!att) return { ok: false, messageKey: "attendance.notFound" };
     const session = db.sessions.find((s) => s.id === att.sessionId);
+    const student = db.students.find((s) => s.id === att.studentId);
+    const sub = db.subscriptions.find((x) => x.sessionId === att.sessionId);
+    const enrollment = sub
+      ? db.enrollments.find((e) => e.studentId === att.studentId && e.subscriptionId === sub.id)
+      : undefined;
 
     const status = fields.status ?? att.status;
     const occurred = fields.occurredAt ?? att.timestamp;
-    // The amount no longer moves money: it is the séance price the teacher's
-    // share is computed from, so correcting it only re-sizes that share.
-    const amount = Math.max(fields.amount ?? att.amountDeducted, 0);
     const oldDate = dateKey(att.timestamp);
     const newDate = dateKey(occurred);
+    const slot = att.slot ?? 0;
 
-    // One presence per student / timing / day.
+    // One presence per student / timing / day / séance of the day.
     const clash = db.attendance.find(
       (a) =>
         a.id !== attendanceId &&
         a.studentId === att.studentId &&
         a.sessionId === att.sessionId &&
-        dateKey(a.timestamp) === newDate,
+        dateKey(a.timestamp) === newDate &&
+        (a.slot ?? 0) === slot,
     );
     if (clash) return { ok: false, messageKey: "attendance.duplicateDay" };
+
+    // Ce que la ligne coûtait, et ce qu'elle coûte une fois corrigée.
+    const wasBillable = consumesSeance(att);
+    const oldCharge = wasBillable ? money(att.amountDeducted || 0) : 0;
+    const cancelled = status === "cancelled";
+    // Une annulée qui redevient une séance tenue reprend le prix de SA séance,
+    // à moins que la réception n'en tape un autre.
+    const ownPrice = sub
+      ? netPriceFor(
+          studentListPrice(student, sub, session?.openPrice ?? 0),
+          enrollment?.discount ?? (student ? student.subscriptionDiscounts?.[sub.id] : undefined),
+        )
+      : 0;
+    const typed = fields.amount !== undefined ? positiveMoney(fields.amount) : undefined;
+    const amount = cancelled
+      ? 0
+      : typed ?? (wasBillable ? money(att.amountDeducted || 0) : ownPrice);
+    const newCharge = cancelled ? 0 : amount;
+    const delta = money(oldCharge - newCharge);
+    const seanceDelta = (cancelled ? 0 : 1) - (wasBillable ? 1 : 0);
 
     set((state) => ({
       attendance: state.attendance.map((a) =>
         a.id === attendanceId
-          ? { ...a, status, timestamp: occurred, amountDeducted: amount }
+          ? {
+              ...a,
+              status,
+              timestamp: occurred,
+              amountDeducted: amount,
+              noCharge: cancelled || undefined,
+            }
           : a,
       ),
-      // The teacher share follows the new amount.
-      unpaidTeacher: state.unpaidTeacher.map((u) => {
-        if (
-          u.studentId !== att.studentId ||
-          u.sessionId !== att.sessionId ||
-          u.paid ||
-          dateKey(u.date) !== oldDate
-        ) {
-          return u;
-        }
-        const teacher = state.teachers.find((t) => t.id === u.teacherId);
-        if (!teacher || teacher.paymentType !== "percentage") return u;
-        return {
-          ...u,
-          amount: Math.round((amount * (teacher.percentage ?? 0)) / 100),
-          date: occurred,
-        };
-      }),
+      enrollments:
+        enrollment && (delta !== 0 || seanceDelta !== 0)
+          ? state.enrollments.map((e) =>
+              e.id === enrollment.id
+                ? {
+                    ...e,
+                    consumedSeances: Math.max(0, e.consumedSeances + seanceDelta),
+                    balance: money((e.balance ?? 0) + delta),
+                  }
+                : e,
+            )
+          : state.enrollments,
+      // Une séance annulée ne paie personne : sa part entraîneur non réglée part
+      // avec elle. Sinon, la part suit le nouveau prix.
+      unpaidTeacher: state.unpaidTeacher
+        .filter(
+          (u) =>
+            !(
+              cancelled &&
+              u.studentId === att.studentId &&
+              u.sessionId === att.sessionId &&
+              !u.paid &&
+              dateKey(u.date) === oldDate &&
+              (u.slot ?? 0) === slot
+            ),
+        )
+        .map((u) => {
+          if (
+            u.studentId !== att.studentId ||
+            u.sessionId !== att.sessionId ||
+            u.paid ||
+            dateKey(u.date) !== oldDate ||
+            (u.slot ?? 0) !== slot
+          ) {
+            return u;
+          }
+          const teacher = state.teachers.find((t) => t.id === u.teacherId);
+          if (!teacher || teacher.paymentType !== "percentage") return { ...u, date: occurred };
+          return {
+            ...u,
+            amount: money((amount * (teacher.percentage ?? 0)) / 100),
+            date: occurred,
+          };
+        }),
     }));
+
+    void get().syncCartes();
 
     return {
       ok: true,
       cost: amount,
       status,
+      refunded: delta > 0 ? 1 : 0,
       messageKey: "attendance.updated",
     };
   },
@@ -4777,7 +4832,10 @@ export const useData = create<DataStore>((set, get) => ({
     // soldées pour rien. Il se corrige en réencaissant, pas en effaçant.
     if (payment.type === "debt_payment") return { ok: false, messageKey: "payment.debtLocked" };
 
-    const credit = Math.max(0, Math.round(payment.amountPaid || 0));
+    // Au centime près : un versement de 687,50 DA retiré ne doit pas reprendre
+    // 688 DA au solde. Un transfert sortant (négatif) se retire aussi — le
+    // solde de l'ancien emploi retrouve alors ce qui en était parti.
+    const credit = money(payment.amountPaid || 0);
     const enrollment = db.enrollments.find(
       (e) =>
         e.studentId === payment.studentId &&
@@ -4785,16 +4843,19 @@ export const useData = create<DataStore>((set, get) => ({
     );
     // The caisse row written alongside carries the very same timestamp and
     // amount — that is what identifies it, no extra column needed.
-    const cashRow = db.cash.find(
-      (c) => c.type === "student_payment" && c.date === payment.date && c.amount === credit,
-    );
-    const balanceAfter = (enrollment?.balance ?? 0) - credit;
+    const cashRow =
+      credit > 0
+        ? db.cash.find(
+            (c) => c.type === "student_payment" && c.date === payment.date && c.amount === credit,
+          )
+        : undefined;
+    const balanceAfter = money((enrollment?.balance ?? 0) - credit);
 
     set((state) => ({
       payments: state.payments.filter((p) => p.id !== paymentId),
       enrollments: enrollment
         ? state.enrollments.map((e) =>
-            e.id === enrollment.id ? { ...e, balance: (e.balance ?? 0) - credit } : e,
+            e.id === enrollment.id ? { ...e, balance: money((e.balance ?? 0) - credit) } : e,
           )
         : state.enrollments,
       cash: cashRow ? state.cash.filter((c) => c.id !== cashRow.id) : state.cash,
@@ -4811,9 +4872,11 @@ export const useData = create<DataStore>((set, get) => ({
       return { ok: false, messageKey: "payment.debtLocked" };
     }
 
-    const before = Math.max(0, Math.round(payment.amountPaid || 0));
-    const after = fields.amount === undefined ? before : Math.max(0, Math.round(fields.amount));
-    const delta = after - before;
+    // Au centime près, comme partout ailleurs : arrondir à l'entier faisait
+    // dériver le solde d'un demi-dinar à chaque correction.
+    const before = positiveMoney(payment.amountPaid || 0);
+    const after = fields.amount === undefined ? before : positiveMoney(fields.amount);
+    const delta = money(after - before);
     const enrollment = db.enrollments.find(
       (e) =>
         e.studentId === payment.studentId &&
@@ -4833,7 +4896,7 @@ export const useData = create<DataStore>((set, get) => ({
       amountPaid: after,
       // A purchase priced at its net total keeps its arithmetic straight: what
       // is not handed over is exactly what stays owed.
-      rest: Math.max(0, Math.round((payment.netTotal || after) - after)),
+      rest: positiveMoney((payment.netTotal || after) - after),
       monthCode: fields.monthCode ?? payment.monthCode,
       description: fields.description ?? payment.description,
       date: nextDate,
@@ -4844,7 +4907,7 @@ export const useData = create<DataStore>((set, get) => ({
       enrollments:
         enrollment && delta !== 0
           ? state.enrollments.map((e) =>
-              e.id === enrollment.id ? { ...e, balance: (e.balance ?? 0) + delta } : e,
+              e.id === enrollment.id ? { ...e, balance: money((e.balance ?? 0) + delta) } : e,
             )
           : state.enrollments,
       cash: cashRow
@@ -4854,7 +4917,7 @@ export const useData = create<DataStore>((set, get) => ({
         : state.cash,
     }));
 
-    return { ok: true, balance: (enrollment?.balance ?? 0) + delta };
+    return { ok: true, balance: money((enrollment?.balance ?? 0) + delta) };
   },
 
   // ---- Sorties libres de groupe --------------------------------------------

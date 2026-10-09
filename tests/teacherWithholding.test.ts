@@ -185,8 +185,10 @@ describe("la part suit la séance, pas le pointage", () => {
       .addSold({ studentId: STU, subscriptionId: SUB, amount: 3000, monthCode: "M1" });
     for (const day of days) await attend(day);
 
-    // M2 n'a rien reçu à son nom, mais l'avance de M1 couvre ses deux séances.
-    expect(cycleOf(useData.getState(), STU, SUB, "M2").credited).toBe(0);
+    // Rien n'a été versé « sur M2 », mais l'argent suit l'emploi du temps : ce
+    // que M1 n'a pas consommé paie les deux séances de M2.
+    expect(cycleOf(useData.getState(), STU, SUB, "M2").credited).toBe(1000);
+    expect(cycleOf(useData.getState(), STU, SUB, "M2").balance).toBe(0);
     expect(emploi().months[1].withheld).toBe(0);
     expect(emploi().months[1].payable).toBe(2 * 300);
   });

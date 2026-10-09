@@ -149,21 +149,24 @@ describe("le solde : de l'argent, débité séance par séance", () => {
     expect(soldStatus(soldFor(useData.getState(), STU, SUB), sub.pricePerSession)).toBe("debt");
   });
 
-  it("une absence coûte une séance — sauf la toute première sur cet emploi", async () => {
+  it("une absence coûte une séance, comme une présence — la toute première aussi", async () => {
     const sub = freshBoard(4);
     await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 2400 });
     const days = scheduledDays(3);
 
-    // He has never attended: his month has not started, the absence is free.
-    await useData.getState().setPresence({ studentId: STU, sessionId: "ses-1", date: days[0], status: "absent" });
-    expect(soldFor(useData.getState(), STU, SUB)).toBe(2400);
-    expect(cycleOf(useData.getState(), STU, SUB, "M1").done).toBe(0);
+    // Sa place était réservée : même sa toute première séance, manquée, se paie.
+    const first = await useData
+      .getState()
+      .setPresence({ studentId: STU, sessionId: "ses-1", date: days[0], status: "absent" });
+    expect(first.charged).toBe(sub.pricePerSession);
+    expect(first.noCharge).toBe(false);
+    expect(soldFor(useData.getState(), STU, SUB)).toBe(2400 - sub.pricePerSession);
+    expect(cycleOf(useData.getState(), STU, SUB, "M1").done).toBe(1);
 
     await useData.getState().setPresence({ studentId: STU, sessionId: "ses-1", date: days[1], status: "present" });
-    // Now that he is a going student, an absence is billed like a séance.
     await useData.getState().setPresence({ studentId: STU, sessionId: "ses-1", date: days[2], status: "absent" });
-    expect(soldFor(useData.getState(), STU, SUB)).toBe(2400 - 2 * sub.pricePerSession);
-    expect(cycleOf(useData.getState(), STU, SUB, "M1").done).toBe(2);
+    expect(soldFor(useData.getState(), STU, SUB)).toBe(2400 - 3 * sub.pricePerSession);
+    expect(cycleOf(useData.getState(), STU, SUB, "M1").done).toBe(3);
   });
 
   it("une séance annulée ne coûte rien et ne fait pas avancer la carte", async () => {

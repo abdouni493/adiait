@@ -244,14 +244,16 @@ describe("les cartes et les séances d'avant ne sont pas les siens", () => {
     const days = await groupOnM2Seance3();
     registerNew("M2", 2, days[6]);
 
-    // La carte par défaut d'un versement est celui qu'il vit.
+    // Il n'a rien à payer sur M1 (il n'y était pas) : son argent commence à
+    // M2, qui ne lui doit que ses DEUX séances, et le reste paie M3 d'avance.
     await useData.getState().addSold({ studentId: NEW, subscriptionId: SUB, amount: 2400 });
     expect(cycleOf(useData.getState(), NEW, SUB, "M1").credited).toBe(0);
-    expect(cycleOf(useData.getState(), NEW, SUB, "M2").credited).toBe(2400);
+    expect(cycleOf(useData.getState(), NEW, SUB, "M2").credited).toBe(2 * sub.pricePerSession);
+    expect(cycleOf(useData.getState(), NEW, SUB, "M3").credited).toBe(2400 - 2 * sub.pricePerSession);
 
     await present(NEW, days[6]);
     expect(soldFor(useData.getState(), NEW, SUB)).toBe(2400 - sub.pricePerSession);
-    expect(cycleOf(useData.getState(), NEW, SUB, "M2").balance).toBe(2400 - sub.pricePerSession);
+    expect(cycleOf(useData.getState(), NEW, SUB, "M2").balance).toBe(sub.pricePerSession);
     expect(cycleOf(useData.getState(), NEW, SUB, "M1").balance).toBe(0);
   });
 });

@@ -1179,13 +1179,22 @@ export function cycleSizeOf(sub?: Subscription): number {
 
 /**
  * Does this attendance row move the student's month forward? A cancelled
- * séance and a "courtesy" first absence cost nothing, so they do not.
+ * séance costs nothing, so it does not. (Older rows may also carry `noCharge`
+ * on a "courtesy" first absence — a rule since removed: an absence now costs a
+ * séance like a présence. Those rows keep reading as they were written.)
  */
 export function consumesSeance(a: AttendanceRecord): boolean {
   return a.status !== "cancelled" && !a.noCharge;
 }
 
-/** Every attendance row of ONE student on ONE emploi, oldest first. */
+/**
+ * Every attendance row of ONE student on ONE emploi, oldest first.
+ *
+ * L'ORDRE EST CELUI DES SÉANCES, PAS CELUI DES CLICS : le jour, puis le rang de
+ * la séance dans la journée. Pointer la séance du soir avant celle du matin —
+ * ou pointer le matin « maintenant », à 14 h, quand le soir porte son heure de
+ * début — ne doit pas faire passer le soir devant le matin sur la carte.
+ */
 export function sessionAttendance(
   db: Database,
   studentId: string,
@@ -1193,7 +1202,14 @@ export function sessionAttendance(
 ): AttendanceRecord[] {
   return db.attendance
     .filter((a) => a.studentId === studentId && a.sessionId === sessionId)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    .map((a) => ({ a, day: dayKeyOf(a.timestamp) }))
+    .sort(
+      (x, y) =>
+        x.day.localeCompare(y.day) ||
+        (x.a.slot ?? 0) - (y.a.slot ?? 0) ||
+        x.a.timestamp.localeCompare(y.a.timestamp),
+    )
+    .map((x) => x.a);
 }
 
 /** …limited to the rows that actually burn a séance (they set the pace). */
@@ -1226,10 +1242,18 @@ export interface MonthCycle {
   complete: boolean;
   /** money the séances of that month took off the solde */
   consumed: number;
-  /** money credited to that month */
+  /**
+   * L'ARGENT DE L'EMPLOI DU TEMPS QUI PAIE CETTE CARTE.
+   *
+   * Ce n'est plus « ce qui a été encaissé avec le code de cette carte » : tout
+   * ce que le chevalier a versé sur l'emploi forme UNE bourse, et la bourse paie
+   * les cartes dans l'ordre (voir `enrollmentCycles`).
+   */
   credited: number;
   /** credited − consumed. NEGATIVE = the student owes that much on that month. */
   balance: number;
+  /** d'où vient l'argent qui paie cette carte (famille, salaire, club…) */
+  sources: CycleCredits;
   /** day the month opened (first billable séance) */
   startDate?: string;
   /** day it closed (only once complete) */
@@ -1277,49 +1301,167 @@ export function enrollmentStart(
   return { monthIndex: Math.floor(offset / size), slotIndex: offset % size, offset };
 }
 
+/** Une part de la bourse d'un emploi du temps : un versement, et d'où il vient. */
+interface PurseChunk {
+  amount: number;
+  source: "family" | "salary" | "charged" | "school";
+}
+
+/** En dessous d'un centime, il ne reste rien : un solde à 0,004 près est réglé. */
+const PURSE_EPSILON = 0.005;
+
+/** Combien de cartes d'avance une bourse peut couvrir, au plus. C'est un garde-fou
+ *  contre un prix nul ou absurde, pas une règle du club. */
+const MAX_PREPAID_CARDS = 60;
+
+function emptyCredits(): CycleCredits {
+  return { family: 0, salary: 0, charged: 0, school: 0, total: 0 };
+}
+
+/**
+ * LA BOURSE D'UN CHEVALIER SUR UN EMPLOI DU TEMPS.
+ *
+ * Tout ce qu'il a versé sur cet emploi, du plus ancien au plus récent, QUEL QUE
+ * SOIT LE CODE DE CARTE inscrit sur le versement. Un retrait (le solde
+ * transporté vers un autre groupe, écrit en négatif) reprend l'argent le plus
+ * récent d'abord.
+ */
+function emploiPurse(db: Database, studentId: string, subscriptionId: string): PurseChunk[] {
+  const chunks: PurseChunk[] = [];
+  const payments = db.payments
+    .filter((p) => p.studentId === studentId && p.subscriptionId === subscriptionId)
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  for (const p of payments) {
+    const amount = money(p.amountPaid || 0);
+    if (amount > 0) {
+      chunks.push({
+        amount,
+        source:
+          p.paidFrom === "teacher_salary"
+            ? "salary"
+            : p.paidFrom === "teacher_debt"
+              ? "charged"
+              : p.paidFrom === "school_cash"
+                ? "school"
+                : "family",
+      });
+      continue;
+    }
+    let out = -amount;
+    while (out > PURSE_EPSILON && chunks.length > 0) {
+      const last = chunks[chunks.length - 1];
+      const take = Math.min(last.amount, out);
+      last.amount = money(last.amount - take);
+      out = money(out - take);
+      if (last.amount <= PURSE_EPSILON) chunks.pop();
+    }
+  }
+  return chunks;
+}
+
 /**
  * The whole month history of ONE student on ONE emploi du temps: the séances
- * chunked `size` by `size`, with the money credited to each month.
+ * chunked `size` by `size`, with the money that pays each card.
  *
  * The chunking starts at his arrival point, not at séance 1: a student who came
  * in on M2 · séance 3 has his very first présence recorded there, and the two
  * séances that opened M2 are marked as never his (`lead`).
+ *
+ * L'ARGENT SUIT L'EMPLOI DU TEMPS, PAS LE CODE DE CARTE.
+ *
+ * Un chevalier qui verse 40 000 DA sur la carte 1 d'un emploi à 5 000 DA la
+ * carte n'a pas payé « la carte 1 » : il a payé HUIT cartes. Rattacher l'argent
+ * au seul code écrit sur le versement laissait la carte 1 à +35 000 DA, et la
+ * carte 2 en dette dès sa première séance — alors que son solde, lui, était
+ * largement positif.
+ *
+ * Tout ce qui a été versé sur l'emploi forme donc UNE bourse, et la bourse paie
+ * les cartes DANS L'ORDRE :
+ *
+ *   - une carte CLOSE prend exactement ce que ses séances ont coûté ;
+ *   - la carte EN COURS et les suivantes prennent leur prix entier (ses
+ *     séances à lui × son tarif), ou ce que ses séances ont déjà coûté si c'est
+ *     plus ;
+ *   - quand la bourse est vide, la carte qui suit se remplit de dette, séance
+ *     après séance, présence comme absence.
+ *
+ * Les cartes que la bourse paie d'avance sont listées (`prepaid`, par défaut) :
+ * c'est ce qui dit « payé jusqu'à la carte 8 ». Les écrans de paie, qui ne
+ * veulent que les cartes réellement vécues, passent `prepaid: false`.
+ *
+ * La somme des `balance` de toutes les cartes rendues est toujours égale à ce
+ * qui a été versé moins ce que les séances ont coûté — le solde de l'emploi.
  */
 export function enrollmentCycles(
   db: Database,
   studentId: string,
   subscriptionId: string,
+  opts: { prepaid?: boolean; through?: number } = {},
 ): MonthCycle[] {
   const sub = db.subscriptions.find((s) => s.id === subscriptionId);
   const size = cycleSizeOf(sub);
   const records = sub ? cycleRecords(db, studentId, sub.sessionId) : [];
   const start = enrollmentStart(db, studentId, subscriptionId);
 
-  // Money is attributed to the month reception credited it to.
-  const credits: Record<string, number> = {};
-  for (const p of db.payments) {
-    if (p.studentId !== studentId || p.subscriptionId !== subscriptionId) continue;
-    const code = p.monthCode || "M1";
-    credits[code] = (credits[code] ?? 0) + p.amountPaid;
-  }
+  // Le prix d'une séance pour LUI — son cas et sa remise appliqués, exactement
+  // celui que la présence débite.
+  const student = db.students.find((s) => s.id === studentId);
+  const enrollment = db.enrollments.find(
+    (e) => e.studentId === studentId && e.subscriptionId === subscriptionId,
+  );
+  const unit = sub
+    ? netPriceFor(
+        studentListPrice(student, sub),
+        enrollment?.discount ?? student?.subscriptionDiscounts?.[subscriptionId],
+      )
+    : 0;
+
+  const chunks = emploiPurse(db, studentId, subscriptionId);
+  const purseLeft = () => chunks.reduce((t, c) => t + c.amount, 0);
+  /** Prend `amount` dans la bourse, les versements les plus anciens d'abord. */
+  const draw = (amount: number): CycleCredits => {
+    const out = emptyCredits();
+    let left = amount;
+    while (left > PURSE_EPSILON && chunks.length > 0) {
+      const c = chunks[0];
+      const take = Math.min(c.amount, left);
+      out[c.source] = money(out[c.source] + take);
+      out.total = money(out.total + take);
+      c.amount = money(c.amount - take);
+      left = money(left - take);
+      if (c.amount <= PURSE_EPSILON) chunks.shift();
+    }
+    return out;
+  };
 
   const fromRecords = Math.ceil((start.offset + records.length) / size);
-  const fromCredits = Object.keys(credits).reduce((mx, c) => Math.max(mx, monthOrder(c) + 1), 0);
-  const count = Math.max(1, start.monthIndex + 1, fromRecords, fromCredits);
+  const lived = Math.max(1, start.monthIndex + 1, fromRecords);
+  const minimum = Math.max(lived, Math.round(opts.through ?? 0));
+  const prepaid = opts.prepaid !== false;
 
   const clamp = (n: number) => Math.min(Math.max(n, 0), records.length);
   const out: MonthCycle[] = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; ; i++) {
     // What the month holds for HIM: the whole pack, minus the séances that ran
     // before he arrived (all of them on a month he was not there for).
     const lead = i < start.monthIndex ? size : i === start.monthIndex ? start.slotIndex : 0;
     const slice = records.slice(clamp(i * size - start.offset), clamp((i + 1) * size - start.offset));
-    const code = `M${i + 1}`;
-    const consumed = slice.reduce((t, a) => t + (a.amountDeducted || 0), 0);
-    const credited = credits[code] ?? 0;
+    const consumed = money(slice.reduce((t, a) => t + (a.amountDeducted || 0), 0));
     const complete = size - lead > 0 && slice.length >= size - lead;
+    // Ce que cette carte demande à la bourse.
+    const need = complete ? consumed : Math.max(consumed, money((size - lead) * unit));
+
+    if (i >= minimum) {
+      // Au-delà des cartes vécues, on ne liste que celles que la bourse paie
+      // d'avance — et seulement quand on le demande.
+      if (!prepaid || i >= lived + MAX_PREPAID_CARDS) break;
+      if (purseLeft() <= PURSE_EPSILON || need <= PURSE_EPSILON) break;
+    }
+
+    const sources = draw(need);
+    const credited = sources.total;
     out.push({
-      code,
+      code: `M${i + 1}`,
       index: i,
       size,
       lead,
@@ -1328,10 +1470,27 @@ export function enrollmentCycles(
       complete,
       consumed,
       credited,
-      balance: credited - consumed,
+      balance: money(credited - consumed),
+      sources,
       startDate: slice[0] ? dayOfIso(slice[0].timestamp) : undefined,
       endDate: complete ? dayOfIso(slice[slice.length - 1].timestamp) : undefined,
     });
+  }
+
+  // Ce que la bourse garde encore (un emploi offert, un prix nul, ou plus de
+  // soixante cartes d'avance) reste au crédit de la dernière carte rendue :
+  // l'argent versé ne disparaît jamais d'un écran. Sans les cartes d'avance,
+  // ce reste n'appartient à aucune carte vécue — il ne gonfle donc pas la
+  // dernière.
+  const rest = money(purseLeft());
+  if (prepaid && rest > PURSE_EPSILON && out.length > 0) {
+    const last = out[out.length - 1];
+    const extra = draw(rest);
+    for (const key of ["family", "salary", "charged", "school", "total"] as const) {
+      last.sources[key] = money(last.sources[key] + extra[key]);
+    }
+    last.credited = money(last.credited + extra.total);
+    last.balance = money(last.credited - last.consumed);
   }
   return out;
 }
@@ -1352,8 +1511,9 @@ export function currentCycleCode(db: Database, studentId: string, subscriptionId
   return `M${currentCycleIndex(db, studentId, subscriptionId) + 1}`;
 }
 
-/** The month `code` of one student on one emploi — synthesised (empty) when he
- *  has not reached it yet, so every screen can still render a row for it. */
+/** The month `code` of one student on one emploi — computed even when he has
+ *  not reached it yet (with whatever his purse already pays on it), so every
+ *  screen can render a row for it. */
 export function cycleOf(
   db: Database,
   studentId: string,
@@ -1361,7 +1521,7 @@ export function cycleOf(
   code: string,
 ): MonthCycle {
   const idx = Math.max(0, monthOrder(code));
-  const all = enrollmentCycles(db, studentId, subscriptionId);
+  const all = enrollmentCycles(db, studentId, subscriptionId, { through: idx + 1 });
   if (all[idx]) return all[idx];
   const sub = db.subscriptions.find((s) => s.id === subscriptionId);
   return {
@@ -1375,6 +1535,7 @@ export function cycleOf(
     consumed: 0,
     credited: 0,
     balance: 0,
+    sources: emptyCredits(),
   };
 }
 
@@ -1891,19 +2052,9 @@ export function cycleCredits(
   subscriptionId: string,
   code: string,
 ): CycleCredits {
-  const out: CycleCredits = { family: 0, salary: 0, charged: 0, school: 0, total: 0 };
-  for (const p of db.payments) {
-    if (p.studentId !== studentId || p.subscriptionId !== subscriptionId) continue;
-    if ((p.monthCode || "M1") !== code) continue;
-    const amount = positiveMoney(p.amountPaid || 0);
-    if (amount <= 0) continue;
-    if (p.paidFrom === "teacher_salary") out.salary += amount;
-    else if (p.paidFrom === "teacher_debt") out.charged += amount;
-    else if (p.paidFrom === "school_cash") out.school += amount;
-    else out.family += amount;
-    out.total += amount;
-  }
-  return out;
+  // La même bourse que `enrollmentCycles` : l'argent qui paie CETTE carte, quel
+  // que soit le code écrit sur les versements qui l'ont apporté.
+  return { ...cycleOf(db, studentId, subscriptionId, code).sources };
 }
 
 /** A student's outstanding debt grouped by month code, emplois merged. */
