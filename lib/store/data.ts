@@ -509,6 +509,12 @@ interface DataActions {
     slot?: number;
     /** null undoes whatever was recorded that day */
     status: AttendanceStatus | null;
+    /**
+     * RATTRAPAGE D'UNE SÉANCE PASSÉE — le chevalier a été créé en retard mais
+     * était bien là (ou absent) : la séance se facture normalement, même si
+     * elle précède sa date d'inscription.
+     */
+    retro?: boolean;
   }) => Promise<PresenceResult>;
   /**
    * Recharges the SOLDE of one emploi du temps. The money is booked on ONE of
@@ -2044,7 +2050,7 @@ export const useData = create<DataStore>((set, get) => ({
    *  - `cancelled` -> the séance did not happen: nothing burnt, nothing taken,
    *  - `null` -> the click was a mistake: the row goes and the money comes back.
    */
-  setPresence: async ({ studentId, sessionId, date, slot = 0, status }) => {
+  setPresence: async ({ studentId, sessionId, date, slot = 0, status, retro = false }) => {
     const db = get();
     const student = db.students.find((s) => s.id === studentId);
     if (!student) return { ok: false, messageKey: "scan.notFound" };
@@ -2166,7 +2172,7 @@ export const useData = create<DataStore>((set, get) => ({
      */
     const freePeriod = activeFreePeriod(db, [session.classId, ...(session.classIds ?? [])], date);
     const startDate = enrollment?.startDate ?? student.subscriptionDates?.[sub?.id ?? ""]?.startDate;
-    const beforeStart = !!startDate && startDate > date;
+    const beforeStart = !retro && !!startDate && startDate > date;
 
     const noCharge = status === "cancelled";
     const offered = !noCharge && (!!freePeriod || beforeStart || isFreeSub(student, sub?.id));

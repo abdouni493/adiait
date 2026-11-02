@@ -44,6 +44,7 @@ import { presenceSheetHtml, soldReceiptHtml } from "@/lib/reports/documents";
 import {
   AlertTriangle,
   Banknote,
+  CalendarClock,
   Check,
   CheckCheck,
   Landmark,
@@ -212,6 +213,8 @@ export function PresenceSheet({
   const [bulkStatus, setBulkStatus] = useState<"present" | "cancelled" | null>(null);
   /** l'historique des paiements d'un chevalier sur cet emploi — modifiable */
   const [history, setHistory] = useState<Student | null>(null);
+  /** rattraper les séances passées d'un chevalier créé en retard */
+  const [pastFor, setPastFor] = useState<Student | null>(null);
   /** le pointage qu'on s'apprête à RETIRER, en rendant ce qu'il avait débité */
   const [removing, setRemoving] = useState<{ student: Student; record: AttendanceRecord } | null>(
     null,
@@ -1090,6 +1093,7 @@ export function PresenceSheet({
                   onChildPay={() => setChildPay(st)}
                   onCharges={(tab) => setCharges({ student: st, tab })}
                   onNewCharge={() => setChargeForm(st)}
+                  onPast={canMark ? () => setPastFor(st) : undefined}
                 />
               ))
             )}
@@ -1456,6 +1460,15 @@ export function PresenceSheet({
       )}
 
       {/* ---- l'historique des paiements, modifiable sur place --------------- */}
+      {pastFor && (
+        <PastSeancesModal
+          student={pastFor}
+          session={session}
+          beforeDate={date}
+          onClose={() => setPastFor(null)}
+        />
+      )}
+
       {history && (
         <PaymentHistoryModal
           student={history}
@@ -2479,6 +2492,7 @@ function StudentRow({
   onChildPay,
   onCharges,
   onNewCharge,
+  onPast,
 }: {
   student: Student;
   session: ScheduleSession;
@@ -2506,6 +2520,8 @@ function StudentRow({
   onCharges: (tab: "list" | "pay") => void;
   /** lui porter un nouveau frais sans quitter la feuille */
   onNewCharge: () => void;
+  /** pointer / annuler ses séances PASSÉES (chevalier créé en retard) */
+  onPast?: () => void;
 }) {
   const db = useData();
   const sub = db.subscriptions.find((s) => s.id === subscriptionId)!;
@@ -2739,6 +2755,15 @@ function StudentRow({
               className="text-sm"
             >
               ✅
+            </button>
+          )}
+          {onPast && (
+            <button
+              onClick={onPast}
+              title="Séances précédentes : pointer présent / absent / annulée"
+              className="flex h-6 w-6 items-center justify-center rounded-lg border border-line text-muted transition-colors hover:bg-primary-50 hover:text-ink"
+            >
+              <CalendarClock className="h-3.5 w-3.5" />
             </button>
           )}
           <button
@@ -3340,6 +3365,140 @@ function DebtDrill({
           <Button variant="outline" onClick={onClose}>
             Fermer
           </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * LES SÉANCES PRÉCÉDENTES D'UN CHEVALIER.
+ *
+ * Un chevalier créé en retard commence à la séance du jour — mais il a pu être
+ * là avant. Cette fenêtre liste les séances passées du groupe et permet de les
+ * pointer présent / absent (débitées du solde comme un pointage normal, même
+ * avant sa date d'inscription), annulée (rien n'est débité), ou de retirer le
+ * pointage (le montant est rendu).
+ */
+function PastSeancesModal({
+  student,
+  session,
+  beforeDate,
+  onClose,
+}: {
+  student: Student;
+  session: ScheduleSession;
+  beforeDate: string;
+  onClose: () => void;
+}) {
+  const db = useData();
+  const { setPresence } = db;
+  const { addToast } = useToast();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [weeks, setWeeks] = useState(8);
+
+  const rows = useMemo(() => {
+    const out: { date: string; slot: number; time: string }[] = [];
+    const end = new Date(`${beforeDate}T12:00:00`);
+    for (let i = 1; i <= weeks * 7; i++) {
+      const d = new Date(end);
+      d.setDate(end.getDate() - i);
+      const dow = JS_DAYS[d.getDay()];
+      if (!session.days.includes(dow)) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const slots = sessionSlotsOn(session, dow);
+      for (let k = Math.max(1, slots.length) - 1; k >= 0; k--) {
+        out.push({ date: key, slot: k, time: slots[k]?.startTime ?? "" });
+      }
+    }
+    return out;
+  }, [beforeDate, session, weeks]);
+
+  const mark = async (date: string, slot: number, status: AttendanceStatus | null) => {
+    const k = `${date}#${slot}`;
+    setBusy(k);
+    const res = await setPresence({
+      studentId: student.id,
+      sessionId: session.id,
+      date,
+      slot,
+      status,
+      retro: true,
+    });
+    setBusy(null);
+    if (!res.ok) {
+      addToast({
+        type: "danger",
+        title: "Pointage refusé",
+        message:
+          res.messageKey === "scan.wrongGroup"
+            ? "Le chevalier ne peut être pointé que dans SON groupe."
+            : "Impossible d'enregistrer ce pointage.",
+        studentName: studentName(student),
+      });
+      return;
+    }
+    const bits: string[] = [];
+    if (res.charged) bits.push(`−${formatDA(res.charged)} sur son solde`);
+    if (res.refunded) bits.push(`+${formatDA(res.refunded)} rendus`);
+    addToast({
+      type: (res.balance ?? 0) < 0 ? "warning" : "success",
+      title: status === null ? "Pointage retiré" : `${STATUS_STYLE[status].label} — ${formatDateFr(date)}`,
+      message: `${bits.join(" · ") || "Aucun mouvement"} — solde : ${formatDA(res.balance ?? 0)}`,
+      studentName: studentName(student),
+    });
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Séances précédentes — ${studentName(student)}`}>
+      <div className="space-y-3">
+        <p className="rounded-xl bg-primary-50/60 p-3 text-[11px] text-muted">
+          Présent ou absent : la séance est débitée de son solde comme un pointage normal.
+          Annulée : rien n&apos;est débité. Retirer : le pointage s&apos;efface et le montant est rendu.
+        </p>
+        <div className="max-h-[55vh] divide-y divide-line overflow-y-auto rounded-xl border border-line">
+          {rows.length === 0 && (
+            <p className="p-4 text-center text-xs text-muted">Aucune séance passée sur cette période.</p>
+          )}
+          {rows.map((r) => {
+            const k = `${r.date}#${r.slot}`;
+            const rec = attendanceOn(db, student.id, session.id, r.date, r.slot);
+            const dis = busy === k;
+            return (
+              <div key={k} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                <div className="text-xs">
+                  <span className="font-semibold text-ink">{formatDateFr(r.date)}</span>
+                  {r.time && <span className="ml-1 text-muted">· {r.time}</span>}
+                  {rec && (
+                    <Badge className={`ml-2 border ${STATUS_STYLE[rec.status].cls}`}>
+                      {STATUS_STYLE[rec.status].label}
+                      {rec.amountDeducted > 0 ? ` −${formatDA(rec.amountDeducted)}` : ""}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <MarkButton active={rec?.status === "present"} disabled={dis} tone="success" title="Présent" onClick={() => mark(r.date, r.slot, "present")}>
+                    <Check className="h-3.5 w-3.5" />
+                  </MarkButton>
+                  <MarkButton active={rec?.status === "absent"} disabled={dis} tone="danger" title="Absent" onClick={() => mark(r.date, r.slot, "absent")}>
+                    <X className="h-3.5 w-3.5" />
+                  </MarkButton>
+                  <MarkButton active={rec?.status === "cancelled"} disabled={dis} tone="primary" title="Séance annulée (ne touche pas le solde)" onClick={() => mark(r.date, r.slot, "cancelled")}>
+                    <Slash className="h-3.5 w-3.5" />
+                  </MarkButton>
+                  <MarkButton active={false} disabled={dis || !rec} tone="neutral" title="Retirer le pointage" onClick={() => mark(r.date, r.slot, null)}>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </MarkButton>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between">
+          <Button size="sm" variant="outline" onClick={() => setWeeks((w) => w + 8)}>
+            Afficher plus de séances
+          </Button>
+          <Button size="sm" onClick={onClose}>Fermer</Button>
         </div>
       </div>
     </Modal>
