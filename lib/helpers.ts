@@ -1292,12 +1292,31 @@ export function enrollmentStart(
   studentId: string,
   subscriptionId: string,
 ): EnrollmentStart {
-  const size = cycleSizeOf(db.subscriptions.find((s) => s.id === subscriptionId));
+  const sub = db.subscriptions.find((s) => s.id === subscriptionId);
+  const size = cycleSizeOf(sub);
   const dates = db.students.find((s) => s.id === studentId)?.subscriptionDates?.[subscriptionId];
   const month = Math.max(0, monthOrder(dates?.joinMonthCode || "M1"));
   const slot = Math.max(0, Math.round(dates?.joinSlotIndex ?? 0));
   // A slot spilling past the pack simply belongs to the month after it.
-  const offset = month * size + slot;
+  const stored = month * size + slot;
+
+  /**
+   * RATTRAPAGE DES SÉANCES D'AVANT.
+   *
+   * Un chevalier créé en retard entre à la séance du jour, mais on peut lui
+   * rattraper (retro) les séances qu'il a réellement vécues avant d'être saisi.
+   * Chacune de ces séances, datée AVANT son inscription, est une séance de plus
+   * qu'il a tenue : son point d'entrée doit reculer d'autant, sans quoi ses
+   * présences rattrapées pousseraient ses vraies séances sur la carte suivante.
+   */
+  const joinDay = dates?.subscribedAt || dates?.startDate;
+  let retroLead = 0;
+  if (joinDay && sub) {
+    for (const rec of cycleRecords(db, studentId, sub.sessionId)) {
+      if (dayKeyOf(rec.timestamp) < joinDay) retroLead++;
+    }
+  }
+  const offset = Math.max(0, stored - retroLead);
   return { monthIndex: Math.floor(offset / size), slotIndex: offset % size, offset };
 }
 
