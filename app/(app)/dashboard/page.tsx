@@ -69,6 +69,7 @@ import {
   slotLabel,
   teacherName,
 } from "@/lib/helpers";
+import { carteCodeForDate } from "@/lib/cartes";
 import { ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, Clock, Filter, Home, Hourglass, Receipt, Search, UserPlus, UserSearch, Users, Wallet, X } from "lucide-react";
 import type { Day, DayTime, ScheduleSession } from "@/lib/types";
 
@@ -396,7 +397,10 @@ function AdminDashboard() {
       });
       return;
     }
-    setMonth(sessionCurrentMonthCode(db, s.id));
+    // La carte à ouvrir est celle qui PORTE les séances du jour visé, jamais une
+    // carte planifiée encore vide : sinon les présences déjà pointées (sur la
+    // carte précédente) ne s'affichent pas.
+    setMonth(carteCodeForDate(db, s.id, on) ?? sessionCurrentMonthCode(db, s.id));
     setOpenDate(on);
     setOpenSlot(slot);
     setOpenSessionId(s.id);

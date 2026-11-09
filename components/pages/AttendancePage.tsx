@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PresenceSheet } from "@/components/attendance/PresenceSheet";
+import { carteCodeForDate } from "@/lib/cartes";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
 import { formatDA } from "@/lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Clock, Search, UserCheck } from "lucide-react";
@@ -145,11 +146,18 @@ export function AttendancePage() {
 
   const activeSession = daySessions.find((s) => s.id === activeSessionId);
 
-  // The sheet opens on the month the group is collectively living.
+  // La feuille s'ouvre sur la carte qui PORTE les séances du jour affiché — pas
+  // sur une carte à venir restée vide, qui masquerait les présences déjà
+  // pointées. Elle suit donc aussi le changement de date.
   useEffect(() => {
-    if (activeSession) setMonth(sessionCurrentMonthCode(db, activeSession.id));
+    if (activeSession) {
+      setMonth(
+        carteCodeForDate(db, activeSession.id, sheetDate) ??
+          sessionCurrentMonthCode(db, activeSession.id),
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId]);
+  }, [activeSessionId, sheetDate]);
 
   const shiftDay = (days: number) => {
     const d = new Date(`${sheetDate}T12:00:00`);

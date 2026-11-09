@@ -172,6 +172,79 @@ export function currentCarte(db: Database, sessionId: string): CarteView | undef
   return views.find((v) => !v.complete) ?? views[views.length - 1];
 }
 
+/**
+ * LA CARTE À OUVRIR POUR UNE DATE DONNÉE — celle où lire les présences du jour.
+ *
+ * La feuille de présence doit s'ouvrir sur la carte qui PORTE les séances, pas
+ * sur une carte à venir encore vide. Quand la carte 1 vient de se clore et que
+ * la carte 2, planifiée, n'a pas tenu une seule séance, se caler sur la « carte
+ * courante » (la première non close) montrait huit cases vides — et les
+ * présences semblaient avoir disparu.
+ *
+ * On choisit donc, dans l'ordre :
+ *   1. la carte dont la fenêtre de séances TENUES contient la date ;
+ *   2. une carte en cours (commencée, non close) dont la première séance précède
+ *      la date ;
+ *   3. sinon, la dernière carte qui a RÉELLEMENT tenu des séances — jamais une
+ *      carte planifiée restée vide ;
+ *   4. à défaut, la première carte.
+ */
+export function carteCodeForDate(
+  db: Database,
+  sessionId: string,
+  date: string,
+): string | undefined {
+  const views = carteLayout(db, sessionId);
+  if (views.length === 0) return undefined;
+
+  // 1. La carte dont les séances TENUES couvrent la date.
+  for (const v of views) {
+    if (v.held === 0 || !v.startDate) continue;
+    if (v.endDate) {
+      if (date >= v.startDate && date <= v.endDate) return v.carte.code;
+    } else if (date >= v.startDate) {
+      // Carte en cours : elle porte tout ce qui suit sa première séance.
+      return v.carte.code;
+    }
+  }
+
+  const withHeld = views.filter((v) => v.held > 0 && v.startDate);
+  const lastHeld = withHeld[withHeld.length - 1];
+
+  // 2. Avant la toute première séance tenue : la première carte qui en porte.
+  if (withHeld.length > 0 && date < withHeld[0].startDate!) {
+    return withHeld[0].carte.code;
+  }
+
+  // 3. Une date de séance À VENIR, au-delà de la dernière carte tenue : on
+  //    ouvre la carte qui va la recevoir, pour que le pointage du jour s'y
+  //    affiche au lieu de retomber sur une carte close.
+  const session = db.sessions.find((s) => s.id === sessionId);
+  const lastEnd = lastHeld?.endDate ?? lastHeld?.startDate;
+  if (session && (!lastEnd || date > lastEnd) && isSeanceDay(session, date)) {
+    return (currentCarte(db, sessionId)?.carte.code ?? lastHeld?.carte.code);
+  }
+
+  // 4. Sinon, la dernière carte qui a réellement tenu des séances — jamais une
+  //    carte planifiée restée vide.
+  return lastHeld?.carte.code ?? views[0].carte.code;
+}
+
+/** La date tombe-t-elle sur un jour où cet emploi du temps tient séance ? */
+function isSeanceDay(session: ScheduleSession, date: string): boolean {
+  const JS_DAYS = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ] as const;
+  const dow = JS_DAYS[new Date(`${date}T12:00:00`).getDay()];
+  return session.days.includes(dow);
+}
+
 /** Les codes de carte qui EXISTENT sur cet emploi du temps (« M1 », « M2 »…). */
 export function carteCodesOf(db: Database, sessionId: string): string[] {
   return cartesOf(db, sessionId).map((c) => c.code);
