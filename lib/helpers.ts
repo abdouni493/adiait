@@ -1308,8 +1308,18 @@ export function enrollmentStart(
    * Chacune de ces séances, datée AVANT son inscription, est une séance de plus
    * qu'il a tenue : son point d'entrée doit reculer d'autant, sans quoi ses
    * présences rattrapées pousseraient ses vraies séances sur la carte suivante.
+   *
+   * ON NE SE FIE QU'À `subscribedAt` — le jour où le chevalier a été SAISI.
+   * Une présence antérieure à ce jour ne peut venir que d'un rattrapage : le
+   * chevalier n'existait pas encore dans la base avant. `startDate`, lui, est le
+   * début de FACTURATION et peut être fixé APRÈS de vraies présences (reprise,
+   * période d'essai, fiche importée) : s'en servir ferait passer des présences
+   * ordinaires pour des rattrapages et déplacerait la carte à tort, si bien que
+   * les présences semblaient disparaître. On le laisse donc de côté, et une fiche
+   * sans `subscribedAt` garde exactement son point d'entrée d'origine.
    */
-  const joinDay = dates?.subscribedAt || dates?.startDate;
+  const rawJoin = dates?.subscribedAt;
+  const joinDay = rawJoin ? (rawJoin.length > 10 ? dayKeyOf(rawJoin) : rawJoin) : undefined;
   let retroLead = 0;
   if (joinDay && sub) {
     for (const rec of cycleRecords(db, studentId, sub.sessionId)) {

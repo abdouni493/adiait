@@ -151,4 +151,72 @@ describe("rattraper les séances d'avant garde tout sur la carte d'entrée", () 
       offset: 6,
     });
   });
+
+  /**
+   * NON-RÉGRESSION : une date de FACTURATION (`startDate`) postérieure à de
+   * vraies présences ne doit PAS être prise pour un rattrapage. Sinon le point
+   * d'entrée reculait à tort et les présences semblaient disparaître de la carte.
+   */
+  it("un startDate tardif ne déplace pas les présences (elles ne disparaissent pas)", async () => {
+    board(4);
+    const days = scheduledDays(7);
+    registerNew("M1", 0, days[0]);
+    // Il suit le groupe depuis M1 · séance 1 et il est pointé 3 fois.
+    for (const day of days.slice(0, 3)) await present(NEW, day);
+
+    // La facturation ne commence qu'à la 3e séance (essai, reprise, import) —
+    // mais ses présences d'avant restent les siennes.
+    const db = useData.getState();
+    db.students = db.students.map((s) =>
+      s.id === NEW
+        ? {
+            ...s,
+            subscriptionDates: {
+              ...s.subscriptionDates,
+              [SUB]: { ...s.subscriptionDates![SUB], startDate: days[2] },
+            },
+          }
+        : s,
+    );
+    useData.setState({ students: db.students });
+
+    // Le point d'entrée reste à la séance 1, et ses 3 présences restent sur M1.
+    expect(enrollmentStart(useData.getState(), NEW, SUB)).toEqual({
+      monthIndex: 0,
+      slotIndex: 0,
+      offset: 0,
+    });
+    expect(cycleLead(useData.getState(), NEW, SUB, "M1")).toBe(0);
+    expect(cycleSlots(useData.getState(), NEW, SUB, "M1")).toHaveLength(3);
+  });
+
+  /**
+   * NON-RÉGRESSION : un rattrapage se relit à l'identique après rechargement —
+   * il est DÉDUIT des dates (subscribedAt + présences), rien d'éphémère. Les
+   * présences ne « disparaissent » donc pas une fois la page rouverte.
+   */
+  it("le rattrapage se recalcule depuis les données persistées", async () => {
+    board(4);
+    const days = scheduledDays(7);
+    for (const day of days.slice(0, 6)) await present(OLD, day);
+    registerNew("M2", 2, days[6]);
+    await present(NEW, days[6]);
+    await retroPresent(NEW, days[4]);
+    await retroPresent(NEW, days[5]);
+
+    // On fige l'état persisté et on le recharge tel quel (comme une page rouverte).
+    const snapshot = {
+      students: useData.getState().students,
+      attendance: useData.getState().attendance,
+      enrollments: useData.getState().enrollments,
+      subscriptions: useData.getState().subscriptions,
+      sessions: useData.getState().sessions,
+    };
+    useData.setState(buildSeed());
+    useData.setState(snapshot);
+
+    // Après « rechargement », le point d'entrée et les présences sont intacts.
+    expect(enrollmentStart(useData.getState(), NEW, SUB).offset).toBe(4);
+    expect(cycleSlots(useData.getState(), NEW, SUB, "M2")).toHaveLength(3);
+  });
 });
