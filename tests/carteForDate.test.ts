@@ -65,11 +65,26 @@ describe("carteCodeForDate", () => {
     const s = useData.getState();
     // Une date DANS la carte 1 -> M1.
     expect(carteCodeForDate(s, SES, "2026-09-11")).toBe("M1");
-    // Un jour SANS séance après la clôture (un lundi) -> toujours M1, pas la
-    // carte 2 vide : les présences restent visibles.
+    // Un jour SANS séance après la clôture (un lundi) -> M1, pas la carte 2 vide.
     expect(carteCodeForDate(s, SES, "2026-10-05")).toBe("M1");
-    // Un vendredi À VENIR -> la carte 2, prête à recevoir le nouveau pointage.
-    expect(carteCodeForDate(s, SES, "2026-10-09")).toBe("M2");
+    // Un VENDREDI (jour de séance) juste après la clôture, carte 2 encore vide ->
+    // on reste sur M1 : les présences d'octobre restent visibles, on ne bascule
+    // pas sur huit cases vides.
+    expect(carteCodeForDate(s, SES, "2026-10-09")).toBe("M1");
+  });
+
+  it("bascule sur la nouvelle carte dès que son premier pointage est saisi", async () => {
+    board();
+    await useData.getState().syncCartes();
+    for (const d of FRIDAYS) await mark(d); // carte 1 close
+
+    // Avant pointage : le vendredi suivant reste sur la carte pleine.
+    expect(carteCodeForDate(useData.getState(), SES, "2026-10-09")).toBe("M1");
+
+    // On pointe ce vendredi : il ouvre la carte 2, et la vue la désigne.
+    await mark("2026-10-09");
+    expect(carteCodeForDate(useData.getState(), SES, "2026-10-09")).toBe("M2");
+    expect(carteLayout(useData.getState(), SES)[1].held).toBe(1);
   });
 
   it("sans aucune carte tenue, retombe sur la première", async () => {

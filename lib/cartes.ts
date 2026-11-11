@@ -175,19 +175,25 @@ export function currentCarte(db: Database, sessionId: string): CarteView | undef
 /**
  * LA CARTE À OUVRIR POUR UNE DATE DONNÉE — celle où lire les présences du jour.
  *
- * La feuille de présence doit s'ouvrir sur la carte qui PORTE les séances, pas
- * sur une carte à venir encore vide. Quand la carte 1 vient de se clore et que
- * la carte 2, planifiée, n'a pas tenu une seule séance, se caler sur la « carte
- * courante » (la première non close) montrait huit cases vides — et les
- * présences semblaient avoir disparu.
+ * La feuille de présence doit s'ouvrir sur une carte qui PORTE réellement des
+ * séances, jamais sur une carte à venir encore vide. Quand la carte 1 vient de
+ * se clore et que la carte 2, planifiée, n'a pas tenu une seule séance, se caler
+ * sur la « carte courante » montrait huit cases vides — et les présences déjà
+ * pointées semblaient avoir disparu, même un jour de séance (le vendredi qui
+ * suit la clôture).
  *
- * On choisit donc, dans l'ordre :
- *   1. la carte dont la fenêtre de séances TENUES contient la date ;
- *   2. une carte en cours (commencée, non close) dont la première séance précède
- *      la date ;
- *   3. sinon, la dernière carte qui a RÉELLEMENT tenu des séances — jamais une
- *      carte planifiée restée vide ;
- *   4. à défaut, la première carte.
+ * La règle est donc, dans l'ordre :
+ *   1. la carte dont les séances TENUES couvrent la date (une carte en cours
+ *      porte tout ce qui suit sa première séance) ;
+ *   2. avant la toute première séance tenue : la première carte qui en porte ;
+ *   3. sinon, la DERNIÈRE carte qui a réellement tenu des séances — jamais une
+ *      carte planifiée restée vide.
+ *
+ * On ne saute PAS d'office sur une carte vide pour un jour de séance : tant que
+ * personne n'a pointé cette nouvelle carte, on montre la carte pleine. Dès que
+ * le premier pointage du jour est saisi, la carte reçoit sa séance, la règle 1
+ * la désigne, et la vue — qui suit l'état des présences — s'y déplace toute
+ * seule. Les présences restent donc visibles avant comme après le pointage.
  */
 export function carteCodeForDate(
   db: Database,
@@ -209,40 +215,13 @@ export function carteCodeForDate(
   }
 
   const withHeld = views.filter((v) => v.held > 0 && v.startDate);
-  const lastHeld = withHeld[withHeld.length - 1];
-
-  // 2. Avant la toute première séance tenue : la première carte qui en porte.
-  if (withHeld.length > 0 && date < withHeld[0].startDate!) {
-    return withHeld[0].carte.code;
+  if (withHeld.length > 0) {
+    // 2. Avant la toute première séance tenue : la première carte qui en porte.
+    if (date < withHeld[0].startDate!) return withHeld[0].carte.code;
+    // 3. Sinon, la dernière carte qui a réellement tenu des séances.
+    return withHeld[withHeld.length - 1].carte.code;
   }
-
-  // 3. Une date de séance À VENIR, au-delà de la dernière carte tenue : on
-  //    ouvre la carte qui va la recevoir, pour que le pointage du jour s'y
-  //    affiche au lieu de retomber sur une carte close.
-  const session = db.sessions.find((s) => s.id === sessionId);
-  const lastEnd = lastHeld?.endDate ?? lastHeld?.startDate;
-  if (session && (!lastEnd || date > lastEnd) && isSeanceDay(session, date)) {
-    return (currentCarte(db, sessionId)?.carte.code ?? lastHeld?.carte.code);
-  }
-
-  // 4. Sinon, la dernière carte qui a réellement tenu des séances — jamais une
-  //    carte planifiée restée vide.
-  return lastHeld?.carte.code ?? views[0].carte.code;
-}
-
-/** La date tombe-t-elle sur un jour où cet emploi du temps tient séance ? */
-function isSeanceDay(session: ScheduleSession, date: string): boolean {
-  const JS_DAYS = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ] as const;
-  const dow = JS_DAYS[new Date(`${date}T12:00:00`).getDay()];
-  return session.days.includes(dow);
+  return views[0].carte.code;
 }
 
 /** Les codes de carte qui EXISTENT sur cet emploi du temps (« M1 », « M2 »…). */

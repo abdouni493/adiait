@@ -146,18 +146,22 @@ export function AttendancePage() {
 
   const activeSession = daySessions.find((s) => s.id === activeSessionId);
 
-  // La feuille s'ouvre sur la carte qui PORTE les séances du jour affiché — pas
-  // sur une carte à venir restée vide, qui masquerait les présences déjà
-  // pointées. Elle suit donc aussi le changement de date.
-  useEffect(() => {
-    if (activeSession) {
-      setMonth(
-        carteCodeForDate(db, activeSession.id, sheetDate) ??
-          sessionCurrentMonthCode(db, activeSession.id),
-      );
-    }
+  // La carte à afficher suit le JOUR visé ET l'état des présences : on ouvre sur
+  // la carte qui porte réellement des séances (jamais une carte à venir restée
+  // vide, qui masquerait les présences déjà pointées), et dès que le premier
+  // pointage d'une nouvelle carte est saisi, la vue s'y déplace toute seule.
+  const targetMonth = useMemo(
+    () =>
+      activeSession
+        ? carteCodeForDate(db, activeSession.id, sheetDate) ??
+          sessionCurrentMonthCode(db, activeSession.id)
+        : undefined,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, sheetDate]);
+    [activeSessionId, sheetDate, attendance, db.emploiCartes],
+  );
+  useEffect(() => {
+    if (targetMonth) setMonth(targetMonth);
+  }, [targetMonth]);
 
   const shiftDay = (days: number) => {
     const d = new Date(`${sheetDate}T12:00:00`);

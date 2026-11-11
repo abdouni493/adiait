@@ -157,7 +157,7 @@ function AdminDashboard() {
    */
   const [openSlot, setOpenSlot] = useState<number>(0);
   const [openDate, setOpenDate] = useState<string>(todayIso);
-  const [month, setMonth] = useState<string>("M1");
+  const [monthOverride, setMonthOverride] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   /** « Situation d'un chevalier » : le tableau de tous ses emplois du temps. */
   const [situationOpen, setSituationOpen] = useState(false);
@@ -386,6 +386,17 @@ function AdminDashboard() {
   const openSession = sessions.find((s) => s.id === openSessionId) ?? null;
   const openDow = JS_DAYS[new Date(`${openDate}T12:00:00`).getDay()];
 
+  // La carte affichée suit le jour ouvert ET l'état des présences : on reste sur
+  // la carte qui porte des séances (jamais une carte à venir vide, qui masquerait
+  // les présences déjà pointées), et dès que le premier pointage d'une nouvelle
+  // carte est saisi, la vue s'y déplace. Un choix MANUEL (boutons ‹ ›) prime
+  // jusqu'à la réouverture de la feuille.
+  const openMonthTarget = openSession
+    ? carteCodeForDate(db, openSession.id, openDate) ??
+      sessionCurrentMonthCode(db, openSession.id)
+    : undefined;
+  const month = monthOverride ?? openMonthTarget ?? "M1";
+
   const openSheet = (s: ScheduleSession, on: string = date, slot = 0) => {
     // Un travailleur à qui l'on n'a pas ouvert la feuille de présence peut voir
     // la grille du jour sans pouvoir l'ouvrir : le clic ne fait alors rien.
@@ -397,10 +408,9 @@ function AdminDashboard() {
       });
       return;
     }
-    // La carte à ouvrir est celle qui PORTE les séances du jour visé, jamais une
-    // carte planifiée encore vide : sinon les présences déjà pointées (sur la
-    // carte précédente) ne s'affichent pas.
-    setMonth(carteCodeForDate(db, s.id, on) ?? sessionCurrentMonthCode(db, s.id));
+    // On repart de la carte automatique (celle qui porte les séances du jour),
+    // sans garder un choix manuel d'une ouverture précédente.
+    setMonthOverride(null);
     setOpenDate(on);
     setOpenSlot(slot);
     setOpenSessionId(s.id);
@@ -1103,7 +1113,7 @@ function AdminDashboard() {
               slot={openSlot}
               onSlotChange={setOpenSlot}
               monthCode={month}
-              onMonthChange={setMonth}
+              onMonthChange={setMonthOverride}
               canMark={can("mark_presence")}
               canCollect={can("collect_payment")}
               onCreateStudent={() => {
