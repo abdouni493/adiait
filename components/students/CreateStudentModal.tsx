@@ -42,16 +42,30 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/SearchInput";
 import { Badge } from "@/components/ui/Badge";
 import {
+  AlertTriangle,
   BookOpen,
   Building2,
+  CalendarClock,
   Check,
+  ClipboardCheck,
   Gift,
+  HandCoins,
   KeyRound,
+  Percent,
   ShieldCheck,
+  Ticket,
   Trash2,
+  UserRound,
   Users,
   Wallet,
 } from "lucide-react";
+import {
+  FicheHero,
+  FicheSection,
+  FicheStepper,
+  HeroChip,
+  type FicheStep,
+} from "@/components/students/FicheLayout";
 import { AnimatePresence, motion } from "framer-motion";
 import { createRoleUser, resetUserPassword, updateUserEmail } from "@/lib/accounts/users";
 import { formatDA } from "@/lib/utils";
@@ -71,6 +85,7 @@ import {
 import {
   carteShort,
   cycleSizeOf,
+  formatDateFr,
   joinPointFor,
   nextRegistrationNumber,
   registrationFeeFor,
@@ -101,6 +116,38 @@ export const STUDENT_CASE_OPTIONS: { value: StudentCase; label: string }[] = [
   { value: "reduction", label: "Réduction" },
   { value: "school_only", label: "Club seulement" },
 ];
+
+/** L'icône et la phrase de chaque cas, sur ses cartes de choix. */
+const CASE_META: Record<StudentCase, { icon: typeof Ticket; hint: string }> = {
+  normal: { icon: UserRound, hint: "Tarif plein, club + entraîneur." },
+  special: { icon: Gift, hint: "Emplois offerts, rien n'est payé." },
+  teacher_child: { icon: HandCoins, hint: "Payé sur le salaire du père." },
+  reduction: { icon: Percent, hint: "Remise sur le club et/ou l'entraîneur." },
+  school_only: { icon: Building2, hint: "Seule la part du club est due." },
+};
+
+/** Une case du récapitulatif. */
+function RecapTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "primary" | "success" | "danger";
+}) {
+  const cls = {
+    primary: "border-primary/25 bg-primary-50/60 text-primary",
+    success: "border-success/30 bg-success/10 text-success",
+    danger: "border-danger/30 bg-danger/10 text-danger",
+  }[tone];
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 ${cls}`}>
+      <span className="block text-[9px] font-bold uppercase tracking-wider text-muted">{label}</span>
+      <strong className="font-display text-base">{value}</strong>
+    </div>
+  );
+}
 
 export interface StudentFicheProps {
   open: boolean;
@@ -430,6 +477,47 @@ function StudentFiche({
     const p = placementOf(subId);
     return !!p?.date && p.date < arrivalDay;
   };
+
+  /** toutes les séances passées que les placements choisis laisseront à régulariser */
+  const backlogTotal = isEdit
+    ? 0
+    : subIds.reduce(
+        (n, subId) =>
+          n + (pastPlacement(subId) ? placementBacklogCount(db, subId, placementOf(subId), arrivalDay) : 0),
+        0,
+      );
+
+  /** LES ÉTAPES DE LA FICHE, cochées au fur et à mesure de la saisie. */
+  const identityDone = !!firstName.trim() && !!lastName.trim();
+  const accountDone = isEdit
+    ? true
+    : (!wantAccount || (!!accEmail.trim() && accPassword.length >= 6)) &&
+      (parentMode !== "existing" || !!parentId) &&
+      (parentMode !== "new" || !!(pFirstName.trim() || pLastName.trim()));
+  const caseOptionLabel =
+    STUDENT_CASE_OPTIONS.find((o) => o.value === studentCase)?.label ?? "Normal";
+  const ficheSteps: FicheStep[] = [
+    { key: "identite", label: "Identité", icon: UserRound, done: identityDone },
+    { key: "cas", label: "Cas", icon: Ticket, done: true },
+    {
+      key: "groupe",
+      label: "Groupe & placement",
+      icon: CalendarClock,
+      done: subIds.length > 0,
+      warn: backlogTotal > 0,
+    },
+    { key: "compte", label: isEdit ? "Portail" : "Compte & famille", icon: Users, done: accountDone },
+    ...(isEdit
+      ? []
+      : [
+          {
+            key: "recap",
+            label: "Récapitulatif",
+            icon: ClipboardCheck,
+            done: identityDone && subIds.length > 0,
+          },
+        ]),
+  ];
 
   const reset = () => {
     setFirstName("");
@@ -1055,972 +1143,1153 @@ function StudentFiche({
 
   return (
     <>
-      <Modal open onClose={onClose} title={isEdit ? "Modifier le chevalier" : "Nouveau chevalier"} wide>
-        <div className="space-y-4">
-          {/* identity */}
-          <div className="rounded-xl border border-line bg-canvas/30 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                👤 Informations personnelles
-              </span>
-              <Badge tone="primary" className="font-mono">
-                N° {shownNumber}
+      <Modal
+        open
+        onClose={onClose}
+        title={isEdit ? "Modifier le chevalier" : "Nouveau chevalier"}
+        wide
+        footer={
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+              <Badge tone={identityDone ? "success" : "warning"}>
+                {identityDone ? "Identité ✓" : "Nom à saisir"}
               </Badge>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted">Prénom</label>
-                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Amine" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted">Nom</label>
-                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Benali" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted">
-                  Téléphone (optionnel)
-                </label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0555 12 34 56" />
-              </div>
-              {/* Le second numéro : la mère, l'oncle, le voisin — celui qu'on
-                  compose quand le premier ne répond pas. Jamais exigé. */}
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted">
-                  Deuxième téléphone (optionnel)
-                </label>
-                <Input
-                  value={phone2}
-                  onChange={(e) => setPhone2(e.target.value)}
-                  placeholder="0661 98 76 54"
-                />
-                <p className="mt-1 text-[10px] text-muted">
-                  Numéro de secours — il s&apos;affiche sur la fiche du chevalier à côté du
-                  premier.
-                </p>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted">
-                  Date de naissance (optionnel)
-                </label>
-                <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
-              </div>
-              {/* L'ADRESSE — facultative. Elle ne commande rien : ni tarif, ni
-                  groupe, ni document. Elle sert à retrouver une famille. */}
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted">
-                  Adresse (optionnel)
-                </label>
-                <Input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Cité, rue, ville"
-                />
-              </div>
-            </div>
+              <Badge tone="primary">{subIds.length} emploi(s)</Badge>
+              {totalSold > 0 && <Badge tone="success">{formatDA(totalSold)}</Badge>}
+              {backlogTotal > 0 && <Badge tone="warning">{backlogTotal} à régulariser</Badge>}
+            </span>
+            <span className="flex gap-2">
+              <Button variant="outline" onClick={onClose} disabled={busy}>
+                Annuler
+              </Button>
+              <Button variant="accent" onClick={submit} disabled={busy} className="gap-2">
+                <Check className="h-4 w-4" />
+                {busy
+                  ? isEdit
+                    ? "Enregistrement…"
+                    : "Création…"
+                  : isEdit
+                    ? "Enregistrer les modifications"
+                    : "Créer le chevalier"}
+              </Button>
+            </span>
           </div>
+        }
+      >
+        <div className="space-y-4">
+          <FicheHero
+            name={`${firstName} ${lastName}`}
+            number={shownNumber}
+            isEdit={isEdit}
+            chips={
+              <>
+                <HeroChip>{caseOptionLabel}</HeroChip>
+                <HeroChip tone={subIds.length > 0 ? "gold" : "plain"}>
+                  <BookOpen className="h-3 w-3" /> {subIds.length} emploi(s) du temps
+                </HeroChip>
+                {totalSold > 0 && (
+                  <HeroChip tone="gold">
+                    <Wallet className="h-3 w-3" /> {formatDA(totalSold)} versés
+                  </HeroChip>
+                )}
+                {backlogTotal > 0 && (
+                  <HeroChip tone="warn">
+                    <CalendarClock className="h-3 w-3" /> {backlogTotal} séance(s) à régulariser
+                  </HeroChip>
+                )}
+              </>
+            }
+          />
 
-          {/* portal login — only an existing fiche has one */}
-          {isEdit && (
-            <div className="space-y-2 rounded-xl border border-line bg-canvas/30 p-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                🔐 Compte du portail &amp; badge
-              </span>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <FicheStepper steps={ficheSteps} />
+
+          <FicheSection
+            id="identite"
+            step={1}
+            icon={UserRound}
+            title="Identité"
+            subtitle="Le nom suffit pour créer la fiche — le reste est facultatif."
+            tone="primary"
+            done={identityDone}
+          >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-muted">
-                    Email de connexion
-                  </label>
-                  <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+                  <label className="mb-1 block text-xs font-semibold text-muted">Prénom</label>
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Amine" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-muted">Nom</label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Benali" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted">
-                    Nouveau mot de passe
+                    Téléphone (optionnel)
+                  </label>
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0555 12 34 56" />
+                </div>
+                {/* Le second numéro : la mère, l'oncle, le voisin — celui qu'on
+                    compose quand le premier ne répond pas. Jamais exigé. */}
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-muted">
+                    Deuxième téléphone (optionnel)
                   </label>
                   <Input
-                    value={editPassword}
-                    onChange={(e) => setEditPassword(e.target.value)}
-                    placeholder="Laisser vide pour ne pas changer"
+                    value={phone2}
+                    onChange={(e) => setPhone2(e.target.value)}
+                    placeholder="0661 98 76 54"
                   />
+                  <p className="mt-1 text-[10px] text-muted">
+                    Numéro de secours — il s&apos;affiche sur la fiche du chevalier à côté du
+                    premier.
+                  </p>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-muted">Carte RFID</label>
-                  <Input value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
+                  <label className="mb-1 block text-xs font-semibold text-muted">
+                    Date de naissance (optionnel)
+                  </label>
+                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                </div>
+                {/* L'ADRESSE — facultative. Elle ne commande rien : ni tarif, ni
+                    groupe, ni document. Elle sert à retrouver une famille. */}
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-muted">
+                    Adresse (optionnel)
+                  </label>
+                  <Input
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Cité, rue, ville"
+                  />
                 </div>
               </div>
-            </div>
-          )}
+          </FicheSection>
 
-
-          {/* ---------------------------------------------------------------
-              LE COMPTE DE CONNEXION DU CHEVALIER — à la création seulement.
-              Une fiche existante gère le sien dans le bloc « Compte du portail
-              & badge » un peu plus haut.
-              --------------------------------------------------------------- */}
-          {!isEdit && (
-            <div className="space-y-3 rounded-xl border border-line bg-canvas/30 p-3">
-              <label className="flex cursor-pointer items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  checked={wantAccount}
-                  onChange={(e) => setWantAccount(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
-                />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
-                    <KeyRound className="h-3.5 w-3.5" /> Ouvrir un compte de connexion
-                  </span>
-                  <span className="mt-0.5 block text-[10px] leading-relaxed text-muted">
-                    Le chevalier pourra se connecter à son portail et y suivre ses
-                    présences, ses absences et ses paiements. Sans compte, sa fiche
-                    fonctionne exactement pareil — elle n&apos;a simplement pas
-                    d&apos;accès.
-                  </span>
-                </span>
-              </label>
-
-              <AnimatePresence initial={false}>
-                {wantAccount && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
-                    className="overflow-hidden"
-                  >
-                    <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-muted">
-                          Email de connexion <span className="text-danger">*</span>
-                        </label>
-                        <Input
-                          type="email"
-                          autoComplete="off"
-                          value={accEmail}
-                          onChange={(e) => setAccEmail(e.target.value)}
-                          placeholder="chevalier@exemple.com"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-muted">
-                          Mot de passe <span className="text-danger">*</span>
-                        </label>
-                        <Input
-                          type="text"
-                          autoComplete="off"
-                          value={accPassword}
-                          onChange={(e) => setAccPassword(e.target.value)}
-                          placeholder="6 caractères au minimum"
-                        />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {/* ---------------------------------------------------------------
-              LE PARENT — rattaché à un parent existant, ou créé ici même.
-              --------------------------------------------------------------- */}
-          {!isEdit && (
-            <div className="space-y-3 rounded-xl border border-line bg-canvas/30 p-3">
-              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
-                <Users className="h-3.5 w-3.5" /> Parent du chevalier
-              </span>
-
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    { value: "none", label: "Aucun" },
-                    { value: "existing", label: "Parent existant" },
-                    { value: "new", label: "Nouveau parent" },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setParentMode(opt.value)}
-                    className={`cursor-pointer rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
-                      parentMode === opt.value
-                        ? "border-accent/45 bg-accent/15 text-accent-ink"
-                        : "border-line bg-surface text-muted hover:border-accent/30 hover:text-ink"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              <AnimatePresence initial={false} mode="wait">
-                {parentMode === "existing" && (
-                  <motion.div
-                    key="existing"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
-                    className="overflow-hidden"
-                  >
-                    <div className="pt-1">
-                      <label className="mb-1 block text-xs font-semibold text-muted">
-                        Choisir le parent
-                      </label>
-                      <select
-                        value={parentId}
-                        onChange={(e) => setParentId(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none"
-                      >
-                        <option value="">— Sélectionner —</option>
-                        {db.parents.map((par) => (
-                          <option key={par.id} value={par.id}>
-                            {[par.firstName, par.lastName].filter(Boolean).join(" ")}
-                            {par.phone ? ` · ${par.phone}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {db.parents.length === 0 && (
-                        <p className="mt-1.5 text-[10px] text-muted">
-                          Aucun parent enregistré — choisissez « Nouveau parent ».
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {parentMode === "new" && (
-                  <motion.div
-                    key="new"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-3 pt-1">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-xs font-semibold text-muted">
-                            Prénom du parent
-                          </label>
-                          <Input
-                            value={pFirstName}
-                            onChange={(e) => setPFirstName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-semibold text-muted">
-                            Nom du parent
-                          </label>
-                          <Input
-                            value={pLastName}
-                            onChange={(e) => setPLastName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-semibold text-muted">
-                            Téléphone
-                          </label>
-                          <Input
-                            type="tel"
-                            value={pPhone}
-                            onChange={(e) => setPPhone(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-semibold text-muted">
-                            Email
-                          </label>
-                          <Input
-                            type="email"
-                            value={pEmail}
-                            onChange={(e) => setPEmail(e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <label className="flex cursor-pointer items-start gap-2.5 border-t border-line pt-3">
-                        <input
-                          type="checkbox"
-                          checked={pWantAccount}
-                          onChange={(e) => setPWantAccount(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
-                        />
-                        <span className="min-w-0">
-                          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
-                            <KeyRound className="h-3.5 w-3.5" /> Ouvrir un compte au parent
-                          </span>
-                          <span className="mt-0.5 block text-[10px] leading-relaxed text-muted">
-                            Il suivra depuis son portail les présences, les absences et
-                            les paiements de chacun de ses chevaliers.
-                          </span>
-                        </span>
-                      </label>
-
-                      <AnimatePresence initial={false}>
-                        {pWantAccount && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
-                            className="overflow-hidden"
-                          >
-                            <div className="pt-1">
-                              <label className="mb-1 block text-xs font-semibold text-muted">
-                                Mot de passe du parent <span className="text-danger">*</span>
-                              </label>
-                              <Input
-                                type="text"
-                                autoComplete="off"
-                                value={pPassword}
-                                onChange={(e) => setPPassword(e.target.value)}
-                                placeholder="6 caractères au minimum"
-                              />
-                              <p className="mt-1 text-[10px] text-muted">
-                                Il se connectera avec l&apos;email saisi ci-dessus.
-                              </p>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {/* billing case */}
-          <div className="space-y-2 rounded-xl border border-line bg-canvas/30 p-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              🎫 Cas du chevalier
-            </span>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {STUDENT_CASE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setStudentCase(opt.value)}
-                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
-                    studentCase === opt.value
-                      ? "border-primary bg-primary text-white"
-                      : "border-line bg-surface text-ink hover:bg-primary-50"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-
-            {studentCase === "special" && (
-              <p className="rounded-lg bg-primary-50/50 p-2 text-[10px] leading-relaxed text-muted">
-                Études gratuites, <strong className="text-ink">emploi du temps par emploi du
-                temps</strong> : chaque emploi coché ci-dessous arrive « Offert » — ni le club
-                ni l&apos;entraîneur ne sont payés pour lui. Décochez « Offert » sur un emploi et
-                le chevalier le paie normalement.
-                {subIds.length > 0 && (
-                  <>
-                    {" "}
-                    <strong className="text-primary">
-                      {freeList?.length ?? 0} offert(s)
-                    </strong>{" "}
-                    · <strong className="text-ink">{paidSubIds.length} payant(s)</strong>.
-                  </>
-                )}
-              </p>
-            )}
-
-            {studentCase === "school_only" && (
-              <p className="rounded-lg bg-warning/10 p-2 text-[10px] leading-relaxed text-muted">
-                Seule le club est payée, <strong className="text-ink">emploi du temps par
-                emploi du temps</strong> : chaque emploi coché plus bas arrive avec l&apos;option
-                ACTIVE — la famille n&apos;y verse que la part du club, l&apos;entraîneur
-                n&apos;est pas payé pour lui et le chevalier ne figure même pas sur son écran de
-                paie pour cet emploi. Désactivez-la sur un emploi et tout s&apos;y calcule
-                normalement.
-                {subIds.length > 0 && (
-                  <>
-                    {" "}
-                    <strong className="text-warning">
-                      {schoolOnlyList?.length ?? 0} emploi(s) « club seule »
-                    </strong>{" "}
-                    ·{" "}
-                    <strong className="text-ink">
-                      {subIds.length - (schoolOnlyList?.length ?? 0)} normal(aux)
-                    </strong>
-                    .
-                  </>
-                )}
-              </p>
-            )}
-
-            {(studentCase === "teacher_child" || studentCase === "school_only") && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-muted">
-                  {studentCase === "teacher_child"
-                    ? "Le club est payée sur le salaire de l'entraîneur père."
-                    : "Facultatif : des entraîneurs qui ne seront JAMAIS payés pour ce chevalier, même hors des emplois cochés ci-dessous."}
-                </p>
-                <Input
-                  value={teacherSearch}
-                  onChange={(e) => setTeacherSearch(e.target.value)}
-                  placeholder="Rechercher un entraîneur…"
-                />
-                <div className="max-h-32 space-y-1 overflow-y-auto">
-                  {teachers
-                    .filter((t) =>
-                      `${t.firstName} ${t.lastName}`.toLowerCase().includes(teacherSearch.toLowerCase()),
-                    )
-                    .map((t) => {
-                      const picked =
-                        studentCase === "teacher_child"
-                          ? teacherFatherId === t.id
-                          : unpaidTeacherIds.includes(t.id);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() =>
-                            studentCase === "teacher_child"
-                              ? setTeacherFatherId(t.id)
-                              : setUnpaidTeacherIds(
-                                  picked
-                                    ? unpaidTeacherIds.filter((id) => id !== t.id)
-                                    : [...unpaidTeacherIds, t.id],
-                                )
-                          }
-                          className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] transition-colors ${
-                            picked
-                              ? "border-primary bg-primary text-white"
-                              : "border-line bg-surface text-ink hover:bg-primary-50"
-                          }`}
-                        >
-                          <span>
-                            {t.firstName} {t.lastName}
-                          </span>
-                          {picked && <Check className="h-3.5 w-3.5" />}
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            {studentCase === "reduction" && (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  {(["percent", "amount"] as DiscountType[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setCaseRedType(t)}
-                      className={`flex-1 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
-                        caseRedType === t
-                          ? "border-primary bg-primary text-white"
-                          : "border-line bg-surface text-ink"
-                      }`}
-                    >
-                      {t === "percent" ? "Pourcentage (%)" : "Montant fixe (DA)"}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-[10px] font-semibold text-muted">
-                      Part club ({caseRedType === "percent" ? "%" : "DA"})
-                    </label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={caseRedSchool || ""}
-                      onChange={(e) => setCaseRedSchool(Math.max(0, Number(e.target.value) || 0))}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-semibold text-muted">
-                      Part entraîneur ({caseRedType === "percent" ? "%" : "DA"})
-                    </label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={caseRedTeacher || ""}
-                      onChange={(e) => setCaseRedTeacher(Math.max(0, Number(e.target.value) || 0))}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* inscriptions + soldes */}
-          <div className="space-y-3 rounded-xl border border-line bg-canvas/30 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                <BookOpen className="h-3.5 w-3.5" /> Emplois du temps du chevalier
-              </span>
-              <span className="text-[10px] font-semibold text-muted">
-                {subIds.length} sélectionné(s)
-              </span>
-            </div>
-
-            {isEdit && (
-              <p className="text-[10px] leading-relaxed text-muted">
-                Le tableau ci-dessous rappelle sa <strong>catégorie</strong>, son{" "}
-                <strong>année</strong> et les <strong>emplois du temps</strong> qu&apos;il suit,
-                avec le solde de chacun. Retirez-en un, cochez-en un autre dans la liste, puis{" "}
-                <strong>Enregistrer les modifications</strong> : ce qui part est désinscrit sans
-                rien perdre de son historique, ce qui arrive l&apos;inscrit là où en est le groupe.
-              </p>
-            )}
-
-            <ClassTimingPicker
-              selectedSubIds={subIds}
-              onToggle={toggleTiming}
-              student={editing}
-              savedSubIds={editing?.subscriptionIds}
-              showCurrent
-              /* Les CATÉGORIES ouvertes sont retenues même sans créneau coché :
-                 une fiche créée « les 8-10 ans, on verra l'horaire plus tard »
-                 rouvre sur cette catégorie, et non sur une autre au hasard. */
-              initialClassIds={defaultClassIds}
-              onScopeChange={(scope: TimingScope) => {
-                setEnrollLevel(scope.classIds[0] ?? "");
-                setEnrollYear("");
-              }}
-            />
-
-            {subIds.length > 0 && (
-              <div className="space-y-2">
-                <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-muted">
-                  <Wallet className="h-3 w-3" />{" "}
-                  {isEdit
-                    ? "Solde à AJOUTER sur chaque emploi du temps (laisser 0 pour ne rien encaisser)"
-                    : "Avance versée pour chaque emploi du temps (laisser 0 s'il ne paie rien aujourd'hui)"}
-                </span>
-                {subIds.map((subId) => {
-                  const sub = subscriptions.find((s) => s.id === subId);
-                  const offered = freeOn(subId);
-                  const suggestion = offered ? 0 : suggestFor(subId);
-                  const listUnit = sub?.pricePerSession ?? 0;
-                  const unit = offered ? 0 : listUnit;
-                  const paid = solds[subId] || 0;
-                  const seances = unit > 0 ? Math.floor(paid / unit) : 0;
-                  const point = joinPointOf(subId);
+          <FicheSection
+            id="cas"
+            step={2}
+            icon={Ticket}
+            title="Cas du chevalier"
+            subtitle="Comment il paie : normal, offert, fils d'entraîneur, réduction ou club seulement."
+            tone="accent"
+            done
+            aside={<Badge tone="accent">{caseOptionLabel}</Badge>}
+          >
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {STUDENT_CASE_OPTIONS.map((opt) => {
+                  const meta = CASE_META[opt.value];
+                  const on = studentCase === opt.value;
+                  const Icon = meta.icon;
                   return (
-                    <div
-                      key={subId}
-                      className={`rounded-xl border p-2.5 ${
-                        offered ? "border-success/40 bg-success/5" : "border-line bg-surface"
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setStudentCase(opt.value)}
+                      aria-pressed={on}
+                      className={`flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-2.5 text-start transition-all ${
+                        on
+                          ? "border-accent bg-accent-wash/70 ring-2 ring-accent/30"
+                          : "border-line bg-surface hover:-translate-y-0.5 hover:border-accent/40"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <strong className="block text-[11px] text-ink">{subLabel(subId)}</strong>
-                          <span className="text-[10px] text-muted">
-                            {cycleSizeOf(sub)} séances / carte ·{" "}
-                            {offered ? (
-                              <>
-                                <span className="line-through">{formatDA(listUnit)}</span>{" "}
-                                <strong className="text-success">offert</strong>
-                              </>
-                            ) : (
-                              <>
-                                séance à {formatDA(unit)}
-                                {suggestion > 0 ? ` · carte à ${formatDA(suggestion)}` : ""}
-                              </>
-                            )}
-                          </span>
-                          <Badge tone="primary" className="mt-1 text-[9px]">
-                            {isEdit && editing?.subscriptionIds.includes(subId)
-                              ? `Déjà inscrit · solde ${formatDA(soldFor(db, editing.id, subId))}`
-                              : pastPlacement(subId)
-                                ? `Placé en ${carteShort(placementOf(subId)!.carteCode)} · séance ${placementOf(subId)!.seance + 1}`
-                                : `Entre en ${carteShort(point.monthCode)} · séance ${point.slotIndex + 1}`}
-                          </Badge>
-                        </div>
-                        <button
-                          onClick={() => setSubIds(subIds.filter((id) => id !== subId))}
-                          className="shrink-0 text-muted hover:text-danger"
-                          title="Retirer cet emploi du temps"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      <span
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+                          on ? "bg-gradient-accent text-[#241a05]" : "bg-primary-50 text-primary"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <strong className={`text-[11px] ${on ? "text-accent-ink" : "text-ink"}`}>
+                        {opt.label}
+                      </strong>
+                      <span className="text-[9px] leading-snug text-muted">{meta.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                      {/* LE PLACEMENT : la carte du groupe (courante ou précédente) et
-                          la séance de cette carte où il commence. */}
-                      {!isEdit && (
-                        <PlacementPicker
-                          subscriptionId={subId}
-                          arrivalDay={arrivalDay}
-                          value={placementOf(subId)}
-                          onChange={(choice) =>
-                            setPlacements((prev) => ({ ...prev, [subId]: choice }))
-                          }
-                        />
-                      )}
+              {studentCase === "special" && (
+                <p className="rounded-lg bg-primary-50/50 p-2 text-[10px] leading-relaxed text-muted">
+                  Études gratuites, <strong className="text-ink">emploi du temps par emploi du
+                  temps</strong> : chaque emploi coché ci-dessous arrive « Offert » — ni le club
+                  ni l&apos;entraîneur ne sont payés pour lui. Décochez « Offert » sur un emploi et
+                  le chevalier le paie normalement.
+                  {subIds.length > 0 && (
+                    <>
+                      {" "}
+                      <strong className="text-primary">
+                        {freeList?.length ?? 0} offert(s)
+                      </strong>{" "}
+                      · <strong className="text-ink">{paidSubIds.length} payant(s)</strong>.
+                    </>
+                  )}
+                </p>
+              )}
 
-                      {/* « Club seulement », emploi par emploi — active par défaut.
-                          Exactement la même mécanique que la gratuité : ce qui est
-                          activé ici ne paie que le club et disparaît de la fiche de
-                          paie de l'entraîneur ; ce qui ne l'est pas se calcule
-                          normalement, et le chevalier y apparaît comme tout le monde. */}
-                      {isSchoolOnly && (
-                        <label
-                          className={`mt-2 flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
-                            schoolOnlyOn(subId)
-                              ? "border-warning/50 bg-warning/10"
-                              : "border-line bg-canvas/40"
+              {studentCase === "school_only" && (
+                <p className="rounded-lg bg-warning/10 p-2 text-[10px] leading-relaxed text-muted">
+                  Seule le club est payée, <strong className="text-ink">emploi du temps par
+                  emploi du temps</strong> : chaque emploi coché plus bas arrive avec l&apos;option
+                  ACTIVE — la famille n&apos;y verse que la part du club, l&apos;entraîneur
+                  n&apos;est pas payé pour lui et le chevalier ne figure même pas sur son écran de
+                  paie pour cet emploi. Désactivez-la sur un emploi et tout s&apos;y calcule
+                  normalement.
+                  {subIds.length > 0 && (
+                    <>
+                      {" "}
+                      <strong className="text-warning">
+                        {schoolOnlyList?.length ?? 0} emploi(s) « club seule »
+                      </strong>{" "}
+                      ·{" "}
+                      <strong className="text-ink">
+                        {subIds.length - (schoolOnlyList?.length ?? 0)} normal(aux)
+                      </strong>
+                      .
+                    </>
+                  )}
+                </p>
+              )}
+
+              {(studentCase === "teacher_child" || studentCase === "school_only") && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] text-muted">
+                    {studentCase === "teacher_child"
+                      ? "Le club est payée sur le salaire de l'entraîneur père."
+                      : "Facultatif : des entraîneurs qui ne seront JAMAIS payés pour ce chevalier, même hors des emplois cochés ci-dessous."}
+                  </p>
+                  <Input
+                    value={teacherSearch}
+                    onChange={(e) => setTeacherSearch(e.target.value)}
+                    placeholder="Rechercher un entraîneur…"
+                  />
+                  <div className="max-h-32 space-y-1 overflow-y-auto">
+                    {teachers
+                      .filter((t) =>
+                        `${t.firstName} ${t.lastName}`.toLowerCase().includes(teacherSearch.toLowerCase()),
+                      )
+                      .map((t) => {
+                        const picked =
+                          studentCase === "teacher_child"
+                            ? teacherFatherId === t.id
+                            : unpaidTeacherIds.includes(t.id);
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() =>
+                              studentCase === "teacher_child"
+                                ? setTeacherFatherId(t.id)
+                                : setUnpaidTeacherIds(
+                                    picked
+                                      ? unpaidTeacherIds.filter((id) => id !== t.id)
+                                      : [...unpaidTeacherIds, t.id],
+                                  )
+                            }
+                            className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] transition-colors ${
+                              picked
+                                ? "border-primary bg-primary text-white"
+                                : "border-line bg-surface text-ink hover:bg-primary-50"
+                            }`}
+                          >
+                            <span>
+                              {t.firstName} {t.lastName}
+                            </span>
+                            {picked && <Check className="h-3.5 w-3.5" />}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {studentCase === "reduction" && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    {(["percent", "amount"] as DiscountType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setCaseRedType(t)}
+                        className={`flex-1 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
+                          caseRedType === t
+                            ? "border-primary bg-primary text-white"
+                            : "border-line bg-surface text-ink"
+                        }`}
+                      >
+                        {t === "percent" ? "Pourcentage (%)" : "Montant fixe (DA)"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold text-muted">
+                        Part club ({caseRedType === "percent" ? "%" : "DA"})
+                      </label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={caseRedSchool || ""}
+                        onChange={(e) => setCaseRedSchool(Math.max(0, Number(e.target.value) || 0))}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold text-muted">
+                        Part entraîneur ({caseRedType === "percent" ? "%" : "DA"})
+                      </label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={caseRedTeacher || ""}
+                        onChange={(e) => setCaseRedTeacher(Math.max(0, Number(e.target.value) || 0))}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+          </FicheSection>
+
+          <FicheSection
+            id="groupe"
+            step={3}
+            icon={CalendarClock}
+            title="Groupe, carte & séance"
+            subtitle={
+              isEdit
+                ? "Ses emplois du temps et le solde de chacun."
+                : "Choisissez l'emploi du temps, puis la carte et la séance où il commence, et son avance."
+            }
+            tone={backlogTotal > 0 ? "warning" : "success"}
+            done={subIds.length > 0}
+            aside={
+              <>
+                <Badge tone={subIds.length > 0 ? "success" : "neutral"}>
+                  {subIds.length} sélectionné(s)
+                </Badge>
+                {backlogTotal > 0 && <Badge tone="warning">{backlogTotal} à régulariser</Badge>}
+              </>
+            }
+          >
+
+              {isEdit && (
+                <p className="text-[10px] leading-relaxed text-muted">
+                  Le tableau ci-dessous rappelle sa <strong>catégorie</strong>, son{" "}
+                  <strong>année</strong> et les <strong>emplois du temps</strong> qu&apos;il suit,
+                  avec le solde de chacun. Retirez-en un, cochez-en un autre dans la liste, puis{" "}
+                  <strong>Enregistrer les modifications</strong> : ce qui part est désinscrit sans
+                  rien perdre de son historique, ce qui arrive l&apos;inscrit là où en est le groupe.
+                </p>
+              )}
+
+              <ClassTimingPicker
+                selectedSubIds={subIds}
+                onToggle={toggleTiming}
+                student={editing}
+                savedSubIds={editing?.subscriptionIds}
+                showCurrent
+                /* Les CATÉGORIES ouvertes sont retenues même sans créneau coché :
+                   une fiche créée « les 8-10 ans, on verra l'horaire plus tard »
+                   rouvre sur cette catégorie, et non sur une autre au hasard. */
+                initialClassIds={defaultClassIds}
+                onScopeChange={(scope: TimingScope) => {
+                  setEnrollLevel(scope.classIds[0] ?? "");
+                  setEnrollYear("");
+                }}
+              />
+
+              {subIds.length > 0 && (
+                <div className="space-y-2">
+                  <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-muted">
+                    <Wallet className="h-3 w-3" />{" "}
+                    {isEdit
+                      ? "Solde à AJOUTER sur chaque emploi du temps (laisser 0 pour ne rien encaisser)"
+                      : "Avance versée pour chaque emploi du temps (laisser 0 s'il ne paie rien aujourd'hui)"}
+                  </span>
+                  {subIds.map((subId) => {
+                    const sub = subscriptions.find((s) => s.id === subId);
+                    const offered = freeOn(subId);
+                    const suggestion = offered ? 0 : suggestFor(subId);
+                    const listUnit = sub?.pricePerSession ?? 0;
+                    const unit = offered ? 0 : listUnit;
+                    const paid = solds[subId] || 0;
+                    const seances = unit > 0 ? Math.floor(paid / unit) : 0;
+                    const point = joinPointOf(subId);
+                    return (
+                      <div
+                        key={subId}
+                        className={`relative overflow-hidden rounded-2xl border p-3 ps-4 card-shadow ${
+                          offered
+                            ? "border-success/40 bg-success/5"
+                            : pastPlacement(subId)
+                              ? "border-warning/45 bg-surface"
+                              : "border-accent/30 bg-surface"
+                        }`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`absolute inset-y-0 start-0 w-1 ${
+                            offered ? "bg-success" : pastPlacement(subId) ? "bg-warning" : "bg-gradient-accent"
                           }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={schoolOnlyOn(subId)}
-                            onChange={() => toggleSchoolOnly(subId)}
-                            className="mt-0.5 h-4 w-4 shrink-0"
-                          />
-                          <span className="min-w-0">
-                            <strong
-                              className={`flex items-center gap-1 text-[11px] ${
-                                schoolOnlyOn(subId) ? "text-warning" : "text-ink"
-                              }`}
-                            >
-                              <Building2 className="h-3 w-3" />
-                              {schoolOnlyOn(subId)
-                                ? "Paiement à LE CLUB SEULEMENT"
-                                : "Paiement NORMAL (club + entraîneur)"}
-                            </strong>
-                            <span className="block text-[9px] leading-relaxed text-muted">
-                              {schoolOnlyOn(subId) ? (
+                        />
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <strong className="block font-display text-[13px] text-ink">{subLabel(subId)}</strong>
+                            <span className="text-[10px] text-muted">
+                              {cycleSizeOf(sub)} séances / carte ·{" "}
+                              {offered ? (
                                 <>
-                                  La famille ne verse que la part du club (
-                                  <strong className="text-ink">
-                                    {formatDA(schoolPerSeanceOf(sub))}
-                                  </strong>{" "}
-                                  la séance au lieu de {formatDA(sub?.pricePerSession ?? 0)}).
-                                  L&apos;entraîneur n&apos;est pas payé pour ce chevalier, et
-                                  le chevalier <strong className="text-ink">n&apos;apparaît pas</strong>{" "}
-                                  sur son écran de paie pour cet emploi du temps.
+                                  <span className="line-through">{formatDA(listUnit)}</span>{" "}
+                                  <strong className="text-success">offert</strong>
                                 </>
                               ) : (
                                 <>
-                                  Le chevalier paie le tarif entier —{" "}
-                                  <strong className="text-ink">
-                                    {formatDA(sub?.pricePerSession ?? 0)}
-                                  </strong>{" "}
-                                  la séance — et l&apos;entraîneur touche sa part
-                                  ({formatDA(teacherPerSeanceOf(sub))} / séance). Il figure sur
-                                  l&apos;écran de paie de cet entraîneur.
+                                  séance à {formatDA(unit)}
+                                  {suggestion > 0 ? ` · carte à ${formatDA(suggestion)}` : ""}
                                 </>
                               )}
                             </span>
-                          </span>
-                        </label>
-                      )}
-
-                      {/* La gratuité, emploi par emploi — cochée par défaut */}
-                      {isFree && (
-                        <label
-                          className={`mt-2 flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
-                            offered ? "border-success/40 bg-success/10" : "border-line bg-canvas/40"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={offered}
-                            onChange={() => toggleFree(subId)}
-                            className="mt-0.5 h-4 w-4 shrink-0"
-                          />
-                          <span className="min-w-0">
-                            <strong
-                              className={`flex items-center gap-1 text-[11px] ${
-                                offered ? "text-success" : "text-ink"
-                              }`}
+                            <Badge
+                              tone={pastPlacement(subId) ? "warning" : "primary"}
+                              className="mt-1 text-[9px]"
                             >
-                              <Gift className="h-3 w-3" />
-                              {offered ? "Emploi du temps OFFERT" : "Emploi du temps PAYANT"}
-                            </strong>
-                            <span className="block text-[9px] leading-relaxed text-muted">
-                              {offered
-                                ? "L’chevalier ne paie rien pour cet emploi : ni l’club ni l’entraîneur ne sont réglés pour ses séances."
-                                : `L’chevalier paie cet emploi normalement — ${formatDA(listUnit)} la séance, et l’entraîneur touche sa part.`}
-                            </span>
-                          </span>
-                        </label>
-                      )}
+                              {isEdit && editing?.subscriptionIds.includes(subId)
+                                ? `Déjà inscrit · solde ${formatDA(soldFor(db, editing.id, subId))}`
+                                : pastPlacement(subId)
+                                  ? `Placé en ${carteShort(placementOf(subId)!.carteCode)} · séance ${placementOf(subId)!.seance + 1}`
+                                  : `Entre en ${carteShort(point.monthCode)} · séance ${point.slotIndex + 1}`}
+                            </Badge>
+                          </div>
+                          <button
+                            onClick={() => setSubIds(subIds.filter((id) => id !== subId))}
+                            className="shrink-0 text-muted hover:text-danger"
+                            title="Retirer cet emploi du temps"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
 
-                      <div className="mt-2 flex flex-wrap items-end gap-2">
-                        {offered ? (
-                          <span className="text-[10px] font-semibold text-success">
-                            Rien à encaisser sur cet emploi du temps.
-                          </span>
-                        ) : (
-                          <>
-                            <div>
-                              <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
-                                {isEdit ? "Solde à ajouter (DA)" : "Avance versée (DA)"}
-                              </label>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={paid || ""}
-                                onChange={(e) =>
-                                  setSolds({
-                                    ...solds,
-                                    [subId]: Math.max(0, Number(e.target.value) || 0),
-                                  })
-                                }
-                                placeholder="0"
-                                className="w-36"
-                              />
-                            </div>
-                            {suggestion > 0 && (
-                              <button
-                                onClick={() => setSolds({ ...solds, [subId]: suggestion })}
-                                className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
-                              >
-                                Une carte ({formatDA(suggestion)})
-                              </button>
-                            )}
-                            <span className="pb-2.5 text-[10px] text-muted">
-                              ≈ {seances} séance(s) couverte(s)
-                            </span>
-                          </>
+                        {/* LE PLACEMENT : la carte du groupe (courante ou précédente) et
+                            la séance de cette carte où il commence. */}
+                        {!isEdit && (
+                          <PlacementPicker
+                            subscriptionId={subId}
+                            arrivalDay={arrivalDay}
+                            value={placementOf(subId)}
+                            onChange={(choice) =>
+                              setPlacements((prev) => ({ ...prev, [subId]: choice }))
+                            }
+                          />
                         )}
-                      </div>
 
-                      {/* L'ENGAGEMENT DE CE CRÉNEAU — réglé ici, ou porté en dette.
-                          Il est distinct de la cotisation : c'est le frais d'entrée
-                          du groupe (tenue, équipement, assurance), et il ne se paie
-                          qu'une fois. */}
-                      {!offered && engagementFeeOf(subId) > 0 && !engagementAlreadyCharged(subId) && (
-                        <div
-                          className={`mt-2 rounded-lg border px-2.5 py-2 ${
-                            engagementChecked(subId)
-                              ? "border-success/45 bg-success/10"
-                              : "border-warning/45 bg-warning/10"
-                          }`}
-                        >
-                          <label className="flex cursor-pointer items-start gap-2">
+                        {/* « Club seulement », emploi par emploi — active par défaut.
+                            Exactement la même mécanique que la gratuité : ce qui est
+                            activé ici ne paie que le club et disparaît de la fiche de
+                            paie de l'entraîneur ; ce qui ne l'est pas se calcule
+                            normalement, et le chevalier y apparaît comme tout le monde. */}
+                        {isSchoolOnly && (
+                          <label
+                            className={`mt-2 flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                              schoolOnlyOn(subId)
+                                ? "border-warning/50 bg-warning/10"
+                                : "border-line bg-canvas/40"
+                            }`}
+                          >
                             <input
                               type="checkbox"
-                              checked={engagementChecked(subId)}
-                              onChange={() => toggleEngagement(subId)}
+                              checked={schoolOnlyOn(subId)}
+                              onChange={() => toggleSchoolOnly(subId)}
                               className="mt-0.5 h-4 w-4 shrink-0"
                             />
                             <span className="min-w-0">
-                              <strong className="flex items-center gap-1 text-[11px] text-ink">
-                                <ShieldCheck className="h-3 w-3 text-accent-ink" />
-                                Engagement payé — {formatDA(engagementFeeOf(subId))}
+                              <strong
+                                className={`flex items-center gap-1 text-[11px] ${
+                                  schoolOnlyOn(subId) ? "text-warning" : "text-ink"
+                                }`}
+                              >
+                                <Building2 className="h-3 w-3" />
+                                {schoolOnlyOn(subId)
+                                  ? "Paiement à LE CLUB SEULEMENT"
+                                  : "Paiement NORMAL (club + entraîneur)"}
                               </strong>
                               <span className="block text-[9px] leading-relaxed text-muted">
-                                {subscriptions.find((x) => x.id === subId)?.engagementDescription ||
-                                  "Le frais d'entrée de ce créneau : tenue, équipement, assurance du groupe."}
+                                {schoolOnlyOn(subId) ? (
+                                  <>
+                                    La famille ne verse que la part du club (
+                                    <strong className="text-ink">
+                                      {formatDA(schoolPerSeanceOf(sub))}
+                                    </strong>{" "}
+                                    la séance au lieu de {formatDA(sub?.pricePerSession ?? 0)}).
+                                    L&apos;entraîneur n&apos;est pas payé pour ce chevalier, et
+                                    le chevalier <strong className="text-ink">n&apos;apparaît pas</strong>{" "}
+                                    sur son écran de paie pour cet emploi du temps.
+                                  </>
+                                ) : (
+                                  <>
+                                    Le chevalier paie le tarif entier —{" "}
+                                    <strong className="text-ink">
+                                      {formatDA(sub?.pricePerSession ?? 0)}
+                                    </strong>{" "}
+                                    la séance — et l&apos;entraîneur touche sa part
+                                    ({formatDA(teacherPerSeanceOf(sub))} / séance). Il figure sur
+                                    l&apos;écran de paie de cet entraîneur.
+                                  </>
+                                )}
                               </span>
                             </span>
                           </label>
+                        )}
 
-                          {engagementChecked(subId) && (
-                            <div className="mt-2 flex flex-wrap items-end gap-2">
+                        {/* La gratuité, emploi par emploi — cochée par défaut */}
+                        {isFree && (
+                          <label
+                            className={`mt-2 flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                              offered ? "border-success/40 bg-success/10" : "border-line bg-canvas/40"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={offered}
+                              onChange={() => toggleFree(subId)}
+                              className="mt-0.5 h-4 w-4 shrink-0"
+                            />
+                            <span className="min-w-0">
+                              <strong
+                                className={`flex items-center gap-1 text-[11px] ${
+                                  offered ? "text-success" : "text-ink"
+                                }`}
+                              >
+                                <Gift className="h-3 w-3" />
+                                {offered ? "Emploi du temps OFFERT" : "Emploi du temps PAYANT"}
+                              </strong>
+                              <span className="block text-[9px] leading-relaxed text-muted">
+                                {offered
+                                  ? "L’chevalier ne paie rien pour cet emploi : ni l’club ni l’entraîneur ne sont réglés pour ses séances."
+                                  : `L’chevalier paie cet emploi normalement — ${formatDA(listUnit)} la séance, et l’entraîneur touche sa part.`}
+                              </span>
+                            </span>
+                          </label>
+                        )}
+
+                        <div className="mt-2 flex flex-wrap items-end gap-2">
+                          {offered ? (
+                            <span className="text-[10px] font-semibold text-success">
+                              Rien à encaisser sur cet emploi du temps.
+                            </span>
+                          ) : (
+                            <>
                               <div>
                                 <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
-                                  Versé aujourd&apos;hui (DA)
+                                  {isEdit ? "Solde à ajouter (DA)" : "Avance versée (DA)"}
                                 </label>
                                 <Input
                                   type="number"
                                   min={0}
-                                  max={engagementFeeOf(subId)}
-                                  value={engagementPaid[subId] ?? engagementFeeOf(subId)}
+                                  value={paid || ""}
                                   onChange={(e) =>
-                                    setEngagementPaid({
-                                      ...engagementPaid,
+                                    setSolds({
+                                      ...solds,
                                       [subId]: Math.max(0, Number(e.target.value) || 0),
                                     })
                                   }
-                                  className="w-32"
+                                  placeholder="0"
+                                  className="w-36"
                                 />
                               </div>
-                              <div className="pb-1">
-                                <span className="block text-[9px] font-bold uppercase tracking-wider text-muted">
-                                  Reste dû
-                                </span>
-                                <strong
-                                  className={`block text-sm ${
-                                    engagementFeeOf(subId) - engagementAmountOf(subId) > 0
-                                      ? "text-danger"
-                                      : "text-success"
-                                  }`}
+                              {suggestion > 0 && (
+                                <button
+                                  onClick={() => setSolds({ ...solds, [subId]: suggestion })}
+                                  className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
                                 >
-                                  {formatDA(
-                                    Math.max(0, engagementFeeOf(subId) - engagementAmountOf(subId)),
-                                  )}
-                                </strong>
-                              </div>
-                              <button
-                                onClick={() =>
-                                  setEngagementPaid({
-                                    ...engagementPaid,
-                                    [subId]: engagementFeeOf(subId),
-                                  })
-                                }
-                                className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
-                              >
-                                Tout l&apos;engagement
-                              </button>
-                            </div>
-                          )}
-
-                          {!engagementChecked(subId) && (
-                            <p className="mt-1 text-[9px] font-semibold text-warning">
-                              Non coché : les {formatDA(engagementFeeOf(subId))} partent en dette
-                              sur sa fiche, et l&apos;alerte le rappellera à chaque passage.
-                            </p>
+                                  Une carte ({formatDA(suggestion)})
+                                </button>
+                              )}
+                              <span className="pb-2.5 text-[10px] text-muted">
+                                ≈ {seances} séance(s) couverte(s)
+                              </span>
+                            </>
                           )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
 
-                {engagementTotals.due > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/35 bg-accent-wash/40 px-3 py-2">
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
-                      <ShieldCheck className="h-3.5 w-3.5 text-accent-ink" /> Engagements des
-                      créneaux rejoints
-                    </span>
-                    <span className="flex flex-wrap items-center gap-2 text-[11px]">
-                      <Badge tone="neutral">Total {formatDA(engagementTotals.due)}</Badge>
-                      <Badge tone="success">Réglé {formatDA(engagementTotals.paid)}</Badge>
-                      <Badge tone={engagementTotals.rest > 0 ? "danger" : "success"}>
-                        Reste {formatDA(engagementTotals.rest)}
-                      </Badge>
-                    </span>
-                  </div>
-                )}
+                        {/* L'ENGAGEMENT DE CE CRÉNEAU — réglé ici, ou porté en dette.
+                            Il est distinct de la cotisation : c'est le frais d'entrée
+                            du groupe (tenue, équipement, assurance), et il ne se paie
+                            qu'une fois. */}
+                        {!offered && engagementFeeOf(subId) > 0 && !engagementAlreadyCharged(subId) && (
+                          <div
+                            className={`mt-2 rounded-lg border px-2.5 py-2 ${
+                              engagementChecked(subId)
+                                ? "border-success/45 bg-success/10"
+                                : "border-warning/45 bg-warning/10"
+                            }`}
+                          >
+                            <label className="flex cursor-pointer items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={engagementChecked(subId)}
+                                onChange={() => toggleEngagement(subId)}
+                                className="mt-0.5 h-4 w-4 shrink-0"
+                              />
+                              <span className="min-w-0">
+                                <strong className="flex items-center gap-1 text-[11px] text-ink">
+                                  <ShieldCheck className="h-3 w-3 text-accent-ink" />
+                                  Engagement payé — {formatDA(engagementFeeOf(subId))}
+                                </strong>
+                                <span className="block text-[9px] leading-relaxed text-muted">
+                                  {subscriptions.find((x) => x.id === subId)?.engagementDescription ||
+                                    "Le frais d'entrée de ce créneau : tenue, équipement, assurance du groupe."}
+                                </span>
+                              </span>
+                            </label>
 
-                <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary-50/40 px-3 py-2">
-                  <span className="text-xs font-semibold text-muted">
-                    {isEdit ? "Total encaissé maintenant" : "Avance totale versée à l'inscription"}
-                  </span>
-                  <strong className="text-sm text-primary">{formatDA(totalSold)}</strong>
-                </div>
+                            {engagementChecked(subId) && (
+                              <div className="mt-2 flex flex-wrap items-end gap-2">
+                                <div>
+                                  <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
+                                    Versé aujourd&apos;hui (DA)
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={engagementFeeOf(subId)}
+                                    value={engagementPaid[subId] ?? engagementFeeOf(subId)}
+                                    onChange={(e) =>
+                                      setEngagementPaid({
+                                        ...engagementPaid,
+                                        [subId]: Math.max(0, Number(e.target.value) || 0),
+                                      })
+                                    }
+                                    className="w-32"
+                                  />
+                                </div>
+                                <div className="pb-1">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-muted">
+                                    Reste dû
+                                  </span>
+                                  <strong
+                                    className={`block text-sm ${
+                                      engagementFeeOf(subId) - engagementAmountOf(subId) > 0
+                                        ? "text-danger"
+                                        : "text-success"
+                                    }`}
+                                  >
+                                    {formatDA(
+                                      Math.max(0, engagementFeeOf(subId) - engagementAmountOf(subId)),
+                                    )}
+                                  </strong>
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    setEngagementPaid({
+                                      ...engagementPaid,
+                                      [subId]: engagementFeeOf(subId),
+                                    })
+                                  }
+                                  className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
+                                >
+                                  Tout l&apos;engagement
+                                </button>
+                              </div>
+                            )}
 
-                {!isEdit && totalSold > 0 && (
-                  <p className="rounded-xl border border-success/40 bg-success/10 p-2.5 text-[10px] leading-relaxed text-success">
-                    🧾 Après la création, l&apos;écran proposera d&apos;imprimer le{" "}
-                    <strong>reçu de cette avance</strong> puis le{" "}
-                    <strong>bon d&apos;inscription</strong>. L&apos;avance entre dans la caisse et
-                    apparaît aussitôt dans l&apos;historique des paiements du chevalier, emploi
-                    du temps et carte compris.
-                  </p>
-                )}
-
-                <p className="text-[10px] text-muted">
-                  ℹ️ Le chevalier entre sur chaque emploi du temps LÀ OÙ EN EST LE GROUPE : son
-                  solde est versé sur cette carte-là, les séances déjà tenues avant lui restent vides
-                  sur sa ligne et les cartes précédents ne le comptent pas.
-                </p>
-
-                {/* -------------------------------------------------------
-                    LES FRAIS D'INSCRIPTION — réclamés SEULEMENT si l'un des
-                    emplois cochés entre dans le périmètre choisi par le club
-                    (tous les chevaliers, un niveau, des catégories, des emplois
-                    précis). Sinon ce bloc ne s'affiche même pas.
-
-                    La famille peut en régler tout, une partie, ou rien : ce
-                    qui reste part en DETTE sur la fiche, et la création n'est
-                    jamais bloquée pour autant.
-                    ------------------------------------------------------- */}
-                {!isEdit && feeRequired > 0 && (
-                  <div className="space-y-2 rounded-xl border border-warning/40 bg-warning/5 p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-warning">
-                        🎫 Frais d&apos;inscription requis
-                      </span>
-                      <Badge tone="warning" className="font-mono font-bold">
-                        {formatDA(feeRequired)}
-                      </Badge>
-                    </div>
-                    <p className="text-[10px] leading-relaxed text-muted">
-                      {feeSubIds.length} emploi(s) du temps coché(s) entrent dans le périmètre défini
-                      par le club :{" "}
-                      <strong className="text-ink">
-                        {feeSubIds.map((id) => subLabel(id)).join(", ")}
-                      </strong>
-                      .
-                    </p>
-                    <div className="flex flex-wrap items-end gap-2">
-                      <div>
-                        <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
-                          Encaissé maintenant (DA)
-                        </label>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={feeRequired}
-                          step="0.01"
-                          value={feePaidNow || ""}
-                          onChange={(e) =>
-                            setFeePaidNow(
-                              Math.min(
-                                positiveMoney(Number(e.target.value.replace(",", ".")) || 0),
-                                feeRequired,
-                              ),
-                            )
-                          }
-                          placeholder="0"
-                          className="w-36"
-                        />
+                            {!engagementChecked(subId) && (
+                              <p className="mt-1 text-[9px] font-semibold text-warning">
+                                Non coché : les {formatDA(engagementFeeOf(subId))} partent en dette
+                                sur sa fiche, et l&apos;alerte le rappellera à chaque passage.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setFeePaidNow(feeRequired)}
-                        className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
-                      >
-                        Tout régler ({formatDA(feeRequired)})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFeePaidNow(0)}
-                        className="pb-2.5 text-[10px] font-bold text-warning hover:underline"
-                      >
-                        Créer avec la dette
-                      </button>
-                    </div>
-                    <p
-                      className={`rounded-lg p-2 text-[10px] font-semibold ${
-                        feeDebt > 0 ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
-                      }`}
-                    >
-                      {feeDebt > 0
-                        ? `${formatDA(feeDebt)} resteront en DETTE sur sa fiche — visible partout tant qu'ils ne sont pas réglés.`
-                        : "Frais entièrement réglés : aucune dette d'inscription sur sa fiche."}
-                    </p>
-                  </div>
-                )}
+                    );
+                  })}
 
-                {!isEdit && feeRequired === 0 && (school?.registrationFee ?? 0) > 0 && paidSubIds.length > 0 && (
+                  {engagementTotals.due > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/35 bg-accent-wash/40 px-3 py-2">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
+                        <ShieldCheck className="h-3.5 w-3.5 text-accent-ink" /> Engagements des
+                        créneaux rejoints
+                      </span>
+                      <span className="flex flex-wrap items-center gap-2 text-[11px]">
+                        <Badge tone="neutral">Total {formatDA(engagementTotals.due)}</Badge>
+                        <Badge tone="success">Réglé {formatDA(engagementTotals.paid)}</Badge>
+                        <Badge tone={engagementTotals.rest > 0 ? "danger" : "success"}>
+                          Reste {formatDA(engagementTotals.rest)}
+                        </Badge>
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary-50/40 px-3 py-2">
+                    <span className="text-xs font-semibold text-muted">
+                      {isEdit ? "Total encaissé maintenant" : "Avance totale versée à l'inscription"}
+                    </span>
+                    <strong className="text-sm text-primary">{formatDA(totalSold)}</strong>
+                  </div>
+
+                  {!isEdit && totalSold > 0 && (
+                    <p className="rounded-xl border border-success/40 bg-success/10 p-2.5 text-[10px] leading-relaxed text-success">
+                      🧾 Après la création, l&apos;écran proposera d&apos;imprimer le{" "}
+                      <strong>reçu de cette avance</strong> puis le{" "}
+                      <strong>bon d&apos;inscription</strong>. L&apos;avance entre dans la caisse et
+                      apparaît aussitôt dans l&apos;historique des paiements du chevalier, emploi
+                      du temps et carte compris.
+                    </p>
+                  )}
+
                   <p className="text-[10px] text-muted">
-                    ℹ️ Aucun frais d&apos;inscription pour ce chevalier : les emplois du temps cochés
-                    n&apos;entrent pas dans le périmètre défini sur la page Abonnements.
+                    ℹ️ Le chevalier entre sur chaque emploi du temps LÀ OÙ EN EST LE GROUPE : son
+                    solde est versé sur cette carte-là, les séances déjà tenues avant lui restent vides
+                    sur sa ligne et les cartes précédents ne le comptent pas.
                   </p>
-                )}
+
+                  {/* -------------------------------------------------------
+                      LES FRAIS D'INSCRIPTION — réclamés SEULEMENT si l'un des
+                      emplois cochés entre dans le périmètre choisi par le club
+                      (tous les chevaliers, un niveau, des catégories, des emplois
+                      précis). Sinon ce bloc ne s'affiche même pas.
+
+                      La famille peut en régler tout, une partie, ou rien : ce
+                      qui reste part en DETTE sur la fiche, et la création n'est
+                      jamais bloquée pour autant.
+                      ------------------------------------------------------- */}
+                  {!isEdit && feeRequired > 0 && (
+                    <div className="space-y-2 rounded-xl border border-warning/40 bg-warning/5 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-warning">
+                          🎫 Frais d&apos;inscription requis
+                        </span>
+                        <Badge tone="warning" className="font-mono font-bold">
+                          {formatDA(feeRequired)}
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] leading-relaxed text-muted">
+                        {feeSubIds.length} emploi(s) du temps coché(s) entrent dans le périmètre défini
+                        par le club :{" "}
+                        <strong className="text-ink">
+                          {feeSubIds.map((id) => subLabel(id)).join(", ")}
+                        </strong>
+                        .
+                      </p>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div>
+                          <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
+                            Encaissé maintenant (DA)
+                          </label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={feeRequired}
+                            step="0.01"
+                            value={feePaidNow || ""}
+                            onChange={(e) =>
+                              setFeePaidNow(
+                                Math.min(
+                                  positiveMoney(Number(e.target.value.replace(",", ".")) || 0),
+                                  feeRequired,
+                                ),
+                              )
+                            }
+                            placeholder="0"
+                            className="w-36"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFeePaidNow(feeRequired)}
+                          className="pb-2.5 text-[10px] font-bold text-primary hover:underline"
+                        >
+                          Tout régler ({formatDA(feeRequired)})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFeePaidNow(0)}
+                          className="pb-2.5 text-[10px] font-bold text-warning hover:underline"
+                        >
+                          Créer avec la dette
+                        </button>
+                      </div>
+                      <p
+                        className={`rounded-lg p-2 text-[10px] font-semibold ${
+                          feeDebt > 0 ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
+                        }`}
+                      >
+                        {feeDebt > 0
+                          ? `${formatDA(feeDebt)} resteront en DETTE sur sa fiche — visible partout tant qu'ils ne sont pas réglés.`
+                          : "Frais entièrement réglés : aucune dette d'inscription sur sa fiche."}
+                      </p>
+                    </div>
+                  )}
+
+                  {!isEdit && feeRequired === 0 && (school?.registrationFee ?? 0) > 0 && paidSubIds.length > 0 && (
+                    <p className="text-[10px] text-muted">
+                      ℹ️ Aucun frais d&apos;inscription pour ce chevalier : les emplois du temps cochés
+                      n&apos;entrent pas dans le périmètre défini sur la page Abonnements.
+                    </p>
+                  )}
+                </div>
+              )}
+          </FicheSection>
+
+          <FicheSection
+            id="compte"
+            step={4}
+            icon={isEdit ? KeyRound : Users}
+            title={isEdit ? "Compte du portail & badge" : "Compte & famille"}
+            subtitle={
+              isEdit
+                ? "Connexion au portail et carte RFID."
+                : "Un accès au portail pour lui, et le parent qui suivra ses séances."
+            }
+            tone="primary"
+            done={accountDone}
+          >
+            <div className={isEdit ? "" : "grid gap-3 lg:grid-cols-2"}>
+            {/* portal login — only an existing fiche has one */}
+            {isEdit && (
+              <div className="space-y-2 rounded-xl border border-line bg-canvas/40 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  🔐 Compte du portail &amp; badge
+                </span>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted">
+                      Email de connexion
+                    </label>
+                    <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted">
+                      Nouveau mot de passe
+                    </label>
+                    <Input
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      placeholder="Laisser vide pour ne pas changer"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted">Carte RFID</label>
+                    <Input value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
+                  </div>
+                </div>
               </div>
             )}
-          </div>
 
-          <div className="flex justify-end gap-2 border-t border-line pt-4">
-            <Button variant="outline" onClick={onClose} disabled={busy}>
-              Annuler
-            </Button>
-            <Button onClick={submit} disabled={busy}>
-              {busy
-                ? isEdit
-                  ? "Enregistrement…"
-                  : "Création…"
-                : isEdit
-                  ? "Enregistrer les modifications"
-                  : "Créer le chevalier"}
-            </Button>
-          </div>
+
+            {/* ---------------------------------------------------------------
+                LE COMPTE DE CONNEXION DU CHEVALIER — à la création seulement.
+                Une fiche existante gère le sien dans le bloc « Compte du portail
+                & badge » un peu plus haut.
+                --------------------------------------------------------------- */}
+            {!isEdit && (
+              <div className="space-y-3 rounded-xl border border-accent/30 bg-accent-wash/30 p-3">
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={wantAccount}
+                    onChange={(e) => setWantAccount(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
+                  />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+                      <KeyRound className="h-3.5 w-3.5" /> Ouvrir un compte de connexion
+                    </span>
+                    <span className="mt-0.5 block text-[10px] leading-relaxed text-muted">
+                      Le chevalier pourra se connecter à son portail et y suivre ses
+                      présences, ses absences et ses paiements. Sans compte, sa fiche
+                      fonctionne exactement pareil — elle n&apos;a simplement pas
+                      d&apos;accès.
+                    </span>
+                  </span>
+                </label>
+
+                <AnimatePresence initial={false}>
+                  {wantAccount && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-muted">
+                            Email de connexion <span className="text-danger">*</span>
+                          </label>
+                          <Input
+                            type="email"
+                            autoComplete="off"
+                            value={accEmail}
+                            onChange={(e) => setAccEmail(e.target.value)}
+                            placeholder="chevalier@exemple.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-muted">
+                            Mot de passe <span className="text-danger">*</span>
+                          </label>
+                          <Input
+                            type="text"
+                            autoComplete="off"
+                            value={accPassword}
+                            onChange={(e) => setAccPassword(e.target.value)}
+                            placeholder="6 caractères au minimum"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* ---------------------------------------------------------------
+                LE PARENT — rattaché à un parent existant, ou créé ici même.
+                --------------------------------------------------------------- */}
+            {!isEdit && (
+              <div className="space-y-3 rounded-xl border border-primary/25 bg-primary-50/40 p-3">
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+                  <Users className="h-3.5 w-3.5" /> Parent du chevalier
+                </span>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { value: "none", label: "Aucun" },
+                      { value: "existing", label: "Parent existant" },
+                      { value: "new", label: "Nouveau parent" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setParentMode(opt.value)}
+                      className={`cursor-pointer rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                        parentMode === opt.value
+                          ? "border-accent/45 bg-accent/15 text-accent-ink"
+                          : "border-line bg-surface text-muted hover:border-accent/30 hover:text-ink"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <AnimatePresence initial={false} mode="wait">
+                  {parentMode === "existing" && (
+                    <motion.div
+                      key="existing"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-1">
+                        <label className="mb-1 block text-xs font-semibold text-muted">
+                          Choisir le parent
+                        </label>
+                        <select
+                          value={parentId}
+                          onChange={(e) => setParentId(e.target.value)}
+                          className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none"
+                        >
+                          <option value="">— Sélectionner —</option>
+                          {db.parents.map((par) => (
+                            <option key={par.id} value={par.id}>
+                              {[par.firstName, par.lastName].filter(Boolean).join(" ")}
+                              {par.phone ? ` · ${par.phone}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        {db.parents.length === 0 && (
+                          <p className="mt-1.5 text-[10px] text-muted">
+                            Aucun parent enregistré — choisissez « Nouveau parent ».
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {parentMode === "new" && (
+                    <motion.div
+                      key="new"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-3 pt-1">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold text-muted">
+                              Prénom du parent
+                            </label>
+                            <Input
+                              value={pFirstName}
+                              onChange={(e) => setPFirstName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold text-muted">
+                              Nom du parent
+                            </label>
+                            <Input
+                              value={pLastName}
+                              onChange={(e) => setPLastName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold text-muted">
+                              Téléphone
+                            </label>
+                            <Input
+                              type="tel"
+                              value={pPhone}
+                              onChange={(e) => setPPhone(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold text-muted">
+                              Email
+                            </label>
+                            <Input
+                              type="email"
+                              value={pEmail}
+                              onChange={(e) => setPEmail(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <label className="flex cursor-pointer items-start gap-2.5 border-t border-line pt-3">
+                          <input
+                            type="checkbox"
+                            checked={pWantAccount}
+                            onChange={(e) => setPWantAccount(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
+                          />
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
+                              <KeyRound className="h-3.5 w-3.5" /> Ouvrir un compte au parent
+                            </span>
+                            <span className="mt-0.5 block text-[10px] leading-relaxed text-muted">
+                              Il suivra depuis son portail les présences, les absences et
+                              les paiements de chacun de ses chevaliers.
+                            </span>
+                          </span>
+                        </label>
+
+                        <AnimatePresence initial={false}>
+                          {pWantAccount && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-1">
+                                <label className="mb-1 block text-xs font-semibold text-muted">
+                                  Mot de passe du parent <span className="text-danger">*</span>
+                                </label>
+                                <Input
+                                  type="text"
+                                  autoComplete="off"
+                                  value={pPassword}
+                                  onChange={(e) => setPPassword(e.target.value)}
+                                  placeholder="6 caractères au minimum"
+                                />
+                                <p className="mt-1 text-[10px] text-muted">
+                                  Il se connectera avec l&apos;email saisi ci-dessus.
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            </div>
+          </FicheSection>
+
+          {!isEdit && (
+            <FicheSection
+              id="recap"
+              step={5}
+              icon={ClipboardCheck}
+              title="Récapitulatif"
+              subtitle="Ce qui sera écrit en cliquant sur « Créer le chevalier »."
+              tone="accent"
+              done={identityDone && subIds.length > 0}
+            >
+              <div className="grid gap-2 sm:grid-cols-3">
+                <RecapTile label="Emplois du temps" value={String(subIds.length)} tone="primary" />
+                <RecapTile label="Avance versée" value={formatDA(totalSold)} tone="success" />
+                <RecapTile
+                  label="Frais d'inscription dus"
+                  value={formatDA(feeDebt)}
+                  tone={feeDebt > 0 ? "danger" : "success"}
+                />
+              </div>
+              {subIds.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-line p-3 text-center text-[11px] text-muted">
+                  Aucun emploi du temps coché — le chevalier sera créé sans groupe.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {subIds.map((subId) => {
+                    const p = placementOf(subId);
+                    const past = pastPlacement(subId);
+                    const n = past ? placementBacklogCount(db, subId, p, arrivalDay) : 0;
+                    const point = joinPointOf(subId);
+                    return (
+                      <li
+                        key={subId}
+                        className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[11px] ${
+                          past ? "border-warning/40 bg-warning/10" : "border-success/30 bg-success/5"
+                        }`}
+                      >
+                        <strong className="min-w-0 text-ink">{subLabel(subId)}</strong>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {past && p ? (
+                            <>
+                              <Badge tone="warning" className="text-[10px]">
+                                {carteShort(p.carteCode)} · séance {p.seance + 1} · {formatDateFr(p.date)}
+                              </Badge>
+                              <Badge tone="warning" className="text-[10px]">
+                                {n} à régulariser
+                              </Badge>
+                            </>
+                          ) : (
+                            <Badge tone="success" className="text-[10px]">
+                              {carteShort(point.monthCode)} · séance {point.slotIndex + 1} · départ normal
+                            </Badge>
+                          )}
+                          {(solds[subId] || 0) > 0 && !freeOn(subId) && (
+                            <Badge tone="primary" className="text-[10px]">
+                              {formatDA(solds[subId] || 0)}
+                            </Badge>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {backlogTotal > 0 && (
+                <p className="flex items-start gap-2 rounded-xl border border-warning/45 bg-warning/10 p-3 text-[11px] leading-relaxed text-ink">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <span>
+                    <strong>{backlogTotal} séance(s) passée(s)</strong> lui seront rattachées sans
+                    rien débiter. Vous devrez régler ses présences et absences depuis le{" "}
+                    <strong>tableau de bord</strong> ou l&apos;écran <strong>Présences</strong>.
+                  </span>
+                </p>
+              )}
+            </FicheSection>
+          )}
         </div>
       </Modal>
     </>
