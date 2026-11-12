@@ -35,6 +35,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/SearchInput";
 import { TeacherPages } from "@/components/pages/TeacherPages";
 import { PresenceSheet } from "@/components/attendance/PresenceSheet";
+import { PendingPlacementsAlert } from "@/components/attendance/PlacementRegularization";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
 import { StudentSituationModal } from "@/components/students/StudentSituationModal";
 import { WorkerPaymentsAlert } from "@/components/dashboard/WorkerPaymentsAlert";
@@ -617,6 +618,9 @@ function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* ---- les chevaliers placés sur des séances passées, à régulariser -- */}
+      <PendingPlacementsAlert canMark={can("mark_presence")} />
 
       {/* ---- search & filters ------------------------------------------- */}
       <Card className="border border-line card-shadow">

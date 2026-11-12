@@ -123,6 +123,11 @@ import {
 } from "@/lib/helpers";
 import type { Day } from "@/lib/types";
 import { carteLayout } from "@/lib/cartes";
+import { placementStatus } from "@/lib/placement";
+import {
+  PendingPlacementsAlert,
+  RegularizeModal,
+} from "@/components/attendance/PlacementRegularization";
 
 const JS_DAYS: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -215,6 +220,8 @@ export function PresenceSheet({
   const [history, setHistory] = useState<Student | null>(null);
   /** rattraper les séances passées d'un chevalier créé en retard */
   const [pastFor, setPastFor] = useState<Student | null>(null);
+  /** régulariser les séances d'un chevalier placé sur une séance passée */
+  const [regularizeFor, setRegularizeFor] = useState<Student | null>(null);
   /** le pointage qu'on s'apprête à RETIRER, en rendant ce qu'il avait débité */
   const [removing, setRemoving] = useState<{ student: Student; record: AttendanceRecord } | null>(
     null,
@@ -943,6 +950,9 @@ export function PresenceSheet({
         </p>
       )}
 
+      {/* ---- LES CHEVALIERS PLACÉS SUR DES SÉANCES PASSÉES, À RÉGULARISER --- */}
+      <PendingPlacementsAlert sessionId={session.id} canMark={canMark} />
+
       {/* ---- L'ALERTE DU GROUPE : QUI DOIT DE L'ARGENT ---------------------
           Elle est en haut de la feuille parce que c'est le seul moment où la
           famille est joignable : le chevalier est là, devant le comptoir. Chaque
@@ -1094,6 +1104,7 @@ export function PresenceSheet({
                   onCharges={(tab) => setCharges({ student: st, tab })}
                   onNewCharge={() => setChargeForm(st)}
                   onPast={canMark ? () => setPastFor(st) : undefined}
+                  onRegularize={canMark ? () => setRegularizeFor(st) : undefined}
                 />
               ))
             )}
@@ -1460,6 +1471,14 @@ export function PresenceSheet({
       )}
 
       {/* ---- l'historique des paiements, modifiable sur place --------------- */}
+      {regularizeFor && sub && (
+        <RegularizeModal
+          studentId={regularizeFor.id}
+          subscriptionId={sub.id}
+          onClose={() => setRegularizeFor(null)}
+        />
+      )}
+
       {pastFor && (
         <PastSeancesModal
           student={pastFor}
@@ -2493,6 +2512,7 @@ function StudentRow({
   onCharges,
   onNewCharge,
   onPast,
+  onRegularize,
 }: {
   student: Student;
   session: ScheduleSession;
@@ -2522,6 +2542,8 @@ function StudentRow({
   onNewCharge: () => void;
   /** pointer / annuler ses séances PASSÉES (chevalier créé en retard) */
   onPast?: () => void;
+  /** régulariser les séances de son placement sur une séance passée */
+  onRegularize?: () => void;
 }) {
   const db = useData();
   const sub = db.subscriptions.find((s) => s.id === subscriptionId)!;
@@ -2549,6 +2571,8 @@ function StudentRow({
   const advanceDebt = studentAdvanceDebt(db, student.id);
 
   const caseLabel = studentCaseLabel(student);
+  /** placé sur une séance passée : ce qu'il reste à régulariser */
+  const placement = placementStatus(db, student, subscriptionId);
 
   const soldTone =
     status === "debt" ? "danger" : status === "empty" ? "warning" : status === "low" ? "warning" : "success";
@@ -2564,6 +2588,17 @@ function StudentRow({
           <Badge tone={studentCaseTone(student)} className="mt-0.5 text-[9px]">
             {caseLabel}
           </Badge>
+        )}
+        {placement && placement.pending.length > 0 && (
+          <button
+            type="button"
+            onClick={onRegularize}
+            disabled={!onRegularize}
+            title={`Placé en ${carteShort(placement.carteCode)} · séance ${placement.seance + 1} (${formatDateFr(placement.date)}) — séances à régulariser`}
+            className="mt-0.5 flex items-center gap-1 rounded-full border border-warning/45 bg-warning/10 px-2 py-0.5 text-[9px] font-bold text-warning hover:bg-warning hover:text-white disabled:cursor-default"
+          >
+            <CalendarClock className="h-3 w-3" /> {placement.pending.length} séance(s) à régulariser
+          </button>
         )}
       </td>
       <td className="px-2 py-2 text-muted">

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PendingPlacementsAlert } from "@/components/attendance/PlacementRegularization";
 import { PresenceSheet } from "@/components/attendance/PresenceSheet";
 import { carteCodeForDate } from "@/lib/cartes";
 import { CreateStudentModal } from "@/components/students/CreateStudentModal";
@@ -223,6 +224,9 @@ export function AttendancePage() {
 
       {tab === "sheet" ? (
         <>
+          {/* Les chevaliers placés sur des séances passées, à régulariser. */}
+          <PendingPlacementsAlert canMark={can("mark")} />
+
           {/* Day navigation */}
           <Card className="border border-line card-shadow">
             <CardBody className="space-y-4 p-4">

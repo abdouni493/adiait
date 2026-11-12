@@ -1,5 +1,6 @@
 "use client";
 
+import { PortalPlacementCard } from "@/components/attendance/PlacementRegularization";
 import { useState } from "react";
 import { useData } from "@/lib/store/data";
 import { useSession } from "@/lib/store/session";
@@ -1203,6 +1204,11 @@ function StudentProfileView({
   return (
     <div className="space-y-6 text-xs">
       <PageHeader icon={User} title="Mon Profil Chevalier" subtitle="Consulter et mettre à jour vos coordonnées personnelles" />
+
+      {/* Placé sur une carte / séance passée : ce qui reste à régulariser. */}
+      <div className="max-w-2xl">
+        <PortalPlacementCard students={[student]} />
+      </div>
 
       <div className="max-w-2xl">
         <Card>

@@ -83,6 +83,8 @@ import {
   todayIso,
 } from "@/lib/helpers";
 import { positiveMoney } from "@/lib/utils";
+import { placementBacklogCount, placementDates, type PlacementChoice } from "@/lib/placement";
+import { PlacementPicker } from "@/components/students/PlacementPicker";
 import type {
   CaseReduction,
   DiscountType,
@@ -416,6 +418,19 @@ function StudentFiche({
   const joinPointOf = (subId: string) =>
     joinPoints[subId] ?? { monthCode: "M1", slotIndex: 0 };
 
+  /**
+   * LE PLACEMENT CHOISI, emploi par emploi : la carte du groupe et la séance de
+   * cette carte où le chevalier commence. Absent = carte courante, séance du
+   * jour — il commence normalement. Une séance PASSÉE laisse ses séances,
+   * jusqu'à aujourd'hui, « à régulariser » au tableau de bord ou en Présences.
+   */
+  const [placements, setPlacements] = useState<Record<string, PlacementChoice | null>>({});
+  const placementOf = (subId: string) => placements[subId] ?? null;
+  const pastPlacement = (subId: string) => {
+    const p = placementOf(subId);
+    return !!p?.date && p.date < arrivalDay;
+  };
+
   const reset = () => {
     setFirstName("");
     setLastName("");
@@ -433,6 +448,7 @@ function StudentFiche({
     setFreeSubIds(defaultSubIds);
     setSchoolOnlySubIds(defaultSubIds);
     setSolds({});
+    setPlacements({});
     setEngagementPaidOn([]);
     setEngagementPaid({});
     setFeePaidNow(0);
@@ -770,6 +786,9 @@ function StudentFiche({
         startDate: arrivalDay,
         joinMonthCode: point.monthCode,
         joinSlotIndex: point.slotIndex,
+        // Placé sur une carte / séance PASSÉE : la fenêtre jusqu'à aujourd'hui
+        // reste à régulariser (rien de débité, ni présence ni absence).
+        ...(isEdit ? {} : placementDates(db, subId, placementOf(subId), arrivalDay)),
       };
     }
     /**
@@ -958,6 +977,25 @@ function StudentFiche({
             : "Aucun emploi du temps pour le moment.",
         studentName: `${firstName} ${lastName}`,
       });
+
+      // PLACÉ SUR DES SÉANCES PASSÉES : la réception doit les régulariser.
+      const backlog = subIds
+        .filter((subId) => pastPlacement(subId))
+        .map((subId) => ({
+          subId,
+          n: placementBacklogCount(db, subId, placementOf(subId), arrivalDay),
+        }))
+        .filter((b) => b.n > 0);
+      if (backlog.length > 0) {
+        addToast({
+          type: "warning",
+          title: "Séances à régulariser",
+          message: `Vous devez régler les présences et absences de ce chevalier pour les séances précédentes : ${backlog
+            .map((b) => `${subLabel(b.subId)} — ${b.n} séance(s)`)
+            .join(" · ")}. Elles ne débitent rien tant qu'elles ne sont pas pointées — régularisez-les depuis le tableau de bord ou l'écran Présences.`,
+          studentName: `${firstName} ${lastName}`,
+        });
+      }
 
       const voucher = inscriptionVoucherHtml(db, {
         student,
@@ -1593,7 +1631,9 @@ function StudentFiche({
                           <Badge tone="primary" className="mt-1 text-[9px]">
                             {isEdit && editing?.subscriptionIds.includes(subId)
                               ? `Déjà inscrit · solde ${formatDA(soldFor(db, editing.id, subId))}`
-                              : `Entre en ${carteShort(point.monthCode)} · séance ${point.slotIndex + 1}`}
+                              : pastPlacement(subId)
+                                ? `Placé en ${carteShort(placementOf(subId)!.carteCode)} · séance ${placementOf(subId)!.seance + 1}`
+                                : `Entre en ${carteShort(point.monthCode)} · séance ${point.slotIndex + 1}`}
                           </Badge>
                         </div>
                         <button
@@ -1604,6 +1644,19 @@ function StudentFiche({
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
+
+                      {/* LE PLACEMENT : la carte du groupe (courante ou précédente) et
+                          la séance de cette carte où il commence. */}
+                      {!isEdit && (
+                        <PlacementPicker
+                          subscriptionId={subId}
+                          arrivalDay={arrivalDay}
+                          value={placementOf(subId)}
+                          onChange={(choice) =>
+                            setPlacements((prev) => ({ ...prev, [subId]: choice }))
+                          }
+                        />
+                      )}
 
                       {/* « Club seulement », emploi par emploi — active par défaut.
                           Exactement la même mécanique que la gratuité : ce qui est

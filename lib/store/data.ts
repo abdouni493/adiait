@@ -2172,7 +2172,15 @@ export const useData = create<DataStore>((set, get) => ({
      */
     const freePeriod = activeFreePeriod(db, [session.classId, ...(session.classIds ?? [])], date);
     const startDate = enrollment?.startDate ?? student.subscriptionDates?.[sub?.id ?? ""]?.startDate;
-    const beforeStart = !retro && !!startDate && startDate > date;
+    /**
+     * PLACÉ SUR UNE SÉANCE PASSÉE : les séances depuis son placement sont À LUI,
+     * et la réception les régularise une à une. Pointées depuis la feuille du
+     * jour concerné comme depuis la fenêtre de régularisation, elles se
+     * facturent normalement — jamais comme une séance « avant le début ».
+     */
+    const placedFrom = sub ? student.subscriptionDates?.[sub.id]?.placementDate : undefined;
+    const inPlacement = !!placedFrom && date >= placedFrom;
+    const beforeStart = !retro && !inPlacement && !!startDate && startDate > date;
 
     const noCharge = status === "cancelled";
     const offered = !noCharge && (!!freePeriod || beforeStart || isFreeSub(student, sub?.id));

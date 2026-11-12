@@ -1,5 +1,6 @@
 "use client";
 
+import { PlacementSummary } from "@/components/attendance/PlacementRegularization";
 import { useState, useEffect } from "react";
 import { useData, uid } from "@/lib/store/data";
 import { deleteRoleUser } from "@/lib/accounts/users";
@@ -2343,6 +2344,9 @@ export function StudentsPage() {
                 );
                 return (
                 <div className="space-y-3">
+                  {/* Placé sur une carte / séance PASSÉE : la fenêtre depuis le
+                      placement, et ce qui reste à régulariser. */}
+                  <PlacementSummary student={selectedStudent} canRegularize />
                   {historyIds.length === 0 ? (
                     <p className="text-xs text-muted italic">
                       Ce chevalier n&apos;est inscrit sur aucun emploi du temps.
@@ -2836,6 +2840,7 @@ export function StudentsPage() {
                 ].sort((a, b) => b.when.getTime() - a.when.getTime());
                 return (
                   <div className="space-y-3">
+                    <PlacementSummary student={selectedStudent} canRegularize />
                     <div className="flex flex-wrap items-center gap-2 bg-canvas/40 border border-line rounded-xl p-2">
                       <label className="text-[10px] font-bold text-muted uppercase shrink-0">Module :</label>
                       <Select value={attModuleFilter} onChange={(e) => setAttModuleFilter(e.target.value)} className="w-44">

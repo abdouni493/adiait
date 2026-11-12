@@ -976,6 +976,35 @@ export interface SubscriptionDates {
   joinMonthCode?: string;
   joinSlotIndex?: number;
   /**
+   * LE PLACEMENT CHOISI À LA CRÉATION — la carte et la séance du GROUPE où la
+   * réception a placé le chevalier.
+   *
+   * Carte courante + séance du jour : rien de particulier, il commence
+   * normalement (ces champs restent absents ou décrivent la séance du jour).
+   *
+   * Carte / séance PRÉCÉDENTE : toutes les séances tenues par le groupe depuis
+   * ce placement jusqu'à son jour d'arrivée lui appartiennent, mais restent
+   * « À RÉGULARISER » — ni présence, ni absence, ni débit — tant que la
+   * réception ne les a pas pointées (tableau de bord ou Présences). Elles se
+   * DÉDUISENT des présences : une séance sans pointage du chevalier est en
+   * attente, une séance pointée est réglée. Rien d'autre n'est stocké.
+   */
+  /** le code de la carte du groupe choisie (« M1 », « M2 »…) */
+  placementCarteCode?: string;
+  /** la séance de cette carte, 0-based (séance 3 -> 2) */
+  placementSeance?: number;
+  /** le jour de cette séance (YYYY-MM-DD) — absent = séance à venir */
+  placementDate?: string;
+  /** le rang de la séance dans la journée (0 = la seule, ou la première) */
+  placementSlot?: number;
+  /**
+   * Les séances du groupe de la fenêtre (du placement au jour d'arrivée),
+   * copiées à la création : les portails du chevalier et du parent ne voient
+   * pas les présences du groupe et lisent donc cette liste. Une séance de la
+   * liste sans pointage du chevalier est « à régulariser ».
+   */
+  placementSeances?: { date: string; slot?: number; carteCode: string; seanceIndex: number }[];
+  /**
    * The day reception took the student OFF this emploi du temps. The block is
    * KEPT when he leaves — only `subscriptionIds` loses the module — so his
    * présences, ses paiements et son solde restent lisibles sur sa fiche, datés

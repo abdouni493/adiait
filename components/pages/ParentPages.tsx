@@ -1,5 +1,6 @@
 "use client";
 
+import { PortalPlacementCard } from "@/components/attendance/PlacementRegularization";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useData } from "@/lib/store/data";
@@ -444,6 +445,9 @@ function ParentChildrenView({
           index={4}
         />
       </div>
+
+      {/* ---- Le placement de l'enfant, et ce qui reste à régulariser ---- */}
+      <PortalPlacementCard students={[child]} />
 
       {/* ---- Les onglets ---- */}
       <div
@@ -1207,6 +1211,10 @@ function ParentProfileView({
   updateUser: (fields: { name?: string }) => void;
   user: any;
 }) {
+  const familyDb = useData();
+  const myKids = familyDb.students.filter(
+    (s) => parent.childIds.includes(s.id) || s.parentId === parent.id,
+  );
   const [firstName, setFirstName] = useState(parent.firstName);
   const [lastName, setLastName] = useState(parent.lastName);
   const [phone, setPhone] = useState(parent.phone);
@@ -1282,6 +1290,11 @@ function ParentProfileView({
             </div>
           </CardBody>
         </Card>
+      </div>
+
+      {/* Les enfants placés sur une carte / séance passée — ce qui reste à régulariser. */}
+      <div className="max-w-2xl">
+        <PortalPlacementCard students={myKids} />
       </div>
     </div>
   );
