@@ -35,7 +35,7 @@ export function CashPage() {
     cash,
     cashCategories,
     cashMove,
-    deleteFrom,
+    deleteCashTransaction,
     updateItem,
     groupSeances,
     teachers,
@@ -369,9 +369,23 @@ export function CashPage() {
     setSelectedTx(null);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Voulez-vous vraiment supprimer cette transaction ? Cette action est irréversible.")) {
-      deleteFrom("cash", id);
+  const handleDelete = async (id: string) => {
+    // Un paiement de chevalier ne vit pas que dans la caisse : il a aussi crédité
+    // l'emploi du temps et laissé sa ligne dans l'historique du chevalier. Le
+    // supprimer ici doit donc l'effacer DES DEUX côtés — c'est ce que fait
+    // `deleteCashTransaction`, là où l'ancien `deleteFrom("cash", …)` n'ôtait que
+    // la ligne de caisse et laissait le versement sur le compte du chevalier.
+    const tx = cash.find((c) => c.id === id);
+    const isStudentPayment = tx?.type === "student_payment";
+    const message = isStudentPayment
+      ? "Supprimer ce paiement ? Il sera retiré de la caisse ET du compte du chevalier (le solde de son emploi du temps sera repris d'autant). Cette action est irréversible."
+      : "Voulez-vous vraiment supprimer cette transaction ? Cette action est irréversible.";
+    if (!confirm(message)) return;
+    const res = await deleteCashTransaction(id);
+    if (!res.ok) {
+      alert(
+        "La transaction n'a pas pu être supprimée. Un règlement de dette se corrige en ré-encaissant depuis la fiche du chevalier, pas en l'effaçant.",
+      );
     }
   };
 

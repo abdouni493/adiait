@@ -1195,6 +1195,19 @@ interface DataActions {
   unenrollFormation: (id: string) => Promise<{ ok: boolean }>;
 
   deleteFrom: <K extends keyof Database>(key: K, id: string) => void;
+  /**
+   * EFFACE UNE LIGNE DE CAISSE, ET CE QU'ELLE A ÉCRIT AILLEURS.
+   *
+   * Un versement de chevalier passé en caisse a posé, dans la même seconde, une
+   * ligne dans l'historique du chevalier et le crédit de son emploi du temps.
+   * Le supprimer depuis le journal de caisse doit donc l'effacer DES DEUX
+   * côtés — sinon le compte du chevalier garde un paiement que la caisse ne
+   * connaît plus. Les autres mouvements (dépôts, retraits, dépenses…) s'effacent
+   * simplement, comme avec `deleteFrom("cash", id)`.
+   */
+  deleteCashTransaction: (
+    id: string,
+  ) => Promise<{ ok: boolean; balance?: number; amount?: number; messageKey?: string }>;
   push: <K extends keyof Database>(
     key: K,
     item: Database[K] extends Array<infer T> ? T : never,
@@ -5349,6 +5362,43 @@ export const useData = create<DataStore>((set, get) => ({
       }
       return patch as Partial<DataStore>;
     });
+  },
+
+  deleteCashTransaction: async (id) => {
+    const db = get();
+    const row = db.cash.find((c) => c.id === id);
+    if (!row) return { ok: false };
+
+    /**
+     * UN VERSEMENT DE CHEVALIER S'EFFACE DES DEUX CÔTÉS.
+     *
+     * La ligne de caisse et la ligne d'historique du chevalier ont été écrites
+     * dans la même seconde, avec le même montant : c'est ce qui les apparie, le
+     * même repère que `deleteStudentPayment` utilise dans l'autre sens. Quand on
+     * la retrouve, on passe par ce chemin éprouvé — il reprend le solde de
+     * l'emploi du temps ET retire la ligne de caisse appariée — pour que la
+     * suppression depuis la caisse vaille exactement celle faite depuis la fiche.
+     *
+     * Un règlement de dette (`debt_payment`) a soldé des restes répartis sur
+     * plusieurs achats sans garder lesquels : il reste verrouillé, ici comme sur
+     * la fiche, et seule sa ligne de caisse part. Les mouvements qui n'ont pas de
+     * versement de chevalier apparié (dépôts, retraits, dépenses, avances du
+     * club…) s'effacent simplement.
+     */
+    if (row.type === "student_payment") {
+      const pay = db.payments.find(
+        (p) =>
+          p.type === "subscription_payment" &&
+          p.date === row.date &&
+          money(p.amountPaid) === money(row.amount),
+      );
+      if (pay) {
+        return get().deleteStudentPayment(pay.id);
+      }
+    }
+
+    get().deleteFrom("cash", id);
+    return { ok: true };
   },
 
   cashMove: (type, amount, description, date, categoryId, caisse) => {

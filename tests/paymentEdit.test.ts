@@ -110,8 +110,49 @@ describe("corriger et supprimer un encaissement", () => {
     expect(useData.getState().payments.some((p) => p.id === receipt.id)).toBe(true);
   });
 
+  /**
+   * SUPPRIMER DEPUIS LA CAISSE EFFACE AUSSI LE COMPTE DU CHEVALIER.
+   *
+   * L'autre sens : on efface la ligne depuis le journal de caisse. Le versement
+   * du chevalier, le crédit de son emploi du temps et la recette doivent partir
+   * ENSEMBLE — sinon le compte du chevalier garderait un paiement orphelin.
+   */
+  it("supprime depuis la caisse et nettoie le compte du chevalier", async () => {
+    const res = await useData
+      .getState()
+      .addSold({ studentId: STU, subscriptionId: SUB, amount: 4000, monthCode: "M1" });
+    expect(soldFor(useData.getState(), STU, SUB)).toBe(4000);
+    expect(cashOf()).toHaveLength(1);
+
+    const cashId = cashOf()[0].id;
+    const gone = await useData.getState().deleteCashTransaction(cashId);
+    expect(gone).toMatchObject({ ok: true });
+
+    const db = useData.getState();
+    expect(db.cash.some((c) => c.id === cashId)).toBe(false);
+    expect(db.payments.some((p) => p.id === res.paymentId)).toBe(false);
+    expect(soldFor(db, STU, SUB)).toBe(0);
+    expect(cycleOf(db, STU, SUB, "M1").credited).toBe(0);
+    expect(cashOf()).toHaveLength(0);
+  });
+
+  it("supprime un mouvement de caisse ordinaire sans toucher aux paiements", async () => {
+    await useData.getState().addSold({ studentId: STU, subscriptionId: SUB, amount: 2000, monthCode: "M1" });
+    useData.getState().cashMove("deposit", 5000, "Apport", "2026-01-10");
+    const deposit = useData.getState().cash.find((c) => c.type === "deposit")!;
+
+    expect(await useData.getState().deleteCashTransaction(deposit.id)).toMatchObject({ ok: true });
+
+    const db = useData.getState();
+    expect(db.cash.some((c) => c.id === deposit.id)).toBe(false);
+    // Le versement du chevalier, lui, n'a pas bougé.
+    expect(soldFor(db, STU, SUB)).toBe(2000);
+    expect(cashOf()).toHaveLength(1);
+  });
+
   it("ignore un identifiant inconnu", async () => {
     expect(await useData.getState().deleteStudentPayment("pay-inconnu")).toEqual({ ok: false });
+    expect(await useData.getState().deleteCashTransaction("csh-inconnu")).toEqual({ ok: false });
     expect(await useData.getState().updateStudentPayment("pay-inconnu", { amount: 1 })).toEqual({
       ok: false,
     });
