@@ -91,9 +91,11 @@ import {
   registrationFeeFor,
   registrationFeeSubIds,
   registrationNumberOf,
+  schoolMonthShareOf,
   schoolPerSeanceOf,
   soldFor,
   studentMonthPrice,
+  teacherMonthShareOf,
   teacherPerSeanceOf,
   todayIso,
 } from "@/lib/helpers";
@@ -105,6 +107,7 @@ import type {
   DiscountType,
   Student,
   StudentCase,
+  Subscription,
   SubscriptionDates,
 } from "@/lib/types";
 
@@ -117,12 +120,36 @@ export const STUDENT_CASE_OPTIONS: { value: StudentCase; label: string }[] = [
   { value: "school_only", label: "Club seulement" },
 ];
 
+/**
+ * RÉDUCTION PAR CARTE — la part club et la part entraîneur recalculées à partir
+ * d'un nouveau total de carte, au prorata EXACT de leur part normale. Le même
+ * partage que `caseReductionCut` applique au débit des présences et à la paie.
+ */
+function carteReductionSplit(sub: Subscription | undefined, newTotal: number) {
+  const size = Math.max(1, cycleSizeOf(sub));
+  const schoolCarte = schoolMonthShareOf(sub);
+  const teacherCarte = teacherMonthShareOf(sub);
+  const splittable = schoolCarte + teacherCarte;
+  const total = positiveMoney(newTotal);
+  const clamped = splittable > 0 ? Math.min(total, splittable) : total;
+  const club = splittable > 0 ? positiveMoney(clamped * (schoolCarte / splittable)) : clamped;
+  const trainer = positiveMoney(clamped - club);
+  return {
+    size,
+    club,
+    trainer,
+    perSeance: positiveMoney(clamped / size),
+    splittable,
+    full: splittable > 0 ? splittable : positiveMoney((sub?.pricePerSession ?? 0) * size),
+  };
+}
+
 /** L'icône et la phrase de chaque cas, sur ses cartes de choix. */
 const CASE_META: Record<StudentCase, { icon: typeof Ticket; hint: string }> = {
   normal: { icon: UserRound, hint: "Tarif plein, club + entraîneur." },
   special: { icon: Gift, hint: "Emplois offerts, rien n'est payé." },
   teacher_child: { icon: HandCoins, hint: "Payé sur le salaire du père." },
-  reduction: { icon: Percent, hint: "Remise sur le club et/ou l'entraîneur." },
+  reduction: { icon: Percent, hint: "Remise par séance, ou prix de carte fixé à la main." },
   school_only: { icon: Building2, hint: "Seule la part du club est due." },
 };
 
@@ -265,6 +292,19 @@ function StudentFiche({
   );
   const [caseRedSchool, setCaseRedSchool] = useState(editing?.caseReduction?.schoolValue ?? 0);
   const [caseRedTeacher, setCaseRedTeacher] = useState(editing?.caseReduction?.teacherValue ?? 0);
+  /**
+   * LE MODE DE LA RÉDUCTION :
+   *  - `seance` : une remise sur la part club et/ou entraîneur de chaque séance,
+   *  - `carte` : un TOTAL DE CARTE fixé à la main, emploi par emploi (ci-dessous),
+   *    dont club et entraîneur se partagent le prix au prorata.
+   */
+  const [caseRedMode, setCaseRedMode] = useState<"seance" | "carte">(
+    editing?.caseReduction?.mode ?? "seance",
+  );
+  /** Réduction par carte : le total de carte fixé par emploi du temps (id -> DA). */
+  const [caseRedCarteTotals, setCaseRedCarteTotals] = useState<Record<string, number>>(
+    () => editing?.caseReduction?.carteTotals ?? {},
+  );
   const [unpaidTeacherIds, setUnpaidTeacherIds] = useState<string[]>(
     editing?.unpaidTeacherIds ?? [],
   );
@@ -317,6 +357,17 @@ function StudentFiche({
    */
   const [engagementPaidOn, setEngagementPaidOn] = useState<string[]>([]);
   const [engagementPaid, setEngagementPaid] = useState<Record<string, number>>({});
+  /**
+   * L'ENGAGEMENT, RÉGLABLE DÈS LA CRÉATION :
+   *  - `engagementWaived` : les emplois dont l'engagement est DÉSACTIVÉ — aucun
+   *    frais d'entrée n'est porté au chevalier (un geste commercial, ou un
+   *    chevalier déjà équipé),
+   *  - `engagementTotal` : le montant d'engagement RÉDUIT, emploi par emploi,
+   *    quand le club accorde une remise sur le frais d'entrée lui-même. Absent =
+   *    le tarif ordinaire du créneau.
+   */
+  const [engagementWaived, setEngagementWaived] = useState<string[]>([]);
+  const [engagementTotal, setEngagementTotal] = useState<Record<string, number>>({});
   /**
    * OÙ LA RÉCEPTION EN EST dans le catalogue : le niveau (« catégorie ») et
    * l'année. Ils sont enregistrés MÊME SANS emploi du temps coché, pour que la
@@ -531,6 +582,8 @@ function StudentFiche({
     setCaseRedType("percent");
     setCaseRedSchool(0);
     setCaseRedTeacher(0);
+    setCaseRedMode("seance");
+    setCaseRedCarteTotals({});
     setUnpaidTeacherIds([]);
     setSubIds(defaultSubIds);
     setFreeSubIds(defaultSubIds);
@@ -539,6 +592,8 @@ function StudentFiche({
     setPlacements({});
     setEngagementPaidOn([]);
     setEngagementPaid({});
+    setEngagementWaived([]);
+    setEngagementTotal({});
     setFeePaidNow(0);
   };
 
@@ -594,9 +649,25 @@ function StudentFiche({
     );
   };
 
-  /** L'engagement demande par CE creneau — 0 quand il n'en demande aucun. */
-  const engagementFeeOf = (subId: string) =>
+  /** Le TARIF d'engagement du creneau lui-meme — ce qu'il demande par defaut. */
+  const engagementBaseFeeOf = (subId: string) =>
     positiveMoney(subscriptions.find((x) => x.id === subId)?.engagementFee ?? 0);
+
+  /** L'engagement est-il DESACTIVE pour cet emploi ? (aucun frais porte) */
+  const engagementWaivedOf = (subId: string) => engagementWaived.includes(subId);
+
+  /**
+   * L'engagement EFFECTIF demande au chevalier sur ce creneau :
+   *  - 0 si l'option est desactivee,
+   *  - le montant reduit saisi a la main (plafonne au tarif du creneau),
+   *  - sinon le tarif ordinaire du creneau.
+   */
+  const engagementFeeOf = (subId: string) => {
+    if (engagementWaivedOf(subId)) return 0;
+    const base = engagementBaseFeeOf(subId);
+    const custom = engagementTotal[subId];
+    return custom != null ? Math.min(positiveMoney(custom), base) : base;
+  };
 
   /** Cet engagement est-il deja porte au compte du chevalier ? (une fiche qu'on
    *  modifie ne le repaie pas) */
@@ -609,9 +680,18 @@ function StudentFiche({
   /** Le guichet regle-t-il l'engagement de ce creneau aujourd'hui ? */
   const engagementChecked = (subId: string) => engagementPaidOn.includes(subId);
 
-  /** Ce qui est verse dessus — plafonne au montant demande. */
+  /** Ce qui est verse dessus — plafonne au montant effectif demande. */
   const engagementAmountOf = (subId: string) =>
     Math.min(positiveMoney(engagementPaid[subId] ?? engagementFeeOf(subId)), engagementFeeOf(subId));
+
+  /** Active/desactive l'engagement de ce creneau (geste commercial a la creation). */
+  const toggleEngagementWaived = (subId: string) =>
+    setEngagementWaived((prev) => {
+      if (prev.includes(subId)) return prev.filter((id) => id !== subId);
+      // On desactive : il ne se regle plus aujourd'hui non plus.
+      setEngagementPaidOn((on) => on.filter((id) => id !== subId));
+      return [...prev, subId];
+    });
 
   const toggleEngagement = (subId: string) =>
     setEngagementPaidOn((prev) => {
@@ -637,7 +717,14 @@ function StudentFiche({
     }
     return { due, paid, rest: positiveMoney(due - paid) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paidSubIds.join("|"), engagementPaidOn.join("|"), JSON.stringify(engagementPaid), subscriptions]);
+  }, [
+    paidSubIds.join("|"),
+    engagementPaidOn.join("|"),
+    engagementWaived.join("|"),
+    JSON.stringify(engagementPaid),
+    JSON.stringify(engagementTotal),
+    subscriptions,
+  ]);
 
   /**
    * LES ENGAGEMENTS REGLES AU GUICHET, ENCAISSES DANS LA FOULEE.
@@ -672,6 +759,38 @@ function StudentFiche({
       description: "Engagement reglé à l'inscription",
     });
     return { paid: res.paid ?? 0 };
+  };
+
+  /**
+   * LE « CAS RÉDUCTION » TEL QU'IL EST ENREGISTRÉ.
+   *
+   * Mode « par séance » : une remise sur la part club et/ou entraîneur de chaque
+   * séance (`schoolValue`/`teacherValue`). Mode « par carte » : un total de
+   * carte fixé à la main, emploi par emploi — club et entraîneur s'y partagent
+   * le prix au prorata, et le prix d'une séance en découle.
+   */
+  const buildCaseReduction = (): CaseReduction | undefined => {
+    if (studentCase !== "reduction") return undefined;
+    if (caseRedMode === "carte") {
+      const carteTotals: Record<string, number> = {};
+      for (const subId of subIds) {
+        const v = caseRedCarteTotals[subId];
+        if (v != null && v > 0) carteTotals[subId] = positiveMoney(v);
+      }
+      return {
+        type: caseRedType,
+        schoolValue: 0,
+        teacherValue: 0,
+        mode: "carte",
+        carteTotals,
+      };
+    }
+    return {
+      type: caseRedType,
+      schoolValue: caseRedSchool || 0,
+      teacherValue: caseRedTeacher || 0,
+      mode: "seance",
+    };
   };
 
   const submit = async () => {
@@ -740,14 +859,7 @@ function StudentFiche({
           enrollmentLevel: enrollLevel || undefined,
           enrollmentYear: enrollYear || undefined,
           teacherFatherId: studentCase === "teacher_child" ? teacherFatherId : undefined,
-          caseReduction:
-            studentCase === "reduction"
-              ? ({
-                  type: caseRedType,
-                  schoolValue: caseRedSchool || 0,
-                  teacherValue: caseRedTeacher || 0,
-                } as CaseReduction)
-              : undefined,
+          caseReduction: buildCaseReduction(),
           unpaidTeacherIds:
             studentCase === "school_only" ? derivedUnpaidTeacherIds : undefined,
         });
@@ -965,14 +1077,7 @@ function StudentFiche({
         enrollmentLevel: enrollLevel || undefined,
         enrollmentYear: enrollYear || undefined,
         teacherFatherId: studentCase === "teacher_child" ? teacherFatherId : undefined,
-        caseReduction:
-          studentCase === "reduction"
-            ? ({
-                type: caseRedType,
-                schoolValue: caseRedSchool || 0,
-                teacherValue: caseRedTeacher || 0,
-              } as CaseReduction)
-            : undefined,
+        caseReduction: buildCaseReduction(),
         unpaidTeacherIds:
           studentCase === "school_only" ? derivedUnpaidTeacherIds : undefined,
         subscriptionIds: subIds,
@@ -1005,7 +1110,23 @@ function StudentFiche({
        * n'en devrait aucun là où un chevalier inscrit après coup les devrait
        * tous. Les emplois OFFERTS sont sautés par l'action elle-même.
        */
-      const engagements = await db.applyEngagementCharges(studentId, subIds, arrivalDay);
+      // Les réglages d'engagement de la création, emploi par emploi : désactivé
+      // (null, aucun frais porté) ou réduit (un montant, au lieu du tarif).
+      const engagementOverrides: Record<string, number | null> = {};
+      for (const subId of subIds) {
+        if (engagementWaivedOf(subId)) engagementOverrides[subId] = null;
+        else if (engagementTotal[subId] != null)
+          engagementOverrides[subId] = Math.min(
+            positiveMoney(engagementTotal[subId]),
+            engagementBaseFeeOf(subId),
+          );
+      }
+      const engagements = await db.applyEngagementCharges(
+        studentId,
+        subIds,
+        arrivalDay,
+        engagementOverrides,
+      );
       // Ce que la famille verse DESSUS, dans le meme geste : le reste part en
       // dette sur sa fiche et continue d'alerter jusqu'a ce qu'il soit solde.
       const engagementSettled = await settleEngagements(studentId, arrivalDay);
@@ -1402,49 +1523,109 @@ function StudentFiche({
               )}
 
               {studentCase === "reduction" && (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    {(["percent", "amount"] as DiscountType[]).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setCaseRedType(t)}
-                        className={`flex-1 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
-                          caseRedType === t
-                            ? "border-primary bg-primary text-white"
-                            : "border-line bg-surface text-ink"
-                        }`}
-                      >
-                        {t === "percent" ? "Pourcentage (%)" : "Montant fixe (DA)"}
-                      </button>
-                    ))}
-                  </div>
+                <div className="space-y-2.5">
+                  {/* LE MODE DE LA RÉDUCTION : par séance (remise) ou par carte
+                      (un total de carte fixé à la main, plus bas sur chaque
+                      emploi du temps). */}
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="mb-1 block text-[10px] font-semibold text-muted">
-                        Part club ({caseRedType === "percent" ? "%" : "DA"})
-                      </label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={caseRedSchool || ""}
-                        onChange={(e) => setCaseRedSchool(Math.max(0, Number(e.target.value) || 0))}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[10px] font-semibold text-muted">
-                        Part entraîneur ({caseRedType === "percent" ? "%" : "DA"})
-                      </label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={caseRedTeacher || ""}
-                        onChange={(e) => setCaseRedTeacher(Math.max(0, Number(e.target.value) || 0))}
-                        placeholder="0"
-                      />
-                    </div>
+                    {(
+                      [
+                        {
+                          value: "seance" as const,
+                          icon: Percent,
+                          title: "Par séance",
+                          hint: "Une remise sur la part club et/ou entraîneur de chaque séance.",
+                        },
+                        {
+                          value: "carte" as const,
+                          icon: Ticket,
+                          title: "Par carte",
+                          hint: "Un prix de carte fixé à la main, par emploi du temps — club & entraîneur recalculés.",
+                        },
+                      ]
+                    ).map((m) => {
+                      const on = caseRedMode === m.value;
+                      const MIcon = m.icon;
+                      return (
+                        <button
+                          key={m.value}
+                          type="button"
+                          onClick={() => setCaseRedMode(m.value)}
+                          aria-pressed={on}
+                          className={`flex flex-col items-start gap-1 rounded-xl border p-2.5 text-start transition-all ${
+                            on
+                              ? "border-accent bg-accent-wash/70 ring-2 ring-accent/30"
+                              : "border-line bg-surface hover:border-accent/40"
+                          }`}
+                        >
+                          <span
+                            className={`flex items-center gap-1.5 text-[11px] font-bold ${
+                              on ? "text-accent-ink" : "text-ink"
+                            }`}
+                          >
+                            <MIcon className="h-3.5 w-3.5" /> {m.title}
+                          </span>
+                          <span className="text-[9px] leading-snug text-muted">{m.hint}</span>
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {caseRedMode === "seance" ? (
+                    <>
+                      <div className="flex gap-2">
+                        {(["percent", "amount"] as DiscountType[]).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setCaseRedType(t)}
+                            className={`flex-1 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
+                              caseRedType === t
+                                ? "border-primary bg-primary text-white"
+                                : "border-line bg-surface text-ink"
+                            }`}
+                          >
+                            {t === "percent" ? "Pourcentage (%)" : "Montant fixe (DA)"}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="mb-1 block text-[10px] font-semibold text-muted">
+                            Part club ({caseRedType === "percent" ? "%" : "DA"})
+                          </label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={caseRedSchool || ""}
+                            onChange={(e) => setCaseRedSchool(Math.max(0, Number(e.target.value) || 0))}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[10px] font-semibold text-muted">
+                            Part entraîneur ({caseRedType === "percent" ? "%" : "DA"})
+                          </label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={caseRedTeacher || ""}
+                            onChange={(e) => setCaseRedTeacher(Math.max(0, Number(e.target.value) || 0))}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="rounded-lg bg-accent-wash/40 p-2 text-[10px] leading-relaxed text-muted">
+                      Choisissez l&apos;emploi du temps plus bas (étape «&nbsp;Groupe, carte &amp;
+                      séance&nbsp;») : vous y fixerez le <strong className="text-ink">prix total de
+                      la carte</strong> de ce chevalier. La <strong className="text-ink">part du
+                      club</strong> et la <strong className="text-ink">part de l&apos;entraîneur</strong>{" "}
+                      se recalculent automatiquement, et le prix d&apos;une séance en découle —
+                      présences, soldes et paie compris.
+                    </p>
+                  )}
                 </div>
               )}
           </FicheSection>
@@ -1670,6 +1851,86 @@ function StudentFiche({
                           </label>
                         )}
 
+                        {/* RÉDUCTION PAR CARTE — le prix total de la carte, fixé
+                            à la main pour CE chevalier sur CET emploi. Le club et
+                            l'entraîneur s'y partagent le prix au prorata, et le
+                            prix d'une séance en découle. */}
+                        {studentCase === "reduction" && caseRedMode === "carte" && !offered && (() => {
+                          const split0 = carteReductionSplit(sub, 0);
+                          const fullCarte = split0.full;
+                          const current = caseRedCarteTotals[subId];
+                          const effective = current != null && current > 0 ? current : fullCarte;
+                          const split = carteReductionSplit(sub, effective);
+                          return (
+                            <div className="mt-2 rounded-lg border border-accent/40 bg-accent-wash/30 px-2.5 py-2">
+                              <div className="flex flex-wrap items-end gap-2">
+                                <div>
+                                  <label className="mb-1 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-accent-ink">
+                                    <Ticket className="h-3 w-3" /> Prix total de la carte (DA)
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    value={current ?? ""}
+                                    onChange={(e) =>
+                                      setCaseRedCarteTotals((prev) => ({
+                                        ...prev,
+                                        [subId]: Math.max(0, Number(e.target.value) || 0),
+                                      }))
+                                    }
+                                    placeholder={String(Math.round(fullCarte))}
+                                    className="w-32"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setCaseRedCarteTotals((prev) => {
+                                      const next = { ...prev };
+                                      delete next[subId];
+                                      return next;
+                                    })
+                                  }
+                                  className="pb-2.5 text-[10px] font-bold text-muted hover:text-accent-ink hover:underline"
+                                >
+                                  Tarif plein ({formatDA(fullCarte)})
+                                </button>
+                              </div>
+                              <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-center">
+                                <div className="rounded-md bg-surface/70 px-1.5 py-1">
+                                  <span className="block text-[8px] font-semibold uppercase tracking-wide text-muted">
+                                    Séance
+                                  </span>
+                                  <strong className="block text-[11px] text-ink">
+                                    {formatDA(split.perSeance)}
+                                  </strong>
+                                </div>
+                                <div className="rounded-md bg-surface/70 px-1.5 py-1">
+                                  <span className="block text-[8px] font-semibold uppercase tracking-wide text-muted">
+                                    Part club
+                                  </span>
+                                  <strong className="block text-[11px] text-primary">
+                                    {formatDA(split.club)}
+                                  </strong>
+                                </div>
+                                <div className="rounded-md bg-surface/70 px-1.5 py-1">
+                                  <span className="block text-[8px] font-semibold uppercase tracking-wide text-muted">
+                                    Part entraîneur
+                                  </span>
+                                  <strong className="block text-[11px] text-accent-ink">
+                                    {formatDA(split.trainer)}
+                                  </strong>
+                                </div>
+                              </div>
+                              <p className="mt-1 text-[8.5px] leading-snug text-muted">
+                                Carte de <strong className="text-ink">{split.size}</strong> séances ·
+                                la famille verse <strong className="text-ink">{formatDA(split.perSeance)}</strong>{" "}
+                                par séance ; présences, soldes et paie en découlent.
+                              </p>
+                            </div>
+                          );
+                        })()}
+
                         <div className="mt-2 flex flex-wrap items-end gap-2">
                           {offered ? (
                             <span className="text-[10px] font-semibold text-success">
@@ -1714,34 +1975,111 @@ function StudentFiche({
                             Il est distinct de la cotisation : c'est le frais d'entrée
                             du groupe (tenue, équipement, assurance), et il ne se paie
                             qu'une fois. */}
-                        {!offered && engagementFeeOf(subId) > 0 && !engagementAlreadyCharged(subId) && (
+                        {!offered && engagementBaseFeeOf(subId) > 0 && !engagementAlreadyCharged(subId) && (
                           <div
                             className={`mt-2 rounded-lg border px-2.5 py-2 ${
-                              engagementChecked(subId)
-                                ? "border-success/45 bg-success/10"
-                                : "border-warning/45 bg-warning/10"
+                              engagementWaivedOf(subId)
+                                ? "border-line bg-canvas/50"
+                                : engagementChecked(subId)
+                                  ? "border-success/45 bg-success/10"
+                                  : "border-warning/45 bg-warning/10"
                             }`}
                           >
-                            <label className="flex cursor-pointer items-start gap-2">
-                              <input
-                                type="checkbox"
-                                checked={engagementChecked(subId)}
-                                onChange={() => toggleEngagement(subId)}
-                                className="mt-0.5 h-4 w-4 shrink-0"
-                              />
-                              <span className="min-w-0">
-                                <strong className="flex items-center gap-1 text-[11px] text-ink">
-                                  <ShieldCheck className="h-3 w-3 text-accent-ink" />
-                                  Engagement payé — {formatDA(engagementFeeOf(subId))}
-                                </strong>
-                                <span className="block text-[9px] leading-relaxed text-muted">
-                                  {subscriptions.find((x) => x.id === subId)?.engagementDescription ||
-                                    "Le frais d'entrée de ce créneau : tenue, équipement, assurance du groupe."}
+                            {/* ACTIVER / DÉSACTIVER l'engagement à la création : un
+                                geste commercial, ou un chevalier déjà équipé. */}
+                            <label className="flex cursor-pointer items-center justify-between gap-2 border-b border-line/60 pb-1.5">
+                              <span className="flex items-center gap-1 text-[11px] font-semibold text-ink">
+                                <ShieldCheck className="h-3 w-3 text-accent-ink" />
+                                Engagement de ce créneau
+                              </span>
+                              <span className="flex items-center gap-1.5 text-[10px] font-bold">
+                                <span className={engagementWaivedOf(subId) ? "text-muted" : "text-success"}>
+                                  {engagementWaivedOf(subId) ? "Désactivé" : "Actif"}
                                 </span>
+                                <input
+                                  type="checkbox"
+                                  checked={!engagementWaivedOf(subId)}
+                                  onChange={() => toggleEngagementWaived(subId)}
+                                  className="h-4 w-4 shrink-0"
+                                />
                               </span>
                             </label>
 
-                            {engagementChecked(subId) && (
+                            {engagementWaivedOf(subId) ? (
+                              <p className="mt-1.5 text-[9px] leading-relaxed text-muted">
+                                Engagement <strong className="text-ink">non réclamé</strong> à ce
+                                chevalier : aucun frais d&apos;entrée n&apos;est porté à sa fiche
+                                pour cet emploi du temps.
+                              </p>
+                            ) : (
+                              <>
+                                {/* MONTANT de l'engagement — modifiable (réduction sur
+                                    le frais d'entrée lui-même). */}
+                                <div className="mt-2 flex flex-wrap items-end gap-2">
+                                  <div>
+                                    <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
+                                      Montant de l&apos;engagement (DA)
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      max={engagementBaseFeeOf(subId)}
+                                      value={engagementTotal[subId] ?? engagementBaseFeeOf(subId)}
+                                      onChange={(e) =>
+                                        setEngagementTotal({
+                                          ...engagementTotal,
+                                          [subId]: Math.max(0, Number(e.target.value) || 0),
+                                        })
+                                      }
+                                      className="w-32"
+                                    />
+                                  </div>
+                                  {engagementFeeOf(subId) < engagementBaseFeeOf(subId) && (
+                                    <span className="pb-2 text-[10px] text-muted">
+                                      Tarif plein{" "}
+                                      <span className="line-through">
+                                        {formatDA(engagementBaseFeeOf(subId))}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {engagementTotal[subId] != null && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEngagementTotal((prev) => {
+                                          const next = { ...prev };
+                                          delete next[subId];
+                                          return next;
+                                        })
+                                      }
+                                      className="pb-2 text-[10px] font-bold text-muted hover:underline"
+                                    >
+                                      Rétablir
+                                    </button>
+                                  )}
+                                </div>
+
+                                <label className="mt-2 flex cursor-pointer items-start gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={engagementChecked(subId)}
+                                    onChange={() => toggleEngagement(subId)}
+                                    className="mt-0.5 h-4 w-4 shrink-0"
+                                  />
+                                  <span className="min-w-0">
+                                    <strong className="flex items-center gap-1 text-[11px] text-ink">
+                                      Engagement payé — {formatDA(engagementFeeOf(subId))}
+                                    </strong>
+                                    <span className="block text-[9px] leading-relaxed text-muted">
+                                      {subscriptions.find((x) => x.id === subId)?.engagementDescription ||
+                                        "Le frais d'entrée de ce créneau : tenue, équipement, assurance du groupe."}
+                                    </span>
+                                  </span>
+                                </label>
+                              </>
+                            )}
+
+                            {!engagementWaivedOf(subId) && engagementChecked(subId) && (
                               <div className="mt-2 flex flex-wrap items-end gap-2">
                                 <div>
                                   <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-muted">
@@ -1791,7 +2129,7 @@ function StudentFiche({
                               </div>
                             )}
 
-                            {!engagementChecked(subId) && (
+                            {!engagementWaivedOf(subId) && !engagementChecked(subId) && (
                               <p className="mt-1 text-[9px] font-semibold text-warning">
                                 Non coché : les {formatDA(engagementFeeOf(subId))} partent en dette
                                 sur sa fiche, et l&apos;alerte le rappellera à chaque passage.

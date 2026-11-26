@@ -853,16 +853,54 @@ export function caseReductionCut(
   student: Student | undefined,
   side: "school" | "teacher",
   part: number,
+  sub?: Subscription,
 ): number {
   const base = positiveMoney(part || 0);
   if (!student || student.studentCase !== "reduction" || base <= 0) return 0;
   const red = student.caseReduction;
   if (!red) return 0;
+
+  // --- RÉDUCTION PAR CARTE : la famille paie un total de carte fixé à la main.
+  //     Club et entraîneur se partagent ce total au prorata de leur part
+  //     normale ; le « cut » de chaque côté est ce qu'il abandonne par séance. ---
+  const carteTotal = carteReductionTotalOf(student, sub);
+  if (carteTotal != null && sub) {
+    const size = Math.max(1, cycleSizeOf(sub));
+    const schoolCarte = schoolMonthShareOf(sub);
+    const teacherCarte = teacherMonthShareOf(sub);
+    const splittable = schoolCarte + teacherCarte;
+    // On ne fait jamais payer PLUS que le tarif ordinaire : au-delà, aucune remise.
+    const total = splittable > 0 ? Math.min(carteTotal, splittable) : carteTotal;
+    const sideCarte = side === "school" ? schoolCarte : teacherCarte;
+    const newSideTotal =
+      splittable > 0 ? money(total * (sideCarte / splittable)) : side === "school" ? total : 0;
+    const newSidePerSeance = money(newSideTotal / size);
+    return Math.min(base, positiveMoney(base - newSidePerSeance));
+  }
+
   const value = Math.max(0, side === "school" ? red.schoolValue || 0 : red.teacherValue || 0);
   if (value <= 0) return 0;
   const cut =
     red.type === "percent" ? money((base * Math.min(value, 100)) / 100) : money(value);
   return Math.min(base, cut);
+}
+
+/**
+ * LE TOTAL DE CARTE FIXÉ À LA MAIN pour un « cas réduction PAR CARTE », sur un
+ * emploi du temps donné. Absent tant que le mode « par carte » n'est pas choisi,
+ * ou qu'aucun total n'a été saisi pour cet emploi : on retombe alors sur la
+ * remise par séance ou sur le tarif ordinaire.
+ */
+export function carteReductionTotalOf(
+  student: Student | undefined,
+  sub?: Subscription,
+): number | undefined {
+  if (!student || student.studentCase !== "reduction" || !sub) return undefined;
+  const red = student.caseReduction;
+  if (!red || red.mode !== "carte") return undefined;
+  const raw = red.carteTotals?.[sub.id];
+  if (raw == null) return undefined;
+  return positiveMoney(raw);
 }
 
 /**
@@ -873,7 +911,7 @@ export function studentSchoolPerSeance(student: Student | undefined, sub?: Subsc
   // Un emploi du temps offert ne rapporte rien au club non plus.
   if (isFreeSub(student, sub?.id)) return 0;
   const part = schoolPerSeanceOf(sub);
-  return positiveMoney(part - caseReductionCut(student, "school", part));
+  return positiveMoney(part - caseReductionCut(student, "school", part, sub));
 }
 
 // ---- « Club seule » : l'option se coche EMPLOI DU TEMPS PAR EMPLOI DU TEMPS
@@ -928,7 +966,7 @@ export function studentTeacherPerSeance(
   if (isFreeSub(student, sub.id)) return 0;
   if (isSchoolOnlySub(student, sub.id, teacherId)) return 0;
   const part = teacherSeanceShareOf(sub);
-  return positiveMoney(part - caseReductionCut(student, "teacher", part));
+  return positiveMoney(part - caseReductionCut(student, "teacher", part, sub));
 }
 
 /**

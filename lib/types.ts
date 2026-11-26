@@ -1086,6 +1086,26 @@ export interface CaseReduction {
   schoolValue: number;
   /** the teacher's part of the reduction */
   teacherValue: number;
+  /**
+   * COMMENT LA RÉDUCTION SE DÉCIDE :
+   *  - `seance` (défaut) : une remise sur la part club et/ou la part entraîneur
+   *    de CHAQUE séance, exactement comme avant (`schoolValue`/`teacherValue`).
+   *  - `carte` : la famille paie un TOTAL DE CARTE fixé à la main, emploi par
+   *    emploi (voir `carteTotals`). La part du club et la part de l'entraîneur
+   *    s'y recalculent toutes seules, au prorata de leur part d'origine, et le
+   *    prix d'une séance en découle (total ÷ séances de la carte).
+   *
+   * ABSENT = `seance`, pour que les fiches déjà en base gardent leur sens.
+   */
+  mode?: "seance" | "carte";
+  /**
+   * RÉDUCTION PAR CARTE — le nouveau prix TOTAL d'une carte, emploi du temps
+   * par emploi du temps (clé = id de l'abonnement). C'est ce que la famille
+   * verse pour une carte entière ; club et entraîneur s'y partagent ce total au
+   * prorata de leur part normale. Un emploi absent de la table garde son tarif
+   * ordinaire.
+   */
+  carteTotals?: Record<string, number>;
 }
 
 export interface Student extends Authored {
