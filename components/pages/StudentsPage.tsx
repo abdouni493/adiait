@@ -12,7 +12,7 @@ import { Input, Select } from "@/components/ui/SearchInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AccountRequestsPanel, usePendingRequests } from "@/components/accounts/AccountRequests";
 import { AssignFormationModal } from "@/components/students/AssignFormationModal";
-import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, Landmark, Megaphone, MessageCircle, MoreVertical, MoveRight, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Shield, ShieldCheck, Swords, Trash2, User, Wallet } from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, CheckCircle, Edit, Eye, History, Landmark, Megaphone, MessageCircle, MoreVertical, MoveRight, Plus, Printer, Receipt, Repeat, Scan, Search, Send, Shield, ShieldCheck, Swords, Trash2, User, Wallet, X } from "lucide-react";
 import type {
   AbsencePenalty,
   AttendanceRecord,
@@ -1767,30 +1767,43 @@ export function StudentsPage() {
           const engagementDue = studentEngagementDebt(db, stu.id);
           const number = registrationNumberOf(db, stu);
           const caseLabel = studentCaseLabel(stu);
+          /** L'ÉTAT DE LA FICHE EN UNE COULEUR : rouge si elle doit de l'argent,
+           *  vert si tout est à jour. Elle colore le liseré, l'avatar et l'ombre. */
+          const hasDebt = debt > 0 || chargeDue > 0 || engagementDue > 0;
 
           return (
             <Card
               key={stu.id}
-              className={`relative overflow-visible ${
-                debt > 0 || chargeDue > 0
-                  ? "border-2 border-danger/60 shadow-[0_0_0_3px_rgba(239,68,68,0.08)]"
-                  : ""
+              className={`group relative overflow-visible rounded-2xl transition-all duration-200 hover:-translate-y-0.5 ${
+                hasDebt
+                  ? "border border-danger/50 shadow-[0_6px_20px_-8px_rgba(239,68,68,0.35)] hover:shadow-[0_10px_28px_-8px_rgba(239,68,68,0.45)]"
+                  : "border border-line shadow-[0_4px_16px_-10px_rgba(15,23,42,0.35)] hover:border-primary/40 hover:shadow-[0_10px_28px_-10px_rgba(37,99,235,0.35)]"
               }`}
             >
-              <CardBody className="flex flex-col justify-between h-64 relative">
+              {/* Le liseré d'état, en haut de la carte. */}
+              <span
+                aria-hidden
+                className={`absolute inset-x-0 top-0 h-1 rounded-t-2xl ${
+                  hasDebt ? "bg-gradient-to-r from-danger to-rose-400" : "bg-gradient-accent"
+                }`}
+              />
+              <CardBody className="flex flex-col justify-between h-64 relative pt-3.5">
                 {/* Overlay Action Buttons displayed ABOVE the card when three dots are clicked */}
                 {isOverlaid && (
-                  <div className="absolute inset-0 z-20 flex flex-col rounded-2xl bg-primary-600/95 text-white backdrop-blur-sm">
+                  <div className="absolute inset-0 z-20 flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-primary-700 via-primary-600 to-primary-700 text-white shadow-2xl">
                     {/* Header stays put while the actions scroll under it */}
-                    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/20 px-3 py-2">
-                      <span className="truncate text-xs font-bold">
-                        {stu.firstName} {stu.lastName}
+                    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/15 bg-white/10 px-3 py-2 backdrop-blur-sm">
+                      <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold">
+                        <User className="h-3.5 w-3.5 shrink-0 opacity-80" />
+                        <span className="truncate">
+                          {stu.firstName} {stu.lastName}
+                        </span>
                       </span>
                       <button
                         onClick={() => setOverlayStudentId(null)}
-                        className="shrink-0 rounded-lg bg-white/15 px-2 py-0.5 text-[10px] font-semibold hover:bg-white/25"
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2 py-1 text-[10px] font-semibold transition-colors hover:bg-white/30"
                       >
-                        Fermer
+                        <X className="h-3 w-3" /> Fermer
                       </button>
                     </div>
 
@@ -1799,7 +1812,7 @@ export function StudentsPage() {
                           are consulted, alerted on and recharged from here. */}
                       {can("pay") && (
                       <div>
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                        <span className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white/70 before:h-2.5 before:w-0.5 before:rounded-full before:bg-white/50">
                           Paiement
                         </span>
                         <button
@@ -1833,7 +1846,7 @@ export function StudentsPage() {
                           plus : ici il fait le voyage avec lui. */}
                       {can("edit") && stu.subscriptionIds.length > 0 && (
                         <div>
-                          <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                          <span className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white/70 before:h-2.5 before:w-0.5 before:rounded-full before:bg-white/50">
                             Groupe
                           </span>
                           <button
@@ -1857,7 +1870,7 @@ export function StudentsPage() {
                           au même endroit. */}
                       {can("charges") && (
                       <div>
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                        <span className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white/70 before:h-2.5 before:w-0.5 before:rounded-full before:bg-white/50">
                           Dettes &amp; frais divers
                         </span>
                         <div className="grid grid-cols-2 gap-1.5 text-[11px]">
@@ -1888,7 +1901,7 @@ export function StudentsPage() {
                           sa dette jusqu'à ce qu'il passe. */}
                       {can("charges") && (
                       <div>
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                        <span className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white/70 before:h-2.5 before:w-0.5 before:rounded-full before:bg-white/50">
                           Formations &amp; évènements
                         </span>
                         <button
@@ -1915,7 +1928,7 @@ export function StudentsPage() {
 
                       {/* Fiche */}
                       <div>
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                        <span className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white/70 before:h-2.5 before:w-0.5 before:rounded-full before:bg-white/50">
                           Fiche chevalier
                         </span>
                         <div className="grid grid-cols-2 gap-1.5 text-[11px]">
@@ -1958,7 +1971,7 @@ export function StudentsPage() {
                           sur une fiche en dette. */}
                       {can("whatsapp") && (
                       <div>
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/60">
+                        <span className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white/70 before:h-2.5 before:w-0.5 before:rounded-full before:bg-white/50">
                           Contact
                         </span>
                         {/* UN SEUL BOUTON : le chevalier et son parent sont
@@ -2005,31 +2018,38 @@ export function StudentsPage() {
                 )}
 
                 <div>
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => openDetails(stu)}
                       title="Voir la fiche du chevalier"
-                      className="flex items-center gap-2 text-start rounded-xl hover:bg-primary-50/60 transition-colors p-0.5 -m-0.5"
+                      className="flex min-w-0 items-center gap-2.5 text-start rounded-xl hover:bg-primary-50/60 transition-colors p-0.5 -m-0.5"
                     >
-                      <div className="h-10 w-10 shrink-0 bg-primary/10 rounded-xl flex flex-col items-center justify-center font-bold text-primary leading-none">
-                        <span className="text-[8px] font-semibold uppercase tracking-wide text-primary/70">
+                      <div
+                        className={`relative h-11 w-11 shrink-0 rounded-xl flex flex-col items-center justify-center font-bold leading-none text-white shadow-sm ${
+                          hasDebt ? "bg-gradient-to-br from-danger to-rose-500" : "bg-gradient-accent"
+                        }`}
+                      >
+                        <span className="text-[7px] font-semibold uppercase tracking-wide opacity-80">
                           N°
                         </span>
-                        <span className="font-mono text-[10px]">{number}</span>
+                        <span className="font-mono text-[11px]">{number}</span>
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-ink hover:text-primary transition-colors">
+                        <h4 className="truncate text-sm font-bold text-ink transition-colors group-hover:text-primary">
                           {stu.firstName} {stu.lastName}
                         </h4>
-                        <span className="block text-[10px] text-muted">{stu.phone || "—"}</span>
-                        {stu.phone2 && (
-                          <span className="block text-[10px] text-muted">
-                            2<sup>e</sup> : {stu.phone2}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1 text-[10px] text-muted">
+                          <MessageCircle className="h-2.5 w-2.5 opacity-60" />
+                          {stu.phone || "—"}
+                          {stu.phone2 ? (
+                            <span className="text-muted/70">
+                              · 2<sup>e</sup> {stu.phone2}
+                            </span>
+                          ) : null}
+                        </span>
                         {caseLabel && (
-                          <Badge tone={studentCaseTone(stu)} className="mt-0.5 text-[9px]">
+                          <Badge tone={studentCaseTone(stu)} className="mt-1 text-[9px]">
                             {caseLabel}
                           </Badge>
                         )}
@@ -2038,7 +2058,8 @@ export function StudentsPage() {
 
                     <button
                       onClick={() => setOverlayStudentId(stu.id)}
-                      className="p-1 rounded-lg hover:bg-primary-50 text-muted hover:text-ink transition-colors"
+                      title="Actions"
+                      className="shrink-0 rounded-lg border border-line bg-surface p-1 text-muted transition-colors hover:border-primary/40 hover:bg-primary-50 hover:text-primary"
                     >
                       <MoreVertical className="h-5 w-5" />
                     </button>
@@ -2138,14 +2159,15 @@ export function StudentsPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-line pt-2 mt-2">
-                  <span className="text-[10px] text-muted block mb-1">
-                    Emplois du temps ({stu.subscriptionIds.length}) :
+                <div className="mt-2 border-t border-line pt-2">
+                  <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    <BookOpen className="h-3 w-3 opacity-60" />
+                    Emplois du temps ({stu.subscriptionIds.length})
                   </span>
                   {stu.subscriptionIds.length === 0 ? (
-                    <span className="text-[10px] text-muted italic">Non inscrit</span>
+                    <span className="text-[10px] italic text-muted">Non inscrit</span>
                   ) : (
-                    <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                    <div className="flex max-h-16 flex-wrap gap-1 overflow-y-auto">
                       {stu.subscriptionIds.map((id) => {
                         const sub = subscriptions.find((x) => x.id === id);
                         const sold = soldFor(db, stu.id, id);

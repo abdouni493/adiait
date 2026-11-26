@@ -586,6 +586,13 @@ interface DataActions {
     studentId: string,
     subscriptionIds: string[],
     date?: string,
+    /**
+     * RÉGLAGES DE L'ENGAGEMENT À LA CRÉATION, emploi par emploi :
+     *  - `null` = engagement DÉSACTIVÉ pour cet emploi (aucun frais porté),
+     *  - un nombre = engagement RÉDUIT à ce montant (au lieu du tarif du créneau),
+     *  - absent = le tarif d'engagement ordinaire du créneau.
+     */
+    overrides?: Record<string, number | null | undefined>,
   ) => Promise<{ ok: boolean; written: number; total: number }>;
   /**
    * LA FAMILLE RÈGLE UN OU PLUSIEURS FRAIS, au guichet.
@@ -1472,7 +1479,7 @@ function teacherDueFor(
   // La moitié « entraîneur » de la remise, calculée par le MÊME helper que
   // celui qui l'affiche sur la paie et qui la retire du prix du chevalier : les
   // deux côtés du partage ne peuvent donc pas diverger.
-  return positiveMoney(gross - caseReductionCut(student, "teacher", gross));
+  return positiveMoney(gross - caseReductionCut(student, "teacher", gross, sub));
 }
 
 function teacherShare(db: Database, teacherId: string | undefined, base: number): number {
@@ -2447,7 +2454,7 @@ export const useData = create<DataStore>((set, get) => ({
    * Corriger un frais NE TOUCHE PAS ce qui a déjà été versé dessus : baisser le
    * montant sous ce qui est encaissé le solde simplement, et l'alerte s'éteint.
    */
-  applyEngagementCharges: async (studentId, subscriptionIds, date) => {
+  applyEngagementCharges: async (studentId, subscriptionIds, date, overrides) => {
     const db = get();
     if (!db.students.some((s) => s.id === studentId)) return { ok: false, written: 0, total: 0 };
 
@@ -2457,7 +2464,14 @@ export const useData = create<DataStore>((set, get) => ({
 
     for (const subId of [...new Set(subscriptionIds)]) {
       const sub = db.subscriptions.find((s) => s.id === subId);
-      const fee = positiveMoney(sub?.engagementFee ?? 0);
+      const override = overrides?.[subId];
+      // Engagement DÉSACTIVÉ pour cet emploi : rien n'est porté au compte.
+      if (override === null) continue;
+      // Engagement RÉDUIT : on porte le montant choisi au lieu du tarif du créneau.
+      const fee =
+        override != null
+          ? positiveMoney(Math.min(override, sub?.engagementFee ?? override))
+          : positiveMoney(sub?.engagementFee ?? 0);
       if (!sub || fee <= 0) continue;
 
       // Déjà porté pour ce créneau : on ne le repose pas. Un chevalier qui
